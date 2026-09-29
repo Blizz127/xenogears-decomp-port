@@ -1,0 +1,78 @@
+--- a/src/render/PsyX_render.cpp
++++ b/src/render/PsyX_render.cpp
+@@ -2005,34 +2005,47 @@
+ 	static GLuint decodedTexture = 0;
+ 	if (w <= 0 || h <= 0 || w > VRAM_WIDTH || h > VRAM_HEIGHT)
+ 		return;
+-	u_int* pixels = (u_int*)malloc((size_t)w * h * sizeof(*pixels));
+-	if (!pixels)
+-		return;
+-	for (int row = 0; row < h; ++row)
+-		for (int col = 0; col < w; ++col)
+-		{
+-			unsigned short p = vram[((y + row) & (VRAM_HEIGHT - 1)) * VRAM_WIDTH +
+-			                         ((x + col) & (VRAM_WIDTH - 1))];
+-			u_int r = (p & 31) * 255 / 31;
+-			u_int g = ((p >> 5) & 31) * 255 / 31;
+-			u_int b = ((p >> 10) & 31) * 255 / 31;
+-			pixels[row * w + col] = r | (g << 8) | (b << 16) | 0xff000000u;
+-		}
+-	GR_UpdateVRAM();
+-	GLint previousTexture;
+-	glGetIntegerv(GL_TEXTURE_BINDING_2D, &previousTexture);
+-	if (!decodedTexture)
+-		glGenTextures(1, &decodedTexture);
+-	glBindTexture(GL_TEXTURE_2D, decodedTexture);
+-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+-	free(pixels);
+-	glBindTexture(GL_TEXTURE_2D, previousTexture);
+-	glBindFramebuffer(GL_READ_FRAMEBUFFER, g_glBlitFramebuffer);
+-	glFramebufferTexture2D(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, decodedTexture, 0);
+-	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+-	glBlitFramebuffer(0, 0, w, h,
+-	                  0, g_windowHeight, g_windowWidth, 0,
+-	                  GL_COLOR_BUFFER_BIT, GL_NEAREST);
++	/* _xeno_fb_materialize_rect: invert the draw-clip capture mapping;
++	 * a partial VRAM restore is not a full-screen background replacement. */
++	const RECT16& clip = activeDrawEnv.clip;
++	if (clip.w <= 0 || clip.h <= 0)
++		return;
++	const int left = (x - clip.x) * g_windowWidth / clip.w;
++	const int right = (x + w - clip.x) * g_windowWidth / clip.w;
++	const int top = g_windowHeight - (y - clip.y) * g_windowHeight / clip.h;
++	const int bottom = g_windowHeight - (y + h - clip.y) * g_windowHeight / clip.h;
++	u_int* pixels = (u_int*)malloc((size_t)w * h * sizeof(*pixels));
++	if (!pixels)
++		return;
++	for (int row = 0; row < h; ++row)
++		for (int col = 0; col < w; ++col)
++		{
++			unsigned short p = vram[((y + row) & (VRAM_HEIGHT - 1)) * VRAM_WIDTH +
++			                         ((x + col) & (VRAM_WIDTH - 1))];
++			u_int r = (p & 31) * 255 / 31;
++			u_int g = ((p >> 5) & 31) * 255 / 31;
++			u_int b = ((p >> 10) & 31) * 255 / 31;
++			pixels[row * w + col] = r | (g << 8) | (b << 16) | 0xff000000u;
++		}
++	GR_UpdateVRAM();
++	GLint previousTexture;
++	glGetIntegerv(GL_TEXTURE_BINDING_2D, &previousTexture);
++	if (!decodedTexture)
++		glGenTextures(1, &decodedTexture);
++	glBindTexture(GL_TEXTURE_2D, decodedTexture);
++	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
++	free(pixels);
++	glBindTexture(GL_TEXTURE_2D, previousTexture);
++	glBindFramebuffer(GL_READ_FRAMEBUFFER, g_glBlitFramebuffer);
++	glFramebufferTexture2D(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, decodedTexture, 0);
++	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
++	const GLboolean scissorEnabled = glIsEnabled(GL_SCISSOR_TEST);
++	glDisable(GL_SCISSOR_TEST); /* VRAM copies do not use polygon scissors. */
++	glBlitFramebuffer(0, 0, w, h,
++	                  left, top, right, bottom,
++	                  GL_COLOR_BUFFER_BIT, GL_NEAREST);
++	if (scissorEnabled)
++		glEnable(GL_SCISSOR_TEST);
+ 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+ #endif
+ }

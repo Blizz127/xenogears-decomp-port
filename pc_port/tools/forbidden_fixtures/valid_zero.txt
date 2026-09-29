@@ -1,0 +1,7 @@
+W18I_DONE stable=120 ft4=1 htr=1 rand=1
+W18I_FORBIDDEN_SUMMARY_BEGIN
+required=712d0,74e58
+target label=712d0 status=ZERO_VERIFIED registered=1 hits=0 method=native_symbol_bp reason=none
+target label=74e58 status=ZERO_VERIFIED registered=1 hits=0 method=native_route_counter reason=none
+W18I_FORBIDDEN_SUMMARY_END
+W18I_FORBIDDEN_VERDICT verdict=PASS exit=0 required_problems=none zero_verified=2 hit=0 not_instrumented=0 instrumentation_error=0

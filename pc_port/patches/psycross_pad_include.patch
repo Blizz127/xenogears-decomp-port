@@ -1,0 +1,13 @@
+diff --git a/src/pad/PsyX_pad.cpp b/src/pad/PsyX_pad.cpp
+old mode 100644
+new mode 100755
+--- a/src/pad/PsyX_pad.cpp
++++ b/src/pad/PsyX_pad.cpp
+@@ -6,5 +6,6 @@
+ #include "PsyX/PsyX_public.h"
+ 
+ #include <string.h>
++#include <stdlib.h> /* _xeno_pad_stdlib */
+ 
+ extern "C"
+ {

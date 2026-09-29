@@ -1,0 +1,11 @@
+// Battle overlay (archive directory 0x01, file 0x10), decompressed from
+// the retail disc.  State 2 is entered by main-exe func_8001B6C4, which
+// calls this overlay entry after graphics and font initialization.
+// Retail g_MainGameStates[2] supplies the state-memory contract:
+//   pMemStart 0x800C3A6C
+//   pHeapStart 0x800D39F0
+//   hasOverlay 1
+func_80070E2C = 0x80070E2C; // type:func
+func_80070EB0 = 0x80070EB0; // type:func
+func_80070EDC = 0x80070EDC; // type:func
+func_80070F40 = 0x80070F40; // type:func

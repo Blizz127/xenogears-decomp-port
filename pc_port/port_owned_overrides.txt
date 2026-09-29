@@ -1,0 +1,27 @@
+# Strong port-owned fallbacks. Each row is symbol|reason|exit condition.
+# Remove a row, then remove its port fallback, when the exit condition is met;
+# the build validates that every remaining row has explicit retirement data.
+func_8001AADC|Matching reset writes D_8004F380/37C/378 to -1 and globally skips field actors|Retire only after the matching reset is port-safe, leaves the field actor gates at 0, and Map0 and Map1 smoke pass with the matching owner
+func_8003BDFC|Sound transfer polling must use the host queue and avoid a retail busy-wait on unmapped state|Retire when the matching sound transfer state is host-backed and the sound cold-init proof passes
+FieldScriptMemoryWriteU16|Field VM writes must target the host PSX memory mapping rather than a retail absolute pointer|Retire when the matching VM runs against the host memory map with Map0 and Map1 script smoke green
+func_800317E0|OT insertion must mask host primitive pointers to PSX 24-bit links|Retire when matching OT insertion is host-safe and worldmap and field OT diagnostics agree
+func_80031804|OT insertion must mask host primitive pointers to PSX 24-bit links|Retire when matching OT insertion is host-safe and worldmap and field OT diagnostics agree
+func_8001FB30|Image-upload trampoline must use the native heap and host VRAM upload path|Retire when the matching upload chain is host-safe and texture upload smoke passes
+func_80025718|Child-sprite render callback needs host pointer-width and GTE/renderer plumbing|Retire when matching child-sprite rendering is host-safe and actor texture smoke passes
+func_800257F0|Animation render callback 15 needs host pointer-width, long geom-offset locals and the native indexed-primitive renderer|Retire when the matching owner is host-safe and index-15 healing-effect render parity is proven
+func_80025A88|Sibling animation render callback needs host pointer-width and the native indexed-primitive renderer|Retire when the matching owner is host-safe and sibling animation render parity is proven
+func_80023440|Sprite type decode is retained in the port while matching animation-script ownership is incomplete|Retire when the matching animation-script path is production-linked and its type mutants pass
+func_80023958|Child-sprite transform allocation writes host pointers into the port sprite layout|Retire when matching child-sprite allocation uses the host sprite layout and render smoke passes
+func_800239F4|Mode-1 child-sprite transform allocation writes host pointers into the port sprite layout|Retire when matching mode-1 allocation uses the host sprite layout and render smoke passes
+func_80023A48|Child-sprite allocation depends on port work-list and heap ownership|Retire when matching allocation uses the port work-list/heap contracts and child render smoke passes
+func_80022E8C|Type-7 sprite ticking must use the port timer/work-list callbacks|Retire when matching type-7 ticking is linked to host callbacks and tick smoke passes
+func_80022EB8|Sprite task free callback must unlink port work lists and free host allocations|Retire when matching task teardown is host-safe and allocation/free stress smoke passes
+func_8002CC10|Matching temp2.c body is decompiled, but native execution must use host PsyCross TPage state|Retire when the matching implementation can own the host TPage state and texture-page smoke passes
+func_8002C59C|Model blob relocation must use host-width pointers and the port sprite model layout|Retire when matching model relocation is host-safe and model-load smoke passes
+
+func_80025224|Native callback-table lookup must keep the port logging shim (missing-callback diagnostics for the animation render path) until the matching table placement is retail-correct|Retire when D_8004FD40 is placed at its retail address and the animation-render callback smoke passes with the matching owner
+
+func_80024730|Native animation-state dispatch keeps the port shim (host sprite/animation state + logging) until the matching owner is port-safe|Retire when the matching dispatch can own the host animation state and the field actor/animation smoke passes with it
+func_80023468|Native type dispatch keeps the port mapping for host sprite types|Retire when the matching dispatch table is retail-placed and the sprite-type smoke passes with it
+func_8002DDE4|Native image-sequence upload keeps the port host-pointer image walk and VRAM upload path|Retire when the matching uploader runs against the host memory map and the image-sequence smoke passes
+func_80023B84|Child-sprite opcode-0xE0 spawn writes host pointers into the port sprite layout|Retire when matching func_80023B84 is host-safe and child-sprite spawn smoke passes with the matching owner

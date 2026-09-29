@@ -1,0 +1,428 @@
+diff --git a/include/psx/libspu.h b/include/psx/libspu.h
+index 4014a0e..0e04066 100644
+--- a/include/psx/libspu.h
++++ b/include/psx/libspu.h
+@@ -435,7 +435,10 @@ extern void SpuGetVoiceADSRAttr (int vNum,
+ 				 unsigned short *SR, unsigned short *RR,
+ 				 unsigned short *SL,
+                  int *ARmode, int *SRmode, int *RRmode);
+-extern void SpuGetVoiceEnvelopeAttr (int vNum, int *keyStat, short *envx );
++/* _xeno_sound_adsr: keyStat widened to long* -- the retail decomp's psyq
++ * header (the caller's prototype) declares long*, and the boundary must
++ * match exactly on LP64. */
++extern void SpuGetVoiceEnvelopeAttr (int vNum, long *keyStat, short *envx );
+ 
+ extern void SpuSetCommonMasterVolume (short mvol_left, short mvol_right);
+ extern void SpuSetCommonMasterVolumeAttr (short mvol_left, short mvol_right,
+diff --git a/src/audio/PsyX_SPUAL.cpp b/src/audio/PsyX_SPUAL.cpp
+index 940c8bf..eadf09f 100644
+--- a/src/audio/PsyX_SPUAL.cpp
++++ b/src/audio/PsyX_SPUAL.cpp
+@@ -15,7 +15,7 @@
+ #include <AL/efx.h>
+ #endif
+ 
+-// TODO: implement XA, implement ADSR
++// TODO: implement XA
+ 
+ static const char* getALCErrorString(int err)
+ {
+@@ -73,6 +73,27 @@ static SDL_mutex* g_SpuMutex = NULL;
+ static int g_spuInit = 0;
+ static int s_spuMallocVal = 0;
+ 
++/* _xeno_sound_adsr: per-voice hardware ADSR envelope state. The generator is
++ * a direct transcription of psx-spx "Envelope Operation depending on
++ * Shift/Step/Mode/Direction" (44100Hz counter machine) -- see
++ * AdsrAdvanceCycle. Kept as its own struct so the unit-test surface
++ * (PsyX_SPUAL_AdsrDebugCycle) drives the exact production code. */
++enum
++{
++	ADSR_OFF = 0,
++	ADSR_ATTACK,
++	ADSR_DECAY,
++	ADSR_SUSTAIN,
++	ADSR_RELEASE,
++};
++
++typedef struct
++{
++	int phase;		// ADSR_OFF..ADSR_RELEASE
++	int level;		// 0..0x7FFF (the SPU envelope / ENVX value)
++	int counter;	// bit15-carry step counter
++} SPUALAdsrState;
++
+ typedef struct
+ {
+ 	SpuVoiceAttr attr;	// .voice is Id of this channel
+@@ -81,8 +102,149 @@ typedef struct
+ 	ALuint alSource;
+ 	ushort sampledirty;
+ 	ushort reverb;
++
++	/* _xeno_sound_adsr: envelope state + composed-gain bookkeeping. baseGain
++	 * is the VOLL/VOLR-derived source gain; the single composed AL_GAIN
++	 * writer is ApplyVoiceComposedGain (base * level/7FFFh). */
++	SPUALAdsrState env;
++	float baseGain;
++	float lastGain;
+ } SPUALVoice;
+ 
++/* _xeno_sound_adsr: advance one 44100Hz envelope cycle. Faithful to the
++ * psx-spx pseudocode: AdsrStep=(7-step)<<max(0,11-shift) (NOT'ed for
++ * decrease: -(8-step)<<sh, written that way because left-shifting a negative
++ * is UB in C), CounterIncrement=8000h>>max(0,shift-11), a step applies when
++ * the counter carries bit15 (then clears). Exponential increase is the
++ * documented fake (slower linear above 6000h); exponential decrease scales
++ * the step by level/8000h via >>15 (floor, not truncation -- keeps negative
++ * steps <= -1 so release/decay terminate; matches hardware-verified emulator
++ * cores). Rate all-bits-set never steps (7Fh attack/sustain, 1Fh release;
++ * decay's 4-bit shift can't reach it). Shifts above 26 follow the documented
++ * formula (psx-spx notes real hardware degrades oddly there; unused by
++ * games). Rates are read live from the ADSR words every cycle, as hardware
++ * does -- mid-note register changes apply. */
++static void AdsrAdvanceCycle(SPUALAdsrState* st, ushort adsr1, ushort adsr2)
++{
++	int shift, step2, exp, dec, target;
++	int adsr_step, counter_inc, never, sh_l;
++
++	switch (st->phase)
++	{
++	case ADSR_ATTACK:
++		shift = (adsr1 >> 10) & 0x1F;
++		step2 = (adsr1 >> 8) & 3;
++		exp = (adsr1 >> 15) & 1;
++		dec = 0;
++		target = 0x7FFF;
++		break;
++	case ADSR_DECAY:
++		shift = (adsr1 >> 4) & 0xF;
++		step2 = 0;
++		exp = 1;
++		dec = 1;
++		target = ((adsr1 & 0xF) + 1) * 0x800;
++		break;
++	case ADSR_SUSTAIN:
++		shift = (adsr2 >> 8) & 0x1F;
++		step2 = (adsr2 >> 6) & 3;
++		exp = (adsr2 >> 15) & 1;
++		dec = (adsr2 >> 14) & 1;
++		target = -1;	// sustain holds/ramps until KOFF
++		break;
++	case ADSR_RELEASE:
++		shift = adsr2 & 0x1F;
++		step2 = 0;
++		exp = (adsr2 >> 5) & 1;
++		dec = 1;
++		target = 0;
++		break;
++	default:
++		return;
++	}
++
++	sh_l = 11 - shift;
++	if (sh_l < 0)
++		sh_l = 0;
++	adsr_step = dec ? -((8 - step2) << sh_l) : ((7 - step2) << sh_l);
++	counter_inc = (shift > 11) ? (0x8000 >> (shift - 11)) : 0x8000;
++
++	if (exp && !dec && st->level > 0x6000)
++	{
++		if (shift < 10)
++			adsr_step >>= 2;
++		else if (shift >= 11)
++			counter_inc >>= 2;
++		else
++		{
++			adsr_step >>= 1;
++			counter_inc >>= 1;
++		}
++	}
++	else if (exp && dec)
++	{
++		adsr_step = (adsr_step * st->level) >> 15;
++	}
++
++	if (st->phase == ADSR_ATTACK || st->phase == ADSR_SUSTAIN)
++		never = (shift == 0x1F && step2 == 3);
++	else
++		never = (shift == 0x1F);
++	if (!never && counter_inc < 1)
++		counter_inc = 1;
++
++	st->counter += counter_inc;
++	if ((st->counter & 0x8000) == 0)
++		return;
++	st->counter = 0;
++
++	st->level += adsr_step;
++	if (!dec)
++	{
++		if (st->level > 0x7FFF)
++			st->level = 0x7FFF;
++	}
++	else
++	{
++		if (st->level < 0)
++			st->level = 0;
++	}
++
++	/* Phase transitions: counter cleared on entry; the level keeps its
++	 * stepped value (decay may land below (SL+1)*800h -- no re-clamp). */
++	if (st->phase == ADSR_ATTACK && st->level >= 0x7FFF)
++	{
++		st->level = 0x7FFF;
++		st->phase = ADSR_DECAY;
++		st->counter = 0;
++	}
++	else if (st->phase == ADSR_DECAY && st->level <= target)
++	{
++		st->phase = ADSR_SUSTAIN;
++		st->counter = 0;
++	}
++	else if (st->phase == ADSR_RELEASE && st->level <= 0)
++	{
++		st->level = 0;
++		st->phase = ADSR_OFF;
++	}
++}
++
++/* _xeno_sound_adsr: THE composed-gain writer -- every AL_GAIN write for a
++ * voice goes through here (volume path and envelope tick both call it), so
++ * the two can never fight: AL_GAIN = baseGain * envelope/7FFFh, last-value
++ * suppressed. */
++static void ApplyVoiceComposedGain(SPUALVoice* voice)
++{
++	float g = voice->baseGain * (float)voice->env.level * (1.0f / 32767.0f);
++
++	if (g != voice->lastGain)
++	{
++		voice->lastGain = g;
++		alSourcef(voice->alSource, AL_GAIN, g);
++	}
++}
++
+ const int s_spuVoiceCount = 24;
+ 
+ SPUALVoice	g_SpuVoices[s_spuVoiceCount];
+@@ -181,6 +343,14 @@ int PsyX_SPUAL_InitSound()
+ 	static int al_context_params[] =
+ 	{
+ 		ALC_FREQUENCY, 44100,
++		/* _xeno_sound_adsr: ask for 240 property-update periods/sec so the
++		 * per-tick composed-gain writes (the ADSR envelope) render at tick
++		 * resolution instead of coalescing into the backend's default ~20ms
++		 * mix periods (measured: a 53ms attack knee shrank to 34ms and the
++		 * envelope crest under-rendered 14% at default periods; at tick-rate
++		 * periods the knee lands 0.1ms off the model). A hint -- device
++		 * backends may clamp it. */
++		ALC_REFRESH, 240,
+ #ifndef __EMSCRIPTEN__
+ 		ALC_MAX_AUXILIARY_SENDS, 2,
+ #endif
+@@ -252,6 +422,12 @@ int PsyX_SPUAL_InitSound()
+ 		SPUALVoice* voice = &g_SpuVoices[i];
+ 		memset(voice, 0, sizeof(SPUALVoice));
+ 
++		/* _xeno_sound_adsr: a voice that never receives VOLL/VOLR keeps the
++		 * legacy full source gain; lastGain starts impossible so the first
++		 * composed write always lands (AL's default gain is 1.0, not 0). */
++		voice->baseGain = 1.0f;
++		voice->lastGain = -1.0f;
++
+ 		alGenSources(1, &voice->alSource);
+ 		alGenBuffers(1, &voice->alBuffer);
+ #ifdef AL_SOFT_source_resampler
+@@ -677,7 +853,11 @@ void PsyX_SPUAL_SetVoiceAttr(SpuVoiceAttr* psxAttrib)
+ 			pan = 2.0f * pan - 1.0f; // convert to [-1, 1]
+ 			pan = pan * 0.5f; // 0.5 = sin(30') for a +/- 30 degree arc
+ 			alSource3f(alSource, AL_POSITION, pan * STEREO_FACTOR, 0, -sqrtf(1.0f - pan * pan));
+-			alSourcef(alSource, AL_GAIN, (left_gain+right_gain)*0.5f);
++
++			/* _xeno_sound_adsr: the volume path only stores the base gain;
++			 * the composed write (base * ADSR level) has a single owner. */
++			voice->baseGain = (left_gain + right_gain) * 0.5f;
++			ApplyVoiceComposedGain(voice);
+ 		}
+ 
+ 		// update pitch
+@@ -696,8 +876,18 @@ void PsyX_SPUAL_SetVoiceAttr(SpuVoiceAttr* psxAttrib)
+ 			const float pitch = (float)(voice->attr.pitch) / 4096.0f;
+ 			alSourcef(alSource, AL_PITCH, pitch);
+ 		}
+-		
+-		// TODO: ADSR and other stuff
++
++		/* _xeno_sound_adsr: latch the raw ADSR register words; the envelope
++		 * machine reads them live every cycle (mid-note changes apply, as on
++		 * hardware). The decomposed Psy-Q rate attrs (SPU_VOICE_ADSR_AR
++		 * family) remain unimplemented -- the game programs the raw register
++		 * words only, and a half-faithful re-packing would be silent
++		 * wrongness. */
++		if (psxAttrib->mask & SPU_VOICE_ADSR_ADSR1)
++			voice->attr.adsr1 = psxAttrib->adsr1;
++
++		if (psxAttrib->mask & SPU_VOICE_ADSR_ADSR2)
++			voice->attr.adsr2 = psxAttrib->adsr2;
+ 	}
+ 	SDL_UnlockMutex(g_SpuMutex);
+ }
+@@ -724,10 +914,33 @@ void PsyX_SPUAL_SetKey(int on_off, u_int voice_bit)
+ 			alSourceStop(alSource);
+ 			UpdateVoiceSample(voice);
+ 
++			/* _xeno_sound_adsr: KON starts the ADSR at zero (hardware
++			 * initializes the ADSR volume to 0 and enters Attack); the
++			 * source starts at composed gain 0 and the envelope tick ramps
++			 * it. */
++			voice->env.phase = ADSR_ATTACK;
++			voice->env.level = 0;
++			voice->env.counter = 0;
++			ApplyVoiceComposedGain(voice);
++
+ 			alSourcePlay(alSource);
+ 		}
++		else if (!on_off && voice->env.phase != ADSR_OFF)
++		{
++			/* _xeno_sound_adsr: KOFF = enter Release and KEEP the source
++			 * playing; the envelope tick stops it when the level reaches 0.
++			 * This is the release tail -- the legacy path was a hard
++			 * alSourceStop cut. KOFF while already releasing just restarts
++			 * the release counter (harmless; hardware re-latches too). */
++			voice->env.phase = ADSR_RELEASE;
++			voice->env.counter = 0;
++		}
+ 		else
+ 		{
++			/* Muted KON, or KOFF on a voice with no live envelope: the
++			 * legacy stop (and a dead envelope stays dead). */
++			voice->env.phase = ADSR_OFF;
++			voice->env.level = 0;
+ 			alSourceStop(alSource);
+ 		}
+ 	}
+@@ -895,4 +1108,79 @@ u_int PsyX_SPUAL_GetReverbVoice()
+ 			bits |= SPU_KEYCH(i);
+ 	}
+ 	return bits;
++}
++
++/* _xeno_sound_adsr: advance every live envelope by `cycles` 44100Hz steps
++ * (the 240Hz translator tick batches ~184, fractional-accumulated on the
++ * caller side) and apply the composed gain. A Release that reaches level 0
++ * stops the source -- the hardware voice simply falls silent; stopping the
++ * AL source retires its loop. */
++void PsyX_SPUAL_EnvelopeTick(int cycles)
++{
++	int i, c;
++
++	if (!g_spuInit)
++		return;
++
++	SDL_LockMutex(g_SpuMutex);
++	for (i = 0; i < s_spuVoiceCount; i++)
++	{
++		SPUALVoice* voice = &g_SpuVoices[i];
++
++		if (voice->alSource == AL_NONE || voice->env.phase == ADSR_OFF)
++			continue;
++
++		for (c = 0; c < cycles && voice->env.phase != ADSR_OFF; c++)
++			AdsrAdvanceCycle(&voice->env, voice->attr.adsr1, voice->attr.adsr2);
++
++		ApplyVoiceComposedGain(voice);
++
++		if (voice->env.phase == ADSR_OFF)
++			alSourceStop(voice->alSource);
++	}
++	SDL_UnlockMutex(g_SpuMutex);
++}
++
++/* _xeno_sound_adsr: live envelope readback (ENVX + Psy-Q key status). Backs
++ * LIBSPU's SpuGetVoiceEnvelope/SpuGetVoiceEnvelopeAttr -- the engine's seq
++ * cmd 0xFF frees a voice only once its envelope has fully decayed. */
++void PsyX_SPUAL_GetVoiceEnvelope(int vNum, long* keyStat, short* envx)
++{
++	int phase = ADSR_OFF;
++	int level = 0;
++
++	if (vNum >= 0 && vNum < s_spuVoiceCount)
++	{
++		phase = g_SpuVoices[vNum].env.phase;
++		level = g_SpuVoices[vNum].env.level;
++	}
++
++	if (envx)
++		*envx = (short)level;
++
++	if (keyStat)
++	{
++		if (phase == ADSR_OFF)
++			*keyStat = SPU_OFF;
++		else if (phase == ADSR_RELEASE)
++			*keyStat = (level != 0) ? SPU_OFF_ENV_ON : SPU_OFF;
++		else
++			*keyStat = (level != 0) ? SPU_ON : SPU_ON_ENV_OFF;
++	}
++}
++
++/* _xeno_sound_adsr: unit-test surface -- advance ONE 44100Hz cycle of the
++ * production envelope machine on caller-held state, so the golden-diff
++ * harness drives the exact code the runtime uses. */
++void PsyX_SPUAL_AdsrDebugCycle(u_short adsr1, u_short adsr2, int* phase, int* level, int* counter)
++{
++	SPUALAdsrState st;
++
++	st.phase = *phase;
++	st.level = *level;
++	st.counter = *counter;
++	AdsrAdvanceCycle(&st, adsr1, adsr2);
++	*phase = st.phase;
++	*level = st.level;
++	*counter = st.counter;
+ }
+\ No newline at end of file
+diff --git a/src/audio/PsyX_SPUAL.h b/src/audio/PsyX_SPUAL.h
+index 9e96e6e..dce3840 100644
+--- a/src/audio/PsyX_SPUAL.h
++++ b/src/audio/PsyX_SPUAL.h
+@@ -41,6 +41,14 @@ extern float PsyX_SPUAL_GetMasterVolume();
+ extern u_int PsyX_SPUAL_SetReverbVoice(int on_off, u_int voice_bit);
+ extern u_int PsyX_SPUAL_GetReverbVoice();
+ 
++/* _xeno_sound_adsr: hardware ADSR envelope (psx-spx counter machine).
++ * EnvelopeTick advances all live envelopes by N 44100Hz cycles and applies
++ * the composed gain; GetVoiceEnvelope reads ENVX + Psy-Q key status;
++ * AdsrDebugCycle is the unit-test surface over the production generator. */
++extern void PsyX_SPUAL_EnvelopeTick(int cycles);
++extern void PsyX_SPUAL_GetVoiceEnvelope(int vNum, long* keyStat, short* envx);
++extern void PsyX_SPUAL_AdsrDebugCycle(u_short adsr1, u_short adsr2, int* phase, int* level, int* counter);
++
+ #if defined(_LANGUAGE_C_PLUS_PLUS)||defined(__cplusplus)||defined(c_plusplus)
+ }
+ #endif
+diff --git a/src/psx/LIBSPU.C b/src/psx/LIBSPU.C
+index f027c4a..39fba69 100644
+--- a/src/psx/LIBSPU.C
++++ b/src/psx/LIBSPU.C
+@@ -339,6 +339,20 @@ void SpuGetVoiceVolume(int vNum, short* volL, short* volR)
+ 	PsyX_SPUAL_GetVoiceVolume(vNum, volL, volR);
+ }
+ 
++/* _xeno_sound_adsr: envelope readback pair, backed by the backend's ADSR
++ * generator. The engine's seq cmd 0xFF (func_8003E54C) polls
++ * SpuGetVoiceEnvelopeAttr and frees the voice only at envx==0 -- previously
++ * an auto-stub that never wrote its out-params (uninitialized branch). */
++void SpuGetVoiceEnvelope(int vNum, short* envx)
++{
++	PsyX_SPUAL_GetVoiceEnvelope(vNum, 0, envx);
++}
++
++void SpuGetVoiceEnvelopeAttr(int vNum, long* keyStat, short* envx)
++{
++	PsyX_SPUAL_GetVoiceEnvelope(vNum, keyStat, envx);
++}
++
+ void SpuGetVoicePitch(int vNum, unsigned short* pitch)
+ {
+ 	PsyX_SPUAL_GetVoicePitch(vNum, pitch);

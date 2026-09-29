@@ -1,0 +1,28 @@
+--- a/src/PsyX_main.cpp
++++ b/src/PsyX_main.cpp
+@@ -823,6 +823,13 @@
+ 
+ uint PsyX_CalcFPS();
+ 
++/* _xeno_world_capture_request: optional port-owned capture request.  A weak
++ * hook keeps standalone PsyCross users independent of the world-map port. */
++#if defined(__GNUC__)
++extern "C" void PcPort_WorldCaptureFulfillAtPresent(void)
++	__attribute__((weak));
++#endif
++
+ void PsyX_EndScene()
+ {
+ 	if (!begin_scene_flag)
+@@ -841,6 +848,11 @@
+ 
+ 	GR_SwapWindow();
+ 	
++#if defined(__GNUC__)
++	if (PcPort_WorldCaptureFulfillAtPresent != NULL)
++		PcPort_WorldCaptureFulfillAtPresent();
++#endif
++
+ 	SDL_Delay(0);
+ }
+ 

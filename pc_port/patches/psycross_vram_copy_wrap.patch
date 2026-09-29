@@ -1,0 +1,40 @@
+diff --git a/src/render/PsyX_render.cpp b/src/render/PsyX_render.cpp
+--- a/src/render/PsyX_render.cpp
++++ b/src/render/PsyX_render.cpp
+@@ -1616,10 +1616,11 @@
+ 
+ void GR_CopyRGBAFramebufferToVRAM(u_int* src, int x, int y, int w, int h, int update_vram, int flip_y)
+ {
+-	assert(x >= 0);
+-	assert(y >= 0);
+-	assert(x + w <= VRAM_WIDTH);
+-	assert(y + h <= VRAM_WIDTH);
++	/* _xeno_vram_copy_wrap: PS1 VRAM is 1024x512 and masks X/Y. Intro
++	 * DR_MOVE/StoreImage can pass a signed-negative RECT.x; the GPU wraps,
++	 * stock PsyCross asserted x>=0 and aborted. See build_port.sh. */
++	if (w <= 0 || h <= 0 || !src)
++		return;
+ 
+ 	ushort* fb = (ushort*)malloc(w * h * sizeof(ushort));
+ 	uint* data_src = (uint*)src;
+@@ -1642,17 +1643,14 @@
+ 		}
+ 	}
+ 
+-	ushort* ptr = (ushort*)vram + VRAM_WIDTH * y + x;
+-
+ 	for (int fy = 0; fy < h; fy++)
+ 	{
+ 		int py = flip_y ? (h - fy - 1) : fy;
+-		ushort* fb_ptr = fb + (h * py / h) * w;
++		ushort* fb_ptr = fb + py * w;
++		int vy = (y + fy) & (VRAM_HEIGHT - 1);
+ 
+ 		for (int fx = 0; fx < w; fx++)
+-			ptr[fx] = fb_ptr[w * fx / w];
+-
+-		ptr += VRAM_WIDTH;
++			vram[vy * VRAM_WIDTH + ((x + fx) & (VRAM_WIDTH - 1))] = fb_ptr[fx];
+ 	}
+ 
+ 	free(fb);

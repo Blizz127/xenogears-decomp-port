@@ -1,0 +1,7 @@
+W18ICTRL_FORBIDDEN_SUMMARY_BEGIN
+required=712d0
+target label=712d0 status=ZERO_VERIFIED registered=1 hits=0 method=native_symbol_bp reason=none
+target label=74e58 status=HIT registered=1 hits=1 method=native_route_counter reason=none allowed=0
+target label=vsync_multihit status=HIT registered=1 hits=137 method=native_symbol_bp reason=none
+W18ICTRL_FORBIDDEN_SUMMARY_END
+W18ICTRL_FORBIDDEN_VERDICT verdict=PASS exit=0

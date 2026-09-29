@@ -1,0 +1,99 @@
+--- a/src/PsyX_main.cpp
++++ b/src/PsyX_main.cpp
+@@ -619,7 +619,15 @@
+ 	va_end(argptr);
+ }
+ 
+ 
++/* _xeno_host_toolbar */
++static int PsyX_HostToolbarContentHeight(int windowHeight);
++static int PsyX_HostToolbarWarpY(int gameY);
++static void PsyX_HostToolbarInitialise();
++static int PsyX_HostToolbarHandleEvent(SDL_Event* event);
++static void PsyX_HostToolbarDraw();
++static void PsyX_HostToolbarShutdown();
++
+ void PsyX_Initialise(char* appName, int width, int height, int fullscreen)
+ {
+ 	char windowNameStr[128];
+@@ -659,6 +667,7 @@
+ 		PsyX_Shutdown();
+ 		return;
+ 	}
++	PsyX_HostToolbarInitialise();
+ 
+ 	if (!PsyX_Sys_InitialiseCore())
+ 	{
+@@ -686,11 +695,12 @@
+ void PsyX_GetScreenSize(int* screenWidth, int* screenHeight)
+ {
+ 	SDL_GetWindowSize(g_window, screenWidth, screenHeight);
++	*screenHeight = PsyX_HostToolbarContentHeight(*screenHeight);
+ }
+ 
+ void PsyX_SetCursorPosition(int x, int y)
+ {
+-	SDL_WarpMouseInWindow(g_window, x, y);
++	SDL_WarpMouseInWindow(g_window, x, PsyX_HostToolbarWarpY(y));
+ }
+ 
+ extern void PsyX_SetCursorRelative(int enable)
+@@ -711,6 +721,8 @@
+ 	SDL_Event event;
+ 	while (SDL_PollEvent(&event))
+ 	{
++		if (PsyX_HostToolbarHandleEvent(&event))
++			continue;
+ 		switch (event.type)
+ 		{
+ 			case SDL_CONTROLLERDEVICEADDED:
+@@ -764,6 +776,7 @@
+ 						SDL_SetWindowFullscreen(g_window, fullscreen ? 0 : SDL_WINDOW_FULLSCREEN_DESKTOP);
+ 
+ 						SDL_GetWindowSize(g_window, &g_windowWidth, &g_windowHeight);
++						g_windowHeight = PsyX_HostToolbarContentHeight(g_windowHeight);
+ 						GR_ResetDevice();
+ 					}
+ 					break;
+@@ -862,11 +875,16 @@
+ 	__attribute__((weak));
+ extern "C" void PcPort_QuickCheckpointRequestLoad(void)
+ 	__attribute__((weak));
++extern "C" int PcPort_QuickCheckpointGetUiState(void)
++	__attribute__((weak));
+ #endif
+ 
+ /* _xeno_video_recording */
+ #include "../../../src/psycross_video_recording.inl"
+ 
++/* _xeno_host_toolbar */
++#include "../../../src/psycross_host_toolbar.inl"
++
+ /* _xeno_display_present */
+ int PsyX_IsSceneOpen(void)
+ {
+@@ -883,7 +899,8 @@
+ 	GR_PresentVRAMDisplay(currentDispEnv.disp.x, currentDispEnv.disp.y,
+ 		currentDispEnv.disp.w, currentDispEnv.disp.h,
+ 		currentDispEnv.isrgb24, !g_GPUDisabledState);
+ 	PsyX_RecordPresentedFrame();
++	PsyX_HostToolbarDraw();
+ 	GR_SwapWindow();
+ 	return 1;
+ }
+@@ -904,6 +921,7 @@
+ 	GR_StoreFrameBuffer(activeDispEnv.disp.x, activeDispEnv.disp.y, activeDispEnv.disp.w, activeDispEnv.disp.h);
+ 
+ 	PsyX_RecordPresentedFrame();
++	PsyX_HostToolbarDraw();
+ 	GR_SwapWindow();
+ 	
+ #if defined(__GNUC__)
+@@ -1154,6 +1172,7 @@
+ void PsyX_Shutdown()
+ {
+ 	PsyX_StopRecording();
++	PsyX_HostToolbarShutdown();
+ 	if (!g_window)
+ 		return;
+ 

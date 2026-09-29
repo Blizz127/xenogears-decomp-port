@@ -1,0 +1,209 @@
+--- a/src/psx/LIBCD.C
++++ b/src/psx/LIBCD.C
+@@ -713,111 +713,115 @@
+ 
+ // TODO: don't just rely on cue sheet
+ // use this https://gist.github.com/ceritium/139577 to detect Mode 1 or Mode 2
+-int ParseCueSheet()
++/* _xeno_cd_cue_checked: the current reader represents one Mode-2 track at
++ * file offset zero. Unsupported topology must not masquerade as that layout.
++ * CUE FILE/TRACK/INDEX syntax: GNU ccd2cue manual, Appendix C. */
++static char* PsyX_CueToken(char** cursor)
+ {
+-	if(g_imageFile.basePtr || strlen(g_cdImageBinaryFileName))
++	char* p = *cursor;
++	while (*p && isspace((unsigned char)*p)) ++p;
++	if (!*p) { *cursor = p; return NULL; }
++	char* token;
++	if (*p == '"')
+ 	{
+-		return OpenBinaryImageFile();
++		token = ++p;
++		while (*p && *p != '"') ++p;
++		if (!*p) { *cursor = NULL; return NULL; }
++		*p++ = 0;
++		if (*p && !isspace((unsigned char)*p)) { *cursor = NULL; return NULL; }
+ 	}
+-	
+-	int cdMode;
+-	char* binFileName = NULL;
+-	FILE* cueFp = fopen(DISC_CUE_FILENAME, "rb");
+-
+-	if (cueFp == NULL)
++	else
+ 	{
+-		eprinterr("%s not found.\n", DISC_CUE_FILENAME);
+-		return 0;
++		token = p;
++		while (*p && !isspace((unsigned char)*p)) ++p;
++		if (*p) *p++ = 0;
+ 	}
++	*cursor = p;
++	return token;
++}
+ 
+-	fseek(cueFp, 0, SEEK_END);
++static int PsyX_CueLine(char* line, int* stage, char* imageName)
++{
++	char* cursor = line;
++	char* command = PsyX_CueToken(&cursor);
++	if (!cursor) return 0;
++	if (!command || !strcmp(command, "REM")) return 1;
++	char* first = PsyX_CueToken(&cursor);
++	if (!cursor || !first) return 0;
++	char* second = PsyX_CueToken(&cursor);
++	if (!cursor || !second) return 0;
++	char* extra = PsyX_CueToken(&cursor);
++	if (!cursor || extra) return 0;
++	if (*stage == 0 && !strcmp(command, "FILE"))
++	{
++		if (!*first || strlen(first) >= sizeof(g_cdImageBinaryFileName) ||
++			strcmp(second, "BINARY")) return 0;
++		strcpy(imageName, first);
++	}
++	else if (*stage == 1 && !strcmp(command, "TRACK"))
++	{
++		if ((strcmp(first, "01") && strcmp(first, "1")) ||
++			strcmp(second, "MODE2/2352")) return 0;
++	}
++	else if (*stage == 2 && !strcmp(command, "INDEX"))
++	{
++		if ((strcmp(first, "01") && strcmp(first, "1")) ||
++			strcmp(second, "00:00:00")) return 0;
++	}
++	else return 0;
++	++*stage;
++	return 1;
++}
+ 
+-	unsigned int cueSheetFileLength = ftell(cueFp);
+-	char* cueSheet = (char*)malloc(cueSheetFileLength);
+-	
+-	fseek(cueFp, 0, SEEK_SET);
+-	fread(cueSheet, cueSheetFileLength, 1, cueFp);
++int ParseCueSheet()
++{
++	if (g_imageFile.basePtr || strlen(g_cdImageBinaryFileName))
++		return OpenBinaryImageFile();
+ 
+-	//Null terminated
+-	char* string = &cueSheet[0];
+-	if (!strncmp(string, "FILE", 4))
++	FILE* cueFp = fopen(DISC_CUE_FILENAME, "rb");
++	if (!cueFp) return 0;
++	char imageName[sizeof(g_cdImageBinaryFileName)];
++	char line[4096];
++	size_t used = 0;
++	int stage = 0;
++	int ch;
++	int previousTrack;
++	int previousSize;
++	while ((ch = fgetc(cueFp)) != EOF)
+ 	{
+-		//Read the binary name since it's a file
+-		string += 5;
+-		if (isspace(string[0]))
+-		{
+-			string++;
+-		}
+-
+-		//Get file name length
+-		char* afterFileName = string;
+-		char fileNameLength = 0;
+-		//While
+-		while (!isspace(afterFileName[0]))
++		if (!ch) goto invalid;
++		if (ch == '\n')
+ 		{
+-			afterFileName++;
+-			fileNameLength++;
++			line[used] = 0;
++			if (!PsyX_CueLine(line, &stage, imageName)) goto invalid;
++			used = 0;
+ 		}
+-
+-		if (string[0] == '"')
++		else
+ 		{
+-			string[fileNameLength - 1] = 0;
+-			string++;
++			if (used >= sizeof(line) - 1) goto invalid;
++			line[used++] = (char)ch;
+ 		}
+-
+-		binFileName = string;
+-		string = afterFileName;
+-
+-		if (isspace(string[0]))
+-			string++;
+-
+-		/* Get Type of BIN file */
+-		assert(!strncmp(string, "BINARY", 6));
+-		string += 6;
+-
+-		while (isspace(string[0]))
+-			string++;
+-
+-		/* Get Track of BIN file */
+-		assert(!strncmp(string, "TRACK", 5));
+-		string += 5;
+-
+-		while (isspace(string[0]))
+-			string++;
+-
+-		g_cdCurrentTrack = atoi(string);
+-
+-		string += 2;
+-
+-		while (isspace(string[0]))
+-			string++;
+-
+-		assert(!strncmp(string, "MODE", 4));
+-		string += 4;
+-
+-		cdMode = atoi(string);
+-		string++;
+-
+-		assert(string[0] == '/');
+-		string++;
+-
+-		g_cdSectorSize = atoi(string);
+-
+-		assert(g_cdSectorSize == CD_SECTOR_SIZE_MODE2);
+-
+-		fclose(cueFp);
+-
+-		// copy file name
+-		strcpy(g_cdImageBinaryFileName, binFileName);
+-		
+-		free(cueSheet);
+-
+-		eprintinfo("CUE: '%s' is Mode %d image\n", g_cdImageBinaryFileName, cdMode);
+-		
+-		return OpenBinaryImageFile();
+ 	}
+-
+-	return 1;
++	if (ferror(cueFp)) goto invalid;
++	line[used] = 0;
++	if (!PsyX_CueLine(line, &stage, imageName) || stage != 3) goto invalid;
++	if (fclose(cueFp) != 0) return 0;
++
++	/* Publish only a fully parsed layout; undo metadata if the image fails. */
++	previousTrack = g_cdCurrentTrack;
++	previousSize = g_cdSectorSize;
++	strcpy(g_cdImageBinaryFileName, imageName);
++	g_cdCurrentTrack = 1;
++	g_cdSectorSize = CD_SECTOR_SIZE_MODE2;
++	if (OpenBinaryImageFile()) return 1;
++	g_cdImageBinaryFileName[0] = 0;
++	g_cdCurrentTrack = previousTrack;
++	g_cdSectorSize = previousSize;
++	return 0;
++invalid:
++	fclose(cueFp);
++	eprinterr("Invalid or unsupported single-track Mode-2 CUE.\n");
++	return 0;
+ }
+ 
+ int CdInit(void)

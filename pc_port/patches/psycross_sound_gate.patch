@@ -1,0 +1,278 @@
+diff --git a/src/PsyX_main.cpp b/src/PsyX_main.cpp
+index 5042a5e..4346398 100644
+--- a/src/PsyX_main.cpp
++++ b/src/PsyX_main.cpp
+@@ -217,6 +217,10 @@ static int PsyX_Sys_InitialiseCore()
+ 	Util_InitHPCTimer(&g_vblTimer);
+ #else
+ 
++	/* Sound tick gate: the mutex must exist before the interrupt thread
++	 * spawns -- thread creation is the publication point (no atomics). */
++	PsyX_Sys_InitSoundGate();
++
+ 	g_intrThread = SDL_CreateThread(intrThreadMain, "psyX_intr", NULL);
+ 
+ 	if (NULL == g_intrThread)
+diff --git a/src/PsyX_main.h b/src/PsyX_main.h
+index ad4f8de..63839d0 100644
+--- a/src/PsyX_main.h
++++ b/src/PsyX_main.h
+@@ -21,6 +21,18 @@ extern int PsyX_Sys_SetVMode(int mode);
+  * Driven by the interrupt thread at the 240Hz RCnt2 rate. */
+ extern void PsyX_Sys_DispatchCounter2(void);
+ 
++/* Sound tick gate (LIBAPI.C): create g_SoundTickMutex. MUST run before the
++ * interrupt thread is created (PsyX_Sys_InitialiseCore) so the pump thread
++ * inherits a visible, initialised mutex. */
++extern void PsyX_Sys_InitSoundGate(void);
++
++/* Enter/ExitCriticalSection mapping (LIBAPI.C): recursive tick-gate hold --
++ * retail masks interrupts; the sound code's load-bearing effect is that the
++ * 240Hz tick cannot preempt the section. Declared here (inside the extern
++ * "C" block) so the definitions keep C linkage against the C callers. */
++extern void PsyX_Sys_SoundGateEnterCritical(void);
++extern void PsyX_Sys_SoundGateExitCritical(void);
++
+ #if defined(_LANGUAGE_C_PLUS_PLUS)||defined(__cplusplus)||defined(c_plusplus)
+ }
+ #endif
+diff --git a/src/psx/LIBAPI.C b/src/psx/LIBAPI.C
+index 1952313..4324d7f 100644
+--- a/src/psx/LIBAPI.C
++++ b/src/psx/LIBAPI.C
+@@ -1,6 +1,7 @@
+ #include "psx/libapi.h"
+ 
+ #include <stdio.h>
++#include <SDL.h>
+ #include "../PsyX_main.h"
+ 
+ long sp = 0;
+@@ -66,13 +67,39 @@ SysCounter counters[3] = { 0 };
+  * Nothing on the host retained the callback or advanced/dispatched the
+  * counter, so the tick never fired.  This registry plus PsyX_Sys_DispatchCounter2
+  * (driven at 240Hz by the interrupt thread, PsyX_main.cpp) is that missing
+- * infrastructure.  Lock-free by construction: each slot has one writer (the
+- * caller thread, at setup) and one reader (the interrupt thread); `in_use` is
+- * published last and marked volatile so the reader never sees a half-open slot.
+- * NOTE: cross-thread safety of the *callback body* against the main/field
+- * thread (retail relied on EnterCriticalSection disabling IRQs, a no-op here)
+- * is a later-phase concern -- the Phase-1 synthetic probe touches no shared
+- * state.  Only RCntCNT2/EvSpINT events are dispatched. */
++ * infrastructure.  Only RCntCNT2/EvSpINT events are dispatched.
++ *
++ * [_xeno_sound_gate] Cross-thread tick gate (tick-leg step 1, gate-first).
++ * Retail's mutual exclusion between the 240Hz tick (func_8003C020, ran
++ * atomically as the counter-2 IRQ handler) and the main thread was the
++ * DisableEvent/EnableEvent(g_unk_SoundEvent) bracket: the main thread turns
++ * the tick event off around every non-atomic shared-sound-state access
++ * (SoundHeapAllocate, the WDS/SED list splices, func_80037F44/F88, ...).
++ * The port maps that discipline onto g_SoundTickMutex (SDL mutexes are
++ * recursive -- required: func_8003AE84 ON the tick path re-enters the
++ * bracket):
++ *   - DisableEvent on the counter-2/EvSpINT slot ACQUIRES and HOLDS the
++ *     mutex (bracket open; per-thread depth in s_soundTickHold, __thread so
++ *     the pump's re-entry and the main thread's brackets never interact).
++ *   - EnableEvent on that slot releases one held level (bracket close). An
++ *     unpaired EnableEvent (func_80037F44 turning the tick on at boot) just
++ *     flips the flag.
++ *   - CloseEvent on that slot dissolves the closing thread's held levels:
++ *     after close the event cannot fire, so a still-open bracket is
++ *     meaningless and must not leak a held mutex (both port probes
++ *     DisableEvent -> CloseEvent without a matching EnableEvent).
++ *   - PsyX_Sys_DispatchCounter2 TRY-locks: if any thread holds a bracket the
++ *     tick is DROPPED, not queued -- identical to retail, where a disabled
++ *     event's firings are lost. TryLock also makes the pump structurally
++ *     unable to stall (a long-lived toggle-off bracket never blocks the
++ *     interrupt thread) or deadlock (no blocking acquire on this thread, so
++ *     no lock-order cycle with g_intrMutex/g_SpuMutex is closable).
++ *   - Every registry mutation (Open/Close/Enable/Disable) happens under the
++ *     mutex, so slot state is data-race-free against the dispatch scan.
++ * The mutex is created by PsyX_Sys_InitSoundGate() before the interrupt
++ * thread spawns (PsyX_Sys_InitialiseCore), which publishes it to the pump
++ * without atomics. Until then (single-threaded early boot) the functions
++ * fall back to plain flag flips. */
+ #define PSYX_EVENT_MAX 32
+ typedef struct {
+ 	volatile int in_use;
+@@ -84,9 +111,32 @@ typedef struct {
+ } PsyXEventSlot;
+ static PsyXEventSlot s_psyxEvents[PSYX_EVENT_MAX];
+ 
++static SDL_mutex* g_SoundTickMutex = NULL;
++static __thread int s_soundTickHold = 0;   /* this thread's open bracket depth */
++
++/* The sound tick event class: the only bracketed event in the game. */
++static int PsyX_EventSlotIsSoundTick(const PsyXEventSlot* e)
++{
++	return e->desc == (unsigned int)RCntCNT2 && e->spec == EvSpINT;
++}
++
++/* Called once from PsyX_Sys_InitialiseCore BEFORE the interrupt thread is
++ * created, so the pump thread inherits a visible, initialised mutex. */
++void PsyX_Sys_InitSoundGate(void)
++{
++	if (!g_SoundTickMutex)
++		g_SoundTickMutex = SDL_CreateMutex();
++}
++
+ void PsyX_Sys_DispatchCounter2(void)
+ {
+ 	int i;
++	if (!g_SoundTickMutex)
++		return;
++	/* Bracket held somewhere: drop this tick (retail loses firings of a
++	 * disabled event the same way). Never block the interrupt thread. */
++	if (SDL_TryLockMutex(g_SoundTickMutex) != 0)
++		return;
+ 	for (i = 0; i < PSYX_EVENT_MAX; i++)
+ 	{
+ 		PsyXEventSlot* e = &s_psyxEvents[i];
+@@ -96,6 +146,33 @@ void PsyX_Sys_DispatchCounter2(void)
+ 			e->func();
+ 		}
+ 	}
++	SDL_UnlockMutex(g_SoundTickMutex);
++}
++
++/* [_xeno_sound_gate] Enter/ExitCriticalSection mapping. Retail masks
++ * interrupts, whose load-bearing effect for the sound code is that the 240Hz
++ * tick cannot preempt the section (SoundQueueTransferCommand brackets its
++ * transfer-queue index/flag writes this way). Same recursive hold as a
++ * DisableEvent bracket on the tick event; the pump's TryLock drops ticks
++ * while held. Depth rides s_soundTickHold so nesting with Disable/Enable
++ * brackets on the same thread stays balanced. */
++void PsyX_Sys_SoundGateEnterCritical(void)
++{
++	if (!g_SoundTickMutex)   /* single-threaded early boot */
++		return;
++	SDL_LockMutex(g_SoundTickMutex);
++	s_soundTickHold++;
++}
++
++void PsyX_Sys_SoundGateExitCritical(void)
++{
++	if (!g_SoundTickMutex)
++		return;
++	if (s_soundTickHold > 0)
++	{
++		s_soundTickHold--;
++		SDL_UnlockMutex(g_SoundTickMutex);
++	}
+ }
+ 
+ int SetRCnt(int spec, unsigned short target, int mode)//(F)
+@@ -182,6 +259,8 @@ int StopRCnt(int spec)//TODO
+ int OpenEvent(unsigned int event, int spec, int mode, long(*func)())
+ {
+ 	int i;
++	int handle = 0;
++	if (g_SoundTickMutex) SDL_LockMutex(g_SoundTickMutex);
+ 	for (i = 0; i < PSYX_EVENT_MAX; i++)
+ 	{
+ 		if (!s_psyxEvents[i].in_use)
+@@ -193,10 +272,12 @@ int OpenEvent(unsigned int event, int spec, int mode, long(*func)())
+ 			s_psyxEvents[i].enabled = 0;
+ 			/* publish last: the dispatch thread gates on in_use */
+ 			s_psyxEvents[i].in_use  = 1;
+-			return i + 1;   /* handle; 0 stays reserved for "no free slot" */
++			handle = i + 1;   /* handle; 0 stays reserved for "no free slot" */
++			break;
+ 		}
+ 	}
+-	return 0;
++	if (g_SoundTickMutex) SDL_UnlockMutex(g_SoundTickMutex);
++	return handle;
+ }
+ 
+ int CloseEvent(unsigned int event)
+@@ -204,8 +285,24 @@ int CloseEvent(unsigned int event)
+ 	int idx = (int)event - 1;
+ 	if (idx >= 0 && idx < PSYX_EVENT_MAX)
+ 	{
++		int wasTick = 0;
++		if (g_SoundTickMutex) SDL_LockMutex(g_SoundTickMutex);
++		wasTick = s_psyxEvents[idx].in_use &&
++		          PsyX_EventSlotIsSoundTick(&s_psyxEvents[idx]);
+ 		s_psyxEvents[idx].in_use  = 0;
+ 		s_psyxEvents[idx].enabled = 0;
++		if (g_SoundTickMutex) SDL_UnlockMutex(g_SoundTickMutex);
++		/* Closing the tick event dissolves this thread's open brackets: the
++		 * event can no longer fire, and a leaked hold would silence every
++		 * future tick (both port probes DisableEvent -> CloseEvent). */
++		if (wasTick && g_SoundTickMutex)
++		{
++			while (s_soundTickHold > 0)
++			{
++				s_soundTickHold--;
++				SDL_UnlockMutex(g_SoundTickMutex);
++			}
++		}
+ 	}
+ 	return 1;
+ }
+@@ -213,16 +310,60 @@ int CloseEvent(unsigned int event)
+ int EnableEvent(unsigned int event)
+ {
+ 	int idx = (int)event - 1;
+-	if (idx >= 0 && idx < PSYX_EVENT_MAX && s_psyxEvents[idx].in_use)
+-		s_psyxEvents[idx].enabled = 1;
++	if (idx >= 0 && idx < PSYX_EVENT_MAX)
++	{
++		if (!g_SoundTickMutex)   /* single-threaded early boot */
++		{
++			if (s_psyxEvents[idx].in_use)
++				s_psyxEvents[idx].enabled = 1;
++			return 1;
++		}
++		SDL_LockMutex(g_SoundTickMutex);
++		if (s_psyxEvents[idx].in_use)
++		{
++			s_psyxEvents[idx].enabled = 1;
++			/* Bracket close: release one held level. Unpaired enables
++			 * (func_80037F44 at boot) have no held level and just flip
++			 * the flag. */
++			if (PsyX_EventSlotIsSoundTick(&s_psyxEvents[idx]) &&
++			    s_soundTickHold > 0)
++			{
++				s_soundTickHold--;
++				SDL_UnlockMutex(g_SoundTickMutex);
++			}
++		}
++		SDL_UnlockMutex(g_SoundTickMutex);
++	}
+ 	return 1;
+ }
+ 
+ int DisableEvent(unsigned int event)
+ {
+ 	int idx = (int)event - 1;
+-	if (idx >= 0 && idx < PSYX_EVENT_MAX && s_psyxEvents[idx].in_use)
+-		s_psyxEvents[idx].enabled = 0;
++	if (idx >= 0 && idx < PSYX_EVENT_MAX)
++	{
++		if (!g_SoundTickMutex)   /* single-threaded early boot */
++		{
++			if (s_psyxEvents[idx].in_use)
++				s_psyxEvents[idx].enabled = 0;
++			return 1;
++		}
++		SDL_LockMutex(g_SoundTickMutex);
++		if (s_psyxEvents[idx].in_use)
++		{
++			s_psyxEvents[idx].enabled = 0;
++			/* Bracket open on the sound tick event: KEEP HOLDING the mutex
++			 * (recursive; the matching EnableEvent releases). This blocks
++			 * until any in-flight tick dispatch completes -- the retail
++			 * post-condition of DisableEvent on the IRQ handler's event. */
++			if (PsyX_EventSlotIsSoundTick(&s_psyxEvents[idx]))
++			{
++				s_soundTickHold++;
++				return 1;
++			}
++		}
++		SDL_UnlockMutex(g_SoundTickMutex);
++	}
+ 	return 1;
+ }
+ 

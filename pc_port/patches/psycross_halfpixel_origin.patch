@@ -1,0 +1,41 @@
+diff --git a/src/render/PsyX_render.cpp b/src/render/PsyX_render.cpp
+index f926c9a..7006544 100644
+--- a/src/render/PsyX_render.cpp
++++ b/src/render/PsyX_render.cpp
+@@ -10,2 +10,3 @@
+ #include <assert.h>
++#include <stdlib.h>
+ #include <string.h>
+@@ -86,3 +87,17 @@ int g_cfg_pgxpZBuffer = 1;
+ int g_cfg_bilinearFiltering = 0;
+-
++/* _xeno_half_pixel_origin: the PS1 GPU samples polygon coverage on its
++ * integer logical lattice, while OpenGL samples at pixel centres. Keep the
++ * correction opt-in until textured/UI/gameplay validation is complete. */
++static bool XenoPs1HalfPixelOriginEnabled()
++{
++	static int enabled = -1;
++	if (enabled < 0)
++	{
++		const char* value = getenv("XENO_PS1_HALF_PIXEL_ORIGIN");
++		enabled = value != NULL && strcmp(value, "1") == 0;
++		if (enabled)
++			fprintf(stderr, "[PsyCross] PS1 half-pixel logical origin enabled: (+0.5,+0.5)\n");
++	}
++	return enabled != 0;
++}
+ int vram_need_update = 1;
+@@ -1584,3 +1600,12 @@ void GR_SetOffscreenState(const RECT16* offscreenRect, int enable)
+ #else
+-		GR_Ortho2D(0, activeDispEnv.disp.w, activeDispEnv.disp.h, 0, -1.0f, 1.0f);
++		if (XenoPs1HalfPixelOriginEnabled())
++		{
++			/* Logical (+0.5,+0.5): left/top move to -0.5 and
++			 * right/bottom move to size-0.5. Because logical Y points down,
++			 * this produces clip translation (+1/w,-1/h). */
++			GR_Ortho2D(-0.5f, activeDispEnv.disp.w - 0.5f,
++				activeDispEnv.disp.h - 0.5f, -0.5f, -1.0f, 1.0f);
++		}
++		else
++			GR_Ortho2D(0, activeDispEnv.disp.w, activeDispEnv.disp.h, 0, -1.0f, 1.0f);
+ #endif

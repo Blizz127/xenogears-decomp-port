@@ -1,0 +1,71 @@
+--- a/src/PsyX_main.cpp
++++ b/src/PsyX_main.cpp
+@@ -856,6 +856,60 @@
+ 	SDL_Delay(0);
+ }
+ 
++/* _xeno_capture_readback_orientation: OpenGL returns the first readback row
++ * from the lower-left origin, while SDL surfaces treat it as the image top.
++ * Reverse complete four-byte pixel rows before saving a screenshot. */
++void PsyX_FlipCaptureRows(u_char* pixels, int width, int height)
++{
++	if (pixels == NULL || width <= 0 || height <= 1)
++		return;
++
++#if defined(W34N53_MUTANT_M1)
++	return;
++#else
++	size_t rowBytes = (size_t)width * 4;
++	int rowPairs = height / 2;
++#if defined(W34N53_MUTANT_M2)
++	if (rowPairs > 0)
++		rowPairs--;
++#endif
++#if defined(W34N53_MUTANT_M3)
++	rowBytes = (size_t)width * 3;
++#endif
++	for (int y = 0; y < rowPairs; y++) {
++		u_char* top = pixels + (size_t)y * rowBytes;
++		u_char* bottom = pixels + (size_t)(height - 1 - y) * rowBytes;
++		for (size_t x = 0; x < rowBytes; x++) {
++			const u_char value = top[x];
++			top[x] = bottom[x];
++			bottom[x] = value;
++		}
++	}
++#endif
++}
++
++/* _xeno_capture_path: the port capture callers supply a destination path;
++ * keep the same GL readback and orientation correction as the interactive
++ * screenshot, but serialize to that requested path. */
++void PsyX_TakeScreenshotPath(const char* path)
++{
++	if (path == NULL)
++		return;
++	u_char* pixels = (u_char*)malloc(g_windowWidth * g_windowHeight * 4);
++
++#if defined(RENDERER_OGL)
++	glReadPixels(0, 0, g_windowWidth, g_windowHeight, GL_BGRA, GL_UNSIGNED_BYTE, pixels);
++#elif defined(RENDERER_OGLES)
++	glReadPixels(0, 0, g_windowWidth, g_windowHeight, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
++#endif
++
++	PsyX_FlipCaptureRows(pixels, g_windowWidth, g_windowHeight);
++	SDL_Surface* surface = SDL_CreateRGBSurfaceFrom(pixels, g_windowWidth, g_windowHeight, 8 * 4, g_windowWidth * 4, 0, 0, 0, 0);
++	SDL_SaveBMP(surface, path);
++	SDL_FreeSurface(surface);
++	free(pixels);
++}
++
+ #if !defined(__EMSCRIPTEN__) && !defined(__ANDROID__)
+ void PsyX_TakeScreenshot()
+ {
+@@ -867,6 +899,7 @@
+ 	glReadPixels(0, 0, g_windowWidth, g_windowHeight, GL_RGBA, GL_UNSIGNED_BYTE, pixels);	// FIXME: is that correct format?
+ #endif
+ 
++	PsyX_FlipCaptureRows(pixels, g_windowWidth, g_windowHeight);
+ 	SDL_Surface* surface = SDL_CreateRGBSurfaceFrom(pixels, g_windowWidth, g_windowHeight, 8 * 4, g_windowWidth * 4, 0, 0, 0, 0);
+ 
+ 	SDL_SaveBMP(surface, "SCREENSHOT.BMP");

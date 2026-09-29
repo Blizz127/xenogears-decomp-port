@@ -1,0 +1,10 @@
+# World-map bodies proven against retail by run_world_map_differential_test.sh.
+# One exported symbol per line; each must stay PROVEN (>=1 completed case, 0 FAIL).
+wm_80097CB8   terrain resume init (new)
+wm_80097BC0   terrain fresh init
+wm_800981C8
+wm_80097DC0   initial tile population
+wm_8009623C   sector queue writer (signed-count fix)
+wm_800962B0   path queue writer (bank stride 0x580 fix)
+wm_800965A4
+wm_80096694

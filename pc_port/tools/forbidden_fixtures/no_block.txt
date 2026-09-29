@@ -1,0 +1,3 @@
+W18B_PLACEHOLDER state3=1 gfx=1 ft4=1 htr=1 rand=1
+W18B_DONE stable=120 ft4=1 htr=1 rand=1
+(no machine-readable summary was ever emitted)

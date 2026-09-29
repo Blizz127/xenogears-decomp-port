@@ -1,0 +1,53 @@
+diff --git a/src/PsyX_main.cpp b/src/PsyX_main.cpp
+--- a/src/PsyX_main.cpp
++++ b/src/PsyX_main.cpp
+@@ -94,6 +94,7 @@ extern void GR_Shutdown();
+ extern void GR_BeginScene();
+ extern void GR_EndScene();
+ extern void GR_UpdateSwapIntervalState(int swapInterval);
++extern void PsyX_CD_Shutdown(); /* _xeno_cd_shutdown_join */
+ 
+ int g_vmode = -1;
+ int g_frameSkip = 0;
+@@ -1173,6 +1174,9 @@ void PsyX_Exit()
+ 
+ void PsyX_Shutdown()
+ {
++	/* _xeno_cd_shutdown_join: SDL_Delay and the callback dispatch used by the
++	 * streaming worker remain SDL-owned. Stop and join it before SDL_Quit. */
++	PsyX_CD_Shutdown();
+ 	PsyX_StopRecording();
+ 	PsyX_HostToolbarShutdown();
+ 	if (!g_window)
+@@ -1192,10 +1196,11 @@ void PsyX_Shutdown()
+ 		SDL_DestroyMutex(g_intrMutex);
+ 	}
+ 
++	GR_Shutdown();
++
+ 	SDL_DestroyWindow(g_window);
+ 	g_window = NULL;
+ 
+-	GR_Shutdown();
+ 	SDL_QuitSubSystem(SDL_INIT_GAMECONTROLLER);
+ 
+ 	SDL_Quit();
+diff --git a/src/psx/LIBCD.C b/src/psx/LIBCD.C
+--- a/src/psx/LIBCD.C
++++ b/src/psx/LIBCD.C
+@@ -1134,6 +1134,15 @@ void _eCdSpoolerJoin(void)
+ 	g_xeno_cdPaceNext = 0;
+ }
+ 
++/* _xeno_cd_shutdown_join: a process exit may arrive while CdlReadS is still
++ * paced inside SDL_Delay. Request the ordinary pause and wait for that worker
++ * before PsyX tears SDL down. */
++void PsyX_CD_Shutdown(void)
++{
++	_eCdControlF_Pause();
++	_eCdSpoolerJoin();
++}
++
+ char* CdComstr(u_char com)
+ {
+ 	PSYX_UNIMPLEMENTED();

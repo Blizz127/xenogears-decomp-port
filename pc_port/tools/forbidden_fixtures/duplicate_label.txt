@@ -1,0 +1,5 @@
+W18I_FORBIDDEN_SUMMARY_BEGIN
+required=712d0
+target label=712d0 status=ZERO_VERIFIED registered=1 hits=0 method=native_symbol_bp reason=none
+target label=712d0 status=ZERO_VERIFIED registered=1 hits=0 method=native_route_counter reason=none
+W18I_FORBIDDEN_SUMMARY_END

@@ -1,0 +1,21 @@
+// Only archive (0x20,0), file 1, loaded at 0x801E5000.
+// In this module 0x801E7210 is a delay slot, NOT base battle's external function.
+xeno_battle_command_file1_init_5160 = 0x801E5160; // type:func
+xeno_battle_command_file1_helper_5B00 = 0x801E5B00; // type:func
+xeno_battle_command_file1_helper_6750 = 0x801E6750; // type:func
+xeno_battle_command_file1_controller = 0x801E6CE8; // type:func size:0x4EC
+xeno_battle_command_file1_wrapper_71D4 = 0x801E71D4; // type:func size:0x5C
+xeno_battle_command_file1_wrapper_7230 = 0x801E7230; // type:func size:0x48
+xeno_battle_command_file1_defaults_9C10 = 0x801E9C10; // size:0xA
+xeno_battle_command_file1_cycle_9C1C = 0x801E9C1C; // size:4
+xeno_battle_command_file1_x_9C30 = 0x801E9C30; // size:4
+xeno_battle_command_file1_y_9C34 = 0x801E9C34; // size:4
+// Base-battle interfaces used by the reviewed controller.
+func_800716D8 = 0x800716D8; // type:func
+func_8008F8F4 = 0x8008F8F4; // type:func
+func_8008FA60 = 0x8008FA60; // type:func
+D_800D3278 = 0x800D3278;
+D_800D2D28 = 0x800D2D28;
+D_800D2DAC = 0x800D2DAC;
+D_800D3340 = 0x800D3340;
+D_800D3014 = 0x800D3014;

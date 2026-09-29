@@ -1,0 +1,65 @@
+diff --git a/src/PsyX_main.cpp b/src/PsyX_main.cpp
+index 5242ea0..c0ffee0 100644
+--- a/src/PsyX_main.cpp
++++ b/src/PsyX_main.cpp
+@@ -860,6 +860,13 @@ extern "C" void PcPort_WorldCaptureFulfillAtPresent(void)
+ 	__attribute__((weak));
++extern "C" void PcPort_QuickCheckpointRequestSave(void)
++	__attribute__((weak));
++extern "C" void PcPort_QuickCheckpointRequestLoad(void)
++	__attribute__((weak));
+ #endif
+ 
++/* _xeno_video_recording */
++#include "../../../src/psycross_video_recording.inl"
++
+ /* _xeno_display_present */
+ int PsyX_IsSceneOpen(void)
+ {
+@@ -875,7 +882,8 @@ int PsyX_PresentDisplayFromVRAM(void)
+ 	PsyX_Sys_DoPollEvent();
+ 	GR_PresentVRAMDisplay(currentDispEnv.disp.x, currentDispEnv.disp.y,
+ 		currentDispEnv.disp.w, currentDispEnv.disp.h,
+ 		currentDispEnv.isrgb24, !g_GPUDisabledState);
++	PsyX_RecordPresentedFrame();
+ 	GR_SwapWindow();
+ 	return 1;
+ }
+@@ -895,6 +903,7 @@ void PsyX_EndScene()
+ 	
+ 	GR_StoreFrameBuffer(activeDispEnv.disp.x, activeDispEnv.disp.y, activeDispEnv.disp.w, activeDispEnv.disp.h);
+ 
++	PsyX_RecordPresentedFrame();
+ 	GR_SwapWindow();
+ 	
+ #if defined(__GNUC__)
+@@ -1054,6 +1063,21 @@ void PsyX_Sys_DoDebugKeys(int nKey, char down)
+ 		case SDL_SCANCODE_F6:
+ 			g_cfg_pgxpZBuffer ^= 1;
+ 			break;
++		case SDL_SCANCODE_F7:
++#if defined(__GNUC__)
++			if (PcPort_QuickCheckpointRequestSave != NULL)
++				PcPort_QuickCheckpointRequestSave();
++#endif
++			break;
++		case SDL_SCANCODE_F8:
++#if defined(__GNUC__)
++			if (PcPort_QuickCheckpointRequestLoad != NULL)
++				PcPort_QuickCheckpointRequestLoad();
++#endif
++			break;
++		case SDL_SCANCODE_F9:
++			PsyX_ToggleRecording();
++			break;
+ 		}
+ 	}
+ }
+@@ -1129,6 +1152,7 @@ void PsyX_Exit()
+ 
+ void PsyX_Shutdown()
+ {
++	PsyX_StopRecording();
+ 	if (!g_window)
+ 		return;
+ 

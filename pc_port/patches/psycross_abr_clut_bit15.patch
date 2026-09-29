@@ -1,0 +1,324 @@
+--- a/src/gpu/PsyX_GPU.cpp	2026-07-13 22:20:14.247237936 -0500
++++ b/src/gpu/PsyX_GPU.cpp	2026-07-13 22:11:51.488314589 -0500
+@@ -32,12 +32,20 @@
+ int g_GPUDisabledState = 0;
+ int g_DrawPrimMode = 0;
+ 
++enum ClutSemiMode /* _xeno_clut_bit15_abr */
++{
++	CLUT_SEMI_ALL,
++	CLUT_SEMI_CLEAR_ONLY,
++	CLUT_SEMI_SET_ONLY,
++};
++
+ struct GPUDrawSplit
+ {
+ 	DRAWENV			drawenv;
+ 	DISPENV			dispenv;
+ 
+ 	BlendMode		blendMode;
++	ClutSemiMode	clutSemiMode;
+ 
+ 	TexFormat		texFormat;
+ 	TextureID		textureId;
+@@ -672,7 +680,7 @@
+ 
+ //------------------------------------------------------------------------------------------------------------------------
+ 
+-static void AddSplit(bool semiTrans, bool textured)
++static void AddSplit(bool semiTrans, bool textured, ClutSemiMode clutSemiMode = CLUT_SEMI_ALL)
+ {
+ 	int tpage = activeDrawEnv.tpage;
+ 	GPUDrawSplit& curSplit = g_splits[g_splitIndex];
+@@ -698,6 +706,7 @@
+ 
+ 	// FIXME: compare drawing environment too?
+ 	if (curSplit.blendMode == blendMode &&
++		curSplit.clutSemiMode == clutSemiMode &&
+ 		curSplit.texFormat == texFormat &&
+ 		curSplit.textureId == textureId &&
+ 		curSplit.drawPrimMode == g_DrawPrimMode &&
+@@ -729,6 +738,7 @@
+ 
+ 	GPUDrawSplit& split = g_splits[++g_splitIndex];
+ 	split.blendMode = blendMode;
++	split.clutSemiMode = clutSemiMode;
+ 	split.texFormat = texFormat;
+ 	split.textureId = textureId;
+ 	split.drawPrimMode = g_DrawPrimMode;
+@@ -749,6 +759,34 @@
+ 	split.numVerts = 0;
+ }
+ 
++/* A paletted semi-transparent primitive with ABR 1/2/3 needs two consecutive
++ * passes: CLUT bit15-clear texels overwrite, while bit15-set texels blend.
++ * The fragment shader discards the opposite set in each pass, so the passes
++ * are disjoint for this primitive and retain PSX packet ordering. */
++static bool BeginTexturedSplit(bool semiTrans)
++{
++	const TexFormat texFormat = GET_TPAGE_FORMAT(activeDrawEnv.tpage);
++	const int abr = (activeDrawEnv.tpage >> 5) & 3;
++	const bool splitClutSemi = semiTrans && overrideTexture == 0 && abr != 0 &&
++		(texFormat == TF_4_BIT || texFormat == TF_8_BIT);
++
++	AddSplit(splitClutSemi ? false : semiTrans, true,
++		splitClutSemi ? CLUT_SEMI_CLEAR_ONLY : CLUT_SEMI_ALL);
++	return splitClutSemi;
++}
++
++static void EndTexturedSplit(bool splitClutSemi, int vertexCount)
++{
++	const int sourceIndex = g_vertexIndex;
++	g_vertexIndex += vertexCount;
++	if (!splitClutSemi)
++		return;
++
++	AddSplit(true, true, CLUT_SEMI_SET_ONLY);
++	memcpy(&g_vertexBuffer[g_vertexIndex], &g_vertexBuffer[sourceIndex], vertexCount * sizeof(GrVertex));
++	g_vertexIndex += vertexCount;
++}
++
+ void DrawSplit(const GPUDrawSplit& split)
+ {
+ 	if(split.debugText)
+@@ -757,6 +795,7 @@
+ 	GR_SetStencilMode(split.drawPrimMode);	// draw with mask 0x16
+ 
+ 	GR_SetTexture(split.textureId, split.texFormat);
++	GR_SetClutSemiMode(split.clutSemiMode);
+ 
+ 	if (split.texFormat == TF_32_BIT_RGBA)
+ 		GR_SetOverrideTextureSize(split.drawenv.tw.w, split.drawenv.tw.h);
+@@ -1152,14 +1191,14 @@
+ 		// It is an official hack from SCE devs to not use DR_TPAGE and instead use null polygon
+ 		if (!IsNull(poly))
+ 		{
+-			AddSplit(semiTrans, true);
++			const bool splitClutSemi = BeginTexturedSplit(semiTrans);
+ 
+ 			GrVertex* firstVertex = &g_vertexBuffer[g_vertexIndex];
+ 			MakeVertexTriangle(firstVertex, &poly->x0, &poly->x1, &poly->x2, gteIndex);
+ 			MakeTexcoordTriangle(firstVertex, &poly->u0, &poly->u1, &poly->u2, poly->tpage, poly->clut, dither);
+ 			MakeColourTriangle(firstVertex, shadeTexOn, &poly->r0, &poly->r0, &poly->r0);
+ 
+-			g_vertexIndex += 3;
++			EndTexturedSplit(splitClutSemi, 3);
+ 
+ #if defined(DEBUG_POLY_COUNT)
+ 			polygon_count++;
+@@ -1191,7 +1230,7 @@
+ 		POLY_FT4* poly = (POLY_FT4*)polyTag;
+ 		activeDrawEnv.tpage = poly->tpage;
+ 
+-		AddSplit(semiTrans, true);
++		const bool splitClutSemi = BeginTexturedSplit(semiTrans);
+ 
+ 		GrVertex* firstVertex = &g_vertexBuffer[g_vertexIndex];
+ 		MakeVertexQuad(firstVertex, &poly->x0, &poly->x1, &poly->x3, &poly->x2, gteIndex);
+@@ -1200,7 +1239,7 @@
+ 
+ 		TriangulateQuad();
+ 
+-		g_vertexIndex += 6;
++		EndTexturedSplit(splitClutSemi, 6);
+ 
+ #if defined(DEBUG_POLY_COUNT)
+ 		polygon_count++;
+@@ -1248,14 +1287,14 @@
+ 		POLY_GT3* poly = (POLY_GT3*)polyTag;
+ 		activeDrawEnv.tpage = poly->tpage;
+ 
+-		AddSplit(semiTrans, true);
++		const bool splitClutSemi = BeginTexturedSplit(semiTrans);
+ 
+ 		GrVertex* firstVertex = &g_vertexBuffer[g_vertexIndex];
+ 		MakeVertexTriangle(firstVertex, &poly->x0, &poly->x1, &poly->x2, gteIndex);
+ 		MakeTexcoordTriangle(firstVertex, &poly->u0, &poly->u1, &poly->u2, poly->tpage, poly->clut, GET_TPAGE_DITHER(activeDrawEnv.tpage) || activeDrawEnv.dtd);
+ 		MakeColourTriangle(firstVertex, shadeTexOn, &poly->r0, &poly->r1, &poly->r2);
+ 
+-		g_vertexIndex += 3;
++		EndTexturedSplit(splitClutSemi, 3);
+ 
+ #if defined(DEBUG_POLY_COUNT)
+ 		polygon_count++;
+@@ -1287,7 +1326,7 @@
+ 		POLY_GT4* poly = (POLY_GT4*)polyTag;
+ 		activeDrawEnv.tpage = poly->tpage;
+ 
+-		AddSplit(semiTrans, true);
++		const bool splitClutSemi = BeginTexturedSplit(semiTrans);
+ 
+ 		GrVertex* firstVertex = &g_vertexBuffer[g_vertexIndex];
+ 		MakeVertexQuad(firstVertex, &poly->x0, &poly->x1, &poly->x3, &poly->x2, gteIndex);
+@@ -1296,7 +1335,7 @@
+ 
+ 		TriangulateQuad();
+ 
+-		g_vertexIndex += 6;
++		EndTexturedSplit(splitClutSemi, 6);
+ 
+ #if defined(DEBUG_POLY_COUNT)
+ 		polygon_count++;
+@@ -1345,7 +1384,7 @@
+ 	{
+ 		SPRT* poly = (SPRT*)polyTag;
+ 
+-		AddSplit(semiTrans, true);
++		const bool splitClutSemi = BeginTexturedSplit(semiTrans);
+ 
+ 		GrVertex* firstVertex = &g_vertexBuffer[g_vertexIndex];
+ 		MakeVertexRect(firstVertex, &poly->x0, poly->w, poly->h, gteIndex);
+@@ -1354,7 +1393,7 @@
+ 
+ 		TriangulateQuad();
+ 
+-		g_vertexIndex += 6;
++		EndTexturedSplit(splitClutSemi, 6);
+ 
+ #if defined(DEBUG_POLY_COUNT)
+ 		polygon_count++;
+@@ -1405,7 +1444,7 @@
+ 	{
+ 		SPRT_8* poly = (SPRT_8*)polyTag;
+ 
+-		AddSplit(semiTrans, true);
++		const bool splitClutSemi = BeginTexturedSplit(semiTrans);
+ 
+ 		GrVertex* firstVertex = &g_vertexBuffer[g_vertexIndex];
+ 		MakeVertexRect(firstVertex, &poly->x0, 8, 8, gteIndex);
+@@ -1414,7 +1453,7 @@
+ 
+ 		TriangulateQuad();
+ 
+-		g_vertexIndex += 6;
++		EndTexturedSplit(splitClutSemi, 6);
+ 
+ #if defined(DEBUG_POLY_COUNT)
+ 		polygon_count++;
+@@ -1445,7 +1484,7 @@
+ 	{
+ 		SPRT_16* poly = (SPRT_16*)polyTag;
+ 
+-		AddSplit(semiTrans, true);
++		const bool splitClutSemi = BeginTexturedSplit(semiTrans);
+ 
+ 		GrVertex* firstVertex = &g_vertexBuffer[g_vertexIndex];
+ 		MakeVertexRect(firstVertex, &poly->x0, 16, 16, gteIndex);
+@@ -1454,7 +1493,7 @@
+ 
+ 		TriangulateQuad();
+ 
+-		g_vertexIndex += 6;
++		EndTexturedSplit(splitClutSemi, 6);
+ 
+ #if defined(DEBUG_POLY_COUNT)
+ 		polygon_count++;
+--- a/src/render/PsyX_render.cpp	2026-07-13 22:19:25.323895444 -0500
++++ b/src/render/PsyX_render.cpp	2026-07-13 22:11:20.030453222 -0500
+@@ -498,6 +498,7 @@
+ 	GLint bilinearFilterLoc;
+ 	GLint texelSizeLoc;
+ 	GLint texWindowLoc; /* _xeno_texwindow_loc_struct */
++	GLint clutSemiModeLoc;
+ 	GLint texLoc;
+ 	GLint lutLoc;
+ #endif
+@@ -514,6 +515,7 @@
+ GLint u_projection3DLoc;
+ GLint u_texelSizeLoc;
+ GLint u_texWindowLoc = -1; /* _xeno_texwindow_loc_global */
++GLint u_clutSemiModeLoc = -1;
+ 
+ #define GPU_SAMPLE_TEXTURE_4BIT_FUNC\
+     "   // returns 16 bit colour\n"\
+@@ -627,8 +629,11 @@
+ 	"		return t;\n"\
+ 	"	}\n"\
+ 	"	uniform int bilinearFilter;\n"\
++	"	uniform int clutSemiMode;\n"\
+ 	"	void main() {\n"\
+ 	"		vec4 color = (bilinearFilter > 0) ? bilinearTextureSample(v_texcoord.xy) : nearestTextureSample(v_texcoord.xy);\n"\
++	"		if (clutSemiMode == 1 && color.w < 0.5) { discard; }\n"\
++	"		if (clutSemiMode == 2 && color.w >= 0.5) { discard; }\n"\
+ 	"		fragColor = dither(color * v_color);\n"\
+ 	"	}\n"
+ 	
+@@ -940,6 +945,7 @@
+ 	/* _xeno_texwindow_loc_get: fetch the texture-window uniform and default
+ 	 * it to the disabled window so unset state is an exact no-op. */
+ 	sh->texWindowLoc = glGetUniformLocation(sh->shader, "u_texWindow");
++	sh->clutSemiModeLoc = glGetUniformLocation(sh->shader, "clutSemiMode");
+ 	if (sh->texWindowLoc != -1)
+ 	{
+ 		glUseProgram(sh->shader);
+@@ -1269,6 +1275,7 @@
+ 		texLoc = g_gpu_shader_4.texLoc;
+ 		lutLoc = g_gpu_shader_4.lutLoc;
+ 		u_texWindowLoc = g_gpu_shader_4.texWindowLoc; /* _xeno_texwindow_loc_route */
++		u_clutSemiModeLoc = g_gpu_shader_4.clutSemiModeLoc;
+ 		u_texelSizeLoc = -1;
+ 		break;
+ 	case TF_8_BIT:
+@@ -1279,6 +1286,7 @@
+ 		texLoc = g_gpu_shader_8.texLoc;
+ 		lutLoc = g_gpu_shader_8.lutLoc;
+ 		u_texWindowLoc = g_gpu_shader_8.texWindowLoc;
++		u_clutSemiModeLoc = g_gpu_shader_8.clutSemiModeLoc;
+ 		u_texelSizeLoc = -1;
+ 		break;
+ 	case TF_16_BIT:
+@@ -1289,6 +1297,7 @@
+ 		texLoc = g_gpu_shader_16.texLoc;
+ 		lutLoc = g_gpu_shader_16.lutLoc;
+ 		u_texWindowLoc = g_gpu_shader_16.texWindowLoc;
++		u_clutSemiModeLoc = g_gpu_shader_16.clutSemiModeLoc;
+ 		u_texelSizeLoc = -1;
+ 		break;
+ 	case TF_32_BIT_RGBA:
+@@ -1300,6 +1309,7 @@
+ 		lutLoc = -1;
+ 		u_texelSizeLoc = g_gpu_shader_32_rgba.texelSizeLoc;
+ 		u_texWindowLoc = -1;
++		u_clutSemiModeLoc = -1;
+ 		break;
+ 	}
+ 
+@@ -1330,6 +1340,14 @@
+ 	g_lastBoundTexture = texture;
+ }
+ 
++void GR_SetClutSemiMode(int mode)
++{
++#if USE_OPENGL
++	if (u_clutSemiModeLoc != -1)
++		glUniform1i(u_clutSemiModeLoc, mode);
++#endif
++}
++
+ /* _xeno_texwindow_func: PSX texture window (GP0 E2h). tw is the pixel RECT
+  * form (w/h = window size, 0 = disabled; x/y = origin). Re-derive the 5-bit
+  * hardware mask/offset so only hardware-representable windows apply, then
+@@ -1991,4 +2056,4 @@
+ 		return;
+ 	glPopDebugGroup();
+ #endif
+-}
+\ No newline at end of file
++}
+--- a/include/PsyX/PsyX_render.h	2026-07-13 22:19:25.323224304 -0500
++++ b/include/PsyX/PsyX_render.h	2026-07-13 22:11:12.647456693 -0500
+@@ -205,6 +205,7 @@
+ extern void			GR_SetupClipMode(const RECT16* clipRect, int enable);
+ extern void			GR_SetViewPort(int x, int y, int width, int height);
+ extern void			GR_SetTexture(TextureID texture, TexFormat texFormat);
++extern void			GR_SetClutSemiMode(int mode);
+ extern void			GR_SetOverrideTextureSize(int width, int height);
+ extern void			GR_SetTextureWindow(const RECT16* tw); /* _xeno_texwindow_decl: see build_port.sh */
+ extern void			GR_SetWireframe(int enable);
+@@ -222,4 +223,4 @@
+ }
+ #endif
+ 
+-#endif
+\ No newline at end of file
++#endif

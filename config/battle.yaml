@@ -1,0 +1,308 @@
+name: Battle Overlay
+sha1: 124703d415f570f9cd8d7dad89c6a4eddfd7e6f0
+options:
+  basename: battle.bin
+  target_path: disc/battle.bin
+  base_path: ../
+  platform: psx
+  compiler: PSYQ
+
+  asm_path: asm/battle
+  src_path: src/battle
+  build_path: build/
+
+  ld_script_path: linker/battle.ld
+
+  find_file_boundaries: False
+  gp_value: 0x80059170
+  global_vram_start: 0x80010000
+
+  o_as_suffix: False
+  use_legacy_include_asm: False
+  # NB: no `generate_asm_macros_files` here.  That is a newer-splat option; the
+  # pinned 0.33.2 rejects it, gears ignores splat's nonzero exit, and the whole
+  # overlay split silently vanishes (surfacing later as a missing linker script).
+
+  asm_function_macro: glabel
+  asm_jtbl_label_macro: jlabel
+  asm_data_macro: dlabel
+
+  section_order: [".rodata", ".text", ".data", ".bss"]
+
+  symbol_addrs_path:
+    - config/symbol_addrs.battle.txt
+    - config/symbol_addrs.slus_006.64.txt
+  reloc_addrs_path:
+    - configs/reloc_addrs.battle.txt
+
+  undefined_funcs_auto_path: linker/undefined_funcs_auto.battle.txt
+  undefined_syms_auto_path: linker/undefined_syms_auto.battle.txt
+
+  extensions_path: tools/splat_ext
+
+  subalign: 4
+
+  string_encoding: ASCII
+  data_string_encoding: ASCII
+  rodata_string_guesser_level: 2
+  data_string_guesser_level: 2
+  ld_bss_is_noload: true
+
+segments:
+  - name: battle
+    type: code
+    start: 0x0
+    vram: 0x8006faf0
+    align: 4
+    subalign: 4
+    subsegments:
+      # The overlay starts with its literal strings, pointers, and dispatch
+      # tables.  Code starts at file offset 0x133C / VRAM 0x80070E2C;
+      # the externally called state-2 entry follows at 0x1450 / 0x80070F40.
+      # The overlay leads with its rodata block (literal strings, pointer and
+      # dispatch tables) exactly as the other overlays do; modelling it as
+      # `data` would make gears place it after .text and move every byte.
+      - [0x0, rodata]
+      # Compiler-emitted switch tables of byte-exact C bodies live in the C
+      # object's .rodata and are placed at their retail table address (as field
+      # does).  Tables belonging to bodies that are still retail assembly stay
+      # in the assembled data, where `jlabel` exports their .L targets.
+      - [0x8C, .rodata, main14]      # jtbl_8006FB7C + jtbl_8006FBDC
+      - [0x14C, rodata]
+      - [0x520, .rodata, main35_p1]  # jtbl_80070010 (func_8008115C)
+      - [0x540, rodata]
+      - [0x133C, c, mainasm_133C]
+      # The retail overlay interleaves still-assembly functions with C runs.
+      # INCLUDE_ASM expands to a file-scope __asm__ block and cc1 emits every
+      # such block before every compiled body, so a TU that mixes both pushes
+      # all of its C functions to the end of the object (measured: a single
+      # battle TU puts them +0x51034 bytes in). Model one TU per retail run
+      # pair - the unmatched region followed by the C run after it - exactly as
+      # shop_menu/main/misc{,2..9}.c does. Bodies are redistributed over
+      # src/battle/main{,2..61}.c (plus mainl* for the addiu-flavoured li TUs); each entry starts where the previous C run
+      # ended and ends where its own C run ends.
+      - [0x1450, c, main]
+      - [0x1FF0, c, main2]
+      - [0x6A54, c, main3]
+      - [0x6F20, c, main4]
+      - [0x7010, c, main5]
+      - [0x7188, c, main6]
+      - [0x7BA8, c, main7]
+      - [0x7EA0, c, main8]
+      - [0x8EA8, c, main9]
+      - [0x927C, c, main10]
+      - [0x95A8, c, main11]
+      - [0x967C, c, main12]
+      - [0x9E58, c, main13]
+      - [0xA3E8, c, main14]
+      # retail bytes: 8007A874 (C body not yet matching)
+      - [0xAD84, c, mainasm_AD84]
+      - [0xADC4, c, mainc15]
+      # retail bytes: 8007A92C, 8007A968 (C body not yet matching)
+      - [0xAE3C, c, mainasm_AE3C]
+      - [0xAEB8, c, main16]
+      - [0xAEE0, c, main17_q1]
+      # retail bytes: 8007AA60 (C body not yet matching)
+      - [0xAF70, c, mainasm_AF70]
+      - [0xAFC8, c, main17_q2]
+      - [0xB0E8, c, mainc18_q1]
+      # retail bytes: 8007AC80 (C body not yet matching)
+      - [0xB190, c, mainasm_B190]
+      - [0xB1EC, c, mainc18_q2]
+      - [0xB348, c, main19_q1]
+      # retail bytes: 8007AEF0 (C body not yet matching)
+      - [0xB400, c, mainasm_B400]
+      - [0xB46C, c, main19_q2]
+      - [0xB7D0, c, main20]
+      - [0xB934, c, main21]
+      - [0xBE9C, c, main22_q1]
+      # retail bytes: 8007BA04, 8007BA44 (C body not yet matching)
+      - [0xBF14, c, mainasm_BF14]
+      - [0xBF98, c, main22_q2]
+      # retail bytes: 8007BAE8 (C body not yet matching)
+      - [0xBFF8, c, mainasm_BFF8]
+      - [0xC03C, c, main23]
+      - [0xC194, c, main24]
+      - [0xCD50, c, mainc25_q1]
+      # retail bytes: 8007D0CC (C body not yet matching)
+      - [0xD5DC, c, mainasm_D5DC]
+      - [0xD658, c, mainc25_q2]
+      # retail bytes: 8007D1A8 (C body not yet matching)
+      - [0xD6B8, c, mainasm_D6B8]
+      - [0xD6EC, c, main26]
+      # retail bytes: 8007D344, 8007D478, 8007D5B0, 8007D610 (C body not yet matching)
+      - [0xD854, c, mainasm_D854]
+      - [0xDBB8, c, main27]
+      - [0xDDD0, c, main28]
+      - [0xEBB0, c, mainc29_q1]
+      # retail bytes: 8007E740 (C body not yet matching)
+      - [0xEC50, c, mainasm_EC50]
+      - [0xEC90, c, mainc29_q2]
+      - [0xECF4, c, main30]
+      - [0xF47C, c, main31]
+      - [0x10248, c, main32]
+      - [0x1034C, c, main33]
+      - [0x10670, c, main34_q1]
+      # retail bytes: 80080AE4 (C body not yet matching)
+      - [0x10FF4, c, mainasm_10FF4]
+      - [0x11074, c, main34_q2]
+      - [0x111A4, c, main35_p1]
+      - [0x11828, c, main35_p2]
+      # retail bytes: 800841E0 (C body not yet matching)
+      - [0x146F0, c, mainasm_146F0]
+      - [0x14A58, c, main35_p3_q1]
+      # retail bytes: 80084750, 80084854 (C body not yet matching)
+      - [0x14C60, c, mainasm_14C60]
+      - [0x14F8C, c, main35_p3_q2]
+      # retail bytes: 80084B40 (C body not yet matching)
+      - [0x15050, c, mainasm_15050]
+      - [0x15238, c, main35_p4]
+      # retail bytes: 80085388, 80085454, 80085618, 80085AC4 (C body not yet matching)
+      - [0x15898, c, mainasm_15898]
+      - [0x16068, c, main36_p2]
+      - [0x161DC, c, main37_q1]
+      # retail bytes: 80085D34 (C body not yet matching)
+      - [0x16244, c, mainasm_16244]
+      - [0x16388, c, main37_q2]
+      # retail bytes: 80085EB4 (C body not yet matching)
+      - [0x163C4, c, mainasm_163C4]
+      - [0x16538, c, main38_p2]
+      - [0x17F48, c, main39]
+      # retail bytes: 8008860C, 8008887C, 80088990 (C body not yet matching)
+      - [0x18B1C, c, mainasm_18B1C]
+      - [0x19090, c, main40_p2]
+      - [0x1A060, c, main41]
+      - [0x1A1DC, c, main42]
+      - [0x1A8FC, c, main43]
+      # retail bytes: 8008AAA0 (C body not yet matching)
+      - [0x1AFB0, c, mainasm_1AFB0]
+      - [0x1B05C, c, main44]
+      # retail bytes: 8008AC50 (C body not yet matching)
+      - [0x1B160, c, mainasm_1B160]
+      - [0x1B198, c, main45]
+      - [0x1B734, c, main46]
+      - [0x1C260, c, main47]
+      - [0x1C9B8, c, main48]
+      - [0x1D2F4, c, main49]
+      - [0x1FFE8, c, main50]
+      - [0x20328, c, main51]
+      - [0x27E74, c, main52]
+      - [0x2826C, c, main53]
+      - [0x2A5EC, c, main54]
+      - [0x2ACF4, c, main55]
+      - [0x2B048, c, main56]
+      - [0x2B4E8, c, main57]
+      - [0x2B614, c, main58]
+      - [0x2C644, c, main59]
+      - [0x2D0D4, c, main60]
+      - [0x2D8B0, c, main61]
+      - [0x2E788, c, main62]
+      - [0x2E920, c, main63]
+      - [0x2EA4C, c, main64]
+      - [0x2FAC8, c, main65]
+      - [0x327F8, c, main66]
+      - [0x3326C, c, main67]
+      - [0x339A0, c, main68]
+      - [0x35CAC, c, main69]
+      - [0x363C4, c, main70]
+      - [0x3ACAC, c, main71]
+      - [0x3AD30, c, main72_p1]
+      # retail bytes: 800AA898 (C body not yet matching)
+      - [0x3ADA8, c, mainasm_3ADA8]
+      - [0x3AE44, c, main72_p2]
+      # retail bytes: 800AE1BC, 800AE220 (C body not yet matching)
+      - [0x3E6CC, c, mainasm_3E6CC]
+      - [0x3E7B4, c, main72_p3]
+      - [0x3F408, c, main73_p1]
+      # retail bytes: 800AF400 (C body not yet matching)
+      - [0x3F910, c, mainasm_3F910]
+      - [0x3F948, c, main73_p2]
+      - [0x40604, c, main74]
+      - [0x419DC, c, main75]
+      - [0x41BB4, c, mainc76]
+      - [0x41C30, c, main77]
+      - [0x43868, c, mainc78]
+      - [0x43B68, c, mainc79]
+      - [0x43D88, c, mainc80]
+      - [0x43ED0, c, mainl81]
+      - [0x440A4, c, mainc82]
+      - [0x44184, c, mainc83]
+      - [0x45C3C, c, mainc84]
+      - [0x45ECC, c, mainc85]
+      - [0x461D0, c, mainc86]
+      - [0x46304, c, main87]
+      - [0x46900, c, mainc88]
+      - [0x46974, c, mainc89]
+      - [0x46A28, c, main90]
+      - [0x46EF4, c, main91]
+      - [0x46F8C, c, mainl92]
+      - [0x47154, c, main93]
+      - [0x471FC, c, mainl94]
+      - [0x47394, c, mainc95]
+      - [0x47670, c, main96]
+      - [0x478B0, c, mainc97]
+      - [0x478FC, c, mainl98]
+      - [0x47934, c, mainc99]
+      - [0x48144, c, mainc100]
+      - [0x485A8, c, main101]
+      - [0x4889C, c, mainc102]
+      - [0x48DD4, c, main103]
+      - [0x48F0C, c, mainc104]
+      - [0x4928C, c, main105]
+      - [0x492B4, c, main106]
+      - [0x4956C, c, mainc107]
+      - [0x49794, c, mainc108]
+      - [0x4A064, c, mainl109]
+      - [0x4A110, c, mainl110]
+      - [0x4AE94, c, main111]
+      - [0x4B458, c, mainc112]
+      - [0x4BBF0, c, mainc113]
+      - [0x4BD54, c, mainc114_p1]
+      - [0x4BEE4, c, mainc114_p2]
+      - [0x4C970, c, mainc115]
+      - [0x4CFB4, c, mainl115]
+      - [0x4D00C, c, mainc116]
+      - [0x4D0C4, c, mainc117]
+      - [0x4D2A8, c, mainc118]
+      - [0x4E244, c, main119]
+      - [0x4E24C, c, mainc120]
+      - [0x4E62C, c, main121]
+      - [0x4E6D4, c, mainc122]
+      - [0x4F128, c, mainc123]
+      - [0x4F25C, c, mainc124]
+      - [0x4F33C, c, main125_q1]
+      # retail bytes: 800BEEB4, 800BEF24, 800BEF8C, 800BEFF4 (C body not yet matching)
+      - [0x4F3C4, c, mainasm_4F3C4]
+      - [0x4F5C4, c, main125_q2]
+      - [0x4F5D4, c, mainc126]
+      - [0x4F8F8, c, mainc127]
+      - [0x4FBDC, c, main128]
+      - [0x4FC40, c, mainc129]
+      - [0x4FC4C, c, mainc130]
+      - [0x4FD6C, c, mainc131]
+      - [0x4FFAC, c, mainc132]
+      - [0x50190, c, mainl133]
+      - [0x502B8, c, mainc134]
+      - [0x514BC, c, main135]
+      - [0x5255C, data]
+  # Retail g_MainGameStates[2] clears this exact range before loading the
+  # overlay: pMemStart 0x800C3A6C through pHeapStart 0x800D39F0.
+  # Kept as its own all-NOLOAD top-level segment so splat emits an explicit
+  # section address: the .bss inputs are 16-byte aligned on this target, so an
+  # address-less section would be rounded up from 0x800C3A6C to 0x800C3A70 and
+  # every BSS symbol (and every %lo reference to it) would be 4 bytes high.
+  - name: battle_bss
+    type: code
+    start: 0x53f7c
+    vram: 0x800c3a6c
+    bss_size: 0xFF84
+    # 4, not the 16-byte default: this segment must not advance __romPos (it
+    # is all-NOLOAD and starts exactly at the end of the loadable part), or the
+    # trailing 0x53F7C databin slides 4 bytes and the ROM grows past retail.
+    align: 4
+    subsegments:
+      - { vram: 0x800c3a6c, type: bss }
+
+  # The archive carries one zero padding word at the BSS boundary.
+  - [0x53f7c, databin]
+  - [0x53f80]

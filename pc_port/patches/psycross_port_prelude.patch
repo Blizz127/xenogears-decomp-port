@@ -1,0 +1,569 @@
+diff --git a/include/PsyX/PsyX_render.h b/include/PsyX/PsyX_render.h
+index ad168c3..886698c 100644
+--- a/include/PsyX/PsyX_render.h
++++ b/include/PsyX/PsyX_render.h
+@@ -185,6 +185,7 @@ extern void			GR_CopyVRAM(unsigned short* src, int x, int y, int w, int h, int d
+ extern void			GR_ReadVRAM(unsigned short* dst, int x, int y, int dst_w, int dst_h);
+ 
+ extern void			GR_StoreFrameBuffer(int x, int y, int w, int h);
++extern void			GR_StoreFrameBufferImmediate(int x, int y, int w, int h); /* _xeno_drmove_snapshot_decl */
+ extern void			GR_UpdateVRAM();
+ extern void			GR_ReadFramebufferDataToVRAM();
+ 
+@@ -205,6 +206,7 @@ extern void			GR_SetupClipMode(const RECT16* clipRect, int enable);
+ extern void			GR_SetViewPort(int x, int y, int width, int height);
+ extern void			GR_SetTexture(TextureID texture, TexFormat texFormat);
+ extern void			GR_SetOverrideTextureSize(int width, int height);
++extern void			GR_SetTextureWindow(const RECT16* tw); /* _xeno_texwindow_decl: see build_port.sh */
+ extern void			GR_SetWireframe(int enable);
+ 
+ extern void			GR_DestroyTexture(TextureID texture);
+diff --git a/include/psx/libgpu.h b/include/psx/libgpu.h
+index b924865..ed53122 100644
+--- a/include/psx/libgpu.h
++++ b/include/psx/libgpu.h
+@@ -281,7 +281,7 @@ extern	int (*GPU_printf)(const char *fmt, ...);
+ 		((p)->code[1] = 0)
+ 
+ #define setDrawMode(p, dfe, dtd, tpage, tw) 		\
+-		setlen(p, 3),					\
++		setlen(p, 2),					\
+ 		((p)->code[0] = _get_mode(dfe, dtd, tpage)),	\
+ 		((p)->code[1] = _get_tw((RECT16 *)tw))
+ 
+@@ -298,15 +298,15 @@ extern	int (*GPU_printf)(const char *fmt, ...);
+ #define setPolyG4(p)	setlen(p, 8),  setcode(p, 0x38)
+ #define setPolyGT4(p)	setlen(p, 12), setcode(p, 0x3c)
+ 
+-#define setSprt8(p)	setlen(p, 3),  setcode(p, 0x74)
+-#define setSprt16(p)	setlen(p, 3),  setcode(p, 0x7c)
++#define setSprt8(p)	setlen(p, 2),  setcode(p, 0x74)
++#define setSprt16(p)	setlen(p, 2),  setcode(p, 0x7c)
+ #define setSprt(p)	setlen(p, 4),  setcode(p, 0x64)
+ 
+ #define setTile1(p)	setlen(p, 2),  setcode(p, 0x68)
+ #define setTile8(p)	setlen(p, 2),  setcode(p, 0x70)
+ #define setTile16(p)	setlen(p, 2),  setcode(p, 0x78)
+ #define setTile(p)	setlen(p, 3),  setcode(p, 0x60)
+-#define setLineF2(p)	setlen(p, 3),  setcode(p, 0x40)
++#define setLineF2(p)	setlen(p, 2),  setcode(p, 0x40)
+ #define setLineG2(p)	setlen(p, 4),  setcode(p, 0x50)
+ #define setLineF3(p)	setlen(p, 5),  setcode(p, 0x48),(p)->pad = 0x55555555
+ #define setLineG3(p)	setlen(p, 7),  setcode(p, 0x58),(p)->pad = 0x55555555, \
+@@ -370,6 +370,7 @@ typedef struct _RECT16 {
+ 
+ typedef struct {
+ 	DECLARE_P_ADDR_PTAG
++	u_int _xeno_ot_pad; /* XENO_PC_PORT: pad OT slot to host u_long (8B) so ClearOTag(R) stride matches the game's u_long[] OTs; see build_port.sh */
+ } OT_TAG;
+ 
+ typedef struct {
+diff --git a/src/gpu/PsyX_GPU.cpp b/src/gpu/PsyX_GPU.cpp
+index 6e9e6f6..ae79874 100644
+--- a/src/gpu/PsyX_GPU.cpp
++++ b/src/gpu/PsyX_GPU.cpp
+@@ -57,6 +57,9 @@ GPUDrawSplit g_splits[MAX_DRAW_SPLITS];
+ 
+ int g_vertexIndex = 0;
+ int g_splitIndex = 0;
++/* _xeno_drmove_snapshot_dirty: a completed draw batch changes the GL
++ * framebuffer, so the next VRAM-read DR_MOVE must materialize it once. */
++static int g_xeno_vram_snapshot_dirty = 1;
+ 
+ void ClearSplits()
+ {
+@@ -676,6 +679,14 @@ static void AddSplit(bool semiTrans, bool textured)
+ 
+ 	BlendMode blendMode = semiTrans ? GET_TPAGE_BLEND(tpage) : BM_NONE;
+ 	TexFormat texFormat = GET_TPAGE_FORMAT(tpage);
++	/* _xeno_drmove_split_upload: MoveImage changes CPU VRAM during OT
++	 * traversal. Synchronize before this split snapshots g_vramTexture;
++	 * otherwise the double-buffer flips later in DrawAllSplits and the
++	 * feedback FT4s sample the pre-MoveImage page. The helper is a no-op
++	 * when VRAM is already current. */
++	if (textured)
++		GR_UpdateVRAM();
++
+ 	TextureID textureId = textured ? g_vramTexture : g_whiteTexture;
+ 
+ 	if (textured && overrideTexture != 0)
+@@ -695,6 +706,14 @@ static void AddSplit(bool semiTrans, bool textured)
+ 		curSplit.drawenv.clip.w == activeDrawEnv.clip.w &&
+ 		curSplit.drawenv.clip.h == activeDrawEnv.clip.h &&
+ 		curSplit.drawenv.dfe == activeDrawEnv.dfe &&
++		/* _xeno_texwindow_split: an E2 texture-window change must break the
++		 * batch (tw is repurposed as the override size when overrideTexture
++		 * is active, so the comparison is skipped there). See build_port.sh. */
++		(overrideTexture != 0 || (
++			curSplit.drawenv.tw.x == activeDrawEnv.tw.x &&
++			curSplit.drawenv.tw.y == activeDrawEnv.tw.y &&
++			curSplit.drawenv.tw.w == activeDrawEnv.tw.w &&
++			curSplit.drawenv.tw.h == activeDrawEnv.tw.h)) &&
+ 		curSplit.debugText == currentSplitDebugText)
+ 	{
+ 		return;
+@@ -717,8 +736,14 @@ static void AddSplit(bool semiTrans, bool textured)
+ 	split.dispenv = activeDispEnv;
+ 	split.debugText = currentSplitDebugText;
+ 
+-	split.drawenv.tw.w = overrideTextureWidth;
+-	split.drawenv.tw.h = overrideTextureHeight;
++	if (textured && overrideTexture != 0)
++	{
++		/* _xeno_texwindow_override: only the 32-bit override-texture path
++		 * repurposes tw as the override size; PSX-format splits keep the
++		 * game's E2 texture window. See build_port.sh. */
++		split.drawenv.tw.w = overrideTextureWidth;
++		split.drawenv.tw.h = overrideTextureHeight;
++	}
+ 
+ 	split.startVertex = g_vertexIndex;
+ 	split.numVerts = 0;
+@@ -735,8 +760,10 @@ void DrawSplit(const GPUDrawSplit& split)
+ 
+ 	if (split.texFormat == TF_32_BIT_RGBA)
+ 		GR_SetOverrideTextureSize(split.drawenv.tw.w, split.drawenv.tw.h);
++	else
++		GR_SetTextureWindow(&split.drawenv.tw); /* _xeno_texwindow_draw: see build_port.sh */
+ 
+-	const bool drawOnScreen = split.drawenv.dfe;
++	const bool drawOnScreen = true; /* XENO_PC_PORT: dfe=0 is normal back-buffer draw; see build_port.sh */
+ 	GR_SetupClipMode(&split.drawenv.clip, drawOnScreen);
+ 	GR_SetOffscreenState(&split.drawenv.clip, !drawOnScreen);
+ 
+@@ -785,11 +812,17 @@ void DrawAllSplits()
+ #endif // _DEBUG
+ 
+ 	// next code ideally should be called before EndScene
++	/* _xeno_drmove_upload_v2: textured splits synchronize VRAM before they
++	 * capture g_vramTexture in AddSplit; doing it here would rotate the
++	 * double-buffer after that ID was already recorded. */
+ 	GR_UpdateVertexBuffer(g_vertexBuffer, g_vertexIndex);
+ 
+ 	for (int i = 1; i <= g_splitIndex; i++)
+ 		DrawSplit(g_splits[i]);
+ 
++	if (g_vertexIndex != 0)
++		g_xeno_vram_snapshot_dirty = 1;
++
+ 	ClearSplits();
+ }
+ 
+@@ -1285,7 +1318,7 @@ static int ProcessTileAndSprt(P_TAG* polyTag)
+ 	const bool shadeTexOn = (polyTag->code & 1) == 0;
+ 	const bool semiTrans = (polyTag->code & 2);
+ 
+-	switch (polyTag->code & 0xFD)
++	switch (polyTag->code & 0xFC)
+ 	{
+ 	case 0x60:
+ 	{
+@@ -1453,10 +1486,18 @@ static int ProcessDrawEnv(P_TAG* polyTag)
+ 		case 0x2:
+ 		{
+ 			// DR_TWIN
+-			activeDrawEnv.tw.w = (code & 0x1F);
+-			activeDrawEnv.tw.h = ((code >> 5) & 0x1F);
+-			activeDrawEnv.tw.x = ((code >> 10) & 0x1F);
+-			activeDrawEnv.tw.y = ((code >> 15) & 0x1F);
++			/* _xeno_texwindow_parse: normalize raw E2 mask/offset fields into
++			 * the pixel RECT form PutDrawEnv stores (w/h = window size, 0 =
++			 * disabled; x/y = pre-masked origin) so one canonical form reaches
++			 * GR_SetTextureWindow. See build_port.sh. */
++			{
++				const u_int twMaskX = code & 0x1F;
++				const u_int twMaskY = (code >> 5) & 0x1F;
++				activeDrawEnv.tw.w = (256 - twMaskX * 8) & 0xFF;
++				activeDrawEnv.tw.h = (256 - twMaskY * 8) & 0xFF;
++				activeDrawEnv.tw.x = (((code >> 10) & 0x1F) & twMaskX) << 3;
++				activeDrawEnv.tw.y = (((code >> 15) & 0x1F) & twMaskY) << 3;
++			}
+ 			break;
+ 		}
+ 		case 0x3:
+@@ -1493,12 +1534,12 @@ static int ProcessDrawEnv(P_TAG* polyTag)
+ 		}
+ 		case 0:
+ 			// proceed to next primitive tag
+-			return processedLongs;
++			return polyTag->len; /* XENO_PC_PORT: consume full DR_MODE packet including zero terminator; see build_port.sh */
+ 		}
+ 		++processedLongs;
+ 	}
+ 
+-	return processedLongs;
++	return polyTag->len; /* XENO_PC_PORT: consume full DR_MODE packet including zero terminator; see build_port.sh */
+ }
+ 
+ static int ProcessPsyXPrims(P_TAG* polyTag)
+@@ -1556,6 +1597,25 @@ int ParsePrimitive(P_TAG* polyTag)
+ 			*(uint*)&rect.x = *(uint*)&drmove->code[2];
+ 			*(uint*)&rect.w = *(uint*)&drmove->code[4];
+ 
++			/* _xeno_drmove_order: PsyCross normally defers polygons until the
++			 * end of DrawOTag, but the PSX GPU executes this VRAM copy after
++			 * every earlier packet. Finalize the still-open split before the
++			 * flush, then materialize the draw target once before the first
++			 * following VRAM read. See build_port.sh. */
++			if (g_splitIndex > 0)
++			{
++				GPUDrawSplit& lastSplit = g_splits[g_splitIndex];
++				lastSplit.numVerts = g_vertexIndex - lastSplit.startVertex;
++				DrawAllSplits();
++			}
++
++			if (g_xeno_vram_snapshot_dirty)
++			{
++				GR_StoreFrameBufferImmediate(activeDrawEnv.clip.x, activeDrawEnv.clip.y,
++					activeDrawEnv.clip.w, activeDrawEnv.clip.h);
++				g_xeno_vram_snapshot_dirty = 0;
++			}
++
+ 			MoveImage(&rect, x, y);
+ 			primLength = 5;
+ 		}
+diff --git a/src/psx/LIBGPU.C b/src/psx/LIBGPU.C
+index 8d11166..507a44a 100644
+--- a/src/psx/LIBGPU.C
++++ b/src/psx/LIBGPU.C
+@@ -45,7 +45,9 @@ int DrawSync(int mode)
+ {
+ 	// Update VRAM seems needed to be here
+ 	GR_UpdateVRAM();
+-	GR_ReadFramebufferDataToVRAM();
++	/* _xeno_read_materialize: moved to GR_CopyVRAM read path; the eager
++	 * DrawSync materialize splatted stale frame snapshots over newer
++	 * LoadImage uploads. See build_port.sh. */
+ 
+ 	if (g_splitIndex > 0)// && g_GPUDisabledState == 0) // don't do flips if nothing to draw.
+ 	{
+@@ -131,6 +133,18 @@ int MargePrim(void* p0, void* p1)
+ int MoveImage(RECT16* rect, int x, int y)
+ {
+ 	GR_CopyVRAM(NULL, rect->x, rect->y, rect->w, rect->h, x, y);
++	/* _xeno_fb_materialize: a MoveImage restoring the ACTIVE draw
++	 * framebuffer is the game's per-frame backdrop (the menu); composite it
++	 * into the GL backbuffer as the frame's base layer. Dests outside the
++	 * draw clip (texture/backup moves) are untouched. */
++	if (x < activeDrawEnv.clip.x + activeDrawEnv.clip.w &&
++	    x + rect->w > activeDrawEnv.clip.x &&
++	    y < activeDrawEnv.clip.y + activeDrawEnv.clip.h &&
++	    y + rect->h > activeDrawEnv.clip.y)
++	{
++		extern void GR_MaterializeFramebufferRect(int x, int y, int w, int h);
++		GR_MaterializeFramebufferRect(x, y, rect->w, rect->h);
++	}
+ 	return 0;
+ }
+ 
+@@ -311,6 +325,11 @@ DRAWENV* GetDrawEnv(DRAWENV* env)
+ DRAWENV* PutDrawEnv(DRAWENV* env)//Guessed
+ {
+ 	memcpy((char*)&activeDrawEnv, env, sizeof(DRAWENV));
++	/* _xeno_isbg: honor the DRAWENV background-clear flag (upstream TODO).
++	 * Real libgpu fills the clip rect on env-apply when isbg is set; the
++	 * menu and field both rely on the per-frame clear. */
++	if (env->isbg)
++		ClearImage(&env->clip, env->r0, env->g0, env->b0);
+ 	return 0;
+ }
+ 
+diff --git a/src/psx/LIBGTE.C b/src/psx/LIBGTE.C
+index 2c14715..d58c57b 100644
+--- a/src/psx/LIBGTE.C
++++ b/src/psx/LIBGTE.C
+@@ -138,7 +138,7 @@ int RotTransPers(SVECTOR* v0, int* sxy, long* p, long* flag)
+ {
+ 	int sz;
+ 	gte_RotTransPers(v0, sxy, p, flag, &sz);
+-
++	*flag = (long)(int)(unsigned int)*flag; /* _xeno_gte_flag_sx */
+ 	return sz;
+ }
+ 
+@@ -146,7 +146,7 @@ int RotTransPers3(SVECTOR* v0, SVECTOR* v1, SVECTOR* v2, long* sxy0, long* sxy1,
+ {
+ 	int sz;
+ 	gte_RotTransPers3(v0, v1, v2, sxy0, sxy1, sxy2, p, flag, &sz);
+-
++	*flag = (long)(int)(unsigned int)*flag; /* _xeno_gte_flag_sx3 */
+ 	return sz;
+ }
+ 
+@@ -170,6 +170,7 @@ int RotTransPers4(SVECTOR* v0, SVECTOR* v1, SVECTOR* v2, SVECTOR* v3, long* sxy0
+ 	gte_stdp(p);
+ 
+ 	*flag |= _flag;
++	*flag = (long)(int)(unsigned int)*flag; /* _xeno_gte_flag_sx4 */
+ 	gte_stszotz(&sz);
+ 
+ 	return sz;
+diff --git a/src/render/PsyX_render.cpp b/src/render/PsyX_render.cpp
+index 9324471..5c312cd 100644
+--- a/src/render/PsyX_render.cpp
++++ b/src/render/PsyX_render.cpp
+@@ -82,6 +82,9 @@ int g_cfg_bilinearFiltering = 0;
+ 
+ int vram_need_update = 1;
+ int framebuffer_need_update = 0;
++/* _xeno_drmove_fb_synced: 1 while the CPU vram[] framebuffer rect is at
++ * least as fresh as any pending deferred PBO capture. See build_port.sh. */
++int g_xeno_vram_fb_synced = 0;
+ 
+ #if defined(__EMSCRIPTEN__) || defined(__RPI__) || defined(__ANDROID__)
+ #if defined(RENDERER_OGL)
+@@ -464,6 +467,7 @@ void GR_BeginScene()
+ void GR_EndScene()
+ {
+ 	framebuffer_need_update = 1;
++	g_xeno_vram_fb_synced = 0; /* _xeno_drmove_fb_synced */
+ 	
+ 	if (g_dbg_wireframeMode)
+ 		GR_SetWireframe(0);
+@@ -493,6 +497,7 @@ typedef struct
+ 	GLint projection3DLoc;
+ 	GLint bilinearFilterLoc;
+ 	GLint texelSizeLoc;
++	GLint texWindowLoc; /* _xeno_texwindow_loc_struct */
+ 	GLint texLoc;
+ 	GLint lutLoc;
+ #endif
+@@ -508,10 +513,12 @@ PSXGPU_Shader g_gpu_shader_32_rgba;
+ GLint u_projectionLoc;
+ GLint u_projection3DLoc;
+ GLint u_texelSizeLoc;
++GLint u_texWindowLoc = -1; /* _xeno_texwindow_loc_global */
+ 
+ #define GPU_SAMPLE_TEXTURE_4BIT_FUNC\
+     "   // returns 16 bit colour\n"\
+     "   vec2 samplePSX(vec2 tc) {\n"\
++    "       tc = u_texWindow.zw + mod(tc, u_texWindow.xy); // _xeno_texwindow_shader_apply\n"\
+     "       vec2 uv = (tc * vec2(0.25, 1.0) + v_page_clut.xy) * c_VRAMTexel;\n"\
+     "       vec2 comp = VRAM(uv);\n"\
+     "       int index = int(fract(tc.x / 4.0 + 0.0001) * 4.0);\n"\
+@@ -526,6 +533,7 @@ GLint u_texelSizeLoc;
+ #define GPU_SAMPLE_TEXTURE_8BIT_FUNC\
+ 	"	// returns 16 bit colour\n"\
+ 	"	vec2 samplePSX(vec2 tc) {\n"\
++	"		tc = u_texWindow.zw + mod(tc, u_texWindow.xy);\n"\
+ 	"		vec2 uv = (tc * vec2(0.5, 1.0) + v_page_clut.xy) * c_VRAMTexel;\n"\
+ 	"		vec2 comp = VRAM(uv);\n"\
+ 	"		vec2 clut_pos = v_page_clut.zw;\n"\
+@@ -537,6 +545,7 @@ GLint u_texelSizeLoc;
+ 
+ #define GPU_SAMPLE_TEXTURE_16BIT_FUNC\
+ 	"	vec2 samplePSX(vec2 tc) {\n"\
++	"		tc = u_texWindow.zw + mod(tc, u_texWindow.xy);\n"\
+ 	"		vec2 uv = (tc + v_page_clut.xy) * c_VRAMTexel;\n"\
+ 	"		vec2 color_rg = VRAM(uv);\n"\
+ 	"		return color_rg;\n"\
+@@ -546,12 +555,14 @@ GLint u_texelSizeLoc;
+ 
+ #define GPU_FETCH_VRAM_FUNC \
+ 		"	const vec2 c_VRAMTexel = vec2(1.0 / 1024.0, 1.0 / 512.0);\n"\
++		"	uniform vec4 u_texWindow; // _xeno_texwindow_shader_decl\n"\
+ 		"	uniform sampler2D s_texture;\n"\
+ 		"	vec2 VRAM(vec2 uv) { return texture2D(s_texture, uv).ra; }\n"
+ #else
+ 
+ #define GPU_FETCH_VRAM_FUNC \
+ 		"	const vec2 c_VRAMTexel = vec2(1.0 / 1024.0, 1.0 / 512.0);\n"\
++		"	uniform vec4 u_texWindow; // _xeno_texwindow_shader_decl\n"\
+ 		"	uniform sampler2D s_texture;\n"\
+ 		"	vec2 VRAM(vec2 uv) { return texture2D(s_texture, uv).rg; }\n"
+ #endif
+@@ -926,6 +937,15 @@ void GR_CompilePSXShader(PSXGPU_Shader* sh, const char* source)
+ 	sh->texelSizeLoc = glGetUniformLocation(sh->shader, "texelSize");
+ 	sh->texLoc = glGetUniformLocation(sh->shader, "s_texture");
+ 	sh->lutLoc = glGetUniformLocation(sh->shader, "s_rgLut");
++	/* _xeno_texwindow_loc_get: fetch the texture-window uniform and default
++	 * it to the disabled window so unset state is an exact no-op. */
++	sh->texWindowLoc = glGetUniformLocation(sh->shader, "u_texWindow");
++	if (sh->texWindowLoc != -1)
++	{
++		glUseProgram(sh->shader);
++		glUniform4f(sh->texWindowLoc, 256.0f, 256.0f, 0.0f, 0.0f);
++		glUseProgram(0);
++	}
+ #if USE_PGXP
+ 	sh->projection3DLoc = glGetUniformLocation(sh->shader, "Projection3D");
+ #endif
+@@ -1248,6 +1268,7 @@ void GR_SetTexture(TextureID texture, TexFormat texFormat)
+ 		u_projection3DLoc = g_gpu_shader_4.projection3DLoc;
+ 		texLoc = g_gpu_shader_4.texLoc;
+ 		lutLoc = g_gpu_shader_4.lutLoc;
++		u_texWindowLoc = g_gpu_shader_4.texWindowLoc; /* _xeno_texwindow_loc_route */
+ 		u_texelSizeLoc = -1;
+ 		break;
+ 	case TF_8_BIT:
+@@ -1257,6 +1278,7 @@ void GR_SetTexture(TextureID texture, TexFormat texFormat)
+ 		u_projection3DLoc = g_gpu_shader_8.projection3DLoc;
+ 		texLoc = g_gpu_shader_8.texLoc;
+ 		lutLoc = g_gpu_shader_8.lutLoc;
++		u_texWindowLoc = g_gpu_shader_8.texWindowLoc;
+ 		u_texelSizeLoc = -1;
+ 		break;
+ 	case TF_16_BIT:
+@@ -1266,6 +1288,7 @@ void GR_SetTexture(TextureID texture, TexFormat texFormat)
+ 		u_projection3DLoc = g_gpu_shader_16.projection3DLoc;
+ 		texLoc = g_gpu_shader_16.texLoc;
+ 		lutLoc = g_gpu_shader_16.lutLoc;
++		u_texWindowLoc = g_gpu_shader_16.texWindowLoc;
+ 		u_texelSizeLoc = -1;
+ 		break;
+ 	case TF_32_BIT_RGBA:
+@@ -1276,6 +1299,7 @@ void GR_SetTexture(TextureID texture, TexFormat texFormat)
+ 		texLoc = g_gpu_shader_32_rgba.texLoc;
+ 		lutLoc = -1;
+ 		u_texelSizeLoc = g_gpu_shader_32_rgba.texelSizeLoc;
++		u_texWindowLoc = -1;
+ 		break;
+ 	}
+ 
+@@ -1306,6 +1330,25 @@ void GR_SetTexture(TextureID texture, TexFormat texFormat)
+ 	g_lastBoundTexture = texture;
+ }
+ 
++/* _xeno_texwindow_func: PSX texture window (GP0 E2h). tw is the pixel RECT
++ * form (w/h = window size, 0 = disabled; x/y = origin). Re-derive the 5-bit
++ * hardware mask/offset so only hardware-representable windows apply, then
++ * hand the shader size+origin: coord' = origin + mod(coord, size).
++ * See build_port.sh. */
++void GR_SetTextureWindow(const RECT16* tw)
++{
++#if USE_OPENGL
++	const int maskX = ((256 - (tw->w & 0xFF)) >> 3) & 0x1F;
++	const int maskY = ((256 - (tw->h & 0xFF)) >> 3) & 0x1F;
++	const float sizeX = (float)(256 - maskX * 8);
++	const float sizeY = (float)(256 - maskY * 8);
++	const float ofsX = (float)((((tw->x & 0xFF) >> 3) & maskX) << 3);
++	const float ofsY = (float)((((tw->y & 0xFF) >> 3) & maskY) << 3);
++	if (u_texWindowLoc != -1)
++		glUniform4f(u_texWindowLoc, sizeX, sizeY, ofsX, ofsY);
++#endif
++}
++
+ void GR_SetOverrideTextureSize(int width, int height)
+ {
+ 	if(u_texelSizeLoc == -1)
+@@ -1355,6 +1398,7 @@ void GR_ClearVRAM(int x, int y, int w, int h, unsigned char r, unsigned char g,
+ void GR_Clear(int x, int y, int w, int h, unsigned char r, unsigned char g, unsigned char b)
+ {
+ 	framebuffer_need_update = 1;
++	g_xeno_vram_fb_synced = 0; /* _xeno_drmove_fb_synced */
+ 
+ #if USE_OPENGL
+ 	glClearColor(r / 255.0f, g / 255.0f, b / 255.0f, 1.0f);
+@@ -1416,9 +1460,9 @@ void GR_CopyRGBAFramebufferToVRAM(u_int* src, int x, int y, int w, int h, int up
+ 		{
+ 			uint c = *data_src++;
+ 
+-			u_char b = ((c >> 3) & 0x1F);
++			u_char r = ((c >> 3) & 0x1F); /* _xeno_fb_rgb: RGBA source, R is the low byte; stock code swapped R<->B on readback. See build_port.sh. */
+ 			u_char g = ((c >> 11) & 0x1F);
+-			u_char r = ((c >> 19) & 0x1F);
++			u_char b = ((c >> 19) & 0x1F);
+ 			//u_char a = ((c >> 24) & 0x1F);
+ 
+ 			int a = r == g == b == 0 ? 0 : 1;
+@@ -1614,7 +1658,11 @@ void GR_StoreFrameBuffer(int x, int y, int w, int h)
+ 		glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);					// source is backbuffer
+ 		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, g_glBlitFramebuffer);
+ 
+-		glBlitFramebuffer(0, 0, g_windowWidth, g_windowHeight, x, y + h, x + w, y, GL_COLOR_BUFFER_BIT, GL_NEAREST);
++		/* _xeno_fb_staging_local: g_fbTexture is a w-by-h staging texture,
++		 * not a full VRAM surface. x/y select the final VRAM destination
++		 * below; copying to those nonzero coordinates here clips context 1
++		 * (y=256) completely out of the staging FBO. */
++		glBlitFramebuffer(0, 0, g_windowWidth, g_windowHeight, 0, h, w, 0, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+ 
+ 		// Blit framebuffer to VRAM screen area
+ 
+@@ -1647,6 +1695,33 @@ void GR_StoreFrameBuffer(int x, int y, int w, int h)
+ #endif
+ }
+ 
++/* _xeno_drmove_snapshot: unlike the normal present path, DR_MOVE must see
++ * polygons submitted earlier in this same ordering table. GR_StoreFrameBuffer
++ * keeps the GPU VRAM texture current; this synchronous read completes the CPU
++ * vram[] mirror that MoveImage reads. The ordinary PBO path intentionally
++ * remains deferred for frame presentation. See build_port.sh. */
++void GR_StoreFrameBufferImmediate(int x, int y, int w, int h)
++{
++	GR_StoreFrameBuffer(x, y, w, h);
++
++#if USE_OPENGL
++	if (w <= 0 || h <= 0)
++		return;
++
++	u_int* pixels = (u_int*)malloc((size_t)w * h * sizeof(u_int));
++	if (!pixels)
++		return;
++
++	glActiveTexture(GL_TEXTURE0);
++	glBindTexture(GL_TEXTURE_2D, g_fbTexture);
++	glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
++	glBindTexture(GL_TEXTURE_2D, g_lastBoundTexture >= 0 ? g_lastBoundTexture : 0);
++	GR_CopyRGBAFramebufferToVRAM(pixels, x, y, w, h, 1, 0);
++	free(pixels);
++	g_xeno_vram_fb_synced = 1; /* _xeno_drmove_fb_synced: vram[] is newest */
++#endif
++}
++
+ void GR_CopyVRAM(unsigned short* src, int x, int y, int w, int h, int dst_x, int dst_y)
+ {
+ 	vram_need_update = 1;
+@@ -1655,6 +1730,21 @@ void GR_CopyVRAM(unsigned short* src, int x, int y, int w, int h, int dst_x, int
+ 
+ 	if (!src)
+ 	{
++		/* _xeno_read_materialize: reconcile the pending rendered-frame
++		 * snapshot into vram[] only when this VRAM read overlaps the
++		 * snapshot rect, so the read sees frame pixels without erasing
++		 * non-overlapping rows the game re-used for uploads. See build_port.sh. */
++		/* _xeno_drmove_fb_synced: skip the deferred splat while the synchronous
++		 * snapshot in vram[] is newer than anything the PBO could hold. */
++		if (framebuffer_need_update && !g_xeno_vram_fb_synced &&
++		    x < g_PreviousFramebuffer.x + g_PreviousFramebuffer.w &&
++		    x + w > g_PreviousFramebuffer.x &&
++		    y < g_PreviousFramebuffer.y + g_PreviousFramebuffer.h &&
++		    y + h > g_PreviousFramebuffer.y)
++		{
++			GR_ReadFramebufferDataToVRAM();
++		}
++
+ 		framebuffer_need_update = 1;
+ 
+ 		src = vram;
+@@ -1663,6 +1753,7 @@ void GR_CopyVRAM(unsigned short* src, int x, int y, int w, int h, int dst_x, int
+ 
+ 	src += x + y * stride;
+ 
++	dst_x &= (VRAM_WIDTH - 1); dst_y &= (VRAM_HEIGHT - 1); /* _xeno_vram_wrap: PSX coord mask; see build_port.sh */
+ 	unsigned short* dst = vram + dst_x + dst_y * VRAM_WIDTH;
+ 
+ 	for (int i = 0; i < h; i++) {
+@@ -1706,6 +1797,23 @@ void GR_UpdateVRAM()
+ #endif
+ }
+ 
++/* _xeno_fb_materialize_impl: composite a freshly MoveImage-restored draw-
++ * framebuffer rect into the GL backbuffer as the frame's base layer (the
++ * menu's per-frame backdrop restore; prims composite on top). */
++void GR_MaterializeFramebufferRect(int x, int y, int w, int h)
++{
++#if USE_OPENGL
++	GR_UpdateVRAM();
++	glBindFramebuffer(GL_READ_FRAMEBUFFER, g_glBlitFramebuffer);
++	glFramebufferTexture2D(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, g_vramTexture, 0);
++	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
++	glBlitFramebuffer(x, y, x + w, y + h,
++	                  0, g_windowHeight, g_windowWidth, 0,
++	                  GL_COLOR_BUFFER_BIT, GL_NEAREST);
++	glBindFramebuffer(GL_FRAMEBUFFER, 0);
++#endif
++}
++
+ void GR_SwapWindow()
+ {
+ #if defined(RENDERER_OGL) || defined(RENDERER_OGLES)

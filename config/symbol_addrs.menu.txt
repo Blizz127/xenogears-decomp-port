@@ -1,0 +1,12 @@
+// Menu overlay (menu.bin, VRAM 0x801C5000, 0x25908 bytes) symbols.
+// splat auto-names the menu functions and data from their addresses.
+//
+// The 8 field-referenced object jal-targets at 0x801E7xxx are MID-FUNCTION
+// entry points (the field jals into the middle of 5 larger functions:
+// func_801E71B4 / func_801E733C [3 entries] / func_801E7C50 / func_801E7E68
+// / func_801E8018, + an 0x801E8330 leaf). They are intentionally NOT seeded
+// here -- seeding them forces splat to mis-split the real functions
+// (+8-byte shift). The field resolves these absolute addresses via its own
+// linker/undefined_funcs_auto.field.txt, so menu.bin need not export them.
+// Phase 2 ports the enclosing functions as coexistence (C entries + the
+// whole INCLUDE_ASM function for matching).

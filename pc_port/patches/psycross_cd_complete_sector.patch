@@ -1,0 +1,76 @@
+--- a/src/psx/LIBCD.C
++++ b/src/psx/LIBCD.C
+@@ -11,6 +11,7 @@
+ #include <stdlib.h>
+ #include <ctype.h>
+ #include <limits.h>
++#include <stdint.h>
+ #include <malloc.h>
+ 
+ #ifdef _WIN32
+@@ -38,23 +39,27 @@
+ 
+ size_t vfread(void* _Buffer, size_t _ElementSize, size_t _ElementCount, VFILE* _Stream)
+ {
++	/* _xeno_cd_complete_sector: count complete elements, including at EOF.
++	 * Check multiplication and offsets before forming a memory end pointer. */
++	if (!_Stream || !_Buffer || !_ElementSize || !_ElementCount ||
++		_ElementCount > SIZE_MAX / _ElementSize)
++		return 0;
+ 	if (_Stream->fp)
+ 		return fread(_Buffer, _ElementSize, _ElementCount, _Stream->fp);
+ 
+-	size_t num_to_read = _ElementSize * _ElementCount;
+-
+-	if ((_Stream->curPtr + num_to_read) - _Stream->basePtr > _Stream->size)
++	uintptr_t base = (uintptr_t)_Stream->basePtr;
++	uintptr_t current = (uintptr_t)_Stream->curPtr;
++	if (!base || !current || current < base || current - base > _Stream->size)
++		return 0;
++	size_t remaining = _Stream->size - (current - base);
++	size_t bytes = _ElementSize * _ElementCount;
++	if (bytes > remaining) bytes = remaining;
++	if (bytes)
+ 	{
+-		// subtract difference
+-		num_to_read -= ((_Stream->curPtr + num_to_read) - (_Stream->basePtr + _Stream->size));
++		memcpy(_Buffer, _Stream->curPtr, bytes);
++		_Stream->curPtr += bytes;
+ 	}
+-
+-	memcpy(_Buffer, _Stream->curPtr, num_to_read);
+-
+-	// don't forget to advance
+-	_Stream->curPtr += num_to_read;
+-
+-	return _ElementCount;
++	return bytes / _ElementSize;
+ }
+ 
+ int vfseek(VFILE* _Stream, int  _Offset, int   _Origin)
+@@ -578,7 +583,11 @@
+ 				{
+ 					Sector sector;
+ 
+-					vfread(&sector, sizeof(Sector), 1, &g_imageFile);
++					if (vfread(&sector, sizeof(Sector), 1, &g_imageFile) != 1)
++					{
++						g_cdComQueue[i].processed = 1;
++						return -1;
++					}
+ 
+ 					memcpy(g_cdComQueue[i].p, &sector.data[0], sizeof(sector.data));
+ 					g_cdComQueue[i].p += sizeof(sector.data);
+@@ -587,7 +596,11 @@
+ 				{
+ 					AudioSector sector;
+ 
+-					vfread(&sector, sizeof(AudioSector), 1, &g_imageFile);
++					if (vfread(&sector, sizeof(AudioSector), 1, &g_imageFile) != 1)
++					{
++						g_cdComQueue[i].processed = 1;
++						return -1;
++					}
+ 
+ 					memcpy(g_cdComQueue[i].p, &sector.data[0], sizeof(sector.data));
+ 					g_cdComQueue[i].p += sizeof(sector.data);

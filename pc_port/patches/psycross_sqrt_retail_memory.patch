@@ -1,0 +1,29 @@
+diff --git a/src/psx/LIBGTE.C b/src/psx/LIBGTE.C
+--- a/src/psx/LIBGTE.C
++++ b/src/psx/LIBGTE.C
+@@ -992,6 +992,10 @@
+ 	return v;
+ }
+ 
++// _xeno_sqrt_retail_memory: the executable's SDK lookup is address-based,
++// including reads before the nominal SQRT table for negative inputs.
++extern "C" unsigned char g_PsxRam[];
++
+ int SquareRoot0(int a)
+ {
+ 	// correct Psy-Q implementation
+@@ -1011,7 +1015,12 @@ int SquareRoot0(int a)
+ 	if ((lzcs - 24) < 0)
+ 		idx = a >> (24 - lzcs);
+ 	else
+-		idx = a << (lzcs - 24);
++		idx = (int)((unsigned int)a << (lzcs - 24));
+ 
+-	return SQRT[idx - 64] << (31 - lzcs >> 1) >> 12;
++	unsigned int address = 0x80056a00u + ((unsigned int)idx - 64u) * 2u;
++	unsigned int offset = address & 0x1fffffu;
++	short sample = (short)(g_PsxRam[offset] | (g_PsxRam[offset + 1] << 8));
++	unsigned int value = (unsigned int)(int)sample;
++	value <<= ((31 - lzcs) >> 1);
++	return (int)(value >> 12);
+ }

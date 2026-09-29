@@ -1,0 +1,24 @@
+--- a/src/psx/LIBAPI.C
++++ b/src/psx/LIBAPI.C
+@@ -371,8 +371,19 @@
+ 
+ int WaitEvent(unsigned int event)
+ {
+-	PSYX_UNIMPLEMENTED();
+-	return 0;
++	/* _xeno_wait_event: BIOS checks enabled only on entry, then waits for
++	 * a delivered state. Never hold the registry mutex across a yield. */
++	if (event < 1 || event > PSYX_EVENT_MAX) return 0;
++	if (g_SoundTickMutex) SDL_LockMutex(g_SoundTickMutex);
++	PsyXEventSlot* e = &s_psyxEvents[event - 1];
++	int active = e->in_use && e->enabled;
++	int ready = active && e->pending;
++	if (ready) e->pending = 0;
++	if (g_SoundTickMutex) SDL_UnlockMutex(g_SoundTickMutex);
++	if (!active) return 0;
++	if (ready) return 1;
++	while (!TestEvent(event)) SDL_Delay(0);
++	return 1;
+ }
+ 
+ int TestEvent(unsigned int event)

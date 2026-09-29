@@ -1,0 +1,240 @@
+--- a/src/psx/LIBSPU.C
++++ b/src/psx/LIBSPU.C
+@@ -9,6 +9,50 @@
+ static int s_transferMode = SPU_TRANSFER_BY_DMA;
+ static SpuTransferCallbackProc s_transferCallback = NULL;
+ 
++/* _xeno_sound_prims: shared SDK-primitive state (sound init-proof milestone).
++ * Set and Get round-trip through this state so the manager reads back coherent
++ * values, and the awake OpenAL backend is actually driven. Behavioral (no PsyQ
++ * oracle): validated by state round-trip + backend liveness, NOT objdiff {}. */
++static SpuReverbAttr      s_reverbAttr    = { 0, 0, { 0, 0 }, 0, 0 };
++static SpuCommonAttr      s_commonAttr;   /* zero-init at load */
++static int                s_spuIrqEnabled = SPU_OFF; /* no SPU IRQ source in port */
++static SpuIRQCallbackProc s_spuIrqCallback = NULL;   /* registered, never fired */
++
++/* PSX reverb mode -> OpenAL EFX preset (gain, decayTime[s], gainHF). Depth from
++ * SpuSetReverbModeDepth scales the gain; mode 0 (OFF) collapses reverb. */
++typedef struct { float gain; float decay; float gainHF; } PsyXReverbPreset;
++static const PsyXReverbPreset s_reverbPresets[SPU_REV_MODE_MAX] = {
++	/* OFF      */ { 0.00f, 0.10f, 0.00f },
++	/* ROOM     */ { 0.30f, 0.80f, 0.30f },
++	/* STUDIO_A */ { 0.35f, 1.00f, 0.30f },
++	/* STUDIO_B */ { 0.40f, 1.30f, 0.30f },
++	/* STUDIO_C */ { 0.45f, 1.60f, 0.30f },
++	/* HALL     */ { 0.55f, 2.80f, 0.25f },
++	/* SPACE    */ { 0.60f, 4.00f, 0.20f },
++	/* ECHO     */ { 0.50f, 3.00f, 0.40f },
++	/* DELAY    */ { 0.50f, 3.00f, 0.40f },
++	/* PIPE     */ { 0.50f, 2.00f, 0.35f },
++};
++
++static void PsyX_ApplyReverbState(void)
++{
++	int mode = s_reverbAttr.mode & 0xFF;   /* strip SPU_REV_MODE_CLEAR_WA etc. */
++	PsyXReverbPreset p;
++	short dl = s_reverbAttr.depth.left;
++	short dr = s_reverbAttr.depth.right;
++	float depth;
++
++	if (mode < 0 || mode >= SPU_REV_MODE_MAX)
++		mode = 0;
++	p = s_reverbPresets[mode];
++
++	/* PSX depth is 0..0x7FFF per channel; use the louder channel as scalar */
++	depth = (float)((dl > dr) ? dl : dr) / 32767.0f;
++	if (depth < 0.0f) depth = 0.0f; else if (depth > 1.0f) depth = 1.0f;
++
++	PsyX_SPUAL_ApplyReverbParams(p.gain * depth, p.decay, p.gainHF);
++}
++
+ unsigned int SpuWrite(unsigned char* addr, unsigned int size)
+ {
+ 	unsigned int result = PsyX_SPUAL_Write(addr, size);
+@@ -146,13 +190,19 @@
+ 
+ int SpuSetReverbModeParam(SpuReverbAttr* attr)
+ {
+-	PSYX_UNIMPLEMENTED();
+-	return 0;
++	unsigned int m = attr->mask;
++	if (m & SPU_REV_MODE)      s_reverbAttr.mode        = attr->mode;
++	if (m & SPU_REV_DEPTHL)    s_reverbAttr.depth.left  = attr->depth.left;
++	if (m & SPU_REV_DEPTHR)    s_reverbAttr.depth.right = attr->depth.right;
++	if (m & SPU_REV_DELAYTIME) s_reverbAttr.delay       = attr->delay;
++	if (m & SPU_REV_FEEDBACK)  s_reverbAttr.feedback    = attr->feedback;
++	PsyX_ApplyReverbState();
++	return s_reverbAttr.mode;
+ }
+ 
+ void SpuGetReverbModeParam(SpuReverbAttr* attr)
+ {
+-	PSYX_UNIMPLEMENTED();
++	*attr = s_reverbAttr;
+ }
+ 
+ int SpuSetReverbDepth(SpuReverbAttr* attr)
+@@ -190,7 +240,27 @@
+ 
+ void SpuSetCommonAttr(SpuCommonAttr* attr)
+ {
+-	PSYX_UNIMPLEMENTED();
++	unsigned int m = attr->mask;
++	if (m & SPU_COMMON_MVOLL)     s_commonAttr.mvol.left      = attr->mvol.left;
++	if (m & SPU_COMMON_MVOLR)     s_commonAttr.mvol.right     = attr->mvol.right;
++	if (m & SPU_COMMON_MVOLMODEL) s_commonAttr.mvolmode.left  = attr->mvolmode.left;
++	if (m & SPU_COMMON_MVOLMODER) s_commonAttr.mvolmode.right = attr->mvolmode.right;
++	if (m & SPU_COMMON_CDVOLL)    s_commonAttr.cd.volume.left  = attr->cd.volume.left;
++	if (m & SPU_COMMON_CDVOLR)    s_commonAttr.cd.volume.right = attr->cd.volume.right;
++	if (m & SPU_COMMON_CDREV)     s_commonAttr.cd.reverb = attr->cd.reverb;
++	if (m & SPU_COMMON_CDMIX)     s_commonAttr.cd.mix    = attr->cd.mix;
++	if (m & SPU_COMMON_EXTVOLL)   s_commonAttr.ext.volume.left  = attr->ext.volume.left;
++	if (m & SPU_COMMON_EXTVOLR)   s_commonAttr.ext.volume.right = attr->ext.volume.right;
++	if (m & SPU_COMMON_EXTREV)    s_commonAttr.ext.reverb = attr->ext.reverb;
++	if (m & SPU_COMMON_EXTMIX)    s_commonAttr.ext.mix    = attr->ext.mix;
++	s_commonAttr.mask |= m;
++
++	/* Master output level -> listener gain, only when the caller actually set
++	 * it (PSX master vol is 14-bit, 0..0x3FFF). */
++	if (m & (SPU_COMMON_MVOLL | SPU_COMMON_MVOLR)) {
++		float g = (float)((s_commonAttr.mvol.left + s_commonAttr.mvol.right) / 2) / 16384.0f;
++		PsyX_SPUAL_SetMasterVolume(g);
++	}
+ }
+ 
+ int SpuInitMalloc(int num, char* top)
+@@ -229,13 +299,39 @@
+ 
+ int SpuSetReverbModeType(int mode)
+ {
+-	PSYX_UNIMPLEMENTED();
+-	return 0;
++	if (mode == SPU_REV_MODE_CHECK)
++		return s_reverbAttr.mode;
++	s_reverbAttr.mode = mode;
++	PsyX_ApplyReverbState();
++	return mode;
+ }
+ 
+ void SpuSetReverbModeDepth(short depth_left, short depth_right)
+ {
+-	PSYX_UNIMPLEMENTED();
++	s_reverbAttr.depth.left  = depth_left;
++	s_reverbAttr.depth.right = depth_right;
++	PsyX_ApplyReverbState();
++}
++
++/* _xeno_sound_prims: reverb delay/feedback/type-get complete the reverb-attr
++ * round-trip. Reached on the SoundInitialize happy path via
++ * SoundSetReverbModeWithAllocation; wired onto the shared s_reverbAttr state so
++ * the init path hits zero stubs. */
++void SpuSetReverbModeDelayTime(int delay)
++{
++	s_reverbAttr.delay = delay;
++	PsyX_ApplyReverbState();
++}
++
++void SpuSetReverbModeFeedback(int feedback)
++{
++	s_reverbAttr.feedback = feedback;
++	PsyX_ApplyReverbState();
++}
++
++void SpuGetReverbModeType(int* mode)
++{
++	*mode = s_reverbAttr.mode;
+ }
+ 
+ void SpuGetVoiceVolume(int vNum, short* volL, short* volR)
+@@ -343,8 +439,11 @@
+ 
+ int SpuSetIRQ(int on_off)
+ {
+-	PSYX_UNIMPLEMENTED();
+-	return 0;
++	/* No SPU IRQ source in the port backend: the enable state is registered
++	 * coherently but the callback never fires. Flagged as a pre-tick-leg gate
++	 * (SPU IRQ / streaming sync belongs with the tick leg, not init). */
++	s_spuIrqEnabled = on_off;
++	return on_off;
+ }
+ 
+ unsigned int SpuSetIRQAddr(unsigned int x)
+@@ -355,8 +454,11 @@
+ 
+ SpuIRQCallbackProc SpuSetIRQCallback(SpuIRQCallbackProc x)
+ {
+-	PSYX_UNIMPLEMENTED();
+-	return 0;
++	/* Register the callback (PsyQ returns the previous one). Never fired: no
++	 * SPU IRQ source in the port. Pre-tick-leg gate, same as SpuSetIRQ. */
++	SpuIRQCallbackProc old = s_spuIrqCallback;
++	s_spuIrqCallback = x;
++	return old;
+ }
+ 
+ void SpuSetCommonCDMix(int cd_mix)
+--- a/src/audio/PsyX_SPUAL.cpp
++++ b/src/audio/PsyX_SPUAL.cpp
+@@ -810,6 +810,47 @@
+ 	return g_enableSPUReverb;
+ }
+ 
++/* _xeno_sound_prims: drive the OpenAL EFX reverb params from the PSX reverb
++ * mode/depth (LIBSPU SpuSetReverbModeType/Depth). Behavioral wiring for the
++ * sound init-proof milestone, gated on the awake backend + EFX support. */
++void PsyX_SPUAL_ApplyReverbParams(float gain, float decayTime, float gainHF)
++{
++	if (!g_spuInit)
++		return;
++#ifndef __EMSCRIPTEN__
++	if (!g_ALEffectsSupported)
++		return;
++	if (gain < 0.0f) gain = 0.0f; else if (gain > 1.0f) gain = 1.0f;
++	if (gainHF < 0.0f) gainHF = 0.0f; else if (gainHF > 1.0f) gainHF = 1.0f;
++	if (decayTime < 0.1f) decayTime = 0.1f; else if (decayTime > 20.0f) decayTime = 20.0f;
++	alEffectf(g_nAlReverbEffect, AL_REVERB_GAIN, gain);
++	alEffectf(g_nAlReverbEffect, AL_REVERB_GAINHF, gainHF);
++	alEffectf(g_nAlReverbEffect, AL_REVERB_DECAY_TIME, decayTime);
++	/* re-commit the modified effect into the active aux slot */
++	alAuxiliaryEffectSloti(g_ALEffectSlots[g_currEffectSlotIdx], AL_EFFECTSLOT_EFFECT, g_nAlReverbEffect);
++#else
++	(void)gain; (void)decayTime; (void)gainHF;
++#endif
++}
++
++/* _xeno_sound_prims: PSX master output volume (SpuSetCommonAttr mvol) mapped
++ * to the OpenAL listener gain. Stored even before the backend is awake so a
++ * later SpuInit/apply picks it up; read back by the primitive probe. */
++static float g_psxMasterGain = 1.0f;
++void PsyX_SPUAL_SetMasterVolume(float gain)
++{
++	if (gain < 0.0f) gain = 0.0f; else if (gain > 1.0f) gain = 1.0f;
++	g_psxMasterGain = gain;
++	if (!g_spuInit)
++		return;
++	alListenerf(AL_GAIN, gain);
++}
++
++float PsyX_SPUAL_GetMasterVolume()
++{
++	return g_psxMasterGain;
++}
++
+ u_int PsyX_SPUAL_SetReverbVoice(int on_off, u_int voice_bit)
+ {
+ 	if (!g_spuInit)
+--- a/src/audio/PsyX_SPUAL.h
++++ b/src/audio/PsyX_SPUAL.h
+@@ -33,6 +33,11 @@
+ extern int PsyX_SPUAL_SetMute(int on_off);
+ extern int PsyX_SPUAL_SetReverb(int on_off);
+ extern int PsyX_SPUAL_GetReverbState();
++
++/* _xeno_sound_prims: init-proof primitive backend hooks (reverb params + master vol) */
++extern void PsyX_SPUAL_ApplyReverbParams(float gain, float decayTime, float gainHF);
++extern void PsyX_SPUAL_SetMasterVolume(float gain);
++extern float PsyX_SPUAL_GetMasterVolume();
+ extern u_int PsyX_SPUAL_SetReverbVoice(int on_off, u_int voice_bit);
+ extern u_int PsyX_SPUAL_GetReverbVoice();
+ 

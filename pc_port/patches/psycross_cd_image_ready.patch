@@ -1,0 +1,56 @@
+--- a/src/psx/LIBCD.C
++++ b/src/psx/LIBCD.C
+@@ -139,14 +139,19 @@
+ 
+ char g_cdImageBinaryFileName[2048] = { 0 };
+ int g_UseCDImage = 0;
++/* _xeno_cd_image_ready: configuration/borrowed storage is not successful
++ * initialization. This gate is not the drive's hardware status or lid state. */
++static int g_xeno_cdImageReady = 0;
+ 
+ int PsyX_IsCDImageInit()
+ {
+-	return g_imageFile.fp != NULL || g_imageFile.basePtr != NULL;
++	return g_xeno_cdImageReady &&
++		(g_imageFile.fp != NULL || g_imageFile.basePtr != NULL);
+ }
+ 
+ void PsyX_CDFS_Init(const char* imageFileName, int track /*= 0*/, int sectorSize /*= 0*/)
+ {
++	g_xeno_cdImageReady = 0;
+ 	g_UseCDImage = 1;
+ 
+ 	strcpy(g_cdImageBinaryFileName, imageFileName);
+@@ -160,6 +165,7 @@
+ 
+ void PsyX_CDFS_Init_Mem(const u_int* data, int size, int track /*= 0*/, int sectorSize /*= 0*/)
+ {
++	g_xeno_cdImageReady = 0;
+ 	g_UseCDImage = 1;
+ 
+ 	strcpy(g_cdImageBinaryFileName, "_MEMORY");
+@@ -826,6 +832,7 @@
+ 
+ int CdInit(void)
+ {
++	g_xeno_cdImageReady = 0;
+ 	g_cdCurrentSector = 0;
+ 
+ 	if(g_UseCDImage)
+@@ -843,6 +850,8 @@
+ 	for (int i = 0; i < COMMAND_QUEUE_SIZE; i++)
+ 		g_cdComQueue[i].processed = 1;
+ 
++	g_xeno_cdImageReady = g_UseCDImage &&
++		(g_imageFile.fp != NULL || g_imageFile.basePtr != NULL);
+ 	return 1;
+ }
+ 
+@@ -1154,6 +1163,7 @@
+ {
+ 	_eCdControlF_Pause();
+ 	_eCdSpoolerJoin();
++	g_xeno_cdImageReady = 0;
+ }
+ 
+ char* CdComstr(u_char com)

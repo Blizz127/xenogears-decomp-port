@@ -1,0 +1,46 @@
+diff --git a/src/gpu/PsyX_GPU.cpp b/src/gpu/PsyX_GPU.cpp
+--- a/src/gpu/PsyX_GPU.cpp
++++ b/src/gpu/PsyX_GPU.cpp
+@@ -423,0 +424,22 @@ void MakeTexcoordRect(GrVertex* vertex, unsigned char* uv, short page, short clu
++	/* _xeno_sprite_v_orientation: SPRT screen Y already matches PSX VRAM
++	 * (ortho top is v=0, shader t=0 is VRAM row 0). Pair the upper screen
++	 * edge with the base V so field dialog and world labels stay upright.
++	 * The previous inverted pairing matched Y-flipped glReadPixels dumps,
++	 * not the presented window. */
++#if defined(W34N52_MUTANT_M1)
++	const unsigned char topV = (unsigned char)(uv[1] + h);
++	const unsigned char bottomV = uv[1];
++#elif defined(W34N52_MUTANT_M2)
++	const unsigned char topV = uv[1];
++	const unsigned char bottomV = (unsigned char)(uv[1] + h - 1);
++#else
++	const unsigned char topV = uv[1];
++	const unsigned char bottomV = (unsigned char)(uv[1] + h);
++#endif
++#if defined(W34N52_MUTANT_M3)
++	const unsigned char leftU = (unsigned char)(uv[0] + w);
++	const unsigned char rightU = uv[0];
++#else
++	const unsigned char leftU = uv[0];
++	const unsigned char rightU = (unsigned char)(uv[0] + w);
++#endif
+@@ -425,2 +447,2 @@ void MakeTexcoordRect(GrVertex* vertex, unsigned char* uv, short page, short clu
+-	vertex[0].u = uv[0];
+-	vertex[0].v = uv[1];
++	vertex[0].u = leftU;
++	vertex[0].v = topV;
+@@ -432,2 +454,2 @@ void MakeTexcoordRect(GrVertex* vertex, unsigned char* uv, short page, short clu
+-	vertex[1].u = uv[0];
+-	vertex[1].v = uv[1] + h;
++	vertex[1].u = leftU;
++	vertex[1].v = bottomV;
+@@ -439,2 +461,2 @@ void MakeTexcoordRect(GrVertex* vertex, unsigned char* uv, short page, short clu
+-	vertex[2].u = uv[0] + w;
+-	vertex[2].v = uv[1] + h;
++	vertex[2].u = rightU;
++	vertex[2].v = bottomV;
+@@ -446,2 +468,2 @@ void MakeTexcoordRect(GrVertex* vertex, unsigned char* uv, short page, short clu
+-	vertex[3].u = uv[0] + w;
+-	vertex[3].v = uv[1];
++	vertex[3].u = rightU;
++	vertex[3].v = topV;

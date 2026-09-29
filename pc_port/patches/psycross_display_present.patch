@@ -1,0 +1,172 @@
+--- a/include/PsyX/PsyX_public.h
++++ b/include/PsyX/PsyX_public.h
+@@ -85,6 +85,18 @@
+ /* Usually called after DrawOTag/DrawOTagEnv */
+ extern void PsyX_EndScene(void);
+ 
++/* _xeno_display_present: nonzero while a scene opened by PsyX_BeginScene has
++ * not been presented yet. */
++extern int PsyX_IsSceneOpen(void);
++
++/* _xeno_display_present: present the submitted/current DISPENV area straight
++ * from the CPU VRAM mirror (15-bit, or 24-bit when isrgb24 is set) and swap.
++ * The PSX display always shows VRAM; PsyCross only presents rendered
++ * primitives, so a game that LoadImages pictures into the display buffer (STR
++ * movies) would otherwise never reach the window.  Returns 0 without
++ * presenting when a scene is open. */
++extern int PsyX_PresentDisplayFromVRAM(void);
++
+ /* Explicitly updates emulator input loop */
+ extern void PsyX_UpdateInput(void);
+ 
+@@ -110,4 +122,4 @@
+ }
+ #endif
+ 
+-#endif
+\ No newline at end of file
++#endif
+--- a/include/PsyX/PsyX_render.h
++++ b/include/PsyX/PsyX_render.h
+@@ -186,6 +186,7 @@
+ 
+ extern void			GR_StoreFrameBuffer(int x, int y, int w, int h);
+ extern void			GR_StoreFrameBufferImmediate(int x, int y, int w, int h); /* _xeno_drmove_snapshot_decl */
++extern void			GR_PresentVRAMDisplay(int x, int y, int w, int h, int rgb24, int displayEnabled); /* _xeno_display_present */
+ extern void			GR_UpdateVRAM();
+ extern void			GR_ReadFramebufferDataToVRAM();
+ 
+--- a/src/PsyX_main.cpp
++++ b/src/PsyX_main.cpp
+@@ -855,6 +855,26 @@
+ 	__attribute__((weak));
+ #endif
+ 
++/* _xeno_display_present */
++int PsyX_IsSceneOpen(void)
++{
++	return begin_scene_flag ? 1 : 0;
++}
++
++/* _xeno_display_present */
++int PsyX_PresentDisplayFromVRAM(void)
++{
++	if (begin_scene_flag)
++		return 0;
++
++	PsyX_Sys_DoPollEvent();
++	GR_PresentVRAMDisplay(currentDispEnv.disp.x, currentDispEnv.disp.y,
++		currentDispEnv.disp.w, currentDispEnv.disp.h,
++		currentDispEnv.isrgb24, !g_GPUDisabledState);
++	GR_SwapWindow();
++	return 1;
++}
++
+ void PsyX_EndScene()
+ {
+ 	if (!begin_scene_flag)
+--- a/src/render/PsyX_render.cpp
++++ b/src/render/PsyX_render.cpp
+@@ -2043,6 +2043,102 @@
+ #endif
+ }
+ 
++/* _xeno_display_present: convert the DISPENV rect of the CPU VRAM mirror to
++ * RGBA8 (15-bit texels, or 24-bit packed bytes when rgb24) and blit it over
++ * the whole window, flipped like GR_MaterializeFramebufferRect.  Used when a
++ * vblank passes without any primitive having been drawn. */
++void GR_PresentVRAMDisplay(int x, int y, int w, int h, int rgb24, int displayEnabled)
++{
++#if USE_OPENGL
++	static GLuint tex = 0;
++	static GLuint fbo = 0;
++	static int texW = 0;
++	static int texH = 0;
++	static u_int* pixels = NULL;
++	static size_t pixelsCap = 0;
++
++	if (w <= 0 || h <= 0)
++		return;
++
++	if ((size_t)w * h > pixelsCap)
++	{
++		free(pixels);
++		pixelsCap = (size_t)w * h;
++		pixels = (u_int*)malloc(pixelsCap * sizeof(u_int));
++		if (!pixels)
++		{
++			pixelsCap = 0;
++			return;
++		}
++	}
++
++	/* SetDispMask(0) gates scanout, not VRAM writes.  Preserve every VRAM byte
++	 * while presenting hardware-black until the game enables the display. */
++	if (!displayEnabled)
++		memset(pixels, 0, (size_t)w * h * sizeof(*pixels));
++	else for (int j = 0; j < h; j++)
++	{
++		const unsigned short* row = &vram[((y + j) & (VRAM_HEIGHT - 1)) * VRAM_WIDTH];
++		u_int* out = &pixels[j * w];
++
++		if (rgb24)
++		{
++			const unsigned char* bytes = (const unsigned char*)row;
++			for (int i = 0; i < w; i++)
++			{
++				int o = x * 2 + i * 3;
++				if (o + 2 >= VRAM_WIDTH * 2)
++				{
++					out[i] = 0xFF000000u;
++					continue;
++				}
++				out[i] = (u_int)bytes[o] | ((u_int)bytes[o + 1] << 8) |
++					((u_int)bytes[o + 2] << 16) | 0xFF000000u;
++			}
++		}
++		else
++		{
++			for (int i = 0; i < w; i++)
++			{
++				unsigned short p = row[(x + i) & (VRAM_WIDTH - 1)];
++				u_int r = (p & 31) << 3;
++				u_int g = ((p >> 5) & 31) << 3;
++				u_int b = ((p >> 10) & 31) << 3;
++				out[i] = r | (g << 8) | (b << 16) | 0xFF000000u;
++			}
++		}
++	}
++
++	if (!tex)
++		glGenTextures(1, &tex);
++	if (!fbo)
++		glGenFramebuffers(1, &fbo);
++
++	glBindTexture(GL_TEXTURE_2D, tex);
++	if (texW != w || texH != h)
++	{
++		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
++		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
++		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
++		texW = w;
++		texH = h;
++	}
++	else
++	{
++		glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
++	}
++	glBindTexture(GL_TEXTURE_2D, 0);
++
++	glBindFramebuffer(GL_READ_FRAMEBUFFER, fbo);
++	glFramebufferTexture2D(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex, 0);
++	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
++	glBlitFramebuffer(0, 0, w, h,
++	                  0, g_windowHeight, g_windowWidth, 0,
++	                  GL_COLOR_BUFFER_BIT, GL_NEAREST);
++	glBindFramebuffer(GL_FRAMEBUFFER, 0);
++#endif
++}
++
+ void GR_SwapWindow()
+ {
+ #if defined(RENDERER_OGL) || defined(RENDERER_OGLES)

@@ -1,0 +1,94 @@
+diff --git a/src/PsyX_main.cpp b/src/PsyX_main.cpp
+--- a/src/PsyX_main.cpp
++++ b/src/PsyX_main.cpp
+@@ -719,6 +719,13 @@ void PsyX_Sys_DoPollEvent()
+ 			{
+ 				int nKey = event.key.keysym.scancode;
+ 
++				/* _xeno_keyboard_tap_latch: PsyX_BeginScene and the VRAM
++				 * presenter can drain KEYDOWN+KEYUP before the next pad sample.
++				 * Preserve the down edge for one PsyX_Pad update so ordinary
++				 * quick taps are not erased by the final key-up state. */
++				if (event.type == SDL_KEYDOWN && event.key.repeat == 0)
++					PsyX_Pad_LatchKeyboardInput(nKey);
++
+ 				if (nKey == SDL_SCANCODE_RALT)
+ 				{
+ 					g_altKeyState = (event.type == SDL_KEYDOWN);
+diff --git a/src/pad/PsyX_pad.cpp b/src/pad/PsyX_pad.cpp
+--- a/src/pad/PsyX_pad.cpp
++++ b/src/pad/PsyX_pad.cpp
+@@ -23,6 +23,11 @@ int						g_cfg_controllerToSlotMapping[MAX_CONTROLLERS] = { -1, -1 };
+ 
+ PsyXController			g_controllers[MAX_CONTROLLERS];
+ const u_char*			g_sdlKeyboardState = NULL;
++/* _xeno_keyboard_tap_latch: active-low buttons observed as SDL KEYDOWN
++ * events since the last pad update.  SDL_GetKeyboardState only exposes the
++ * final held state, so a complete tap drained by an earlier event poll would
++ * otherwise vanish. */
++u_short				g_latchedKeyboardInputs = 0xFFFF;
+ 
+ u_short PsyX_Pad_UpdateKeyboardInput();
+ void	PsyX_Pad_UpdateGameControllerInput(SDL_GameController* cont, LPPADRAW pad);
+@@ -419,9 +424,36 @@ u_short PsyX_Pad_UpdateKeyboardInput()
+ 	if (g_sdlKeyboardState[mapping.kc_start])//START
+ 		ret &= ~0x8;
+ 
++	ret &= g_latchedKeyboardInputs;
++	g_latchedKeyboardInputs = 0xFFFF;
+ 	return ret;
+ }
+ 
++void PsyX_Pad_LatchKeyboardInput(int scancode)
++{
++	u_short ret = 0xFFFF;
++	const PsyXKeyboardMapping& mapping = g_cfg_keyboardMapping;
++
++	if (scancode == mapping.kc_square) ret &= ~0x8000;
++	if (scancode == mapping.kc_circle) ret &= ~0x2000;
++	if (scancode == mapping.kc_triangle) ret &= ~0x1000;
++	if (scancode == mapping.kc_cross) ret &= ~0x4000;
++	if (scancode == mapping.kc_l1) ret &= ~0x400;
++	if (scancode == mapping.kc_l2) ret &= ~0x100;
++	if (scancode == mapping.kc_l3) ret &= ~0x2;
++	if (scancode == mapping.kc_r1) ret &= ~0x800;
++	if (scancode == mapping.kc_r2) ret &= ~0x200;
++	if (scancode == mapping.kc_r3) ret &= ~0x4;
++	if (scancode == mapping.kc_dpad_up) ret &= ~0x10;
++	if (scancode == mapping.kc_dpad_down) ret &= ~0x40;
++	if (scancode == mapping.kc_dpad_left) ret &= ~0x80;
++	if (scancode == mapping.kc_dpad_right) ret &= ~0x20;
++	if (scancode == mapping.kc_select) ret &= ~0x1;
++	if (scancode == mapping.kc_start) ret &= ~0x8;
++
++	g_latchedKeyboardInputs &= ret;
++}
++
+ int PsyX_Pad_GetStatus(int mtap, int slot)
+ {
+ 	PsyXController* controller;
+@@ -455,4 +487,4 @@ void PsyX_Pad_Vibrate(int mtap, int slot, unsigned char* table, int len)
+ 		freq_high = 4096;
+ 
+ 	SDL_GameControllerRumble(controller->gc, freq_low, freq_high, 200);
+-}
+\ No newline at end of file
++}
+diff --git a/src/pad/PsyX_pad.h b/src/pad/PsyX_pad.h
+--- a/src/pad/PsyX_pad.h
++++ b/src/pad/PsyX_pad.h
+@@ -6,6 +6,7 @@ extern "C" {
+ #endif
+ 
+ extern void		PsyX_Pad_InitPad(int slot, u_char* padData);
++extern void		PsyX_Pad_LatchKeyboardInput(int scancode); /* _xeno_keyboard_tap_latch */
+ extern void		PsyX_Pad_Vibrate(int mtap, int slot, unsigned char* table, int len);
+ extern int		PsyX_Pad_GetStatus(int mtap, int slot);
+ extern void		PsyX_Pad_InternalPadUpdates();
+@@ -13,4 +14,4 @@ extern void		PsyX_Pad_InternalPadUpdates();
+ }
+ #endif
+ 
+-#endif // PSYX_PAD_H
+\ No newline at end of file
++#endif // PSYX_PAD_H

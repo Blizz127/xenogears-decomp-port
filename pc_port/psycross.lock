@@ -1,0 +1,8 @@
+# PsyCross (MIT) pin for the native PC port. Read by pc_port/build_port.sh.
+# The vendored tree pc_port/extern/PsyCross is gitignored; the build clones it
+# at this commit when absent and refuses a tree that is not based on it.
+# The port's changes on top live in pc_port/patches/*.patch (applied by the
+# build). Bump the pin only together with re-validated patches.
+url=https://github.com/OpenDriver2/PsyCross.git
+commit=e56e4cde1c2b8a15e0d4e38b26cdd9202e0d17e6
+license=MIT

@@ -1,0 +1,66 @@
+diff --git a/src/render/PsyX_render.cpp b/src/render/PsyX_render.cpp
+--- a/src/render/PsyX_render.cpp
++++ b/src/render/PsyX_render.cpp
+@@ -137,6 +137,7 @@
+ /* _xeno_drmove_fb_synced: 1 while the CPU vram[] framebuffer rect is at
+  * least as fresh as any pending deferred PBO capture. See build_port.sh. */
+ int g_xeno_vram_fb_synced = 0;
++static void GR_XenoReadBackbufferToVRAM(int x, int y, int w, int h); /* _xeno_fb_mirror_readpixels */
+ /* _xeno_raw_identity_option: opt-in exact raw-texture color identity. The
+  * uniform is enabled only for on-screen non-PGXP PS1-textured draws, while a
+  * dedicated per-vertex marker restricts the bypass to raw FT3/FT4 polygons. */
+@@ -1671,15 +1672,12 @@
+ 
+ 	// now we can read it back to VRAM texture
+ 
+-#if USE_OPENGL && defined(USE_PBO)
+-	// read the texture
+-	if(g_glFramebufferPBO.pixels)
+-	{
+-		glBindTexture(GL_TEXTURE_2D, g_fbTexture);
+-		PBO_Download(&g_glFramebufferPBO);
+-		glBindTexture(GL_TEXTURE_2D, 0);
+-		GR_CopyRGBAFramebufferToVRAM((u_int*)g_glFramebufferPBO.pixels, x, y, w, h, 0, 0);
+-	}
++	/* _xeno_fb_mirror_readpixels: the PBO download of g_fbTexture is empty
++	 * on software GL; read the live back buffer instead (see
++	 * GR_XenoReadBackbufferToVRAM). */
++#if USE_OPENGL
++	if (w > 0 && h > 0)
++		GR_XenoReadBackbufferToVRAM(x, y, w, h);
+ #endif
+ }
+ 
+@@ -1873,7 +1871,14 @@
+ 	glFlush();
+ #endif
+ 
+-	GR_ReadFramebufferDataToVRAM();
++	/* _xeno_fb_mirror_readpixels: the PBO/glGetTexImage download of the
++	 * blit staging texture returns zeros on software GL (llvmpipe), so the
++	 * CPU vram[] mirror never held a presented frame and every game-side
++	 * MoveImage/StoreImage of the display area (field->menu backdrop
++	 * snapshot func_800A476C, fades, distortion) copied black. On the PSX
++	 * the framebuffer IS VRAM; read the still-unswapped backbuffer into
++	 * vram[] here, at present time, the same way the DR_MOVE path does. */
++	GR_XenoReadBackbufferToVRAM(x, y, w, h);
+ #endif
+ }
+ 
+@@ -1884,8 +1889,16 @@
+  * remains deferred for frame presentation. See build_port.sh. */
+ void GR_StoreFrameBufferImmediate(int x, int y, int w, int h)
+ {
++	/* Refresh the GPU VRAM texture path (blit) and the CPU vram[] mirror
++	 * (_xeno_fb_mirror_readpixels: the readback now lives in
++	 * GR_StoreFrameBuffer itself). */
+ 	GR_StoreFrameBuffer(x, y, w, h);
++}
+ 
++/* _xeno_fb_mirror_readpixels: glReadPixels the default framebuffer's back
++ * buffer and scale it into the VRAM rect (x,y,w,h) of the CPU mirror. */
++static void GR_XenoReadBackbufferToVRAM(int x, int y, int w, int h)
++{
+ #if USE_OPENGL
+ 	if (w <= 0 || h <= 0)
+ 		return;

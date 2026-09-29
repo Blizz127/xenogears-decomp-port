@@ -1,0 +1,34 @@
+--- a/src/psx/LIBGTE.C
++++ b/src/psx/LIBGTE.C
+@@ -765,19 +765,27 @@ MATRIX* CompMatrix(MATRIX* m0, MATRIX* m1, MATRIX* m2)
+ {
+ 	// UNTESTED
+ 	SVECTOR tmp;
++	VECTOR transformedTranslation;
++	int originalTranslation[3];
+ 	gte_MulMatrix0(m0, m1, m2);
+ 
+ 	tmp.vx = m1->t[0];
+ 	tmp.vy = m1->t[1];
+ 	tmp.vz = m1->t[2];
+ 
+ 	gte_ldv0(&tmp);
+ 	gte_rtv0();
+-	gte_stlvnl(m2->t);
++	gte_stlvnl(&transformedTranslation); /* _xeno_compmatrix_alias */
+ 
+-	m2->t[0] += m0->t[0];
+-	m2->t[1] += m0->t[1];
+-	m2->t[2] += m0->t[2];
++	/* Retail 0x80049440-0x8004946C reads the transformed GTE result and
++	 * original m0 translation before writing any output translation. This
++	 * ordering is required when m0 == m2. */
++	originalTranslation[0] = m0->t[0];
++	originalTranslation[1] = m0->t[1];
++	originalTranslation[2] = m0->t[2];
++	m2->t[0] = transformedTranslation.vx + originalTranslation[0];
++	m2->t[1] = transformedTranslation.vy + originalTranslation[1];
++	m2->t[2] = transformedTranslation.vz + originalTranslation[2];
+ 
+ 	return m2;
+ }

@@ -1,0 +1,10 @@
+// Movie player module: archive directory 0x18, file 1 (0x16000 bytes, raw).
+// MovieMain (movie.bin 0x800737EC) allocates a top-of-heap block so the file
+// lands at 0x801D3000 and calls into it; the field overlay (misc5.c
+// func_800A7218) calls func_801D37CC for in-field movies.  Square's STR
+// player linked with Sony libpress (MDEC) and libcd streaming.
+func_801D3538 = 0x801D3538; // type:func  init(w,h,?,?,ring_sectors,sector_size,mode)
+func_801D37CC = 0x801D37CC; // type:func  field movie playback
+func_801D3F7C = 0x801D3F7C; // type:func
+func_801D4318 = 0x801D4318; // type:func
+func_801D43B0 = 0x801D43B0; // type:func  shutdown

@@ -1,0 +1,14 @@
+diff --git a/src/psx/LIBGTE.C b/src/psx/LIBGTE.C
+--- a/src/psx/LIBGTE.C
++++ b/src/psx/LIBGTE.C
+@@ -997,7 +997,9 @@ int SquareRoot0(int a)
+ 	// correct Psy-Q implementation
+ 	int idx;
+ 	int lzcs;
+-	lzcs = gte_leadingzerocount(a);
++	// _xeno_sqrt_lz_registers: retail MTC2 LZCS / MFC2 LZCR side effects.
++	MTC2((unsigned int)a, 30);
++	lzcs = MFC2(31);
+ 
+ 	if (lzcs == 32)
+ 		return 0;

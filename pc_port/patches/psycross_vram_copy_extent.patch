@@ -1,0 +1,95 @@
+--- a/src/render/PsyX_render.cpp
++++ b/src/render/PsyX_render.cpp
+@@ -1916,14 +1916,29 @@
+ #endif
+ }
+ 
++/* _xeno_vram_copy_extent: how many rows of `w` shorts, starting at vram[off]
++ * and stepping VRAM_WIDTH per row, stay inside vram[]. Zero if a single row
++ * does not fit (which also covers a negative offset or extent). */
++static int GR_XenoVRAMRowsInBounds(int off, int w)
++{
++	const int words = VRAM_WIDTH * VRAM_HEIGHT;
++
++	if (off < 0 || w <= 0 || off > words - w)
++		return 0;
++
++	return (words - off - w) / VRAM_WIDTH + 1;
++}
++
+ void GR_CopyVRAM(unsigned short* src, int x, int y, int w, int h, int dst_x, int dst_y)
+ {
+ 	vram_need_update = 1;
+ 
+ 	int stride = w;
++	int vram_to_vram = 0; /* _xeno_vram_copy_extent: src will alias vram[] */
+ 
+ 	if (!src)
+ 	{
++		vram_to_vram = 1;
+ 		/* _xeno_read_materialize: reconcile the pending rendered-frame
+ 		 * snapshot into vram[] only when this VRAM read overlaps the
+ 		 * snapshot rect, so the read sees frame pixels without erasing
+@@ -1948,6 +1963,62 @@
+ 	src += x + y * stride;
+ 
+ 	dst_x &= (VRAM_WIDTH - 1); dst_y &= (VRAM_HEIGHT - 1); /* _xeno_vram_wrap: PSX coord mask; see build_port.sh */
++
++	/* _xeno_vram_copy_extent: the destination ORIGIN is masked into VRAM just
++	 * above, but the EXTENT never was -- the row loop below trusted w/h
++	 * straight off the primitive. Xenogears map 96 submits a MOVE_IMAGE with
++	 * w=6432 h=1956 against 1024x512 VRAM, and PsyCross memcpy'd ~4MB past
++	 * vram[] into unmapped memory. Bound the row count to what stays inside
++	 * vram[], at the destination always and at the source too for a
++	 * VRAM->VRAM move (src aliases vram[] there, so an out-of-range source
++	 * rect over-reads by the same amount).
++	 *
++	 * Deliberately bounded against the END OF vram[] rather than against the
++	 * right edge of each row: a rect that runs past x+w == VRAM_WIDTH already
++	 * bleeds into the next row today, and reproducing that exactly keeps every
++	 * copy that currently stays in bounds byte-identical. Only a copy that
++	 * would leave the array is shortened. This contains the damage; why the
++	 * ordering table holds a garbage rect is still unknown. See build_port.sh
++	 * and scratchpad/silent-exits-20260920. */
++	{
++		const int dst_off = dst_x + dst_y * VRAM_WIDTH;
++		int max_h;
++
++		/* _xeno_vram_copy_extent: a degenerate rect copies nothing either
++		 * way -- the unclamped loop below memcpy's 0 bytes per row -- so
++		 * leave without touching vram[] and WITHOUT reporting. Maps 46/47
++		 * submit a well-formed w=0 h=64 MoveImage every boot; letting it
++		 * reach the report below both libelled it "malformed" and burned
++		 * the one-shot slot, so a genuine clamp later in the same run
++		 * would never have been logged. */
++		if (w <= 0 || h <= 0)
++			return;
++
++		max_h = GR_XenoVRAMRowsInBounds(dst_off, w);
++
++		if (vram_to_vram)
++		{
++			const int src_rows = GR_XenoVRAMRowsInBounds(x + y * VRAM_WIDTH, w);
++			if (src_rows < max_h)
++				max_h = src_rows;
++		}
++
++		if (h > max_h)
++		{
++			static int reported = 0;
++			if (!reported)
++			{
++				reported = 1;
++				eprinterr("GR_CopyVRAM: %dx%d rect (%d,%d)->(%d,%d) leaves %dx%d VRAM; rows clamped %d -> %d. Malformed primitive; further clamps not logged.\n",
++					w, h, x, y, dst_x, dst_y, VRAM_WIDTH, VRAM_HEIGHT, h, max_h);
++			}
++			h = max_h;
++		}
++
++		if (h <= 0)
++			return;
++	}
++
+ 	unsigned short* dst = vram + dst_x + dst_y * VRAM_WIDTH;
+ 
+ 	for (int i = 0; i < h; i++) {

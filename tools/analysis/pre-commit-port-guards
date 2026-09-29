@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Git pre-commit hook: refuse commits that add retail game bytes/tables or
+# Psy-Q SDK code (tools/analysis/run_port_guards.sh on the staged files).
+# Install:  ln -s ../../tools/analysis/pre-commit-port-guards "$(git rev-parse --git-common-dir)/hooks/pre-commit"
+# or use the pre-commit framework (.pre-commit-config.yaml, hook id port-guards).
+# Uses disc/ when present (exact), else the committed hash signatures.
+exec bash "$(git rev-parse --show-toplevel)/tools/analysis/run_port_guards.sh" --staged "$@"

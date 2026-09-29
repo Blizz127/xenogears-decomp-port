@@ -1,0 +1,39 @@
+--- a/src/render/PsyX_render.cpp
++++ b/src/render/PsyX_render.cpp
+@@ -69,6 +69,11 @@ TextureID g_offscreenRTTexture = -1;
+ 
+ TextureID g_whiteTexture = -1;
+ TextureID g_lastBoundTexture = -1;
++/* _xeno_texcache_format_key: GR_SetTexture's early return must key on
++ * (texture ID, format) — it fires BEFORE the per-shader sampler uniforms are
++ * set, so a same-ID 4-bit -> 8-bit transition left the new shader's LUT
++ * sampler at its default (F10 root cause). See build_port.sh. */
++TexFormat g_lastBoundTextureFormat = TF_16_BIT;
+ 
+ int g_windowWidth = 0;
+ int g_windowHeight = 0;
+@@ -436,6 +444,7 @@ void GR_UpdateSwapIntervalState(int swapInterval)
+ void GR_BeginScene()
+ {
+ 	g_lastBoundTexture = 0;
++	g_lastBoundTextureFormat = TF_16_BIT; /* _xeno_texcache_format_key: reset with the ID */
+ 
+ #if USE_OPENGL
+ #ifdef RENDERER_OGLES
+@@ -1283,7 +1323,7 @@ void GR_SetTexture(TextureID texture, TexFormat texFormat)
+ 		texture = g_whiteTexture;
+ 	}
+ 
+-	if (g_lastBoundTexture == texture) {
++	if (g_lastBoundTexture == texture && g_lastBoundTextureFormat == texFormat) { /* _xeno_texcache_format_key */
+ 		return;
+ 	}
+ 
+@@ -1340,6 +1340,7 @@ void GR_SetTexture(TextureID texture, TexFormat texFormat)
+ #endif
+ 
+ 	g_lastBoundTexture = texture;
++	g_lastBoundTextureFormat = texFormat; /* _xeno_texcache_format_key: update AFTER the sampler uniforms above */
+ }
+ 
+ void GR_SetClutSemiMode(int mode)

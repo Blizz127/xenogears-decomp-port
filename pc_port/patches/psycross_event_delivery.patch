@@ -1,0 +1,161 @@
+--- a/src/psx/LIBAPI.C
++++ b/src/psx/LIBAPI.C
+@@ -104,6 +104,7 @@
+ typedef struct {
+ 	volatile int in_use;
+ 	volatile int enabled;
++	int pending;           /* _xeno_event_delivery: BIOS delivered polling state */
+ 	unsigned int desc;      /* event class, e.g. RCntCNT2 */
+ 	int          spec;      /* EvSpINT ... */
+ 	int          mode;      /* EvMdINTR ... */
+@@ -130,22 +131,13 @@
+ 
+ void PsyX_Sys_DispatchCounter2(void)
+ {
+-	int i;
+ 	if (!g_SoundTickMutex)
+ 		return;
+ 	/* Bracket held somewhere: drop this tick (retail loses firings of a
+ 	 * disabled event the same way). Never block the interrupt thread. */
+ 	if (SDL_TryLockMutex(g_SoundTickMutex) != 0)
+ 		return;
+-	for (i = 0; i < PSYX_EVENT_MAX; i++)
+-	{
+-		PsyXEventSlot* e = &s_psyxEvents[i];
+-		if (e->in_use && e->enabled && e->func &&
+-			e->desc == (unsigned int)RCntCNT2 && e->spec == EvSpINT)
+-		{
+-			e->func();
+-		}
+-	}
++	DeliverEvent((unsigned int)RCntCNT2, EvSpINT);
+ 	SDL_UnlockMutex(g_SoundTickMutex);
+ }
+ 
+@@ -270,6 +262,7 @@
+ 			s_psyxEvents[i].mode    = mode;
+ 			s_psyxEvents[i].func    = func;
+ 			s_psyxEvents[i].enabled = 0;
++			s_psyxEvents[i].pending = 0;
+ 			/* publish last: the dispatch thread gates on in_use */
+ 			s_psyxEvents[i].in_use  = 1;
+ 			handle = i + 1;   /* handle; 0 stays reserved for "no free slot" */
+@@ -282,7 +275,7 @@
+ 
+ int CloseEvent(unsigned int event)
+ {
+-	int idx = (int)event - 1;
++	int idx = event >= 1 && event <= PSYX_EVENT_MAX ? (int)(event - 1) : -1;
+ 	if (idx >= 0 && idx < PSYX_EVENT_MAX)
+ 	{
+ 		int wasTick = 0;
+@@ -291,6 +284,7 @@
+ 		          PsyX_EventSlotIsSoundTick(&s_psyxEvents[idx]);
+ 		s_psyxEvents[idx].in_use  = 0;
+ 		s_psyxEvents[idx].enabled = 0;
++		s_psyxEvents[idx].pending = 0;
+ 		if (g_SoundTickMutex) SDL_UnlockMutex(g_SoundTickMutex);
+ 		/* Closing the tick event dissolves this thread's open brackets: the
+ 		 * event can no longer fire, and a leaked hold would silence every
+@@ -309,19 +303,23 @@
+ 
+ int EnableEvent(unsigned int event)
+ {
+-	int idx = (int)event - 1;
++	int idx = event >= 1 && event <= PSYX_EVENT_MAX ? (int)(event - 1) : -1;
+ 	if (idx >= 0 && idx < PSYX_EVENT_MAX)
+ 	{
+ 		if (!g_SoundTickMutex)   /* single-threaded early boot */
+ 		{
+ 			if (s_psyxEvents[idx].in_use)
++			{
+ 				s_psyxEvents[idx].enabled = 1;
++				s_psyxEvents[idx].pending = 0;
++			}
+ 			return 1;
+ 		}
+ 		SDL_LockMutex(g_SoundTickMutex);
+ 		if (s_psyxEvents[idx].in_use)
+ 		{
+ 			s_psyxEvents[idx].enabled = 1;
++			s_psyxEvents[idx].pending = 0;
+ 			/* Bracket close: release one held level. Unpaired enables
+ 			 * (func_80037F44 at boot) have no held level and just flip
+ 			 * the flag. */
+@@ -339,19 +337,23 @@
+ 
+ int DisableEvent(unsigned int event)
+ {
+-	int idx = (int)event - 1;
++	int idx = event >= 1 && event <= PSYX_EVENT_MAX ? (int)(event - 1) : -1;
+ 	if (idx >= 0 && idx < PSYX_EVENT_MAX)
+ 	{
+ 		if (!g_SoundTickMutex)   /* single-threaded early boot */
+ 		{
+ 			if (s_psyxEvents[idx].in_use)
++			{
+ 				s_psyxEvents[idx].enabled = 0;
++				s_psyxEvents[idx].pending = 0;
++			}
+ 			return 1;
+ 		}
+ 		SDL_LockMutex(g_SoundTickMutex);
+ 		if (s_psyxEvents[idx].in_use)
+ 		{
+ 			s_psyxEvents[idx].enabled = 0;
++			s_psyxEvents[idx].pending = 0;
+ 			/* Bracket open on the sound tick event: KEEP HOLDING the mutex
+ 			 * (recursive; the matching EnableEvent releases). This blocks
+ 			 * until any in-flight tick dispatch completes -- the retail
+@@ -375,18 +377,47 @@
+ 
+ int TestEvent(unsigned int event)
+ {
+-	PSYX_UNIMPLEMENTED();
+-	return 0;
++	int ready = 0;
++	if (event < 1 || event > PSYX_EVENT_MAX) return 0;
++	if (g_SoundTickMutex) SDL_LockMutex(g_SoundTickMutex);
++	PsyXEventSlot* e = &s_psyxEvents[event - 1];
++	if (e->in_use && e->enabled && e->pending)
++	{
++		e->pending = 0;
++		ready = 1;
++	}
++	if (g_SoundTickMutex) SDL_UnlockMutex(g_SoundTickMutex);
++	return ready;
+ }
+ 
+ void DeliverEvent(unsigned int ev1, int ev2)
+ {
+-	PSYX_UNIMPLEMENTED();
++	int i;
++	if (g_SoundTickMutex) SDL_LockMutex(g_SoundTickMutex);
++	/* BIOS scans live slots in order. A callback may change later slots. */
++	for (i = 0; i < PSYX_EVENT_MAX; ++i)
++	{
++		PsyXEventSlot* e = &s_psyxEvents[i];
++		if (!e->in_use || !e->enabled || e->pending ||
++		    e->desc != ev1 || e->spec != ev2) continue;
++		if (e->mode == 0x2000) e->pending = 1;
++		else if (e->mode == 0x1000 && e->func) e->func();
++	}
++	if (g_SoundTickMutex) SDL_UnlockMutex(g_SoundTickMutex);
+ }
+ 
+ void UnDeliverEvent(unsigned int ev1, int ev2)
+ {
+-	PSYX_UNIMPLEMENTED();
++	int i;
++	if (g_SoundTickMutex) SDL_LockMutex(g_SoundTickMutex);
++	for (i = 0; i < PSYX_EVENT_MAX; ++i)
++	{
++		PsyXEventSlot* e = &s_psyxEvents[i];
++		if (e->in_use && e->enabled && e->pending &&
++		    e->desc == ev1 && e->spec == ev2 && e->mode == 0x2000)
++			e->pending = 0;
++	}
++	if (g_SoundTickMutex) SDL_UnlockMutex(g_SoundTickMutex);
+ }
+ 
+ int OpenTh(int(*func)(), unsigned int unk01, unsigned int unk02)

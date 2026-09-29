@@ -1,0 +1,197 @@
+--- a/src/PsyX_main.cpp
++++ b/src/PsyX_main.cpp
+@@ -22,6 +22,9 @@
+ #include <stdio.h>
+ #include <SDL.h>
+ 
++/* _xeno_host_speed: bounded wall-clock acceleration, shared by all devices. */
++#include "../../../src/psycross_host_speed.inl"
++
+ #include "PsyX/PsyX_render.h"
+ 
+ #ifdef _WIN32
+@@ -42,7 +45,6 @@
+ SDL_Window* g_window = NULL;
+ int g_swapInterval = 1;
+ int g_enableSwapInterval = 1;
+-int g_skipSwapInterval = 0;
+ timerCtx_t g_vblTimer;
+ /* Sound counter-2 (RCnt2) pump cadence: retail SoundInitialize sets
+  * SetRCnt(RCntCNT2, 0x44E8, EvMdINTR) with RCnt2's default sysclock/8 clock ->
+@@ -155,14 +157,6 @@
+ 
+ int PsyX_Sys_GetVBlankCount()
+ {
+-	if (g_skipSwapInterval)
+-	{
+-		// extra speedup.
+-		// does not affect `vsync_callback` count
+-		g_psxSysCounters[PsxCounter_VBLANK] += 1;
+-		g_frameSkip++;
+-	}
+-	
+ 	return g_psxSysCounters[PsxCounter_VBLANK];
+ }
+ 
+@@ -175,7 +169,8 @@
+ 	{
+ 		// step counters
+ 		{
+-			const double timestep = g_vmode == MODE_NTSC ? FIXED_TIME_STEP_NTSC : FIXED_TIME_STEP_PAL;
++			const int speed = PsyX_GetSpeedMultiplier();
++			const double timestep = (g_vmode == MODE_NTSC ? FIXED_TIME_STEP_NTSC : FIXED_TIME_STEP_PAL) / speed;
+ 			const double vblDelta = Util_GetHPCTime(&g_vblTimer, 0);
+ 
+ 			if (vblDelta > timestep)
+@@ -198,7 +193,7 @@
+ 			// vblank cadence above. Same intr-mutex discipline as vsync so a
+ 			// dispatch never overlaps a vsync callback on this thread.
+ 			const double cnt2Delta = Util_GetHPCTime(&g_cnt2Timer, 0);
+-			if (cnt2Delta > PSYX_SOUND_CNT2_PERIOD)
++			if (cnt2Delta > PSYX_SOUND_CNT2_PERIOD / speed)
+ 			{
+ 				SDL_LockMutex(g_intrMutex);
+ 				PsyX_Sys_DispatchCounter2();
+@@ -638,6 +633,7 @@
+ 	InstallExceptionHandler();
+ 
+ 	PsyX_Log_Initialise();
++	PsyX_InitialiseSpeed();
+ 	PsyX_GetWindowName(windowNameStr);
+ 
+ #if defined(_WIN32) && defined(_DEBUG)
+@@ -739,6 +735,9 @@
+ 			case SDL_WINDOWEVENT:
+ 				switch (event.window.event)
+ 				{
++				case SDL_WINDOWEVENT_FOCUS_LOST:
++					PsyX_SetFastForwardHeld(0);
++					break;
+ 				case SDL_WINDOWEVENT_RESIZED:
+ 					g_windowWidth = event.window.data1;
+ 					g_windowHeight = event.window.data2;
+@@ -757,6 +756,12 @@
+ 			case SDL_KEYUP:
+ 			{
+ 				int nKey = event.key.keysym.scancode;
++				if (nKey == SDL_SCANCODE_F11) {
++					if (event.type == SDL_KEYUP)
++						PsyX_SetSpeedMultiplier((event.key.keysym.mod & KMOD_SHIFT)
++							? 1 : PsyX_GetSpeedMultiplier() % 5 + 1);
++					break;
++				}
+ 
+ 				/* _xeno_keyboard_tap_latch: PsyX_BeginScene and the VRAM
+ 				 * presenter can drain KEYDOWN+KEYUP before the next pad sample.
+@@ -822,7 +827,7 @@
+ 	assert(!begin_scene_flag);
+ 
+ 	{
+-		int swapInterval = (g_cfg_swapInterval && g_enableSwapInterval && !g_skipSwapInterval) ? g_swapInterval : 0;
++		int swapInterval = (g_cfg_swapInterval && g_enableSwapInterval && PsyX_GetSpeedMultiplier() == 1) ? g_swapInterval : 0;
+ 
+ 		// Maximum is (ScreenRefreshRate / 2). 
+ 		// If our screen refresh rate is lower than our PSX vmode refresh rate, 
+@@ -1026,10 +1031,7 @@
+ #if 1 //def _DEBUG
+ 	if (nKey == SDL_SCANCODE_BACKSPACE)
+ 	{
+-		if (down)
+-			g_skipSwapInterval = 1;
+-		else
+-			g_skipSwapInterval = 0;
++		PsyX_SetFastForwardHeld(down);
+ 	}
+ #endif
+ 
+@@ -1151,8 +1153,7 @@
+ #endif
+ 
+ 	// wait for vblank
+-	if (!g_skipSwapInterval)
+-	{	
++	{
+ 		static int swapLastVbl = 0;
+ 
+ 		int vbl;
+--- a/src/audio/PsyX_SPUAL.cpp
++++ b/src/audio/PsyX_SPUAL.cpp
+@@ -4,6 +4,7 @@
+ #include "psx/libetc.h"
+ #include "psx/libmath.h"
+ #include "PsyX_SPUAL.h"
++#include "../../../../src/host_speed.h"
+ 
+ #include <string.h>
+ #include <assert.h>
+@@ -1190,7 +1191,7 @@
+ 				s_alBufferCallbackSOFT(voice->alBuffer, AL_FORMAT_MONO16, 44100,
+ 				                       StreamCallback, (ALvoid*)(intptr_t)i2);
+ 				alSourcei(voice->alSource, AL_BUFFER, (ALint)voice->alBuffer);
+-				alSourcef(voice->alSource, AL_PITCH, 1.0f);
++				alSourcef(voice->alSource, AL_PITCH, (float)PsyX_GetSpeedMultiplier());
+ 				alSourcePlay(voice->alSource);
+ 			}
+ 			s_streamMode = 1;
+@@ -1214,7 +1215,7 @@
+ 		                       XaStreamCallback, NULL);
+ 		alSourcei(s_xaAlSource, AL_BUFFER, (ALint)s_xaAlBuffer);
+ 		alSourcei(s_xaAlSource, AL_SOURCE_RELATIVE, AL_TRUE);
+-		alSourcef(s_xaAlSource, AL_PITCH, 1.0f);
++		alSourcef(s_xaAlSource, AL_PITCH, (float)PsyX_GetSpeedMultiplier());
+ 		alSourcePlay(s_xaAlSource);
+ 		s_xaAlReady = 1;
+ 		eprintf("CD-XA streaming synthesis active (PS1 zigzag -> 44100 Hz)\n");
+@@ -1724,7 +1725,7 @@
+ 				voice->attr.pitch = psxAttrib->pitch;
+ 
+ 				const float pitch = (float)(voice->attr.pitch) / 4096.0f;
+-				alSourcef(alSource, AL_PITCH, pitch);
++				alSourcef(alSource, AL_PITCH, pitch * PsyX_GetSpeedMultiplier());
+ 			}
+ 		}
+ 
+@@ -2007,6 +2008,24 @@
+ 	return bits;
+ }
+ 
++/* Match physical sample consumption to accelerated device clocks. This only
++ * changes OpenAL presentation pitch; the emulated VxPitch and ADSR stay intact.
++ * Follow the existing lock order: never call AL while holding s_StreamMutex. */
++void PsyX_SPUAL_RefreshHostSpeed()
++{
++	if (!SDL_AtomicGet(&g_spuInit)) return;
++	SDL_LockMutex(g_SpuMutex);
++	const float speed = (float)PsyX_GetSpeedMultiplier();
++	for (int i = 0; i < s_spuVoiceCount; i++) {
++		SPUALVoice* voice = &g_SpuVoices[i];
++		if (voice->alSource == AL_NONE) continue;
++		float pitch = s_streamMode ? 1.0f : voice->attr.pitch / 4096.0f;
++		if (pitch > 0) alSourcef(voice->alSource, AL_PITCH, pitch * speed);
++	}
++	if (s_xaAlReady) alSourcef(s_xaAlSource, AL_PITCH, speed);
++	SDL_UnlockMutex(g_SpuMutex);
++}
++
+ /* _xeno_sound_adsr: advance every live envelope by `cycles` 44100Hz steps
+  * (the 240Hz translator tick batches ~184, fractional-accumulated on the
+  * caller side) and apply the composed gain. A Release that reaches level 0
+--- a/src/psx/LIBCD.C
++++ b/src/psx/LIBCD.C
+@@ -3,6 +3,7 @@
+ #include "../PsyX_main.h"
+ #include "../iso9660.h"
+ #include "../audio/PsyX_SPUAL.h"
++#include "../../../../src/host_speed.h"
+ 
+ #include <assert.h>
+ #include <stdio.h>
+@@ -902,7 +903,7 @@
+ 	Uint64 now;
+ 
+ 	freq = SDL_GetPerformanceFrequency();
+-	period = freq / ((g_xeno_cdMode & CdlModeSpeed) ? 150 : 75);
++	period = freq / (((g_xeno_cdMode & CdlModeSpeed) ? 150 : 75) * PsyX_GetSpeedMultiplier());
+ 	now = SDL_GetPerformanceCounter();
+ 
+ 	if (g_xeno_cdPaceNext == 0 || now > g_xeno_cdPaceNext + period * 8)

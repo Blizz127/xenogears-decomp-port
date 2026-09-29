@@ -1,0 +1,8 @@
+extern/
+build/
+build_native/
+build_cov/
+build_native_cov/
+generated/
+reference/
+*.log

@@ -1,0 +1,16 @@
+diff --git a/src/psx/LIBAPI.C b/src/psx/LIBAPI.C
+--- a/src/psx/LIBAPI.C
++++ b/src/psx/LIBAPI.C
+@@ -566,8 +566,10 @@
+ void SwEnterCriticalSection()
+ {
+-	PSYX_UNIMPLEMENTED();
++	/* _xeno_sw_critical_mask: share the native mask state without the
++	 * PSX syscall. No sound-mutex coupling is added here. */
++	(void)EnterCriticalSection();
+ }
+ void SwExitCriticalSection()
+ {
+-	PSYX_UNIMPLEMENTED();
++	ExitCriticalSection();
+ }

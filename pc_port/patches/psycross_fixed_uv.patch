@@ -1,0 +1,487 @@
+diff --git a/src/gpu/PsyX_GPU.cpp b/src/gpu/PsyX_GPU.cpp
+index 96648c7..e981a7e 100755
+--- a/src/gpu/PsyX_GPU.cpp
++++ b/src/gpu/PsyX_GPU.cpp
+@@ -343,6 +343,9 @@ void MakeTexcoordQuad(GrVertex* vertex, unsigned char* uv0, unsigned char* uv1,
+ 	vertex[3].dither = dither;
+ 	vertex[3].page = page;
+ 	vertex[3].clut = clut;
++	/* _xeno_fixed_uv_polygon: metadata consumed only by the optional exact
++	 * textured-polygon path. Rectangles/sprites never receive this marker. */
++	vertex[0]._p0 = vertex[1]._p0 = vertex[2]._p0 = vertex[3]._p0 = 0x26;
+ 	/*
+ 	if (g_cfg_bilinearFiltering)
+ 	{
+@@ -388,6 +391,7 @@ void MakeTexcoordTriangle(GrVertex* vertex, unsigned char* uv0, unsigned char* u
+ 	vertex[2].dither = dither;
+ 	vertex[2].page = page;
+ 	vertex[2].clut = clut;
++	vertex[0]._p0 = vertex[1]._p0 = vertex[2]._p0 = 0x26; /* _xeno_fixed_uv_polygon */
+ 	/*
+ 	if (g_cfg_bilinearFiltering)
+ 	{
+diff --git a/src/render/PsyX_fixed_uv.cpp b/src/render/PsyX_fixed_uv.cpp
+new file mode 100644
+index 0000000..68051e5
+--- /dev/null
++++ b/src/render/PsyX_fixed_uv.cpp
+@@ -0,0 +1,164 @@
++#include "PsyX_fixed_uv.h"
++
++#include <string.h>
++
++namespace
++{
++struct FixedVertex
++{
++	int32_t x;
++	int32_t y;
++	int32_t u;
++	int32_t v;
++};
++
++static int64_t ShiftRight16Floor(int64_t value)
++{
++	if (value >= 0)
++		return value / 0x10000;
++	return -((-value + 0xffff) / 0x10000);
++}
++
++static void SwapVertex(FixedVertex*& a, FixedVertex*& b)
++{
++	FixedVertex* temporary = a;
++	a = b;
++	b = temporary;
++}
++
++static bool FindSegment(FixedVertex** chain, int chainLength, int y,
++	FixedVertex*& start, FixedVertex*& end)
++{
++	for (int i = 0; i + 1 < chainLength; i++)
++	{
++		if (chain[i]->y <= y && y < chain[i + 1]->y)
++		{
++			start = chain[i];
++			end = chain[i + 1];
++			return true;
++		}
++	}
++	return false;
++}
++
++static int32_t EdgeX(const FixedVertex* start, const FixedVertex* end, int y)
++{
++	const int row = y - start->y;
++	const int height = end->y - start->y;
++	return start->x + (int64_t)(end->x - start->x) * row / height;
++}
++
++static int32_t EdgeUv(int32_t startValue, int32_t endValue, int row, int height)
++{
++	/* PCSX-Redux phase-20 behavior: truncate the signed 16.16 edge step
++	 * first, then accumulate that already-truncated step for each row. */
++	return startValue + (int64_t)row * ((endValue - startValue) / height);
++}
++}
++
++bool XenoBuildFixedUvRows(const XenoFixedUvVertex input[3], int width,
++	int height, XenoFixedUvRow* rows)
++{
++	if (input == NULL || rows == NULL || width <= 0 || height <= 0)
++		return false;
++
++	memset(rows, 0, sizeof(*rows) * height);
++
++	FixedVertex storage[3];
++	for (int i = 0; i < 3; i++)
++	{
++		storage[i].x = (int32_t)input[i].x * 0x10000;
++		storage[i].y = input[i].y;
++		storage[i].u = (int32_t)input[i].u * 0x10000;
++		storage[i].v = (int32_t)input[i].v * 0x10000;
++	}
++
++	FixedVertex* v1 = &storage[0];
++	FixedVertex* v2 = &storage[1];
++	FixedVertex* v3 = &storage[2];
++	/* These strict comparisons preserve PCSX-Redux's tie ordering. */
++	if (v1->y > v2->y) SwapVertex(v1, v2);
++	if (v1->y > v3->y) SwapVertex(v1, v3);
++	if (v2->y > v3->y) SwapVertex(v2, v3);
++
++	const int fullHeight = v3->y - v1->y;
++	if (fullHeight == 0)
++		return false;
++
++	const int32_t temp = ((int64_t)(v2->y - v1->y) * 0x10000) / fullHeight;
++	int32_t longest = (int64_t)temp * ((v3->x - v1->x) / 0x10000)
++		+ (v1->x - v2->x);
++	if (longest == 0)
++		return false;
++
++	FixedVertex* leftChain[3];
++	FixedVertex* rightChain[3];
++	int leftLength;
++	int rightLength;
++	if (longest < 0)
++	{
++		leftChain[0] = v1;
++		leftChain[1] = v3;
++		leftLength = 2;
++		rightChain[0] = v1;
++		rightChain[1] = v2;
++		rightChain[2] = v3;
++		rightLength = 3;
++		if (longest > -0x1000) longest = -0x1000;
++	}
++	else
++	{
++		leftChain[0] = v1;
++		leftChain[1] = v2;
++		leftChain[2] = v3;
++		leftLength = 3;
++		rightChain[0] = v1;
++		rightChain[1] = v3;
++		rightLength = 2;
++		if (longest < 0x1000) longest = 0x1000;
++	}
++
++	const int64_t numeratorU = (int64_t)temp * ((v3->u - v1->u) / 0x400)
++		+ (int64_t)(v1->u - v2->u) * 0x40;
++	const int64_t numeratorV = (int64_t)temp * ((v3->v - v1->v) / 0x400)
++		+ (int64_t)(v1->v - v2->v) * 0x40;
++	const int32_t stepU = (numeratorU * 0x400) / longest;
++	const int32_t stepV = (numeratorV * 0x400) / longest;
++
++	const int firstY = v1->y < 0 ? 0 : v1->y;
++	const int lastY = v3->y < height ? v3->y : height;
++	for (int y = firstY; y < lastY; y++)
++	{
++		FixedVertex* leftStart;
++		FixedVertex* leftEnd;
++		FixedVertex* rightStart;
++		FixedVertex* rightEnd;
++		if (!FindSegment(leftChain, leftLength, y, leftStart, leftEnd)
++			|| !FindSegment(rightChain, rightLength, y, rightStart, rightEnd))
++			continue;
++
++		const int leftRow = y - leftStart->y;
++		const int leftHeight = leftEnd->y - leftStart->y;
++		const int32_t leftX = EdgeX(leftStart, leftEnd, y);
++		const int32_t rightX = EdgeX(rightStart, rightEnd, y);
++		const int32_t leftU = EdgeUv(leftStart->u, leftEnd->u, leftRow, leftHeight);
++		const int32_t leftV = EdgeUv(leftStart->v, leftEnd->v, leftRow, leftHeight);
++
++		int firstX = (int)ShiftRight16Floor((int64_t)leftX + 0xffff);
++		int lastX = (int)ShiftRight16Floor((int64_t)rightX - 1);
++		if (firstX < 0) firstX = 0;
++		if (lastX >= width) lastX = width - 1;
++		if (lastX < firstX)
++			continue;
++
++		const int64_t gap = (int64_t)firstX * 0x10000 - leftX;
++		rows[y].seedU = leftU + ShiftRight16Floor(gap * stepU) + 0x8000;
++		rows[y].seedV = leftV + ShiftRight16Floor(gap * stepV) + 0x8000;
++		rows[y].stepU = stepU;
++		rows[y].stepV = stepV;
++		rows[y].firstX = firstX;
++		rows[y].valid = 1;
++	}
++
++	return true;
++}
+diff --git a/src/render/PsyX_fixed_uv.h b/src/render/PsyX_fixed_uv.h
+new file mode 100644
+index 0000000..ebffd8b
+--- /dev/null
++++ b/src/render/PsyX_fixed_uv.h
+@@ -0,0 +1,29 @@
++#pragma once
++
++#include <stdint.h>
++
++/* _xeno_fixed_uv: CPU-side transcription of the PCSX-Redux software GPU's
++ * textured-triangle edge/span interpolation.  Rows are uploaded as two
++ * RGBA32I texels: seed/step, then first-X/valid plus padding. */
++struct XenoFixedUvVertex
++{
++	int16_t x;
++	int16_t y;
++	uint8_t u;
++	uint8_t v;
++};
++
++struct XenoFixedUvRow
++{
++	int32_t seedU;
++	int32_t seedV;
++	int32_t stepU;
++	int32_t stepV;
++	int32_t firstX;
++	int32_t valid;
++	int32_t reserved0;
++	int32_t reserved1;
++};
++
++bool XenoBuildFixedUvRows(const XenoFixedUvVertex vertices[3], int width,
++	int height, XenoFixedUvRow* rows);
+diff --git a/src/render/PsyX_render.cpp b/src/render/PsyX_render.cpp
+index 1e5c2ca..ae00917 100755
+--- a/src/render/PsyX_render.cpp
++++ b/src/render/PsyX_render.cpp
+@@ -2,6 +2,7 @@
+ 
+ #include "../platform.h"
+ #include "../gpu/PsyX_GPU.h"
++#include "PsyX_fixed_uv.h"
+ 
+ #include "PsyX/PsyX_render.h"
+ #include "PsyX/PsyX_globals.h"
+@@ -63,6 +64,7 @@ ShaderID g_PreviousShader = -1;
+ TextureID g_vramTexturesDouble[2];
+ TextureID g_vramTexture;
+ TextureID g_rgLutTexture;
++TextureID g_xenoFixedUvRowsTexture = -1; /* _xeno_fixed_uv_rows_texture */
+ int g_vramTextureIdx = 0;
+ 
+ TextureID g_fbTexture = -1;
+@@ -115,6 +117,21 @@ static bool XenoPs1TexelCenterEnabled()
+ 	}
+ 	return enabled != 0;
+ }
++/* _xeno_fixed_uv_option: exact PCSX-Redux 16.16 edge/span interpolation is
++ * opt-in and restricted again at draw time to marked on-screen, non-PGXP,
++ * genuine-PS1 textured polygon triangles. */
++static bool XenoPs1FixedUvEnabled()
++{
++	static int enabled = -1;
++	if (enabled < 0)
++	{
++		const char* value = getenv("XENO_PS1_FIXED_UV_INTERPOLATION");
++		enabled = value != NULL && strcmp(value, "1") == 0;
++		if (enabled)
++			fprintf(stderr, "[PsyCross] exact PS1 fixed-point polygon UV interpolation enabled\n");
++	}
++	return enabled != 0;
++}
+ int vram_need_update = 1;
+ int framebuffer_need_update = 0;
+ /* _xeno_drmove_fb_synced: 1 while the CPU vram[] framebuffer rect is at
+@@ -459,6 +476,7 @@ void GR_Shutdown()
+ 
+ 	GR_DestroyTexture(g_whiteTexture);
+ 	GR_DestroyTexture(g_rgLutTexture);
++	GR_DestroyTexture(g_xenoFixedUvRowsTexture);
+ 	GR_DestroyTexture(g_fbTexture);
+ 	GR_DestroyTexture(g_offscreenRTTexture);
+ #endif
+@@ -535,6 +553,9 @@ typedef struct
+ 	GLint texelSizeLoc;
+ 	GLint texWindowLoc; /* _xeno_texwindow_loc_struct */
+ 	GLint texelCenterLoc; /* _xeno_texel_center_uniform */
++	GLint fixedUvLoc; /* _xeno_fixed_uv_uniforms */
++	GLint fixedUvRowsLoc;
++	GLint fixedUvViewportLoc;
+ 	GLint clutSemiModeLoc;
+ 	GLint texLoc;
+ 	GLint lutLoc;
+@@ -553,7 +574,11 @@ GLint u_projection3DLoc;
+ GLint u_texelSizeLoc;
+ GLint u_texWindowLoc = -1; /* _xeno_texwindow_loc_global */
+ GLint u_texelCenterLoc = -1; /* _xeno_texel_center_loc_global */
++GLint u_fixedUvLoc = -1; /* _xeno_fixed_uv_uniform_globals */
++GLint u_fixedUvViewportLoc = -1;
+ bool g_xeno_ps1_textured_sampling = false;
++static const GrVertex* g_xenoUploadedVertices = NULL;
++static XenoFixedUvRow g_xenoFixedUvRows[VRAM_HEIGHT];
+ GLint u_clutSemiModeLoc = -1;
+ 
+ #define GPU_SAMPLE_TEXTURE_4BIT_FUNC\
+@@ -660,7 +685,23 @@ GLint u_clutSemiModeLoc = -1;
+ 	"		return t;\n"\
+ 	"	}\n"\
+ 	"	vec4 nearestTextureSample(vec2 P) {\n"\
+-	"		P += (ps1TexelCenter > 0) ? vec2(0.5, 0.5) : vec2(0.0, 0.0);\n"\
++	"		if (ps1FixedUv > 0) {\n"\
++	"			int logicalX = int(floor(gl_FragCoord.x * float(fixedUvViewport.x) / float(fixedUvViewport.z)));\n"\
++	"			int logicalY = int(floor((float(fixedUvViewport.w) - gl_FragCoord.y) * float(fixedUvViewport.y) / float(fixedUvViewport.w)));\n"\
++	"			logicalX = clamp(logicalX, 0, fixedUvViewport.x - 1);\n"\
++	"			logicalY = clamp(logicalY, 0, fixedUvViewport.y - 1);\n"\
++	"			ivec4 seedStep = texelFetch(s_fixedUvRows, ivec2(0, logicalY), 0);\n"\
++	"			ivec4 span = texelFetch(s_fixedUvRows, ivec2(1, logicalY), 0);\n"\
++	"			if (span.y != 0) {\n"\
++	"				uint positionU = uint(seedStep.x) + uint(logicalX - span.x) * uint(seedStep.z);\n"\
++	"				uint positionV = uint(seedStep.y) + uint(logicalX - span.x) * uint(seedStep.w);\n"\
++	"				P = vec2(float((positionU >> 16u) & 255u), float((positionV >> 16u) & 255u));\n"\
++	"			} else {\n"\
++	"				P += vec2(0.5, 0.5);\n"\
++	"			}\n"\
++	"		} else {\n"\
++	"			P += (ps1TexelCenter > 0) ? vec2(0.5, 0.5) : vec2(0.0, 0.0);\n"\
++	"		}\n"\
+ 	"		vec2 rg = samplePSX(P);\n"\
+ 	"		float rgm = rg.x + rg.y;\n"\
+ 	"		if (rgm == 0.0) { discard; }\n"\
+@@ -671,7 +712,7 @@ GLint u_clutSemiModeLoc = -1;
+ 	"	uniform int bilinearFilter;\n"\
+ 	"	uniform int clutSemiMode;\n"\
+ 	"	void main() {\n"\
+-	"		vec4 color = (bilinearFilter > 0) ? bilinearTextureSample(v_texcoord.xy) : nearestTextureSample(v_texcoord.xy);\n"\
++	"		vec4 color = (bilinearFilter > 0 && ps1FixedUv == 0) ? bilinearTextureSample(v_texcoord.xy) : nearestTextureSample(v_texcoord.xy);\n"\
+ 	"		if (clutSemiMode == 1 && color.w < 0.5) { discard; }\n"\
+ 	"		if (clutSemiMode == 2 && color.w >= 0.5) { discard; }\n"\
+ 	"		fragColor = dither(color * v_color);\n"\
+@@ -679,6 +720,9 @@ GLint u_clutSemiModeLoc = -1;
+ 	
+ static const char* gpu_shader_common = R"(
+ 	uniform int ps1TexelCenter;
++	uniform int ps1FixedUv;
++	uniform isampler2D s_fixedUvRows;
++	uniform ivec4 fixedUvViewport;
+ 	varying vec4 v_texcoord;
+ 	varying vec4 v_color;
+ 	varying vec4 v_page_clut;
+@@ -951,6 +995,18 @@ void GR_GenerateCommonTextures()
+ 
+ 		glBindTexture(GL_TEXTURE_2D, 0);
+ 	}
++
++	glGenTextures(1, &g_xenoFixedUvRowsTexture);
++	{
++		glBindTexture(GL_TEXTURE_2D, g_xenoFixedUvRowsTexture);
++		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
++		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
++		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
++		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
++		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32I, 2, VRAM_HEIGHT, 0,
++			GL_RGBA_INTEGER, GL_INT, NULL);
++		glBindTexture(GL_TEXTURE_2D, 0);
++	}
+ #endif
+ }
+ 
+@@ -987,11 +1043,19 @@ void GR_CompilePSXShader(PSXGPU_Shader* sh, const char* source)
+ 	 * it to the disabled window so unset state is an exact no-op. */
+ 	sh->texWindowLoc = glGetUniformLocation(sh->shader, "u_texWindow");
+ 	sh->texelCenterLoc = glGetUniformLocation(sh->shader, "ps1TexelCenter");
++	sh->fixedUvLoc = glGetUniformLocation(sh->shader, "ps1FixedUv");
++	sh->fixedUvRowsLoc = glGetUniformLocation(sh->shader, "s_fixedUvRows");
++	sh->fixedUvViewportLoc = glGetUniformLocation(sh->shader, "fixedUvViewport");
+ 	sh->clutSemiModeLoc = glGetUniformLocation(sh->shader, "clutSemiMode");
+-	if (sh->texWindowLoc != -1)
++	if (sh->texWindowLoc != -1 || sh->fixedUvLoc != -1)
+ 	{
+ 		glUseProgram(sh->shader);
+-		glUniform4f(sh->texWindowLoc, 256.0f, 256.0f, 0.0f, 0.0f);
++		if (sh->texWindowLoc != -1)
++			glUniform4f(sh->texWindowLoc, 256.0f, 256.0f, 0.0f, 0.0f);
++		if (sh->fixedUvLoc != -1)
++			glUniform1i(sh->fixedUvLoc, 0);
++		if (sh->fixedUvRowsLoc != -1)
++			glUniform1i(sh->fixedUvRowsLoc, 2);
+ 		glUseProgram(0);
+ 	}
+ #if USE_PGXP
+@@ -1319,6 +1383,8 @@ void GR_SetTexture(TextureID texture, TexFormat texFormat)
+ 		lutLoc = g_gpu_shader_4.lutLoc;
+ 		u_texWindowLoc = g_gpu_shader_4.texWindowLoc; /* _xeno_texwindow_loc_route */
+ 		u_texelCenterLoc = g_gpu_shader_4.texelCenterLoc;
++		u_fixedUvLoc = g_gpu_shader_4.fixedUvLoc;
++		u_fixedUvViewportLoc = g_gpu_shader_4.fixedUvViewportLoc;
+ 		u_clutSemiModeLoc = g_gpu_shader_4.clutSemiModeLoc;
+ 		u_texelSizeLoc = -1;
+ 		break;
+@@ -1331,6 +1397,8 @@ void GR_SetTexture(TextureID texture, TexFormat texFormat)
+ 		lutLoc = g_gpu_shader_8.lutLoc;
+ 		u_texWindowLoc = g_gpu_shader_8.texWindowLoc;
+ 		u_texelCenterLoc = g_gpu_shader_8.texelCenterLoc;
++		u_fixedUvLoc = g_gpu_shader_8.fixedUvLoc;
++		u_fixedUvViewportLoc = g_gpu_shader_8.fixedUvViewportLoc;
+ 		u_clutSemiModeLoc = g_gpu_shader_8.clutSemiModeLoc;
+ 		u_texelSizeLoc = -1;
+ 		break;
+@@ -1343,6 +1411,8 @@ void GR_SetTexture(TextureID texture, TexFormat texFormat)
+ 		lutLoc = g_gpu_shader_16.lutLoc;
+ 		u_texWindowLoc = g_gpu_shader_16.texWindowLoc;
+ 		u_texelCenterLoc = g_gpu_shader_16.texelCenterLoc;
++		u_fixedUvLoc = g_gpu_shader_16.fixedUvLoc;
++		u_fixedUvViewportLoc = g_gpu_shader_16.fixedUvViewportLoc;
+ 		u_clutSemiModeLoc = g_gpu_shader_16.clutSemiModeLoc;
+ 		u_texelSizeLoc = -1;
+ 		break;
+@@ -1356,6 +1426,8 @@ void GR_SetTexture(TextureID texture, TexFormat texFormat)
+ 		u_texelSizeLoc = g_gpu_shader_32_rgba.texelSizeLoc;
+ 		u_texWindowLoc = -1;
+ 		u_texelCenterLoc = -1;
++		u_fixedUvLoc = -1;
++		u_fixedUvViewportLoc = -1;
+ 		u_clutSemiModeLoc = -1;
+ 		break;
+ 	}
+@@ -1599,6 +1671,8 @@ void GR_SetScissorState(int enable)
+ 
+ void GR_SetOffscreenState(const RECT16* offscreenRect, int enable)
+ {
++	if (u_fixedUvLoc != -1 && enable)
++		glUniform1i(u_fixedUvLoc, 0);
+ 	if (u_texelCenterLoc != -1)
+ 		glUniform1i(u_texelCenterLoc, (!enable && !USE_PGXP && g_xeno_ps1_textured_sampling && XenoPs1TexelCenterEnabled()) ? 1 : 0);
+ 	if (enable)
+@@ -2098,6 +2172,7 @@ void GR_UpdateVertexBuffer(const GrVertex* vertices, int num_vertices)
+ 	}
+ 
+ 	//assert(num_vertices <= MAX_VERTEX_BUFFER_SIZE);
++	g_xenoUploadedVertices = vertices;
+ 	GR_BindVertexBuffer();
+ 
+ #if USE_OPENGL
+@@ -2110,6 +2185,49 @@ void GR_UpdateVertexBuffer(const GrVertex* vertices, int num_vertices)
+ void GR_DrawTriangles(int start_vertex, int triangles)
+ {
+ #if USE_OPENGL
++	/* _xeno_fixed_uv_draw: keep the legacy one-call batch byte-for-byte when
++	 * disabled. When enabled, only polygon-marked triangles get exact rows;
++	 * all other primitive classes retain the ordinary shader/F24 path. */
++#if !USE_PGXP
++	if (XenoPs1FixedUvEnabled() && !g_PreviousOffscreenState
++		&& g_xeno_ps1_textured_sampling && u_fixedUvLoc != -1
++		&& u_fixedUvViewportLoc != -1 && g_xenoUploadedVertices != NULL
++		&& activeDispEnv.disp.w > 0 && activeDispEnv.disp.h > 0
++		&& activeDispEnv.disp.h <= VRAM_HEIGHT && g_windowWidth > 0 && g_windowHeight > 0)
++	{
++		glUniform4i(u_fixedUvViewportLoc, activeDispEnv.disp.w, activeDispEnv.disp.h,
++			g_windowWidth, g_windowHeight);
++		for (int triangle = 0; triangle < triangles; triangle++)
++		{
++			const int vertexIndex = start_vertex + triangle * 3;
++			const GrVertex* source = g_xenoUploadedVertices + vertexIndex;
++			const bool polygon = source[0]._p0 == 0x26 && source[1]._p0 == 0x26
++				&& source[2]._p0 == 0x26;
++			XenoFixedUvVertex fixedVertices[3];
++			for (int i = 0; i < 3; i++)
++			{
++				fixedVertices[i].x = source[i].x;
++				fixedVertices[i].y = source[i].y;
++				fixedVertices[i].u = source[i].u;
++				fixedVertices[i].v = source[i].v;
++			}
++			const bool fixed = polygon && XenoBuildFixedUvRows(fixedVertices,
++				activeDispEnv.disp.w, activeDispEnv.disp.h, g_xenoFixedUvRows);
++			glUniform1i(u_fixedUvLoc, fixed ? 1 : 0);
++			if (fixed)
++			{
++				glActiveTexture(GL_TEXTURE2);
++				glBindTexture(GL_TEXTURE_2D, g_xenoFixedUvRowsTexture);
++				glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 2, activeDispEnv.disp.h,
++					GL_RGBA_INTEGER, GL_INT, g_xenoFixedUvRows);
++				glActiveTexture(GL_TEXTURE0);
++			}
++			glDrawArrays(GL_TRIANGLES, vertexIndex, 3);
++		}
++		glUniform1i(u_fixedUvLoc, 0);
++		return;
++	}
++#endif
+ 	glDrawArrays(GL_TRIANGLES, start_vertex, triangles * 3);
+ #else
+ #error

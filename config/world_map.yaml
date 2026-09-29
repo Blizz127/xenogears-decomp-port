@@ -1,0 +1,95 @@
+name: World Map Overlay
+sha1: 5fee1deab3558c23bbe9c3a2eda3a2021a570911
+options:
+  basename: world_map.bin
+  target_path: disc/world_map.bin
+  base_path: ../
+  platform: psx
+  compiler: PSYQ
+
+  asm_path: asm/world_map
+  src_path: src/world_map
+  build_path: build/
+
+  ld_script_path: linker/world_map.ld
+
+  find_file_boundaries: False
+  gp_value: 0x80059170
+  global_vram_start: 0x80010000
+
+  o_as_suffix: False
+  use_legacy_include_asm: False
+  # NB: no `generate_asm_macros_files` here.  That is a newer-splat option; the
+  # pinned 0.33.2 rejects it, gears ignores splat's nonzero exit, and the whole
+  # overlay split silently vanishes (surfacing later as a missing linker script).
+
+  asm_function_macro: glabel
+  asm_jtbl_label_macro: jlabel
+  asm_data_macro: dlabel
+
+  section_order: [".rodata", ".text", ".data", ".bss"]
+
+  symbol_addrs_path:
+    - config/symbol_addrs.world_map.txt
+    - config/symbol_addrs.slus_006.64.txt
+  reloc_addrs_path:
+    - configs/reloc_addrs.world_map.txt
+
+  undefined_funcs_auto_path: linker/undefined_funcs_auto.world_map.txt
+  undefined_syms_auto_path: linker/undefined_syms_auto.world_map.txt
+
+  extensions_path: tools/splat_ext
+
+  subalign: 4
+
+  string_encoding: ASCII
+  data_string_encoding: ASCII
+  rodata_string_guesser_level: 2
+  data_string_guesser_level: 2
+  ld_bss_is_noload: true
+
+# world_map.bin shares the 0x8006faf0 overlay slot with battling.bin (the game
+# loads whichever state it is entering).  Geometry cross-checked against the
+# port's own reverse-engineering notes in pc_port/src/world_map_init.c:
+#   WorldMapMain      0x80070CFC -> file offset 0x120C
+#   wm_8009766C       (object pool)      -> offset 0x27B7C, in file  => code
+#   wm_80098044       (OuterProduct0)    -> offset 0x28554, in file  => code
+#   0x8009BE4C        (identity copy target) -> past 0x2C0C6 => BSS
+#   0x8009C620        (render context, the "E190" blocker) -> BSS
+# File end 0x8006faf0 + 0x2C0C6 = 0x8009BBB6, so BSS starts at 0x8009BBB8.
+segments:
+  - name: world_map
+    type: code
+    start: 0x0
+    vram: 0x8006faf0
+    bss_size: 0x20000
+    align: 4
+    subalign: 4
+    subsegments:
+      # The leading block MUST be `rodata`, not `data`.  `section_order` puts
+      # .rodata first and .text before .data, so a leading `data` subsegment is
+      # linked *after* the code and the overlay mismatches from byte 1 (retail
+      # offset 0 is 0x00000005; a data-first split emits `addiu $sp,$sp,-0x28`
+      # there instead).  movie.bin -- which matches retail exactly -- uses
+      # `rodata` here for the same reason.
+      - [0x0, rodata]
+      - [0x120C, c, main]
+      # Code ends after func_80099BFC; splat's own scan puts the first trailing
+      # data label at D_80099E8C == offset 0x2A39C.  It must be declared as a
+      # `data` subsegment rather than left inside the text one: inside `asm`,
+      # splat emits the words with `dlabel`, which does not export them, and
+      # the overlay then fails to link on undefined references such as
+      # D_8009B564 / D_8009BB48 / D_8009A5B4.
+      - [0x2A39C, data]
+      # 0x8009bbb8 = file end 0x8009BBB6 aligned to 4.  Do NOT nudge this --
+      # 0x8009bbb0 was tried and is worse (2,907).  splat 0.33.2 emits an
+      # address-less `.world_map_bss (NOLOAD)` for a nested bss subsegment;
+      # the Makefile then pins the VMA at 0x8009BBB8 so 16-byte .bss alignment
+      # cannot round it up to 0x8009BBC0.  Symbols are also pinned in
+      # symbol_addrs.world_map.txt (addresses are in the names).
+      - { vram: 0x8009bbb8, type: bss }
+  # The overlay length 0x2C0C6 is not a multiple of 4, so the final 2 bytes
+  # cannot live in a word-aligned data subsegment -- without a `databin` tail
+  # the build comes out 2 bytes short.  movie.bin does the same for its last 3.
+  - [0x2C0C4, databin]
+  - [0x2c0c6]

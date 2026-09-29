@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Minimal ripgrep stand-in for the pc_port harness inside the toolchain
+# container, which ships no ripgrep.  The runners use rg only as a line
+# matcher (-q/-v/-m/-A/-n/-c/-i/-F/-l); map those onto GNU grep -E.
+args=(); fixed=0
+for a in "$@"; do
+  case "$a" in
+    -F|-Fq) fixed=1; [ "$a" = "-Fq" ] && args+=(-q) ;;
+    -*) args+=("$a") ;;
+    *) args+=("$a") ;;
+  esac
+done
+if [ "$fixed" = 1 ]; then exec grep -F "${args[@]}"; fi
+exec grep -E "${args[@]}"

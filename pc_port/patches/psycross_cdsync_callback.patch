@@ -1,0 +1,47 @@
+diff --git a/src/psx/LIBCD.C b/src/psx/LIBCD.C
+index 9d36839..3e0e422 100755
+--- a/src/psx/LIBCD.C
++++ b/src/psx/LIBCD.C
+@@ -116,6 +116,12 @@ int g_cdReadDoneFlag = 1;
+ char g_cdImageBinaryFileName[2048] = { 0 };
+ int g_UseCDImage = 0;
+ 
++/* Xeno W28B: CdSyncCallback registration slot. Initialized to NULL.
++ * Retail PsyQ stores one global sync-callback pointer (CD_cbsync) that
++ * is invoked when a CD command completes. The callback signature is
++ * void callback(u_char status, u_char *result). */
++static CdlCB CD_cbsync = NULL;
++
+ int PsyX_IsCDImageInit()
+ {
+ 	return g_imageFile.fp != NULL || g_imageFile.basePtr != NULL;
+@@ -459,6 +465,19 @@ int CdControlF(u_char com, u_char * param)
+ 		}
+ 	}
+ 
++	/* Xeno W28B: invoke registered sync callback on successful command
++	 * completion. Captured locally so the callback can safely unregister
++	 * or replace itself without affecting this invocation. Status 2 =
++	 * CdlAcknowledge (retail bios.c:266). */
++	{
++		CdlCB cb = CD_cbsync;
++		if (cb) {
++			u_char resultBuf[8] = { 0 };
++			resultBuf[0] = (u_char)(com | 0x02); /* status byte: command + motor-on */
++			cb(2, resultBuf);
++		}
++	}
++
+ 	return 0;
+ }
+ 
+@@ -1027,6 +1046,7 @@ CdlCB CdReadCallback(CdlCB func)
+ 
+ CdlCB CdSyncCallback(CdlCB func)
+ {
+-	PSYX_UNIMPLEMENTED();
+-	return 0;
++	CdlCB prev = CD_cbsync;
++	CD_cbsync = func;
++	return prev;
+ }

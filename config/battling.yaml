@@ -1,0 +1,81 @@
+name: Battling Overlay
+sha1: 9cfebaf201a0dfd352c11007a63ad7a955533b17
+options:
+  basename: battling.bin
+  target_path: disc/battling.bin
+  base_path: ../
+  platform: psx
+  compiler: PSYQ
+
+  asm_path: asm/battling
+  src_path: src/battling
+  build_path: build/
+
+  ld_script_path: linker/battling.ld
+
+  find_file_boundaries: False
+  gp_value: 0x80059170
+  global_vram_start: 0x80010000
+
+  o_as_suffix: False
+  use_legacy_include_asm: False
+  # NB: no `generate_asm_macros_files` here.  That is a newer-splat option; the
+  # pinned 0.33.2 rejects it, gears ignores splat's nonzero exit, and the whole
+  # overlay split silently vanishes (surfacing later as a missing linker script).
+
+  asm_function_macro: glabel
+  asm_jtbl_label_macro: jlabel
+  asm_data_macro: dlabel
+
+  section_order: [".rodata", ".text", ".data", ".bss"]
+
+  symbol_addrs_path:
+    - config/symbol_addrs.battling.txt
+    - config/symbol_addrs.slus_006.64.txt
+  reloc_addrs_path:
+    - configs/reloc_addrs.battling.txt
+
+  undefined_funcs_auto_path: linker/undefined_funcs_auto.battling.txt
+  undefined_syms_auto_path: linker/undefined_syms_auto.battling.txt
+
+  extensions_path: tools/splat_ext
+
+  subalign: 4
+
+  string_encoding: ASCII
+  data_string_encoding: ASCII
+  rodata_string_guesser_level: 2
+  data_string_guesser_level: 2
+  ld_bss_is_noload: true
+
+segments:
+  - name: battling
+    type: code
+    start: 0x0
+    vram: 0x8006faf0
+    bss_size: 0x20000
+    align: 4
+    subalign: 4
+    subsegments:
+      # The first 0xCB8 bytes are the overlay's literal/jump-table data.
+      # Code begins at 0x800707A8; the 0xCB8 boundary is independently
+      # visible in the retail split as the end of D_8006FAF0's data block.
+      # MUST be `rodata`, not `data`: section_order puts .rodata first and
+      # .text before .data, so a leading `data` subsegment links after the
+      # code (retail offset 0 is 0x00000007; a data-first split emits
+      # `addiu $sp,$sp,-0x18` there instead).  movie.bin and world_map.yaml
+      # use `rodata` here for the same reason.
+      - [0x0, rodata]
+      - [0xCB8, c, misc]
+      # Both text segments are C TUs (src/battling/misc.c, main.c) whose
+      # functions are INCLUDE_ASM until they have byte-exact C.  (An older note
+      # here said a `c` subsegment could not satisfy the leading rodata's
+      # `.word .L...` jump-table relocs; with the current INCLUDE_ASM wrapper
+      # and macro.inc jlabels it links byte-identically.)
+      - [0x193A0, c, main]
+      - { vram: 0x8009295c, type: bss }
+  # Overlay length 0x22E69 is not a multiple of 4, so the final byte cannot
+  # live in a word-aligned data subsegment -- without a `databin` tail the
+  # build comes out 1 byte short of retail 142,953.
+  - [0x22E68, databin]
+  - [0x22E69]

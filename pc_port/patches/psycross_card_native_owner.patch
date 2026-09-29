@@ -1,0 +1,80 @@
+--- a/src/psx/LIBAPI.C	2026-09-23 21:33:24.589119957 -0500
++++ b/src/psx/LIBAPI.C	2026-09-23 21:33:24.590464929 -0500
+@@ -719,74 +719,9 @@
+ 	PSYX_UNIMPLEMENTED();
+ }
+ 
+-void InitCARD(int val)
+-{
+-	PSYX_UNIMPLEMENTED();
+-}
+-
+-int StartCARD()
+-{
+-	PSYX_UNIMPLEMENTED();
+-	return 0;
+-}
+-
+-int StopCARD()
+-{
+-	PSYX_UNIMPLEMENTED();
+-	return 0;
+-}
+-
+-void _bu_init()
+-{
+-	PSYX_UNIMPLEMENTED();
+-}
+-
+-int _card_info(int chan)
+-{
+-	PSYX_UNIMPLEMENTED();
+-	return 0;
+-}
+-
+-int _card_clear(int chan)
+-{
+-	PSYX_UNIMPLEMENTED();
+-	return 0;
+-}
+-
+-int _card_load(int chan)
+-{
+-	PSYX_UNIMPLEMENTED();
+-	return 0;
+-}
+-
+-int _card_auto(int val)
+-{
+-	PSYX_UNIMPLEMENTED();
+-	return 0;
+-}
+-
+-void _new_card()
+-{
+-	PSYX_UNIMPLEMENTED();
+-}
+-
+-int _card_status(int drv)
+-{
+-	PSYX_UNIMPLEMENTED();
+-	return 0;
+-}
+-
+-int _card_wait(int drv)
+-{
+-	PSYX_UNIMPLEMENTED();
+-	return 0;
+-}
+-
+-unsigned int _card_chan(void)
+-{
+-	PSYX_UNIMPLEMENTED();
+-	return 0;
+-}
++/* _xeno_card_native_owner: InitCARD/StartCARD/StopCARD/_bu_init and the
++ * _card_* driver calls are implemented by pc_port/src/memcard_port.c (a
++ * card-image backed BIOS card layer) together with the file-API calls. */
+ 
+ int _card_write(int chan, int block, unsigned char *buf)
+ {

@@ -1,0 +1,8 @@
+// Battling overlay (archive directory 0x01, file 0x0D), decompressed from
+// the retail disc.  The main state table at SLUS 0x800180CC supplies the
+// entry pointer and state memory bounds:
+//   main      0x80088E90
+//   pMemStart 0x800925D0
+//   pHeapStart 0x8009B554
+//   hasOverlay 1
+BattlingMain = 0x80088E90; // type:func

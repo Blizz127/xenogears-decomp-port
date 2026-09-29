@@ -1,0 +1,262 @@
+# Port bodies shadowing byte-exact matched C (objdiff 100%)
+# retail function	where	port symbol
+ArchiveAllocStreamFile	pc_port body ArchiveAllocStreamFile (pc_port/src/archive_port.c)	ArchiveAllocStreamFile
+ArchiveCdSeekToFile	pc_port body ArchiveCdSeekToFile (pc_port/src/archive_port.c)	ArchiveCdSeekToFile
+ArchiveCdSetMode	pc_port body ArchiveCdSetMode (pc_port/src/archive_port.c)	ArchiveCdSetMode
+ArchiveReadFile	pc_port body ArchiveReadFile (pc_port/src/archive_port.c)	ArchiveReadFile
+FieldAddPrimitives	port arm spanning the body in src/field/main/misc2.c	FieldAddPrimitives
+FieldClearAndSwapOTag	port arm spanning the body in src/field/main/misc2.c	FieldClearAndSwapOTag
+GfxLineScrollFree	port arm spanning the body in src/slus_006.64/graphics/line_scroll.c	GfxLineScrollFree
+HeapDumpToFile	port arm spanning the body in src/slus_006.64/system/heap_debug.c	HeapDumpToFile
+HeapUnpinBlock	port arm spanning the body in src/slus_006.64/system/memory.c	HeapUnpinBlock
+HeapWriteToDebugFile	port arm spanning the body in src/slus_006.64/system/heap_debug.c	HeapWriteToDebugFile
+SoundMuteAllSpuChannels	port arm in src/slus_006.64/system/sound.c	SoundMuteAllSpuChannels
+SoundSpuMemoryAllocateWDS	port arm in src/slus_006.64/system/sound.c	SoundSpuMemoryAllocateWDS
+SpriteSetScale	port arm spanning the body in src/slus_006.64/system/animation_scripts.c	SpriteSetScale
+SpriteSetSpecialAnimFile	port arm spanning the body in src/slus_006.64/system/animation_scripts.c	SpriteSetSpecialAnimFile
+TimerWorkListAllocateTask	pc_port body TimerWorkListAllocateTask (pc_port/src/work_list_port.c)	TimerWorkListAllocateTask
+TimerWorkListDeleteTask	pc_port body TimerWorkListDeleteTask (pc_port/src/work_list_port.c)	TimerWorkListDeleteTask
+TimerWorkListRemoveTask	pc_port body TimerWorkListRemoveTask (pc_port/src/work_list_port.c)	TimerWorkListRemoveTask
+TimerWorkListSetTaskCallback	pc_port body TimerWorkListSetTaskCallback (pc_port/src/work_list_port.c)	TimerWorkListSetTaskCallback
+TimerWorkListUpdate	pc_port body TimerWorkListUpdate (pc_port/src/work_list_port.c)	TimerWorkListUpdate
+WorkListRemoveTask	pc_port body WorkListRemoveTask (pc_port/src/work_list_port.c)	WorkListRemoveTask
+WorkListSetTaskCallback	pc_port body WorkListSetTaskCallback (pc_port/src/work_list_port.c)	WorkListSetTaskCallback
+WorkListTaskGetTaskCallback	pc_port body WorkListTaskGetTaskCallback (pc_port/src/work_list_port.c)	WorkListTaskGetTaskCallback
+WorkListTaskSetOnFreeCallback	pc_port body WorkListTaskSetOnFreeCallback (pc_port/src/work_list_port.c)	WorkListTaskSetOnFreeCallback
+WorkListUpdate	pc_port body WorkListUpdate (pc_port/src/work_list_port.c)	WorkListUpdate
+WorkListsDeleteTasks	pc_port body WorkListsDeleteTasks (pc_port/src/work_list_port.c)	WorkListsDeleteTasks
+WorkListsFreeAllEntries	pc_port body WorkListsFreeAllEntries (pc_port/src/work_list_port.c)	WorkListsFreeAllEntries
+WorkListsReset	pc_port body WorkListsReset (pc_port/src/work_list_port.c)	WorkListsReset
+func_8001AADC	pc_port body func_8001AADC (pc_port/src/game_overrides.c)	func_8001AADC
+func_8001BB0C	port arm spanning the body in src/slus_006.64/system/temp3.c	func_8001BB0C
+func_8001CE74	pc_port body func_8001CE74 (pc_port/src/work_list_port.c)	func_8001CE74
+func_8001D034	pc_port body func_8001D034 (pc_port/src/work_list_port.c)	func_8001D034
+func_8001D0A4	pc_port body func_8001D0A4 (pc_port/src/work_list_port.c)	func_8001D0A4
+func_8001D164	pc_port body func_8001D164 (pc_port/src/work_list_port.c)	func_8001D164
+func_8001D298	pc_port body func_8001D298 (pc_port/src/work_list_port.c)	func_8001D298
+func_8001D2A4	pc_port body func_8001D2A4 (pc_port/src/work_list_port.c)	func_8001D2A4
+func_8001D468	pc_port body func_8001D468 (pc_port/src/work_list_port.c)	func_8001D468
+func_80021EBC	port arm spanning the body in src/slus_006.64/system/animation_scripts.c	func_80021EBC
+func_80021FE0	port arm spanning the body in src/slus_006.64/system/animation_scripts.c	func_80021FE0
+func_80022974	port arm spanning the body in src/slus_006.64/system/animation_scripts.c	func_80022974
+func_80022DF4	pc_port body func_80022DF4 (pc_port/src/game_overrides.c)	func_80022DF4
+func_80022E8C	pc_port body func_80022E8C (pc_port/src/game_overrides.c)	func_80022E8C
+func_80022EB8	pc_port body func_80022EB8 (pc_port/src/game_overrides.c)	func_80022EB8
+func_8002303C	port arm spanning the body in src/slus_006.64/system/temp1.c	func_8002303C
+func_800230A8	port arm in src/slus_006.64/system/temp1.c	func_800230A8
+func_80023340	port arm spanning the body in src/slus_006.64/system/temp1.c	func_80023340
+func_800233A4	pc_port body func_800233A4 (pc_port/src/game_overrides.c)	func_800233A4
+func_80023440	pc_port body func_80023440 (pc_port/src/game_overrides.c)	func_80023440
+func_80023958	pc_port body func_80023958 (pc_port/src/game_overrides.c)	func_80023958
+func_80023958	port arm spanning the body in src/slus_006.64/system/temp1.c	func_80023958
+func_800239A0	port arm spanning the body in src/slus_006.64/system/temp1.c	func_800239A0
+func_800239F4	pc_port body func_800239F4 (pc_port/src/game_overrides.c)	func_800239F4
+func_800239F4	port arm spanning the body in src/slus_006.64/system/temp1.c	func_800239F4
+func_80025180	pc_port body func_80025180 (pc_port/src/game_overrides.c)	func_80025180
+func_80025224	pc_port body func_80025224 (pc_port/src/game_overrides.c)	func_80025224
+func_8002A498	pc_port body func_8002A498 (pc_port/src/archive_port.c)	func_8002A498
+func_8002CC10	pc_port body func_8002CC10 (pc_port/src/game_overrides.c)	func_8002CC10
+func_8002CDCC	port arm in src/slus_006.64/system/temp2.c	func_8002CDCC
+func_8002D180	port arm in src/slus_006.64/system/temp2.c	func_8002D180
+func_8002DAFC	port arm in src/slus_006.64/system/temp2.c	func_8002DAFC
+func_8002DD20	port arm in src/slus_006.64/system/temp2.c	func_8002DD20
+func_80033DD4	port arm in src/slus_006.64/system/system.c	func_80033DD4
+func_80036400	port arm spanning the body in src/slus_006.64/system/controller2.c	func_80036400
+func_80039C4C	port arm spanning the body in src/slus_006.64/system/sound.c	func_80039C4C
+func_80039C8C	port arm spanning the body in src/slus_006.64/system/sound.c	func_80039C8C
+func_8003A14C	port arm in src/slus_006.64/system/sound.c	func_8003A14C
+func_8003E1F8	port arm in src/slus_006.64/system/sound.c	func_8003E1F8
+func_800716D8	generated logging stub (matched C not linked)	func_800716D8
+func_80071FEC	pc_port body wm_80071FEC (pc_port/src/world_map_helper_71fec.c)	wm_80071FEC
+func_800721E4	pc_port body wm_800721E4 (pc_port/src/world_map_mode9_lifecycle.c)	wm_800721E4
+func_8007369C	pc_port body wm_8007369C (pc_port/src/world_map_init.c)	wm_8007369C
+func_80074F04	pc_port body wm_80074F04 (pc_port/src/world_map_mode811_lifecycle.c)	wm_80074F04
+func_800750DC	pc_port body wm_800750DC (pc_port/src/world_map_mode811_lifecycle.c)	wm_800750DC
+func_80075228	pc_port body wm_80075228 (pc_port/src/world_map_common_tail.c)	wm_80075228
+func_80075D4C	port arm in src/movie/main.c	func_80075D4C
+func_800762FC	pc_port body wm_800762FC (pc_port/src/world_map_helper_762fc.c)	wm_800762FC
+func_800767D4	pc_port body wm_800767D4 (pc_port/src/world_map_state_vertical_8f690.c)	wm_800767D4
+func_80076858	pc_port body wm_80076858 (pc_port/src/world_map_helper_76858.c)	wm_80076858
+func_80076A10	generated logging stub (matched C not linked)	func_80076A10
+func_80076B68	generated logging stub (matched C not linked)	func_80076B68
+func_80076BF0	generated logging stub (matched C not linked)	func_80076BF0
+func_80076DA4	pc_port body wm_80076DA4 (pc_port/src/world_map_callback_827ec.c)	wm_80076DA4
+func_80076F54	pc_port body wm_80076F54 (pc_port/src/world_map_callback_827ec.c)	wm_80076F54
+func_800771D8	pc_port body wm_800771D8 (pc_port/src/world_map_callback_827ec.c)	wm_800771D8
+func_80077480	pc_port body wm_80077480 (pc_port/src/world_map_mode811_lifecycle.c)	wm_80077480
+func_80077CC0	pc_port body wm_80077CC0 (pc_port/src/world_map_mode9_lifecycle.c)	wm_80077CC0
+func_80078D24	pc_port body wm_80078D24 (pc_port/src/world_map_mode10_lifecycle.c)	wm_80078D24
+func_8007A8AC	pc_port body wm_8007A8AC (pc_port/src/world_map_mode14_lifecycle.c)	wm_8007A8AC
+func_8007A9B4	pc_port body wm_8007A9B4 (pc_port/src/world_map_callback_7a9b4.c)	wm_8007A9B4
+func_8007AD34	pc_port body wm_8007AD34 (pc_port/src/world_map_callback_7ad34.c)	wm_8007AD34
+func_8007C260	pc_port body wm_8007C260 (pc_port/src/world_map_mode12_lifecycle.c)	wm_8007C260
+func_8007C724	pc_port body wm_8007C724 (pc_port/src/world_map_callback_7c724.c)	wm_8007C724
+func_8007D1A8	port arm in src/battle/mainc25.c	func_8007D1A8
+func_8007D5B0	port arm in src/battle/main27.c	func_8007D5B0
+func_8007D610	port arm in src/battle/main27.c	func_8007D610
+func_8007D690	pc_port body wm_8007D690 (pc_port/src/world_map_callback_7d600.c)	wm_8007D690
+func_8007DCE0	pc_port body wm_8007DCE0 (pc_port/src/world_map_mode15_lifecycle.c)	wm_8007DCE0
+func_8007E450	pc_port body wm_8007E450 (pc_port/src/world_map_callback_7e450.c)	wm_8007E450
+func_8007E740	port arm in src/battle/mainc29.c	func_8007E740
+func_80080218	pc_port body wm_80080218 (pc_port/src/world_map_mode13_lifecycle.c)	wm_80080218
+func_8008032C	pc_port body wm_8008032C (pc_port/src/world_map_callback_8032c.c)	wm_8008032C
+func_80080578	pc_port body wm_80080578 (pc_port/src/world_map_callback_80578.c)	wm_80080578
+func_80080944	pc_port body wm_80080944 (pc_port/src/world_map_callback_80900.c)	wm_80080944
+func_800809EC	pc_port body wm_800809EC (pc_port/src/world_map_callback_80a28.c)	wm_800809EC
+func_8008106C	pc_port body wm_8008106C (pc_port/src/world_map_mode16_lifecycle.c)	wm_8008106C
+func_800813E8	pc_port body wm_800813E8 (pc_port/src/world_map_callback_813e8.c)	wm_800813E8
+func_8008237C	port arm spanning the body in src/field/main/misc8.c	func_8008237C
+func_800825AC	port arm in src/field/main/misc8.c	func_800825AC
+func_800826B4	pc_port body wm_800826B4 (pc_port/src/world_map_mode17_lifecycle.c)	wm_800826B4
+func_800827C8	pc_port body wm_800827C8 (pc_port/src/world_map_callback_827c8.c)	wm_800827C8
+func_800834D8	pc_port body wm_800834D8 (pc_port/src/world_map_callback_834d0.c)	wm_800834D8
+func_800837DC	pc_port body wm_800837DC (pc_port/src/world_map_mode18_lifecycle.c)	wm_800837DC
+func_800838E8	pc_port body wm_800838E8 (pc_port/src/world_map_callback_838e8.c)	wm_800838E8
+func_80084818	pc_port body wm_80084818 (pc_port/src/world_map_teardown_7299c.c)	wm_80084818
+func_800848B4	pc_port body wm_800848B4 (pc_port/src/world_map_helper_848b4.c)	wm_800848B4
+func_80084D00	pc_port body wm_80084D00 (pc_port/src/world_map_helper_84d00.c)	wm_80084D00
+func_800855C8	port arm in src/field/main/misc8.c	func_800855C8
+func_80085D34	port arm in src/battle/main37.c	func_80085D34
+func_80086124	pc_port body wm_80086124 (pc_port/src/world_map_helper_86124.c)	wm_80086124
+func_80086568	pc_port body wm_80086568 (pc_port/src/world_map_mode811_lifecycle.c)	wm_80086568
+func_800866C8	pc_port body wm_800866C8 (pc_port/src/world_map_helper_86124.c)	wm_800866C8
+func_80087734	pc_port body wm_80087734 (pc_port/src/world_map_callback_87734.c)	wm_80087734
+func_800879E0	pc_port body wm_800879E0 (pc_port/src/world_map_resume_initializers.c)	wm_800879E0
+func_80087B5C	port arm spanning the body in src/field/main/misc.c	func_80087B5C
+func_80087F60	pc_port body wm_80087F60 (pc_port/src/world_map_resume_initializers.c)	wm_80087F60
+func_80088198	port arm in src/field/main/misc.c	func_80088198
+func_80088FF4	pc_port body wm_80088FF4 (pc_port/src/world_map_mode811_lifecycle.c)	wm_80088FF4
+func_80089038	port arm in src/battle/main40.c	func_80089038
+func_80089110	port arm in src/battle/main40.c	func_80089110
+func_80089128	pc_port body wm_80089128 (pc_port/src/world_map_helper_86124.c)	wm_80089128
+func_80089348	port arm in src/battle/main40.c	func_80089348
+func_800894C8	pc_port body wm_800894C8 (pc_port/src/world_map_common_tail.c)	wm_800894C8
+func_800897CC	port arm in src/battle/main40.c	func_800897CC
+func_80089FD0	port arm spanning the body in src/field/main/misc.c	func_80089FD0
+func_8008A148	port arm in src/field/main/misc.c	func_8008A148
+func_8008A274	generated logging stub (matched C not linked)	func_8008A274
+func_8008A52C	pc_port body wm_8008A52C (pc_port/src/world_map_resume_initializers.c)	wm_8008A52C
+func_8008AA40	port arm spanning the body in src/battle/main43.c	func_8008AA40
+func_8008AB94	generated logging stub (matched C not linked)	func_8008AB94
+func_8008ABB8	generated logging stub (matched C not linked)	func_8008ABB8
+func_8008AC50	generated logging stub (matched C not linked)	func_8008AC50
+func_8008AC50	port arm in src/battle/main44.c	func_8008AC50
+func_8008B0E8	port arm spanning the body in src/field/main/misc.c	func_8008B0E8
+func_8008B498	pc_port body wm_8008B498 (pc_port/src/world_map_resume_initializers.c)	wm_8008B498
+func_8008BD1C	pc_port body wm_8008BD1C (pc_port/src/world_map_resume_initializers.c)	wm_8008BD1C
+func_8008C6EC	pc_port body wm_8008C6EC (pc_port/src/world_map_resume_initializers.c)	wm_8008C6EC
+func_8008CFEC	port arm spanning the body in src/field/main/misc.c	func_8008CFEC
+func_8008D520	pc_port body wm_8008D520 (pc_port/src/world_map_resume_initializers.c)	wm_8008D520
+func_8008DB2C	port arm spanning the body in src/field/main/misc.c	func_8008DB2C
+func_8008DE9C	pc_port body wm_8008DE9C (pc_port/src/world_map_resume_initializers.c)	wm_8008DE9C
+func_8008DFF4	pc_port body wm_8008DFF4 (pc_port/src/world_map_helper_8dff4.c)	wm_8008DFF4
+func_8008E034	pc_port body wm_8008E034 (pc_port/src/world_map_helper_8e034.c)	wm_8008E034
+func_8008EFE4	port arm spanning the body in src/field/main/misc.c	func_8008EFE4
+func_800907C4	pc_port body wm_800907C4 (pc_port/src/world_map_resume_initializers.c)	wm_800907C4
+func_80090A18	pc_port body wm_80090A18 (pc_port/src/world_map_helper_90a84.c)	wm_80090A18
+func_80091430	pc_port body wm_80091430 (pc_port/src/world_map_callback_91430.c)	wm_80091430
+func_80091A78	port arm spanning the body in src/field/main/misc11.c	func_80091A78
+func_80092234	pc_port body wm_80092234 (pc_port/src/world_map_callback_92234.c)	wm_80092234
+func_80093354	pc_port body wm_80093354 (pc_port/src/world_map_helper_93354.c)	wm_80093354
+func_80093534	pc_port body wm_80093534 (pc_port/src/world_map_helper_93534.c)	wm_80093534
+func_800935DC	pc_port body wm_800935DC (pc_port/src/world_map_plane_solver.c)	wm_800935DC
+func_80093FE4	pc_port body wm_80093FE4 (pc_port/src/world_map_helper_93fe4.c)	wm_80093FE4
+func_80094028	pc_port body wm_80094028 (pc_port/src/world_map_helper_75e7c.c)	wm_80094028
+func_80094154	pc_port body wm_80094154 (pc_port/src/world_map_helper_94154.c)	wm_80094154
+func_800941C4	pc_port body wm_800941C4 (pc_port/src/world_map_helper_941c4.c)	wm_800941C4
+func_800952B0	pc_port body wm_800952B0 (pc_port/src/world_map_helper_952b0.c)	wm_800952B0
+func_800960BC	pc_port body wm_800960BC (pc_port/src/world_map_teardown_7299c.c)	wm_800960BC
+func_80096328	pc_port body wm_80096328 (pc_port/src/world_map_helper_96328.c)	wm_80096328
+func_800965A4	pc_port body wm_800965A4 (pc_port/src/world_map_helper_965a4.c)	wm_800965A4
+func_80096694	pc_port body wm_80096694 (pc_port/src/world_map_helper_96130.c)	wm_80096694
+func_80096824	generated logging stub (matched C not linked)	func_80096824
+func_80096AF4	port arm spanning the body in src/field/party/stats.c	func_80096AF4
+func_800976A0	pc_port body wm_800976A0 (pc_port/src/world_map_mode811_lifecycle.c)	wm_800976A0
+func_80097770	pc_port body wm_80097770 (pc_port/src/world_map_helper_97770.c)	wm_80097770
+func_8009795C	port arm in src/battle/main.c	func_8009795C
+func_80097D64	pc_port body wm_80097D64 (pc_port/src/world_map_teardown_7299c.c)	wm_80097D64
+func_800984EC	port arm spanning the body in src/field/main/misc7.c	func_800984EC
+func_8009CA90	port arm in src/battle/main59.c	func_8009CA90
+func_8009D948	port arm in src/battle/main61.c	func_8009D948
+func_8009F5B0	port arm in src/battle/main.c	func_8009F5B0
+func_800A2330	generated logging stub (matched C not linked)	func_800A2330
+func_800A23E8	generated logging stub (matched C not linked)	func_800A23E8
+func_800A2D5C	port arm in src/battle/main67.c	func_800A2D5C
+func_800A2E88	port arm in src/battle/main67.c	func_800A2E88
+func_800A579C	generated logging stub (matched C not linked)	func_800A579C
+func_800A5870	generated logging stub (matched C not linked)	func_800A5870
+func_800A5914	generated logging stub (matched C not linked)	func_800A5914
+func_800AA760	port arm spanning the body in src/battle/main70.c	func_800AA760
+func_800AA934	generated logging stub (matched C not linked)	func_800AA934
+func_800AE1BC	port arm in src/battle/main72.c	func_800AE1BC
+func_800AE220	port arm in src/battle/main72.c	func_800AE220
+func_800AEEF8	port arm in src/battle/main73.c	func_800AEEF8
+func_800AF180	port arm in src/battle/main73.c	func_800AF180
+func_800AF270	port arm in src/battle/main73.c	func_800AF270
+func_800AF2C4	port arm in src/battle/main73.c	func_800AF2C4
+func_800AF400	port arm in src/battle/main73.c	func_800AF400
+func_800B0060	generated logging stub (matched C not linked)	func_800B0060
+func_800B00F4	port arm in src/battle/main74.c	func_800B00F4
+func_800B0164	port arm in src/battle/main74.c	func_800B0164
+func_800B168C	port arm in src/battle/main.c	func_800B168C
+func_800B16A4	port arm in src/battle/main.c	func_800B16A4
+func_800B1EA0	port arm in src/battle/main77.c	func_800B1EA0
+func_800B3348	port arm in src/battle/main.c	func_800B3348
+func_800B3350	port arm in src/battle/main.c	func_800B3350
+func_800B3B6C	port arm spanning the body in src/battle/mainl81.c	func_800B3B6C
+func_800B5FBC	port arm in src/battle/main87.c	func_800B5FBC
+func_800B61B0	port arm in src/battle/main87.c	func_800B61B0
+func_800B61F8	port arm in src/battle/main87.c	func_800B61F8
+func_800B626C	port arm in src/battle/main87.c	func_800B626C
+func_800B6518	port arm in src/battle/main90.c	func_800B6518
+func_800B8354	generated logging stub (matched C not linked)	func_800B8354
+func_800B89F4	port arm in src/battle/main.c	func_800B89F4
+func_800B8D7C	generated logging stub (matched C not linked)	func_800B8D7C
+func_800B9258	port arm spanning the body in src/battle/mainc107.c	func_800B9258
+func_800B9B30	port arm spanning the body in src/battle/mainc108.c	func_800B9B30
+func_800B9B54	generated logging stub (matched C not linked)	func_800B9B54
+func_800BA59C	port arm in src/battle/mainl110.c	func_800BA59C
+func_800BA8F4	pc_port body func_800BA8F4 (pc_port/src/game_overrides.c)	func_800BA8F4
+func_800BAC50	port arm in src/battle/main111.c	func_800BAC50
+func_800BAF40	port arm in src/battle/main.c	func_800BAF40
+func_800BB080	port arm in src/battle/mainc112.c	func_800BB080
+func_800BB13C	port arm in src/battle/mainc112.c	func_800BB13C
+func_800BB314	port arm in src/battle/mainc112.c	func_800BB314
+func_800BB540	port arm in src/battle/mainc112.c	func_800BB540
+func_800BB620	port arm in src/battle/mainc112.c	func_800BB620
+func_800BB6E0	port arm in src/battle/mainc113.c	func_800BB6E0
+func_800BB760	port arm in src/battle/mainc113.c	func_800BB760
+func_800BC2F0	generated logging stub (matched C not linked)	func_800BC2F0
+func_800BC460	generated logging stub (matched C not linked)	func_800BC460
+func_800BCFAC	port arm in src/battle/mainc118.c	func_800BCFAC
+func_800BD024	port arm in src/battle/mainc118.c	func_800BD024
+func_800BD974	port arm in src/battle/mainc118.c	func_800BD974
+func_800BDB08	port arm in src/battle/mainc118.c	func_800BDB08
+func_800BDCF8	generated logging stub (matched C not linked)	func_800BDCF8
+func_800BDCF8	port arm in src/battle/mainc118.c	func_800BDCF8
+func_800BDD34	port arm in src/battle/main.c	func_800BDD34
+func_800BE6A0	port arm in src/battle/mainc122.c	func_800BE6A0
+func_800BE6E8	port arm in src/battle/mainc122.c	func_800BE6E8
+func_800BEDE8	port arm spanning the body in src/battle/mainc124.c	func_800BEDE8
+func_800BEEB4	port arm in src/battle/main125.c	func_800BEEB4
+func_800BEF24	port arm in src/battle/main125.c	func_800BEF24
+func_800BEFF4	port arm in src/battle/main125.c	func_800BEFF4
+func_800BF720	port arm spanning the body in src/battle/main128.c	func_800BF720
+func_800BFBA0	generated logging stub (matched C not linked)	func_800BFBA0
+func_800BFD88	generated logging stub (matched C not linked)	func_800BFD88
+func_800BFDA8	port arm in src/battle/mainc134.c	func_800BFDA8
+func_800C06E4	port arm in src/battle/mainc134.c	func_800C06E4
+func_800C0758	port arm in src/battle/mainc134.c	func_800C0758
+func_800C07CC	port arm in src/battle/mainc134.c	func_800C07CC
+func_800C0828	port arm in src/battle/mainc134.c	func_800C0828
+func_801C5EE8	port arm spanning the body in src/shop_menu/main/misc2.c	func_801C5EE8
+func_801CE660	port arm spanning the body in src/menu/main/misc.c	func_801CE660
+func_801D14FC	port arm spanning the body in src/menu/main/misc.c	func_801D14FC
+func_801DBD4C	port arm spanning the body in src/menu/main/misc.c	func_801DBD4C
+func_801DC1D4	port arm spanning the body in src/menu/main/misc.c	func_801DC1D4
+func_801DFE2C	port arm spanning the body in src/menu/main/misc.c	func_801DFE2C
+func_801E3A80	port arm spanning the body in src/menu/main/misc.c	func_801E3A80
+func_801E65E4	port arm spanning the body in src/menu/main/misc.c	func_801E65E4
+func_801E71B4	port arm spanning the body in src/menu/main/misc.c	func_801E71B4
+func_801E76EC	port arm spanning the body in src/menu/main/misc.c	func_801E76EC
+func_801E8018	port arm in src/menu/main/misc.c	func_801E8018

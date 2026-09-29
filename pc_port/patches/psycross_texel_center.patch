@@ -1,0 +1,106 @@
+--- a/src/render/PsyX_render.cpp
++++ b/src/render/PsyX_render.cpp
+@@ -95,6 +95,21 @@
+ 	}
+ 	return enabled != 0;
+ }
++/* _xeno_texel_center: independent opt-in for the PS1 nearest-sample
++ * center convention. The uniform is activated only for on-screen,
++ * non-PGXP textured draws; offscreen VRAM and PGXP remain unchanged. */
++static bool XenoPs1TexelCenterEnabled()
++{
++	static int enabled = -1;
++	if (enabled < 0)
++	{
++		const char* value = getenv("XENO_PS1_TEXEL_CENTER");
++		enabled = value != NULL && strcmp(value, "1") == 0;
++		if (enabled)
++			fprintf(stderr, "[PsyCross] PS1 texel-center correction enabled: (+0.5,+0.5)\n");
++	}
++	return enabled != 0;
++}
+ int vram_need_update = 1;
+ int framebuffer_need_update = 0;
+ /* _xeno_drmove_fb_synced: 1 while the CPU vram[] framebuffer rect is at
+@@ -513,6 +528,7 @@
+ 	GLint bilinearFilterLoc;
+ 	GLint texelSizeLoc;
+ 	GLint texWindowLoc; /* _xeno_texwindow_loc_struct */
++	GLint texelCenterLoc; /* _xeno_texel_center_uniform */
+ 	GLint clutSemiModeLoc;
+ 	GLint texLoc;
+ 	GLint lutLoc;
+@@ -530,6 +546,8 @@
+ GLint u_projection3DLoc;
+ GLint u_texelSizeLoc;
+ GLint u_texWindowLoc = -1; /* _xeno_texwindow_loc_global */
++GLint u_texelCenterLoc = -1; /* _xeno_texel_center_loc_global */
++bool g_xeno_ps1_textured_sampling = false;
+ GLint u_clutSemiModeLoc = -1;
+ 
+ #define GPU_SAMPLE_TEXTURE_4BIT_FUNC\
+@@ -636,6 +654,7 @@
+ 	"		return t;\n"\
+ 	"	}\n"\
+ 	"	vec4 nearestTextureSample(vec2 P) {\n"\
++	"		P += (ps1TexelCenter > 0) ? vec2(0.5, 0.5) : vec2(0.0, 0.0);\n"\
+ 	"		vec2 rg = samplePSX(P);\n"\
+ 	"		float rgm = rg.x + rg.y;\n"\
+ 	"		if (rgm == 0.0) { discard; }\n"\
+@@ -653,6 +672,7 @@
+ 	"	}\n"
+ 	
+ static const char* gpu_shader_common = R"(
++	uniform int ps1TexelCenter;
+ 	varying vec4 v_texcoord;
+ 	varying vec4 v_color;
+ 	varying vec4 v_page_clut;
+@@ -960,6 +980,7 @@
+ 	/* _xeno_texwindow_loc_get: fetch the texture-window uniform and default
+ 	 * it to the disabled window so unset state is an exact no-op. */
+ 	sh->texWindowLoc = glGetUniformLocation(sh->shader, "u_texWindow");
++	sh->texelCenterLoc = glGetUniformLocation(sh->shader, "ps1TexelCenter");
+ 	sh->clutSemiModeLoc = glGetUniformLocation(sh->shader, "clutSemiMode");
+ 	if (sh->texWindowLoc != -1)
+ 	{
+@@ -1290,6 +1311,7 @@
+ 		texLoc = g_gpu_shader_4.texLoc;
+ 		lutLoc = g_gpu_shader_4.lutLoc;
+ 		u_texWindowLoc = g_gpu_shader_4.texWindowLoc; /* _xeno_texwindow_loc_route */
++		u_texelCenterLoc = g_gpu_shader_4.texelCenterLoc;
+ 		u_clutSemiModeLoc = g_gpu_shader_4.clutSemiModeLoc;
+ 		u_texelSizeLoc = -1;
+ 		break;
+@@ -1301,6 +1323,7 @@
+ 		texLoc = g_gpu_shader_8.texLoc;
+ 		lutLoc = g_gpu_shader_8.lutLoc;
+ 		u_texWindowLoc = g_gpu_shader_8.texWindowLoc;
++		u_texelCenterLoc = g_gpu_shader_8.texelCenterLoc;
+ 		u_clutSemiModeLoc = g_gpu_shader_8.clutSemiModeLoc;
+ 		u_texelSizeLoc = -1;
+ 		break;
+@@ -1312,6 +1335,7 @@
+ 		texLoc = g_gpu_shader_16.texLoc;
+ 		lutLoc = g_gpu_shader_16.lutLoc;
+ 		u_texWindowLoc = g_gpu_shader_16.texWindowLoc;
++		u_texelCenterLoc = g_gpu_shader_16.texelCenterLoc;
+ 		u_clutSemiModeLoc = g_gpu_shader_16.clutSemiModeLoc;
+ 		u_texelSizeLoc = -1;
+ 		break;
+@@ -1324,6 +1348,7 @@
+ 		lutLoc = -1;
+ 		u_texelSizeLoc = g_gpu_shader_32_rgba.texelSizeLoc;
+ 		u_texWindowLoc = -1;
++		u_texelCenterLoc = -1;
+ 		u_clutSemiModeLoc = -1;
+ 		break;
+ 	}
+@@ -1566,6 +1591,8 @@
+ 
+ void GR_SetOffscreenState(const RECT16* offscreenRect, int enable)
+ {
++	if (u_texelCenterLoc != -1)
++		glUniform1i(u_texelCenterLoc, (!enable && !USE_PGXP && g_xeno_ps1_textured_sampling && XenoPs1TexelCenterEnabled()) ? 1 : 0);
+ 	if (enable)
+ 	{
+ 		// setup render target viewport

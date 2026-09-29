@@ -1,6 +1,12 @@
+Scope: this MIT license covers only the original work in this repository
+(the PC port and host layer, tools, scripts and documentation). It does not
+cover Xenogears or any of its code, data or trademarks, which belong to
+Square Enix, nor third-party components, which keep their own licenses
+(see NOTICE.md and CREDITS.md).
+
 MIT License
 
-Copyright (c) 2026 Blizz127
+Copyright (c) 2026 Blizz127 and contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

@@ -1,0 +1,5 @@
+# Example mod: code only, no game data.
+name = Hello Plugin
+version = 1.0
+load_order = 50
+abi = 1

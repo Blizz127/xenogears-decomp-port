@@ -1,0 +1,11 @@
+diff --git a/include/psx/libapi.h b/include/psx/libapi.h
+--- a/include/psx/libapi.h
++++ b/include/psx/libapi.h
+@@ -61,6 +61,5 @@
+ extern void ReturnFromException();
+-/*
++/* _xeno_critical_declarations: implemented by the native compatibility layer. */
+ extern int EnterCriticalSection();
+ extern void ExitCriticalSection();
+-*/
+ extern void Exception();

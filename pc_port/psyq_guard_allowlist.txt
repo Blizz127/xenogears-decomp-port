@@ -1,0 +1,4 @@
+# Psy-Q port guard allowlist -- known offenders pending replacement.
+# This file must only SHRINK; the goal state is an empty file and
+# `tools/analysis/psyq_port_guard.py --strict` passing.
+# kind<TAB>key<TAB>where

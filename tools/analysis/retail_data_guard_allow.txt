@@ -1,0 +1,17 @@
+# retail_data_guard allowlist: known committed retail runs pending removal.
+# Rows: path<TAB>max matched retail bytes (a budget that must only
+# SHRINK), or a bare path (file skipped).  Current rows are matching-build
+# sources (src/**, tools/**): inline-asm `.word` bodies and data tables of
+# not-yet-decompiled code.  pc_port/** may never be listed here.
+src/member_change_menu/main/misc.c	84
+src/movie/main.c	140
+src/slus_006.64/main/main_loop.c	36
+src/slus_006.64/psyq/libapi.c	164
+src/slus_006.64/psyq/libapi_2.c	96
+src/slus_006.64/psyq/libc.c	332
+src/slus_006.64/psyq/libetc/intr.c	200
+src/slus_006.64/psyq/libetc/intr_dma.c	132
+src/slus_006.64/psyq/libgte.c	7524
+src/slus_006.64/psyq/libsn.c	504
+src/slus_006.64/system/kernel_menu.c	104
+src/slus_006.64/system/sound.c	260

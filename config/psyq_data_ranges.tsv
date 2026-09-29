@@ -1,0 +1,4 @@
+name	start	end	library	evidence
+rcossin_tbl	0x800523F0	0x800563F0	libgte	D_800523F0; 4096 {sin,cos} s16 pairs read by libgte rsin/rcos (src/slus_006.64/psyq/libgte.c)
+sqrt_tbl	0x80056A00	0x80056B94	libgte	D_80056A00; read by SquareRoot0 (src/slus_006.64/psyq/libgte.c)
+normalize_tbl	0x80056B94	0x80056D20	libgte	D_80056B94; inverse-sqrt table read by VectorNormal/InvSquareRoot (src/slus_006.64/psyq/libgte.c)

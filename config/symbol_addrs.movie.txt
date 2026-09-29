@@ -1,0 +1,24 @@
+// Movie overlay (movie.bin, VRAM 0x8006FAF0, 0x7453 bytes) symbols.
+// Retail g_MainGameStates[6] (SLUS 0x8001808C + 0x60): main 0x800737EC,
+// state/BSS 0x80076F38, heap 0x80077454, hasOverlay 1, archive 0x12.
+MovieMain = 0x800737EC; // type:func
+// Function starts (from the jr-ra scan of the first split); the text segment
+// begins at 0x800704E8, the 0x800702CC..0x800704E7 words are jump tables.
+func_800704E8 = 0x800704E8; // type:func
+func_80072480 = 0x80072480; // type:func
+func_80072D84 = 0x80072D84; // type:func
+func_80072F98 = 0x80072F98; // type:func
+func_80073328 = 0x80073328; // type:func
+func_800734B8 = 0x800734B8; // type:func
+func_800747AC = 0x800747AC; // type:func
+func_80074B58 = 0x80074B58; // type:func
+func_80074BA4 = 0x80074BA4; // type:func
+func_8007519C = 0x8007519C; // type:func
+func_80075534 = 0x80075534; // type:func
+func_80075D4C = 0x80075D4C; // type:func
+func_80075D8C = 0x80075D8C; // type:func
+func_8007625C = 0x8007625C; // type:func
+func_800763BC = 0x800763BC; // type:func
+func_80076488 = 0x80076488; // type:func
+func_800769A4 = 0x800769A4; // type:func
+func_80076CA4 = 0x80076CA4; // type:func

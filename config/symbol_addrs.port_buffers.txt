@@ -1,0 +1,30 @@
+# Port-only buffer sizes, 2026-09-18.
+#
+# Retail regions the PC port accesses at runtime through host globals that the
+# stub generator would otherwise size at its 16-byte floor. Consumed by
+# pc_port/build_port.sh (gen_port_stubs.py --symbol-addrs) and NOT by the
+# matching build, so matching output is unaffected.
+#
+# size: is the retail PSX span; gen_port_stubs.py doubles it for the 64-bit port.
+#
+# D_80010004/D_80018004: pc_port/src/port_main.c calls
+# ArchiveInit(D_80010004, D_80018004, 0), which reads 32768 bytes per buffer
+# (pc_port/src/archive_port.c -> PsyCross LIBCD.C CdReadSync). Retail bakes the
+# archive table at 0x80010004 and the header at 0x80018004 inside the main-exe
+# rodata span [0x80010000,0x80019524). At the 16-byte floor the boot read
+# overwrote 32 KiB of neighbouring port globals -- including D_8004F304 and
+# D_80062528 -- and the field teardown then called
+# func_800399D4(D_80062528) with a CD-data word: SIGSEGV on the title screen.
+# Both now have real definitions in pc_port/src/data_slus_rodata.c (exact retail
+# bytes, spans 0x8000 and 0x80); these entries remain only as fallback sizing.
+#
+# D_800308D0: a retail .text address (mid-function label inside func_80030750)
+# that temp2.c's func_80030988 read-modify-writes as s16[]; the last access is
+# [0x46] == byte 0x8C, so the host object must span 0x8E bytes. The 16-byte floor
+# (32 after doubling) was 110 bytes short: a native call would scribble over the
+# neighbouring stubs. The retail bytes there are func_80030750 GTE code, so the
+# host object stays a zero-filled scratch and is only sized here.
+
+D_80010004 = 0x80010004; // type:u8 size:0x8000   archive table buffer (read target)
+D_80018004 = 0x80018004; // type:u8 size:0x1520   archive header buffer (read target)
+D_800308D0 = 0x800308D0; // type:s16 size:0x8E    func_80030988 s16[] scratch (write target)

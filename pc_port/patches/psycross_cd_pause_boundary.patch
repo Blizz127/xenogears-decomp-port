@@ -1,0 +1,12 @@
+--- a/src/psx/LIBCD.C
++++ b/src/psx/LIBCD.C
+@@ -1004,6 +1004,9 @@
+ 
+ 			g_cdSpoolerSeekCmd = 0;
+ 			g_cdReadDoneFlag = 1;
++			/* _xeno_cd_pause_boundary: no sector belongs to a consumed pause. */
++			CD_UNLOCK_MUTEX();
++			return 0;
+ 		}
+ 		else
+ 		{

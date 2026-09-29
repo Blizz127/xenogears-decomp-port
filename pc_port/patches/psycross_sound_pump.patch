@@ -1,0 +1,221 @@
+diff --git a/src/PsyX_main.cpp b/src/PsyX_main.cpp
+index f558b40..5042a5e 100644
+--- a/src/PsyX_main.cpp
++++ b/src/PsyX_main.cpp
+@@ -44,6 +44,12 @@ int g_swapInterval = 1;
+ int g_enableSwapInterval = 1;
+ int g_skipSwapInterval = 0;
+ timerCtx_t g_vblTimer;
++/* Sound counter-2 (RCnt2) pump cadence: retail SoundInitialize sets
++ * SetRCnt(RCntCNT2, 0x44E8, EvMdINTR) with RCnt2's default sysclock/8 clock ->
++ * 33.8688MHz/8 / 17640 = 240.0 Hz.  Independent HPC timer so it is not tied to
++ * the ~60Hz vblank cadence (which it is 4x faster than). */
++timerCtx_t g_cnt2Timer;
++#define PSYX_SOUND_CNT2_PERIOD (1.0 / 240.0)
+ 
+ int							g_cfg_swapInterval = 0;
+ PsyXKeyboardMapping			g_cfg_keyboardMapping;
+@@ -162,6 +168,7 @@ int PsyX_Sys_GetVBlankCount()
+ int intrThreadMain(void* data)
+ {
+ 	Util_InitHPCTimer(&g_vblTimer);
++	Util_InitHPCTimer(&g_cnt2Timer);
+ 
+ 	while (!g_stopIntrThread)
+ 	{
+@@ -173,18 +180,31 @@ int intrThreadMain(void* data)
+ 			if (vblDelta > timestep)
+ 			{
+ 				SDL_LockMutex(g_intrMutex);
+-				
++
+ 				if (vsync_callback)
+ 					vsync_callback();
+-				
++
+ 				SDL_UnlockMutex(g_intrMutex);
+-				
++
+ 				// do vblank events
+ 				g_psxSysCounters[PsxCounter_VBLANK]++;
+-			
++
+ 				Util_GetHPCTime(&g_vblTimer, 1);
+ 			}
+-			
++
++			// Sound counter-2 (RCnt2) tick: dispatch enabled counter-2 events
++			// (retail func_8003C020) at the 240Hz RCnt2 rate. Independent of the
++			// vblank cadence above. Same intr-mutex discipline as vsync so a
++			// dispatch never overlaps a vsync callback on this thread.
++			const double cnt2Delta = Util_GetHPCTime(&g_cnt2Timer, 0);
++			if (cnt2Delta > PSYX_SOUND_CNT2_PERIOD)
++			{
++				SDL_LockMutex(g_intrMutex);
++				PsyX_Sys_DispatchCounter2();
++				SDL_UnlockMutex(g_intrMutex);
++
++				Util_GetHPCTime(&g_cnt2Timer, 1);
++			}
+ 		}
+ 	}
+ 
+diff --git a/src/PsyX_main.h b/src/PsyX_main.h
+index 9d00433..ad4f8de 100644
+--- a/src/PsyX_main.h
++++ b/src/PsyX_main.h
+@@ -17,6 +17,10 @@ extern int g_activeKeyboardControllers;
+ extern int PsyX_Sys_GetVBlankCount();
+ extern int PsyX_Sys_SetVMode(int mode);
+ 
++/* Sound event pump (LIBAPI.C): dispatch enabled counter-2 interrupt events.
++ * Driven by the interrupt thread at the 240Hz RCnt2 rate. */
++extern void PsyX_Sys_DispatchCounter2(void);
++
+ #if defined(_LANGUAGE_C_PLUS_PLUS)||defined(__cplusplus)||defined(c_plusplus)
+ }
+ #endif
+diff --git a/src/audio/PsyX_SPUAL.cpp b/src/audio/PsyX_SPUAL.cpp
+index 2909ee3..f10a30c 100644
+--- a/src/audio/PsyX_SPUAL.cpp
++++ b/src/audio/PsyX_SPUAL.cpp
+@@ -155,6 +155,14 @@ static void InitOpenAlEffects()
+ #endif // __EMSCRIPTEN__
+ }
+ 
++/* Backend-awake state accessor: g_spuInit is 1 once PsyX_SPUAL_InitSound has
++ * run and every PsyX_SPUAL_* call stops early-returning. Used by the port boot
++ * (Phase 0) to confirm the SPU backend woke. */
++int PsyX_SPUAL_IsInit()
++{
++	return g_spuInit;
++}
++
+ int PsyX_SPUAL_InitSound()
+ {
+ 	if (!g_SpuMutex)
+diff --git a/src/audio/PsyX_SPUAL.h b/src/audio/PsyX_SPUAL.h
+index 7d64565..0f7e3da 100644
+--- a/src/audio/PsyX_SPUAL.h
++++ b/src/audio/PsyX_SPUAL.h
+@@ -11,6 +11,7 @@ extern "C" {
+ #endif
+ 
+ extern int PsyX_SPUAL_InitSound();
++extern int PsyX_SPUAL_IsInit();   /* backend-awake state (g_spuInit) accessor */
+ extern void PsyX_SPUAL_ShutdownSound();
+ 
+ // Private
+diff --git a/src/psx/LIBAPI.C b/src/psx/LIBAPI.C
+index a2456dd..1952313 100644
+--- a/src/psx/LIBAPI.C
++++ b/src/psx/LIBAPI.C
+@@ -56,6 +56,48 @@ extern SysCounter counters[3];
+ 
+ SysCounter counters[3] = { 0 };
+ 
++/* --- XENO_PC_PORT sound event pump (Phase 1) [_xeno_sound_pump] -------------------------------
++ * Retail SoundInitialize (0x80037C84) registers func_8003C020 as an RCntCNT2
++ * (root counter 2) interrupt event via OpenEvent, then
++ * SetRCnt(RCntCNT2, 0x44E8, EvMdINTR) + StartRCnt. RCnt2's default clock (mode
++ * 0x1000 carries no RCntMdSC/0x1 bit, so the port's own SetRCnt takes the
++ * `spec==2 && !(mode&1)` branch) is the system clock / 8 = 33.8688MHz/8 =
++ * 4.2336MHz; target 0x44E8 (17640) => 4233600/17640 = 240.0 Hz exactly.
++ * Nothing on the host retained the callback or advanced/dispatched the
++ * counter, so the tick never fired.  This registry plus PsyX_Sys_DispatchCounter2
++ * (driven at 240Hz by the interrupt thread, PsyX_main.cpp) is that missing
++ * infrastructure.  Lock-free by construction: each slot has one writer (the
++ * caller thread, at setup) and one reader (the interrupt thread); `in_use` is
++ * published last and marked volatile so the reader never sees a half-open slot.
++ * NOTE: cross-thread safety of the *callback body* against the main/field
++ * thread (retail relied on EnterCriticalSection disabling IRQs, a no-op here)
++ * is a later-phase concern -- the Phase-1 synthetic probe touches no shared
++ * state.  Only RCntCNT2/EvSpINT events are dispatched. */
++#define PSYX_EVENT_MAX 32
++typedef struct {
++	volatile int in_use;
++	volatile int enabled;
++	unsigned int desc;      /* event class, e.g. RCntCNT2 */
++	int          spec;      /* EvSpINT ... */
++	int          mode;      /* EvMdINTR ... */
++	long       (*func)();
++} PsyXEventSlot;
++static PsyXEventSlot s_psyxEvents[PSYX_EVENT_MAX];
++
++void PsyX_Sys_DispatchCounter2(void)
++{
++	int i;
++	for (i = 0; i < PSYX_EVENT_MAX; i++)
++	{
++		PsyXEventSlot* e = &s_psyxEvents[i];
++		if (e->in_use && e->enabled && e->func &&
++			e->desc == (unsigned int)RCntCNT2 && e->spec == EvSpINT)
++		{
++			e->func();
++		}
++	}
++}
++
+ int SetRCnt(int spec, unsigned short target, int mode)//(F)
+ {
+ 	int value = 0x48;
+@@ -137,28 +179,51 @@ int StopRCnt(int spec)//TODO
+ 	return 0;
+ }
+ #undef OpenEvent
+-int OpenEvent(unsigned int event, int unk01, int unk02, long(*func)())
++int OpenEvent(unsigned int event, int spec, int mode, long(*func)())
+ {
+-	PSYX_UNIMPLEMENTED();
++	int i;
++	for (i = 0; i < PSYX_EVENT_MAX; i++)
++	{
++		if (!s_psyxEvents[i].in_use)
++		{
++			s_psyxEvents[i].desc    = event;
++			s_psyxEvents[i].spec    = spec;
++			s_psyxEvents[i].mode    = mode;
++			s_psyxEvents[i].func    = func;
++			s_psyxEvents[i].enabled = 0;
++			/* publish last: the dispatch thread gates on in_use */
++			s_psyxEvents[i].in_use  = 1;
++			return i + 1;   /* handle; 0 stays reserved for "no free slot" */
++		}
++	}
+ 	return 0;
+ }
+ 
+ int CloseEvent(unsigned int event)
+ {
+-	PSYX_UNIMPLEMENTED();
+-	return 0;
++	int idx = (int)event - 1;
++	if (idx >= 0 && idx < PSYX_EVENT_MAX)
++	{
++		s_psyxEvents[idx].in_use  = 0;
++		s_psyxEvents[idx].enabled = 0;
++	}
++	return 1;
+ }
+ 
+ int EnableEvent(unsigned int event)
+ {
+-	PSYX_UNIMPLEMENTED();
+-	return 0;
++	int idx = (int)event - 1;
++	if (idx >= 0 && idx < PSYX_EVENT_MAX && s_psyxEvents[idx].in_use)
++		s_psyxEvents[idx].enabled = 1;
++	return 1;
+ }
+ 
+ int DisableEvent(unsigned int event)
+ {
+-	PSYX_UNIMPLEMENTED();
+-	return 0;
++	int idx = (int)event - 1;
++	if (idx >= 0 && idx < PSYX_EVENT_MAX && s_psyxEvents[idx].in_use)
++		s_psyxEvents[idx].enabled = 0;
++	return 1;
+ }
+ 
+ int WaitEvent(unsigned int event)

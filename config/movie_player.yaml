@@ -1,0 +1,57 @@
+name: Movie Player Module (archive dir 0x18 file 1, loaded at 0x801D3000 by MovieMain)
+sha1: ca808fed8ab02a7bd41d297da4bc51b0c0108028
+options:
+  basename: movie_player.bin
+  target_path: disc/movie_player.bin
+  base_path: ../
+  platform: psx
+  compiler: PSYQ
+
+  asm_path: asm/movie_player
+  src_path: src/movie_player
+  build_path: build/
+
+  ld_script_path: linker/movie_player.ld
+
+  find_file_boundaries: False
+  gp_value: 0x80059170
+  global_vram_start: 0x80010000
+
+  o_as_suffix: False
+  use_legacy_include_asm: False
+
+  asm_function_macro: glabel
+  asm_jtbl_label_macro: jlabel
+  asm_data_macro: dlabel
+
+  section_order: [".rodata", ".text", ".data", ".bss"]
+
+  symbol_addrs_path:
+    - config/symbol_addrs.movie_player.txt
+    - config/symbol_addrs.slus_006.64.txt
+  reloc_addrs_path:
+    - configs/reloc_addrs.movie_player.txt
+
+  undefined_funcs_auto_path: linker/undefined_funcs_auto.movie_player.txt
+  undefined_syms_auto_path: linker/undefined_syms_auto.movie_player.txt
+
+  extensions_path: tools/splat_ext
+
+  subalign: 4
+
+  string_encoding: ASCII
+  data_string_encoding: ASCII
+  rodata_string_guesser_level: 2
+  data_string_guesser_level: 2
+segments:
+  - name: movie_player
+    type: code
+    start: 0x0
+    vram: 0x801d3000
+    align: 4
+    subalign: 4
+    subsegments:
+      - [0x0, rodata]
+      - [0xC4, asm]
+      - [0x151C0, data]
+  - [0x16000]

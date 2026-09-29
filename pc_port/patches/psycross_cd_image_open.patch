@@ -1,0 +1,111 @@
+diff --git a/src/psx/LIBCD.C b/src/psx/LIBCD.C
+index 36a2ec3..b20a889 100644
+--- a/src/psx/LIBCD.C
++++ b/src/psx/LIBCD.C
+@@ -10,6 +10,7 @@
+ #include <string.h>
+ #include <stdlib.h>
+ #include <ctype.h>
++#include <limits.h>
+ #include <malloc.h>
+ 
+ #ifdef _WIN32
+@@ -664,43 +665,50 @@ int CdSync(int mode, u_char * result)
+ 
+ int OpenBinaryImageFile()
+ {
+-	// already open?
+-	// TODO: it has to be closed
+-	// FIXME: what if Psy-X users want to swap CDs?
+-	//if (g_UseCDImage)
+-	//	return 0;
+-
+-	if (!g_imageFile.basePtr)
++	/* _xeno_cd_image_open: publish a newly owned stream only after validation.
++	 * Re-initialization reuses the existing stream; image replacement requires
++	 * a separate, quiesced lifecycle and must not silently leak/replace it. */
++	VFILE image = g_imageFile;
++	int opened = 0;
++	long length;
++	if (g_cdSectorSize <= 0)
++		return 0;
++	if (!image.basePtr && !image.fp)
+ 	{
+-		// open Binary
+-		g_imageFile.fp = fopen(g_cdImageBinaryFileName, "rb");
+-
+-		if (!g_imageFile.fp)
++		image.fp = fopen(g_cdImageBinaryFileName, "rb");
++		if (!image.fp)
+ 		{
+ 			eprinterr("CD image '%s' not found.\n", g_cdImageBinaryFileName);
+ 			return 0;
+ 		}
++		opened = 1;
+ 	}
+-
+-	vfseek(&g_imageFile, 0, SEEK_END);
+-	unsigned int binFileLength = vftell(&g_imageFile);
+-	g_cdNumFrames = binFileLength / g_cdSectorSize;
+-
+-	assert(g_cdNumFrames != 0);
+-
+-	vfseek(&g_imageFile, 0, SEEK_SET);
+-
++	if (image.fp)
++	{
++		if (vfseek(&image, 0, SEEK_END) != 0)
++			goto failed;
++		length = ftell(image.fp);
++	}
++	else
++	{
++		/* Validate the borrowed length before forming an end pointer. */
++		if (image.size > INT_MAX)
++			goto failed;
++		length = (long)image.size;
++	}
++	/* The existing virtual I/O API uses signed int offsets. */
++	if (length < g_cdSectorSize || length > INT_MAX)
++		goto failed;
++	if (vfseek(&image, 0, SEEK_SET) != 0)
++		goto failed;
++	g_imageFile = image;
++	g_cdNumFrames = (int)(length / g_cdSectorSize);
+ 	eprintinfo("Using '%s' image, sector size: %d, frames: %d\n", g_cdImageBinaryFileName, g_cdSectorSize, g_cdNumFrames);
+-
+-	/*{
+-	 *
+-		Sector sector;
+-		fseek(g_imageFp, CD_ROOT_DIRECTORY_SECTOR * g_cdSectorSize, SEEK_SET);
+-		fread(&sector, sizeof(Sector), 1, g_imageFp);
+-		DumpFiles_r(&sector, "");
+-	}*/
+-	
+ 	return 1;
++failed:
++	if (opened)
++		fclose(image.fp);
++	return 0;
+ }
+ 
+ // TODO: don't just rely on cue sheet
+@@ -709,8 +717,7 @@ int ParseCueSheet()
+ {
+ 	if(g_imageFile.basePtr || strlen(g_cdImageBinaryFileName))
+ 	{
+-		OpenBinaryImageFile();
+-		return 1;
++		return OpenBinaryImageFile();
+ 	}
+ 	
+ 	int cdMode;
+@@ -807,7 +814,7 @@ int ParseCueSheet()
+ 
+ 		eprintinfo("CUE: '%s' is Mode %d image\n", g_cdImageBinaryFileName, cdMode);
+ 		
+-		OpenBinaryImageFile();
++		return OpenBinaryImageFile();
+ 	}
+ 
+ 	return 1;

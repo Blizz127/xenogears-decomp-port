@@ -1,0 +1,6 @@
+W18ICTRL_FORBIDDEN_SUMMARY_BEGIN
+required=712d0,ctrl_deleted
+target label=712d0 status=ZERO_VERIFIED registered=1 hits=0 method=native_symbol_bp reason=none
+target label=ctrl_deleted status=INSTRUMENTATION_ERROR registered=1 hits=undefined method=native_symbol_bp reason=bp_deleted_during_interval
+W18ICTRL_FORBIDDEN_SUMMARY_END
+W18ICTRL_FORBIDDEN_VERDICT verdict=FAIL exit=1

@@ -1,0 +1,53 @@
+--- a/src/psx/LIBCD.C
++++ b/src/psx/LIBCD.C
+@@ -64,25 +64,40 @@
+ 
+ int vfseek(VFILE* _Stream, int  _Offset, int   _Origin)
+ {
++	/* _xeno_cd_bounded_seek: a borrowed image cannot grow like a stdio file.
++	 * Reject invalid positions before constructing a pointer; preserve cursor. */
++	if (!_Stream) return -1;
+ 	if (_Stream->fp)
+ 		return fseek(_Stream->fp, _Offset, _Origin);
+ 
+-	if (_Origin == SEEK_SET)
+-		_Stream->curPtr = _Stream->basePtr + _Offset;
+-	else if (_Origin == SEEK_CUR)
+-		_Stream->curPtr += _Offset;
+-	else if (_Origin == SEEK_END)
+-		_Stream->curPtr = _Stream->basePtr + _Stream->size + _Offset;
+-
++	uintptr_t base = (uintptr_t)_Stream->basePtr;
++	uintptr_t current = (uintptr_t)_Stream->curPtr;
++	if (!base || !current || _Stream->size > INT_MAX ||
++		current < base || current - base > _Stream->size) return -1;
++	int64_t origin;
++	if (_Origin == SEEK_SET) origin = 0;
++	else if (_Origin == SEEK_CUR) origin = (int64_t)(current - base);
++	else if (_Origin == SEEK_END) origin = (int64_t)_Stream->size;
++	else return -1;
++	int64_t target = origin + (int64_t)_Offset;
++	if (target < 0 || (uint64_t)target > _Stream->size) return -1;
++	_Stream->curPtr = _Stream->basePtr + (size_t)target;
+ 	return 0;
+ }
+ 
+ int vftell(VFILE* _Stream)
+ {
++	if (!_Stream) return -1;
+ 	if (_Stream->fp)
+-		return ftell(_Stream->fp);
+-
+-	return _Stream->curPtr - _Stream->basePtr;
++	{
++		long position = ftell(_Stream->fp);
++		return position < 0 || position > INT_MAX ? -1 : (int)position;
++	}
++	uintptr_t base = (uintptr_t)_Stream->basePtr;
++	uintptr_t current = (uintptr_t)_Stream->curPtr;
++	if (!base || !current || _Stream->size > INT_MAX ||
++		current < base || current - base > _Stream->size) return -1;
++	return (int)(current - base);
+ }
+ 
+ //-------------------------------------------------------

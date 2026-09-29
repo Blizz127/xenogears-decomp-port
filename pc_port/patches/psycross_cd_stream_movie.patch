@@ -1,0 +1,803 @@
+--- a/src/psx/LIBCD.C
++++ b/src/psx/LIBCD.C
+@@ -2,6 +2,7 @@
+ 
+ #include "../PsyX_main.h"
+ #include "../iso9660.h"
++#include "../audio/PsyX_SPUAL.h"
+ 
+ #include <assert.h>
+ #include <stdio.h>
+@@ -113,6 +114,27 @@
+ 
+ int g_cdReadDoneFlag = 1;
+ 
++/* _xeno_cd_stream_movie: last CdlSetmode byte (CdlModeSpeed 0x80, CdlModeRT
++ * 0x40, CdlModeSF 0x08, ...) and last CdlSetfilter.  The retail STR player
++ * (movie player module, cdstream) drives the drive with CdControl(CdlSetmode)
++ * + CdControl(CdlReadS, NULL) after a CdControlB(CdlSetloc), and paces its
++ * ring buffer by the real-time sector rate (75 sectors/s, 150 at double
++ * speed).  The spooler thread honours that rate when CdlModeRT is set so the
++ * 32-slot ring is not overrun. */
++static u_char g_xeno_cdMode = 0;
++static CdlFILTER g_xeno_cdFilter = { 0, 0, 0 };
++
++int PsyX_CdXaSectorAccepted(int mode, int filterFile, int filterChannel,
++	                         int file, int channel, int submode)
++{
++	if (!(mode & CdlModeRT))
++		return 0;
++	if ((mode & CdlModeSF) &&
++	    (file != filterFile || channel != filterChannel))
++		return 0;
++	return (submode & 0x4E) == 0x44;
++}
++
+ char g_cdImageBinaryFileName[2048] = { 0 };
+ int g_UseCDImage = 0;
+ 
+@@ -184,6 +195,7 @@
+ 
+ void _eCdControlF_ReadS(int sector);
+ void _eCdControlF_Pause();
++void _eCdSpoolerJoin(void);
+ 
+ //----------------------------------------------------------
+ 
+@@ -339,19 +351,37 @@
+ 	case CdlSetloc:
+ 		vfseek(&g_imageFile, CdPosToInt(cd)*g_cdSectorSize, SEEK_SET);
+ 		break;
++	case CdlSetmode:
++		/* _xeno_cd_stream_movie */
++		g_xeno_cdMode = param ? param[0] : 0;
++		PsyX_SPUAL_CdSetMode(g_xeno_cdMode);
++		return 1;
+ 	case CdlReadS:
+ 	{
+-		unsigned int filePos = vftell(&g_imageFile);
+-		
+-		CdlLOC currentLoc;
+-		CdIntToPos(filePos, &currentLoc);
+-		
+-		vfseek(&g_imageFile, CdPosToInt(cd) * g_cdSectorSize, SEEK_SET);
+-		
+-		g_cdCurrentSector = CdPosToInt(cd);
+-		
+-		if (cd->sector != currentLoc.sector)
++		if (param == NULL)
++		{
++			/* _xeno_cd_stream_movie: start streaming from the position set by
++			 * the preceding CdlSetloc (retail cdstream issues CdlReadS with no
++			 * parameter).  Returns 1 = accepted, like libcd. */
++			int sector = (int)(vftell(&g_imageFile) / g_cdSectorSize);
++			g_cdCurrentSector = sector;
++			_eCdControlF_ReadS(sector);
+ 			return 1;
++		}
++		else
++		{
++			unsigned int filePos = vftell(&g_imageFile);
++
++			CdlLOC currentLoc;
++			CdIntToPos(filePos, &currentLoc);
++
++			vfseek(&g_imageFile, CdPosToInt(cd) * g_cdSectorSize, SEEK_SET);
++
++			g_cdCurrentSector = CdPosToInt(cd);
++
++			if (cd->sector != currentLoc.sector)
++				return 1;
++		}
+ 
+ 		break;
+ 	}
+@@ -385,15 +415,29 @@
+ 	case CdlSetfilter:
+ 	{
+ 		CdlFILTER* cdf = (CdlFILTER*)param;
+-		// TODO: set channel. Primarily used for CDDA/XA
++		/* _xeno_cd_stream_movie: remember the XA file/channel filter and
++		 * report success so cdstream's retry loop terminates. */
++		if (cdf)
++			g_xeno_cdFilter = *cdf;
++		ret = 1;
+ 		break;
+ 	}
+ 	case CdlSetmode:
+ 	{
+ 		// TODO: CdlModeSize0 and CdlModeSize1 can change things
++		/* _xeno_cd_stream_movie */
++		g_xeno_cdMode = param ? param[0] : 0;
++		PsyX_SPUAL_CdSetMode(g_xeno_cdMode);
+ 
+-		eprinterr("Unimplemented 'CdlSetmode'!\n");
+-
++		ret = 1;
++		break;
++	}
++	case CdlPause:
++	{
++		/* _xeno_cd_stream_movie: stop the streaming spooler and wait for the
++		 * thread so a following CdlSetloc/CdlReadS starts clean. */
++		_eCdControlF_Pause();
++		_eCdSpoolerJoin();
+ 		ret = 1;
+ 		break;
+ 	}
+@@ -438,6 +482,14 @@
+ 			readMode = RM_XA_AUDIO;
+ 			break;
+ 		}
++		case CdlSetmode:
++		{
++			/* _xeno_cd_stream_movie: ArchiveCdSetMode issues this after a
++			 * movie; remember the mode byte for the spooler pacing. */
++			g_xeno_cdMode = param ? param[0] : 0;
++			PsyX_SPUAL_CdSetMode(g_xeno_cdMode);
++			break;
++		}
+ 		case CdlReadS:
+ 		{
+ 			// start reading sectors
+@@ -825,6 +877,35 @@
+ 
+ volatile int g_cdSpoolerSeekCmd = 0;
+ 
++/* _xeno_cd_stream_movie: real-time pacing of the spooler.  A real drive
++ * delivers one sector every 1/75 s (1/150 s at CdlModeSpeed); the STR
++ * player's 32-slot ring depends on that cadence.  The spooler is only used
++ * for CdlReadS streaming (CdRead/CdReadSync are synchronous), so it always
++ * sleeps to the drive rate. */
++static Uint64 g_xeno_cdPaceNext = 0;
++
++static void _eCdSpoolerPace(void)
++{
++	Uint64 freq;
++	Uint64 period;
++	Uint64 now;
++
++	freq = SDL_GetPerformanceFrequency();
++	period = freq / ((g_xeno_cdMode & CdlModeSpeed) ? 150 : 75);
++	now = SDL_GetPerformanceCounter();
++
++	if (g_xeno_cdPaceNext == 0 || now > g_xeno_cdPaceNext + period * 8)
++		g_xeno_cdPaceNext = now;
++
++	while (SDL_GetPerformanceCounter() < g_xeno_cdPaceNext)
++	{
++		Uint64 remain = g_xeno_cdPaceNext - SDL_GetPerformanceCounter();
++		if (remain * 1000 > freq * 2)
++			SDL_Delay(1);
++	}
++	g_xeno_cdPaceNext += period;
++}
++
+ //-----------------------------------------------------
+ // copies read sector data to addr
+ //-----------------------------------------------------
+@@ -898,6 +990,21 @@
+ 	memset(&g_cdSectorData, 0, sizeof(g_cdSectorData));
+ 	vfread(&g_cdSectorData, sizeof(Sector), 1, &g_imageFile);
+ 
++	_eCdSpoolerPace(); /* _xeno_cd_stream_movie */
++
++	/* _xeno_cd_xa: CdlModeRT enables the CD-to-SPU path. CdlModeSF makes
++	 * CdlSetfilter's file/channel pair active; with SF clear the hardware does
++	 * not discard other pairs. Accept only realtime audio submode sectors and
++	 * reject video/data. The 2304-byte Form-2 payload starts at raw + 24. */
++	if (PsyX_CdXaSectorAccepted(g_xeno_cdMode,
++		g_xeno_cdFilter.file, g_xeno_cdFilter.chan,
++		g_cdSectorData.subHead[0], g_cdSectorData.subHead[1],
++		g_cdSectorData.subHead[2]))
++	{
++		PsyX_SPUAL_CdPushXaSector(g_cdSectorData.data, 2304,
++		                          g_cdSectorData.subHead[3]);
++	}
++
+ 	g_isCdSectorDataRead = 0;
+ 
+ 	if (readyCb)
+@@ -1013,6 +1108,21 @@
+ 	g_cdSpoolerSeekCmd = -1;
+ }
+ 
++/* _xeno_cd_stream_movie: block until the spooler thread has exited after a
++ * pause request. */
++void _eCdSpoolerJoin(void)
++{
++#ifndef __EMSCRIPTEN__
++	if (g_cdSpoolerPCThread)
++	{
++		int returnValue;
++		SDL_WaitThread(g_cdSpoolerPCThread, &returnValue);
++		g_cdSpoolerPCThread = NULL;
++	}
++#endif
++	g_xeno_cdPaceNext = 0;
++}
++
+ char* CdComstr(u_char com)
+ {
+ 	PSYX_UNIMPLEMENTED();
+--- a/src/audio/PsyX_SPUAL.h
++++ b/src/audio/PsyX_SPUAL.h
+@@ -59,8 +59,38 @@
+ extern int PsyX_SPUAL_GaussDebug(const short* hist4, int idx);
+ extern int PsyX_SPUAL_IsStreaming(void);
+ 
++/* _xeno_cd_xa: retail CD-ROM real-time XA ADPCM path.  LIBCD supplies the
++ * 2304-byte Form-2 payload after applying the drive's file/channel filter;
++ * the audio backend performs the PSX XA decode and clocks it at the rate
++ * encoded in the sector. */
++extern void PsyX_SPUAL_CdSetMode(int mode);
++extern void PsyX_SPUAL_CdPushXaSector(const unsigned char* payload, int size,
++                                      unsigned char coding);
++extern void PsyX_SPUAL_SetCdMix(int enabled);
++extern void PsyX_SPUAL_SetCdVolume(short left, short right);
++extern void PsyX_SPUAL_SetCdAttenuation(unsigned char val0,
++                                        unsigned char val1,
++                                        unsigned char val2,
++                                        unsigned char val3);
++extern int PsyX_SPUAL_XaDecodeDebug(const unsigned char* payload, int size,
++                                    unsigned char coding, short* outPcm);
++extern int PsyX_SPUAL_XaDecodeResampleDebug(const unsigned char* payload,
++                                            int size, unsigned char coding,
++                                            short* outPcm, int reset);
++extern void PsyX_SPUAL_XaMixDebug(int enabled, short volumeLeft,
++                                  short volumeRight, short inputLeft,
++                                  short inputRight, short* outputLeft,
++                                  short* outputRight);
++extern void PsyX_SPUAL_XaAttenuationDebug(unsigned char val0,
++                                          unsigned char val1,
++                                          unsigned char val2,
++                                          unsigned char val3,
++                                          short inputLeft, short inputRight,
++                                          short* outputLeft,
++                                          short* outputRight);
++
+ #if defined(_LANGUAGE_C_PLUS_PLUS)||defined(__cplusplus)||defined(c_plusplus)
+ }
+ #endif
+ 
+-#endif // PSYX_SPUAL_H
+\ No newline at end of file
++#endif // PSYX_SPUAL_H
+--- a/src/audio/PsyX_SPUAL.cpp
++++ b/src/audio/PsyX_SPUAL.cpp
+@@ -375,6 +375,41 @@
+ static SDL_mutex* s_StreamMutex = NULL;
+ static int s_streamMode = 0;   /* 1 = callback streaming active */
+ 
++/* _xeno_cd_xa: the CD-ROM's XA stream is a second callback source.  Retail
++ * movie sectors decode to 2016 stereo frames at 37800 Hz, then the PS1 CD
++ * decoder's fixed seven-phase zigzag filter converts each six input frames
++ * to seven 44100 Hz output frames.  The ring transports those hardware-rate
++ * samples to OpenAL; the host resampler is not part of the emulation path. */
++#define XA_FRAMES_PER_SECTOR 2016
++#define XA_OUTPUT_FRAMES_PER_SECTOR 2352
++#define XA_RING_FRAMES       65536
++static short s_xaRing[XA_RING_FRAMES * 2];
++static unsigned int s_xaReadFrame = 0;
++static unsigned int s_xaWriteFrame = 0;
++static unsigned int s_xaFrames = 0;
++static int s_xaActive = 0;
++static int s_xaOverruns = 0;
++static int s_xaUnsupported = 0;
++static int s_xaMixEnabled = 0;
++static short s_xaVolumeLeft = 0x7FFF;
++static short s_xaVolumeRight = 0x7FFF;
++static unsigned char s_xaAttenuation0 = 0x80;
++static unsigned char s_xaAttenuation1 = 0x00;
++static unsigned char s_xaAttenuation2 = 0x00;
++static unsigned char s_xaAttenuation3 = 0x80;
++static short s_xaHistoryLeft1 = 0;
++static short s_xaHistoryLeft2 = 0;
++static short s_xaHistoryRight1 = 0;
++static short s_xaHistoryRight2 = 0;
++static short s_xaResampleRing[2][32];
++static unsigned int s_xaResamplePos = 0;
++static unsigned int s_xaResampleSixstep = 6;
++#ifndef __EMSCRIPTEN__
++static ALuint s_xaAlBuffer = 0;
++static ALuint s_xaAlSource = 0;
++static int s_xaAlReady = 0;
++#endif
++
+ #ifndef __EMSCRIPTEN__
+ typedef ALsizei (AL_APIENTRY* LPALBUFFERCALLBACKSOFT_x)(ALuint, ALenum, ALsizei,
+     ALBUFFERCALLBACKTYPESOFT, ALvoid*);
+@@ -527,6 +562,400 @@
+ }
+ #endif
+ 
++/* _xeno_cd_xa: decode one Mode-2/Form-2 XA audio payload.  The retail
++ * Xenogears movie corpus uses coding 01h: stereo, 4-bit ADPCM, 37800 Hz.
++ * Each 128-byte group contains four 28-frame blocks; the low and high nibble
++ * of each data byte are the left and right channels respectively.  Filter
++ * history is continuous across sectors, as on the PSX CD-to-SPU path. */
++static int XaDecodeSector(const u_char* src, int size, u_char coding, short* dst)
++{
++	int channels = (coding & 1) + 1;
++	int rate = (coding & 4) ? 18900 : 37800;
++	int group, block, sample;
++	int left1 = s_xaHistoryLeft1;
++	int left2 = s_xaHistoryLeft2;
++	int right1 = s_xaHistoryRight1;
++	int right2 = s_xaHistoryRight2;
++	int out = 0;
++
++	if (!src || size < 2304 || channels != 2 || rate != 37800 ||
++		(coding & 0x30) != 0)
++	{
++		if (!s_xaUnsupported)
++		{
++			eprintwarn("PSX XA: unsupported coding %02x (need stereo 4-bit/37800)\n", coding);
++			s_xaUnsupported = 1;
++		}
++		return 0;
++	}
++
++	for (group = 0; group < 18; group++)
++	{
++		const u_char* in = src + group * 128;
++		for (block = 0; block < 4; block++)
++		{
++			int lp = in[4 + block * 2];
++			int rp = in[5 + block * 2];
++			int lparam = lp & 0x0F;
++			int rparam = rp & 0x0F;
++			int lshift;
++			int rshift;
++			int lf = (lp >> 4) & 0x0F;
++			int rf = (rp >> 4) & 0x0F;
++
++			/* XA supports filters 0..3.  The CD decoder treats reserved shift
++			 * parameters 13..15 as 9 rather than performing an invalid shift. */
++			if (lf > 3 || rf > 3)
++			{
++				if (!s_xaUnsupported)
++				{
++					eprintwarn("PSX XA: invalid ADPCM header in coding %02x\n", coding);
++					s_xaUnsupported = 1;
++				}
++				return 0;
++			}
++			if (lparam > 12) lparam = 9;
++			if (rparam > 12) rparam = 9;
++			lshift = 12 - lparam;
++			rshift = 12 - rparam;
++
++			for (sample = 0; sample < 28; sample++)
++			{
++				int packed = in[16 + block + sample * 4];
++				int ln = packed & 0x0F;
++				int rn = (packed >> 4) & 0x0F;
++				int ls, rs;
++
++				if (ln & 8) ln -= 16;
++				if (rn & 8) rn -= 16;
++				ls = (ln << lshift) + ((left1 * s_adpcmF0[lf] +
++					left2 * s_adpcmF1[lf] + 32) >> 6);
++				rs = (rn << rshift) + ((right1 * s_adpcmF0[rf] +
++					right2 * s_adpcmF1[rf] + 32) >> 6);
++				if (ls > 32767) ls = 32767;
++				else if (ls < -32768) ls = -32768;
++				if (rs > 32767) rs = 32767;
++				else if (rs < -32768) rs = -32768;
++				dst[out++] = (short)ls;
++				dst[out++] = (short)rs;
++				left2 = left1;
++				left1 = ls;
++				right2 = right1;
++				right1 = rs;
++			}
++		}
++	}
++
++	s_xaHistoryLeft1 = (short)left1;
++	s_xaHistoryLeft2 = (short)left2;
++	s_xaHistoryRight1 = (short)right1;
++	s_xaHistoryRight2 = (short)right2;
++	return out / 2;
++}
++
++static short XaSaturate(int value);
++
++/* PS1 CD-ROM 37800 -> 44100 Hz zigzag interpolation.  The coefficients and
++ * six-input/seven-output cadence are the documented CD decoder hardware
++ * path.  State deliberately survives sector boundaries. */
++static const short s_xaZigZag[7][29] = {
++	{0, 0x0000, 0x0000, 0x0000, 0x0000, -0x0002, 0x000A, -0x0022, 0x0041, -0x0054,
++	 0x0034, 0x0009, -0x010A, 0x0400, -0x0A78, 0x234C, 0x6794, -0x1780, 0x0BCD, -0x0623,
++	 0x0350, -0x016D, 0x006B, 0x000A, -0x0010, 0x0011, -0x0008, 0x0003, -0x0001},
++	{0, 0x0000, 0x0000, -0x0002, 0x0000, 0x0003, -0x0013, 0x003C, -0x004B, 0x00A2,
++	 -0x00E3, 0x0132, -0x0043, -0x0267, 0x0C9D, 0x74BB, -0x11B4, 0x09B8, -0x05BF, 0x0372,
++	 -0x01A8, 0x00A6, -0x001B, 0x0005, 0x0006, -0x0008, 0x0003, -0x0001, 0x0000},
++	{0, 0x0000, -0x0001, 0x0003, -0x0002, -0x0005, 0x001F, -0x004A, 0x00B3, -0x0192,
++	 0x02B1, -0x039E, 0x04F8, -0x05A6, 0x7939, -0x05A6, 0x04F8, -0x039E, 0x02B1, -0x0192,
++	 0x00B3, -0x004A, 0x001F, -0x0005, -0x0002, 0x0003, -0x0001, 0x0000, 0x0000},
++	{0, -0x0001, 0x0003, -0x0008, 0x0006, 0x0005, -0x001B, 0x00A6, -0x01A8, 0x0372,
++	 -0x05BF, 0x09B8, -0x11B4, 0x74BB, 0x0C9D, -0x0267, -0x0043, 0x0132, -0x00E3, 0x00A2,
++	 -0x004B, 0x003C, -0x0013, 0x0003, 0x0000, -0x0002, 0x0000, 0x0000, 0x0000},
++	{-0x0001, 0x0003, -0x0008, 0x0011, -0x0010, 0x000A, 0x006B, -0x016D, 0x0350, -0x0623,
++	 0x0BCD, -0x1780, 0x6794, 0x234C, -0x0A78, 0x0400, -0x010A, 0x0009, 0x0034, -0x0054,
++	 0x0041, -0x0022, 0x000A, -0x0001, 0x0000, 0x0001, 0x0000, 0x0000, 0x0000},
++	{0x0002, -0x0008, 0x0010, -0x0023, 0x002B, 0x001A, -0x00EB, 0x027B, -0x0548, 0x0AFA,
++	 -0x16FA, 0x53E0, 0x3C07, -0x1249, 0x080E, -0x0347, 0x015B, -0x0044, -0x0017, 0x0046,
++	 -0x0023, 0x0011, -0x0005, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000},
++	{-0x0005, 0x0011, -0x0023, 0x0046, -0x0017, -0x0044, 0x015B, -0x0347, 0x080E, -0x1249,
++	 0x3C07, 0x53E0, -0x16FA, 0x0AFA, -0x0548, 0x027B, -0x00EB, 0x001A, 0x002B, -0x0023,
++	 0x0010, -0x0008, 0x0002, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000}
++};
++
++static int XaFloorShift15(int value)
++{
++	return value >= 0 ? value / 32768 : -((-value + 32767) / 32768);
++}
++
++static short XaZigZagInterpolate(const short* ring, unsigned int table,
++	                              unsigned int pos)
++{
++	int sum = 0;
++	unsigned int i;
++	for (i = 0; i < 29; i++)
++		sum += XaFloorShift15((int)ring[(pos - i) & 31] *
++		                      (int)s_xaZigZag[table][i]);
++	return XaSaturate(sum);
++}
++
++static void XaResetResampler(void)
++{
++	memset(s_xaResampleRing, 0, sizeof(s_xaResampleRing));
++	s_xaResamplePos = 0;
++	s_xaResampleSixstep = 6;
++}
++
++static int XaResample37800(const short* src, int frames, short* dst)
++{
++	int inFrame;
++	int outFrame = 0;
++	for (inFrame = 0; inFrame < frames; inFrame++)
++	{
++		unsigned int phase;
++		s_xaResampleRing[0][s_xaResamplePos] = src[inFrame * 2];
++		s_xaResampleRing[1][s_xaResamplePos] = src[inFrame * 2 + 1];
++		s_xaResamplePos = (s_xaResamplePos + 1) & 31;
++		s_xaResampleSixstep--;
++		if (s_xaResampleSixstep != 0)
++			continue;
++		s_xaResampleSixstep = 6;
++		for (phase = 0; phase < 7; phase++)
++		{
++			dst[outFrame * 2] = XaZigZagInterpolate(
++				s_xaResampleRing[0], phase, s_xaResamplePos);
++			dst[outFrame * 2 + 1] = XaZigZagInterpolate(
++				s_xaResampleRing[1], phase, s_xaResamplePos);
++			outFrame++;
++		}
++	}
++	return outFrame;
++}
++
++/* Test surface over the production XA decoder.  Retail sector boundaries
++ * reset this state when CdlSetmode starts a stream; the harness does the same
++ * so its expected vector is independent of prior playback. */
++int PsyX_SPUAL_XaDecodeDebug(const unsigned char* payload, int size,
++	                           unsigned char coding, short* outPcm)
++{
++	s_xaHistoryLeft1 = s_xaHistoryLeft2 = 0;
++	s_xaHistoryRight1 = s_xaHistoryRight2 = 0;
++	return XaDecodeSector(payload, size, coding, outPcm);
++}
++
++int PsyX_SPUAL_XaDecodeResampleDebug(const unsigned char* payload, int size,
++	                                  unsigned char coding, short* outPcm,
++	                                  int reset)
++{
++	short decoded[XA_FRAMES_PER_SECTOR * 2];
++	int frames;
++	if (reset)
++	{
++		s_xaHistoryLeft1 = s_xaHistoryLeft2 = 0;
++		s_xaHistoryRight1 = s_xaHistoryRight2 = 0;
++		XaResetResampler();
++	}
++	frames = XaDecodeSector(payload, size, coding, decoded);
++	return frames > 0 ? XaResample37800(decoded, frames, outPcm) : 0;
++}
++
++static short XaSaturate(int value)
++{
++	if (value > 32767) return 32767;
++	if (value < -32768) return -32768;
++	return (short)value;
++}
++
++static void XaApplyCdAttenuation(unsigned char val0, unsigned char val1,
++	                             unsigned char val2, unsigned char val3,
++	                             short inputLeft, short inputRight,
++	                             short* outputLeft, short* outputRight)
++{
++	int left = (((int)inputLeft * val0) >> 7) +
++	           (((int)inputRight * val2) >> 7);
++	int right = (((int)inputLeft * val1) >> 7) +
++	            (((int)inputRight * val3) >> 7);
++	*outputLeft = XaSaturate(left);
++	*outputRight = XaSaturate(right);
++}
++
++static void XaMixFrame(int enabled, short volumeLeft, short volumeRight,
++	                   unsigned char val0, unsigned char val1,
++	                   unsigned char val2, unsigned char val3,
++	                   short inputLeft, short inputRight,
++	                   short* outputLeft, short* outputRight)
++{
++	int left = 0;
++	int right = 0;
++
++	if (enabled)
++	{
++		short attenuatedLeft;
++		short attenuatedRight;
++		XaApplyCdAttenuation(val0, val1, val2, val3,
++		                     inputLeft, inputRight,
++		                     &attenuatedLeft, &attenuatedRight);
++		left = ((int)attenuatedLeft * volumeLeft + 0x4000) >> 15;
++		right = ((int)attenuatedRight * volumeRight + 0x4000) >> 15;
++	}
++	*outputLeft = XaSaturate(left);
++	*outputRight = XaSaturate(right);
++}
++
++void PsyX_SPUAL_XaMixDebug(int enabled, short volumeLeft, short volumeRight,
++	                         short inputLeft, short inputRight,
++	                         short* outputLeft, short* outputRight)
++{
++	XaMixFrame(enabled, volumeLeft, volumeRight, 0x80, 0, 0, 0x80,
++	           inputLeft, inputRight,
++	           outputLeft, outputRight);
++}
++
++void PsyX_SPUAL_XaAttenuationDebug(unsigned char val0, unsigned char val1,
++	                                 unsigned char val2, unsigned char val3,
++	                                 short inputLeft, short inputRight,
++	                                 short* outputLeft, short* outputRight)
++{
++	XaApplyCdAttenuation(val0, val1, val2, val3, inputLeft, inputRight,
++	                     outputLeft, outputRight);
++}
++
++#ifndef __EMSCRIPTEN__
++/* The callback only moves already-decoded frames.  It never calls OpenAL or
++ * blocks on any lock other than the transport mutex. */
++static ALsizei AL_APIENTRY XaStreamCallback(ALvoid* userptr, ALvoid* sampledata,
++	                                           ALsizei numbytes)
++{
++	short* dst = (short*)sampledata;
++	unsigned int frames = (unsigned int)(numbytes / (ALsizei)(sizeof(short) * 2));
++	unsigned int i;
++	(void)userptr;
++
++	SDL_LockMutex(s_StreamMutex);
++	for (i = 0; i < frames; i++)
++	{
++		if (!s_xaActive || s_xaFrames == 0)
++		{
++			dst[i * 2] = 0;
++			dst[i * 2 + 1] = 0;
++			continue;
++		}
++		XaMixFrame(s_xaMixEnabled, s_xaVolumeLeft, s_xaVolumeRight,
++		           s_xaAttenuation0, s_xaAttenuation1,
++		           s_xaAttenuation2, s_xaAttenuation3,
++		           s_xaRing[s_xaReadFrame * 2],
++		           s_xaRing[s_xaReadFrame * 2 + 1],
++		           &dst[i * 2], &dst[i * 2 + 1]);
++		s_xaReadFrame = (s_xaReadFrame + 1) % XA_RING_FRAMES;
++		s_xaFrames--;
++	}
++	SDL_UnlockMutex(s_StreamMutex);
++	return (ALsizei)(frames * sizeof(short) * 2);
++}
++#endif
++
++static void XaResetLocked(void)
++{
++	s_xaReadFrame = 0;
++	s_xaWriteFrame = 0;
++	s_xaFrames = 0;
++	s_xaHistoryLeft1 = s_xaHistoryLeft2 = 0;
++	s_xaHistoryRight1 = s_xaHistoryRight2 = 0;
++	XaResetResampler();
++}
++
++void PsyX_SPUAL_CdSetMode(int mode)
++{
++	if (!s_StreamMutex)
++		return;
++	SDL_LockMutex(s_StreamMutex);
++	XaResetLocked();
++	s_xaActive = (mode & 0x40) != 0; /* CdlModeRT: CD-XA ADPCM enabled */
++	s_xaUnsupported = 0;
++	s_xaOverruns = 0;
++	SDL_UnlockMutex(s_StreamMutex);
++}
++
++void PsyX_SPUAL_CdPushXaSector(const unsigned char* payload, int size, unsigned char coding)
++{
++	short decoded[XA_FRAMES_PER_SECTOR * 2];
++	short resampled[XA_OUTPUT_FRAMES_PER_SECTOR * 2];
++	int frames;
++	int i;
++
++	if (!s_StreamMutex)
++		return;
++	SDL_LockMutex(s_StreamMutex);
++	if (!s_xaActive)
++	{
++		SDL_UnlockMutex(s_StreamMutex);
++		return;
++	}
++	frames = XaDecodeSector(payload, size, coding, decoded);
++	if (frames <= 0)
++	{
++		SDL_UnlockMutex(s_StreamMutex);
++		return;
++	}
++	frames = XaResample37800(decoded, frames, resampled);
++	if ((unsigned int)frames > XA_RING_FRAMES - s_xaFrames)
++	{
++		s_xaOverruns++;
++		if (s_xaOverruns == 1)
++			eprintwarn("PSX XA: output ring overrun; dropping sector\n");
++		SDL_UnlockMutex(s_StreamMutex);
++		return;
++	}
++	for (i = 0; i < frames; i++)
++	{
++		s_xaRing[s_xaWriteFrame * 2] = resampled[i * 2];
++		s_xaRing[s_xaWriteFrame * 2 + 1] = resampled[i * 2 + 1];
++		s_xaWriteFrame = (s_xaWriteFrame + 1) % XA_RING_FRAMES;
++	}
++	s_xaFrames += frames;
++	SDL_UnlockMutex(s_StreamMutex);
++}
++
++void PsyX_SPUAL_SetCdVolume(short left, short right)
++{
++	if (!s_StreamMutex)
++		return;
++	SDL_LockMutex(s_StreamMutex);
++	s_xaVolumeLeft = left;
++	s_xaVolumeRight = right;
++	SDL_UnlockMutex(s_StreamMutex);
++}
++
++void PsyX_SPUAL_SetCdAttenuation(unsigned char val0, unsigned char val1,
++	                              unsigned char val2, unsigned char val3)
++{
++	if (!s_StreamMutex)
++	{
++		s_xaAttenuation0 = val0;
++		s_xaAttenuation1 = val1;
++		s_xaAttenuation2 = val2;
++		s_xaAttenuation3 = val3;
++		return;
++	}
++	SDL_LockMutex(s_StreamMutex);
++	s_xaAttenuation0 = val0;
++	s_xaAttenuation1 = val1;
++	s_xaAttenuation2 = val2;
++	s_xaAttenuation3 = val3;
++	SDL_UnlockMutex(s_StreamMutex);
++}
++
++void PsyX_SPUAL_SetCdMix(int enabled)
++{
++	if (!s_StreamMutex)
++	{
++		s_xaMixEnabled = enabled != 0;
++		return;
++	}
++	SDL_LockMutex(s_StreamMutex);
++	s_xaMixEnabled = enabled != 0;
++	SDL_UnlockMutex(s_StreamMutex);
++}
++
+ /* _xeno_sound_adpcm: unit-test surfaces driving the production code. */
+ void PsyX_SPUAL_AdpcmDecodeDebug(const unsigned char* data, int nBlocks,
+                                  short* outPcm, short* p1io, short* p2io)
+@@ -772,6 +1094,28 @@
+ 		eprintf("SPU legacy resampler path (cubic; streaming unavailable or disabled)\n");
+ #endif
+ 
++	/* _xeno_cd_xa: bind a separate stereo callback source for CD-XA.  The
++	 * source is always clocked while the backend is alive; inactive periods
++	 * produce exact zero samples until CdlSetmode enables the retail RT path. */
++#ifndef __EMSCRIPTEN__
++	s_xaAlReady = 0;
++	if (s_alBufferCallbackSOFT)
++	{
++		alGenSources(1, &s_xaAlSource);
++		alGenBuffers(1, &s_xaAlBuffer);
++		s_alBufferCallbackSOFT(s_xaAlBuffer, AL_FORMAT_STEREO16, 44100,
++		                       XaStreamCallback, NULL);
++		alSourcei(s_xaAlSource, AL_BUFFER, (ALint)s_xaAlBuffer);
++		alSourcei(s_xaAlSource, AL_SOURCE_RELATIVE, AL_TRUE);
++		alSourcef(s_xaAlSource, AL_PITCH, 1.0f);
++		alSourcePlay(s_xaAlSource);
++		s_xaAlReady = 1;
++		eprintf("CD-XA streaming synthesis active (PS1 zigzag -> 44100 Hz)\n");
++	}
++	else
++		eprintwarn("CD-XA streaming unavailable (AL_SOFT_callback_buffer missing)\n");
++#endif
++
+ 	InitOpenAlEffects();
+ 
+ 	return 1;
+@@ -804,6 +1148,22 @@
+ 		SDL_UnlockMutex(s_StreamMutex);
+ 	}
+ 
++	#ifndef __EMSCRIPTEN__
++	if (s_xaAlReady)
++	{
++		alSourceStop(s_xaAlSource);
++		SDL_LockMutex(s_StreamMutex);
++		s_xaActive = 0;
++		XaResetLocked();
++		SDL_UnlockMutex(s_StreamMutex);
++		alDeleteSources(1, &s_xaAlSource);
++		alDeleteBuffers(1, &s_xaAlBuffer);
++		s_xaAlSource = 0;
++		s_xaAlBuffer = 0;
++		s_xaAlReady = 0;
++	}
++	#endif
++
+ 	for (int i = 0; i < s_spuVoiceCount; i++)
+ 	{
+ 		SPUALVoice* voice = &g_SpuVoices[i];
+@@ -1650,4 +2010,4 @@
+ 	*phase = st.phase;
+ 	*level = st.level;
+ 	*counter = st.counter;
+-}
+\ No newline at end of file
++}
+--- a/src/psx/LIBSPU.C
++++ b/src/psx/LIBSPU.C
+@@ -254,6 +254,11 @@
+ 	if (m & SPU_COMMON_EXTREV)    s_commonAttr.ext.reverb = attr->ext.reverb;
+ 	if (m & SPU_COMMON_EXTMIX)    s_commonAttr.ext.mix    = attr->ext.mix;
+ 	s_commonAttr.mask |= m;
++	if (m & (SPU_COMMON_CDVOLL | SPU_COMMON_CDVOLR))
++		PsyX_SPUAL_SetCdVolume(s_commonAttr.cd.volume.left,
++		                       s_commonAttr.cd.volume.right);
++	if (m & SPU_COMMON_CDMIX)
++		PsyX_SPUAL_SetCdMix(s_commonAttr.cd.mix);
+ 
+ 	/* Master output level -> listener gain, only when the caller actually set
+ 	 * it (PSX master vol is 14-bit, 0..0x3FFF). */
+@@ -477,12 +482,17 @@
+ 
+ void SpuSetCommonCDMix(int cd_mix)
+ {
+-	PSYX_UNIMPLEMENTED();
++	s_commonAttr.cd.mix = cd_mix;
++	s_commonAttr.mask |= SPU_COMMON_CDMIX;
++	PsyX_SPUAL_SetCdMix(cd_mix);
+ }
+ 
+ void SpuSetCommonCDVolume(short cd_left, short cd_right)
+ {
+-	PSYX_UNIMPLEMENTED();
++	s_commonAttr.cd.volume.left = cd_left;
++	s_commonAttr.cd.volume.right = cd_right;
++	s_commonAttr.mask |= SPU_COMMON_CDVOLL | SPU_COMMON_CDVOLR;
++	PsyX_SPUAL_SetCdVolume(cd_left, cd_right);
+ }
+ 
+ void SpuSetCommonCDReverb(int cd_reverb)

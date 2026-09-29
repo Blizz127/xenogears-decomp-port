@@ -1,0 +1,6 @@
+W18ICTRL_FORBIDDEN_SUMMARY_BEGIN
+required=712d0,ctrl_unregistered
+target label=712d0 status=ZERO_VERIFIED registered=1 hits=0 method=native_symbol_bp reason=none
+target label=ctrl_unregistered status=NOT_INSTRUMENTED registered=0 hits=undefined method=none reason=declared_without_registration_method
+W18ICTRL_FORBIDDEN_SUMMARY_END
+W18ICTRL_FORBIDDEN_VERDICT verdict=FAIL exit=1

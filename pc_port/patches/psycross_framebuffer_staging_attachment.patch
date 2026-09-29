@@ -1,0 +1,50 @@
+diff --git a/src/render/PsyX_render.cpp b/src/render/PsyX_render.cpp
+--- a/src/render/PsyX_render.cpp
++++ b/src/render/PsyX_render.cpp
+@@ -1676,8 +1676,6 @@
+ 	// now we can read it back to VRAM texture
+ 
+-	/* _xeno_fb_mirror_readpixels: the PBO download of g_fbTexture is empty
+-	 * on software GL; read the live back buffer instead (see
+-	 * GR_XenoReadBackbufferToVRAM). */
++	/* Read the most recently captured staging texture into CPU VRAM. */
+ #if USE_OPENGL
+ 	if (w > 0 && h > 0)
+ 		GR_XenoReadBackbufferToVRAM(x, y, w, h);
+@@ -1835,6 +1833,10 @@
+ 
+ #if USE_FRAMEBUFFER_BLIT
+ 	glBindFramebuffer(GL_FRAMEBUFFER, g_glBlitFramebuffer);
++	/* _xeno_fb_staging_attachment: MaterializeFramebufferRect uses this
++	 * FBO to read g_vramTexture. Reclaim its attachment before capturing
++	 * into g_fbTexture; otherwise the subsequent CPU read sees stale pixels. */
++	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, g_fbTexture, 0);
+ 
+ 	// before drawing set source and target
+ 	{
+@@ -1874,13 +1876,8 @@
+ 	glFlush();
+ #endif
+ 
+-	/* _xeno_fb_mirror_readpixels: the PBO/glGetTexImage download of the
+-	 * blit staging texture returns zeros on software GL (llvmpipe), so the
+-	 * CPU vram[] mirror never held a presented frame and every game-side
+-	 * MoveImage/StoreImage of the display area (field->menu backdrop
+-	 * snapshot func_800A476C, fades, distortion) copied black. On the PSX
+-	 * the framebuffer IS VRAM; read the still-unswapped backbuffer into
+-	 * vram[] here, at present time, the same way the DR_MOVE path does. */
++	/* The PSX framebuffer is VRAM. Mirror this completed capture into
++	 * CPU VRAM before a subsequent MoveImage or StoreImage can read it. */
+ 	GR_XenoReadBackbufferToVRAM(x, y, w, h);
+ #endif
+ }
+@@ -1900,7 +1896,7 @@
+ }
+ 
+-/* _xeno_fb_mirror_readpixels: glReadPixels the default framebuffer's back
+- * buffer and scale it into the VRAM rect (x,y,w,h) of the CPU mirror. */
++/* Download g_fbTexture, already scaled/oriented by GR_StoreFrameBuffer,
++ * into the destination VRAM rect. The historical helper name is retained. */
+ static void GR_XenoReadBackbufferToVRAM(int x, int y, int w, int h)
+ {
+ #if USE_OPENGL

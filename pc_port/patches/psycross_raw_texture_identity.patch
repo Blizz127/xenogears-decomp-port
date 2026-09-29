@@ -1,0 +1,214 @@
+--- a/src/gpu/PsyX_GPU.cpp
++++ b/src/gpu/PsyX_GPU.cpp
+@@ -343,6 +343,7 @@
+ 	vertex[3].dither = dither;
+ 	vertex[3].page = page;
+ 	vertex[3].clut = clut;
++	vertex[0]._p1 = vertex[1]._p1 = vertex[2]._p1 = vertex[3]._p1 = 0; /* _xeno_raw_identity_marker_clear */
+ 	/* _xeno_fixed_uv_polygon: metadata consumed only by the optional exact
+ 	 * textured-polygon path. Rectangles/sprites never receive this marker. */
+ 	vertex[0]._p0 = vertex[1]._p0 = vertex[2]._p0 = vertex[3]._p0 = 0x26;
+@@ -391,6 +392,7 @@
+ 	vertex[2].dither = dither;
+ 	vertex[2].page = page;
+ 	vertex[2].clut = clut;
++	vertex[0]._p1 = vertex[1]._p1 = vertex[2]._p1 = 0; /* _xeno_raw_identity_marker_clear */
+ 	vertex[0]._p0 = vertex[1]._p0 = vertex[2]._p0 = 0x26; /* _xeno_fixed_uv_polygon */
+ 	/*
+ 	if (g_cfg_bilinearFiltering)
+@@ -447,6 +449,7 @@
+ 	vertex[3].dither = dither;
+ 	vertex[3].page = page;
+ 	vertex[3].clut = clut;
++	vertex[0]._p1 = vertex[1]._p1 = vertex[2]._p1 = vertex[3]._p1 = 0; /* _xeno_raw_identity_marker_clear */
+ 
+ 	if (g_cfg_bilinearFiltering)
+ 	{
+@@ -495,6 +498,7 @@
+ 	vertex[3].dither = dither;
+ 	vertex[3].page = 0;
+ 	vertex[3].clut = 0;
++	vertex[0]._p1 = vertex[1]._p1 = vertex[2]._p1 = vertex[3]._p1 = 0; /* _xeno_raw_identity_marker_clear */
+ }
+ 
+ void MakeTexcoordTriangleZero(GrVertex* vertex, unsigned char dither)
+@@ -521,6 +525,7 @@
+ 	vertex[2].dither = dither;
+ 	vertex[2].page = 0;
+ 	vertex[2].clut = 0;
++	vertex[0]._p1 = vertex[1]._p1 = vertex[2]._p1 = 0; /* _xeno_raw_identity_marker_clear */
+ }
+ 
+ void MakeTexcoordQuadZero(GrVertex* vertex, unsigned char dither)
+@@ -554,6 +559,7 @@
+ 	vertex[3].dither = dither;
+ 	vertex[3].page = 0;
+ 	vertex[3].clut = 0;
++	vertex[0]._p1 = vertex[1]._p1 = vertex[2]._p1 = vertex[3]._p1 = 0; /* _xeno_raw_identity_marker_clear */
+ }
+ 
+ void MakeColourNoShade(GrVertex* vertex, int n)
+@@ -1201,6 +1207,8 @@
+ 			MakeVertexTriangle(firstVertex, &poly->x0, &poly->x1, &poly->x2, gteIndex);
+ 			MakeTexcoordTriangle(firstVertex, &poly->u0, &poly->u1, &poly->u2, poly->tpage, poly->clut, dither);
+ 			MakeColourTriangle(firstVertex, shadeTexOn, &poly->r0, &poly->r0, &poly->r0);
++			if (!shadeTexOn)
++				firstVertex[0]._p1 = firstVertex[1]._p1 = firstVertex[2]._p1 = 0x28; /* _xeno_raw_identity_polygon */
+ 
+ 			EndTexturedSplit(splitClutSemi, 3);
+ 
+@@ -1240,6 +1248,8 @@
+ 		MakeVertexQuad(firstVertex, &poly->x0, &poly->x1, &poly->x3, &poly->x2, gteIndex);
+ 		MakeTexcoordQuad(firstVertex, &poly->u0, &poly->u1, &poly->u3, &poly->u2, poly->tpage, poly->clut, dither);
+ 		MakeColourQuad(firstVertex, shadeTexOn, &poly->r0, &poly->r0, &poly->r0, &poly->r0);
++		if (!shadeTexOn)
++			firstVertex[0]._p1 = firstVertex[1]._p1 = firstVertex[2]._p1 = firstVertex[3]._p1 = 0x28; /* _xeno_raw_identity_polygon */
+ 
+ 		TriangulateQuad();
+ 
+--- a/src/render/PsyX_render.cpp
++++ b/src/render/PsyX_render.cpp
+@@ -132,6 +132,21 @@
+ /* _xeno_drmove_fb_synced: 1 while the CPU vram[] framebuffer rect is at
+  * least as fresh as any pending deferred PBO capture. See build_port.sh. */
+ int g_xeno_vram_fb_synced = 0;
++/* _xeno_raw_identity_option: opt-in exact raw-texture color identity. The
++ * uniform is enabled only for on-screen non-PGXP PS1-textured draws, while a
++ * dedicated per-vertex marker restricts the bypass to raw FT3/FT4 polygons. */
++static bool XenoPs1RawTextureIdentityEnabled()
++{
++	static int enabled = -1;
++	if (enabled < 0)
++	{
++		const char* value = getenv("XENO_PS1_RAW_TEXTURE_IDENTITY");
++		enabled = value != NULL && strcmp(value, "1") == 0;
++		if (enabled)
++			fprintf(stderr, "[PsyCross] PS1 raw-texture identity modulation enabled\n");
++	}
++	return enabled != 0;
++}
+ 
+ #if defined(__EMSCRIPTEN__) || defined(__RPI__) || defined(__ANDROID__)
+ #if defined(RENDERER_OGL)
+@@ -550,6 +565,7 @@
+ 	GLint fixedUvLoc; /* _xeno_fixed_uv_uniforms */
+ 	GLint fixedUvRowsLoc;
+ 	GLint fixedUvViewportLoc;
++	GLint rawTextureIdentityLoc; /* _xeno_raw_identity_uniform */
+ 	GLint clutSemiModeLoc;
+ 	GLint texLoc;
+ 	GLint lutLoc;
+@@ -575,6 +591,8 @@
+ static XenoFixedUvRow g_xenoFixedUvRows[VRAM_HEIGHT];
+ GLint u_clutSemiModeLoc = -1;
+ 
++GLint u_rawTextureIdentityLoc = -1; /* _xeno_raw_identity_uniform_global */
++
+ #define GPU_SAMPLE_TEXTURE_4BIT_FUNC\
+     "   // returns 16 bit colour\n"\
+     "   vec2 samplePSX(vec2 tc) {\n"\
+@@ -709,7 +727,8 @@
+ 	"		vec4 color = (bilinearFilter > 0 && ps1FixedUv == 0) ? bilinearTextureSample(v_texcoord.xy) : nearestTextureSample(v_texcoord.xy);\n"\
+ 	"		if (clutSemiMode == 1 && color.w < 0.5) { discard; }\n"\
+ 	"		if (clutSemiMode == 2 && color.w >= 0.5) { discard; }\n"\
+-	"		fragColor = dither(color * v_color);\n"\
++	"		vec4 shaded = (ps1RawTextureIdentity > 0 && v_raw_texture > 0.5) ? color : color * v_color;\n"\
++	"		fragColor = dither(shaded);\n"\
+ 	"	}\n"
+ 	
+ static const char* gpu_shader_common = R"(
+@@ -717,10 +736,12 @@
+ 	uniform int ps1FixedUv;
+ 	uniform isampler2D s_fixedUvRows;
+ 	uniform ivec4 fixedUvViewport;
++	uniform int ps1RawTextureIdentity;
+ 	varying vec4 v_texcoord;
+ 	varying vec4 v_color;
+ 	varying vec4 v_page_clut;
+ 	varying float v_z;
++	varying float v_raw_texture;
+ )";
+ 
+ const char* gpu_shader_4 = GPU_FRAGMENT_SAMPLE_SHADER(4);
+@@ -764,6 +785,7 @@
+ 	"		v_texcoord.xy += a_extra.xy * 0.5;\n"\
+ 	"		v_color = a_color;\n"\
+ 	"		v_color.xyz *= a_texcoord.z;\n"\
++	"		v_raw_texture = a_extra.w;\n"\
+ 	"		v_page_clut.x = fract(a_position.z / 16.0) * 1024.0;\n"\
+ 	"		v_page_clut.y = floor(a_position.z / 16.0) * 256.0;\n"\
+ 	"		v_page_clut.z = fract(a_position.w / 64.0);\n"\
+@@ -1040,8 +1062,9 @@
+ 	sh->fixedUvLoc = glGetUniformLocation(sh->shader, "ps1FixedUv");
+ 	sh->fixedUvRowsLoc = glGetUniformLocation(sh->shader, "s_fixedUvRows");
+ 	sh->fixedUvViewportLoc = glGetUniformLocation(sh->shader, "fixedUvViewport");
++	sh->rawTextureIdentityLoc = glGetUniformLocation(sh->shader, "ps1RawTextureIdentity");
+ 	sh->clutSemiModeLoc = glGetUniformLocation(sh->shader, "clutSemiMode");
+-	if (sh->texWindowLoc != -1 || sh->fixedUvLoc != -1)
++	if (sh->texWindowLoc != -1 || sh->fixedUvLoc != -1 || sh->rawTextureIdentityLoc != -1)
+ 	{
+ 		glUseProgram(sh->shader);
+ 		if (sh->texWindowLoc != -1)
+@@ -1050,6 +1073,8 @@
+ 			glUniform1i(sh->fixedUvLoc, 0);
+ 		if (sh->fixedUvRowsLoc != -1)
+ 			glUniform1i(sh->fixedUvRowsLoc, 2);
++		if (sh->rawTextureIdentityLoc != -1)
++			glUniform1i(sh->rawTextureIdentityLoc, 0);
+ 		glUseProgram(0);
+ 	}
+ #if USE_PGXP
+@@ -1378,6 +1403,7 @@
+ 		u_texelCenterLoc = g_gpu_shader_4.texelCenterLoc;
+ 		u_fixedUvLoc = g_gpu_shader_4.fixedUvLoc;
+ 		u_fixedUvViewportLoc = g_gpu_shader_4.fixedUvViewportLoc;
++		u_rawTextureIdentityLoc = g_gpu_shader_4.rawTextureIdentityLoc;
+ 		u_clutSemiModeLoc = g_gpu_shader_4.clutSemiModeLoc;
+ 		u_texelSizeLoc = -1;
+ 		break;
+@@ -1392,6 +1418,7 @@
+ 		u_texelCenterLoc = g_gpu_shader_8.texelCenterLoc;
+ 		u_fixedUvLoc = g_gpu_shader_8.fixedUvLoc;
+ 		u_fixedUvViewportLoc = g_gpu_shader_8.fixedUvViewportLoc;
++		u_rawTextureIdentityLoc = g_gpu_shader_8.rawTextureIdentityLoc;
+ 		u_clutSemiModeLoc = g_gpu_shader_8.clutSemiModeLoc;
+ 		u_texelSizeLoc = -1;
+ 		break;
+@@ -1406,6 +1433,7 @@
+ 		u_texelCenterLoc = g_gpu_shader_16.texelCenterLoc;
+ 		u_fixedUvLoc = g_gpu_shader_16.fixedUvLoc;
+ 		u_fixedUvViewportLoc = g_gpu_shader_16.fixedUvViewportLoc;
++		u_rawTextureIdentityLoc = g_gpu_shader_16.rawTextureIdentityLoc;
+ 		u_clutSemiModeLoc = g_gpu_shader_16.clutSemiModeLoc;
+ 		u_texelSizeLoc = -1;
+ 		break;
+@@ -1421,6 +1449,7 @@
+ 		u_texelCenterLoc = -1;
+ 		u_fixedUvLoc = -1;
+ 		u_fixedUvViewportLoc = -1;
++		u_rawTextureIdentityLoc = -1;
+ 		u_clutSemiModeLoc = -1;
+ 		break;
+ 	}
+@@ -1237,7 +1237,11 @@
+ void GR_SetTexture(TextureID texture, TexFormat texFormat)
+ {
+ 	GLint texLoc = 0;
+ 	GLint lutLoc = 0;
+ 	GLint bilinearFilterLoc = 0;
++	/* _xeno_raw_identity_sampling_select: these are the PS1 texture shader
++	 * families; RGBA presentation textures must retain the ordinary path. */
++	g_xeno_ps1_textured_sampling = texFormat == TF_4_BIT || texFormat == TF_8_BIT
++		|| texFormat == TF_16_BIT;
+ 	switch (texFormat)
+ 	{
+@@ -1665,6 +1694,9 @@
+ {
+ 	if (u_fixedUvLoc != -1 && enable)
+ 		glUniform1i(u_fixedUvLoc, 0);
++	if (u_rawTextureIdentityLoc != -1)
++		glUniform1i(u_rawTextureIdentityLoc, (!enable && !USE_PGXP && g_xeno_ps1_textured_sampling
++			&& XenoPs1RawTextureIdentityEnabled()) ? 1 : 0);
+ 	if (u_texelCenterLoc != -1)
+ 		glUniform1i(u_texelCenterLoc, (!enable && !USE_PGXP && g_xeno_ps1_textured_sampling && XenoPs1TexelCenterEnabled()) ? 1 : 0);
+ 	if (enable)

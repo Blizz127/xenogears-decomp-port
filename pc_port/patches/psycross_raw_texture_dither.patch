@@ -1,0 +1,28 @@
+--- a/src/gpu/PsyX_GPU.cpp
++++ b/src/gpu/PsyX_GPU.cpp
+@@ -1121,6 +1121,7 @@ static int ProcessFlatPoly(P_TAG* polyTag)
+ 
+ 	const bool shadeTexOn = (polyTag->code & 1) == 0;
+ 	const bool semiTrans = (polyTag->code & 2);
++	const bool dither = shadeTexOn && (GET_TPAGE_DITHER(activeDrawEnv.tpage) || activeDrawEnv.dtd); /* _xeno_raw_texture_dither */
+ 	const int primSubType = polyTag->code & 0x0C;
+ 
+ 	switch (primSubType)
+@@ -1157,7 +1158,7 @@ static int ProcessFlatPoly(P_TAG* polyTag)
+ 
+ 			GrVertex* firstVertex = &g_vertexBuffer[g_vertexIndex];
+ 			MakeVertexTriangle(firstVertex, &poly->x0, &poly->x1, &poly->x2, gteIndex);
+-			MakeTexcoordTriangle(firstVertex, &poly->u0, &poly->u1, &poly->u2, poly->tpage, poly->clut, GET_TPAGE_DITHER(activeDrawEnv.tpage) || activeDrawEnv.dtd);
++			MakeTexcoordTriangle(firstVertex, &poly->u0, &poly->u1, &poly->u2, poly->tpage, poly->clut, dither);
+ 			MakeColourTriangle(firstVertex, shadeTexOn, &poly->r0, &poly->r0, &poly->r0);
+ 
+ 			g_vertexIndex += 3;
+@@ -1196,7 +1197,7 @@ static int ProcessFlatPoly(P_TAG* polyTag)
+ 
+ 		GrVertex* firstVertex = &g_vertexBuffer[g_vertexIndex];
+ 		MakeVertexQuad(firstVertex, &poly->x0, &poly->x1, &poly->x3, &poly->x2, gteIndex);
+-		MakeTexcoordQuad(firstVertex, &poly->u0, &poly->u1, &poly->u3, &poly->u2, poly->tpage, poly->clut, GET_TPAGE_DITHER(activeDrawEnv.tpage) || activeDrawEnv.dtd);
++		MakeTexcoordQuad(firstVertex, &poly->u0, &poly->u1, &poly->u3, &poly->u2, poly->tpage, poly->clut, dither);
+ 		MakeColourQuad(firstVertex, shadeTexOn, &poly->r0, &poly->r0, &poly->r0, &poly->r0);
+ 
+ 		TriangulateQuad();
