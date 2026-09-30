@@ -91,6 +91,7 @@ Port extras (keyboard, or click the toolbar at the top of the screen):
 - **"retail data check failed: missing retail file …".** One of the six files is missing or came from a different release. Redo step 3. The message says which file and what it should be.
 - **"disc image check failed".** The image isn't the USA Disc 1 raw BIN (a wrong region, an `.iso`, or a modified image).
 - **`GLIBC_2.34' not found`.** Your Linux is too old. The build needs glibc 2.34 or newer (2021 or later distributions, including SteamOS 3 and Bazzite).
+- **The game closes when I choose Attack in a battle.** A known bug in this pre-release, affecting normal on-foot battles (the opening Gear battle is fine). A fix is in progress. Quick-save with F7 in the field before battles.
 - **Movies flicker in Game Mode.** A known issue, being fixed. Playing in Desktop Mode or in a window (`XENOGEARS_WINDOWED=1`) may help. Press Cross/A to skip a movie.
 - **Logs** are written to `~/.local/share/xenogears-port/Xenogears (PC port).log`. More detail appears when you run it from a terminal. Saves and memory cards are in the same folder.
 
