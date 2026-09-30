@@ -107,50 +107,153 @@ Port extras (keyboard, or click the toolbar at the top of the screen):
 
 ## What is here
 
+- `src/`, `include/`: the matching decompilation of the game, as C source and
+  headers. Some of it is upstream work, included with credit; see
+  [UPSTREAM_FILES.md](UPSTREAM_FILES.md).
+- `config/`, `Makefile`, `gears.toml`, `Dockerfile`: the splat
+  configuration, symbol maps (addresses and names only) and build files.
 - `pc_port/`: the port. It runs the game's decompiled C natively on Linux
   (x86-64), with the PlayStation hardware provided by
   [PsyCross](https://github.com/OpenDriver2/PsyCross) and SDL2. It includes
   the host layer (window, input, audio, saves), overrides and dispatch
   tables, the disc and retail-file checks, the launcher packaging, mods and
   cheat hooks, and about 1,300 tests.
-- `tools/`: analysis tools, including the retail-data and Psy-Q guards that
-  keep game and SDK bytes out of the tree, the `remu` MIPS reference
-  emulator, and helper scripts.
-- `config/`: splat and symbol configuration for the overlays mapped after the
-  fork (addresses and names only).
+- `tools/`: the build driver (`gears`), analysis tools including the
+  retail-data and Psy-Q guards that keep game and SDK bytes out of the tree,
+  the `remu` MIPS reference emulator, and helper scripts.
 - `docs/`: the port architecture, the retail-divergence log, the audit, the
   modding guide, [FAKEMATCHES.md](docs/FAKEMATCHES.md), and wiki pages.
 
-## What is not here, and why
+Not here: game data, the BIOS, the Sony Psy-Q SDK, compiler and other
+prebuilt binaries, and a few game source files that still hold retail data
+(see [What does not build yet](#what-does-not-build-yet)).
 
-The decompiled game code (`src/`, `include/`) and the matching-build files
-are **not** included. The decompilation this work continues,
-[ladysilverberg/xenogears-decomp](https://github.com/ladysilverberg/xenogears-decomp),
-has not published a license, so its code, and files built on it, are not
-redistributed here. Also left out: Sony Psy-Q headers and decompiled SDK
-libraries, the compiler binaries, prebuilt third-party tools, a test sprite
-asset, and every file that matched retail bytes.
+## Building from source
 
-## Building
+This section is for people who want to build the decompilation or the port
+themselves. To play, the [release build](#how-to-play) is all you need.
 
-The port compiles together with the decompiled game code, so it cannot be
-built from this repository alone. You need:
+### What you need
 
-1. the Xenogears decompilation source tree
-   ([ladysilverberg/xenogears-decomp](https://github.com/ladysilverberg/xenogears-decomp)
-   and its setup instructions), with this repository's `pc_port/`, `tools/`
-   and `config/` added on top;
-2. your own disc: the Disc 1 image and the files the decomp's extraction
-   scripts write from it (`SLUS_006.64`, `field.bin`, `menu.bin`,
-   `shop_menu.bin`, `member_change_menu.bin`, `world_map.bin`) in `disc/`;
-3. the build container described in `pc_port/README.md`, then
-   `pc_port/build_port.sh`.
+- **Linux on x86-64**, with either **Docker** (recommended) or these
+  packages: `git make curl python3 python3-venv binutils-mips-linux-gnu
+  cpp-mips-linux-gnu` (Ubuntu 24.04 names), and the Python packages in
+  `requirements.txt` (`python3 -m venv .venv && .venv/bin/pip install -r
+  requirements.txt`). The included `Dockerfile` sets all of this up.
+- **Rust** (`cargo`, from [rustup.rs](https://rustup.rs)) to build the build
+  driver, `tools/gears`. Without it the fetch script falls back to
+  upstream's older prebuilt copy.
+- **Your own disc**: Xenogears (USA) Disc 1 as a raw BIN, as in
+  [How to play](#3-your-disc), placed at `disc/disc1.bin`.
 
-The port currently tracks decompiled functions that are newer than the
-upstream tree, so building against upstream as it is today is expected to
-leave some functions missing. This repository publishes the port source for
-reference, review and preservation. Game data and binaries are never
-distributed.
+### 1. Get the source and the pieces not redistributed here
+
+```sh
+git clone --recursive https://github.com/Blizz127/xenogears-decomp-port
+cd xenogears-decomp-port
+tools/fetch_upstream_toolchain.sh
+```
+
+`tools/fetch_upstream_toolchain.sh` downloads what this repository does not
+redistribute, into your own working tree (all of it is git-ignored):
+
+- the GCC 2.6.0, 2.7.2 and 2.7.2-CDK PSX compilers, from the upstream
+  decompilation ([ladysilverberg/xenogears-decomp](https://github.com/ladysilverberg/xenogears-decomp),
+  pinned commit), and GCC 2.6.3 from [decompals/old-gcc](https://github.com/decompals/old-gcc),
+  each checked by sha256;
+- the Sony Psy-Q SDK headers, from upstream, with this project's port-only
+  additions applied (checked by sha256: the result is identical to the
+  headers this project builds with);
+- the decompiled Psy-Q libraries (`src/slus_006.64/psyq/`), from upstream.
+  Upstream's copy is older than this project's, but SLUS_006.64 still builds
+  byte-identical with it;
+- `objdiff`, the `maspsx` submodule, and `gears`, built from `tools/gears/src`.
+
+It never downloads game data.
+
+### 2. Extract your disc files
+
+```sh
+python3 tools/scripts/extract_overlays.py disc/disc1.bin --extract-to disc
+python3 tools/scripts/extract_exe.py disc/disc1.bin --output disc/SLUS_006.64
+python3 tools/scripts/extract_battle_command_file1.py
+```
+
+(Use `.venv/bin/python` if you made a venv, or run them in the container as
+in step 3, after `. /.venv/bin/activate`.) The files go in `disc/`, which
+git ignores.
+
+### 3. Build the matching decompilation
+
+```sh
+make                              # splat, compile, link into build/out/
+ninja -k 0                        # finish the other targets after menu.elf fails (see below)
+sha256sum --check config/checksum.sha
+```
+
+`make rom-check` is the full from-clean gate used in development. It cannot
+pass until `menu.bin` builds (see below).
+
+With Docker, run steps 2 and 3 in a container built from the included
+`Dockerfile`. The build expects the tree at `/xenogears-decomp`:
+
+```sh
+docker build -t xenogears-build .
+docker run --rm -it -u "$(id -u):$(id -g)" -e HOME=/tmp \
+  -v "$PWD":/xenogears-decomp xenogears-build \
+  bash -c '. /.venv/bin/activate && make; ninja -k 0; sha256sum --check config/checksum.sha'
+```
+
+Run step 1 (the fetch script) on the host: it needs `git`, `curl` and, for
+`gears`, `cargo`.
+
+### 4. Build the PC port
+
+```sh
+pc_port/build_port.sh
+```
+
+This needs the matching build first, plus `cmake`, a C/C++ compiler, and
+the development packages for SDL2, OpenAL, OpenGL and OpenSSL. See
+[pc_port/README.md](pc_port/README.md). PsyCross is fetched at a pinned
+commit and patched.
+
+### What does not build yet
+
+Nine game source files are **not yet publishable**. They still contain
+retail bytes (inline `.word` bodies) or transcribed retail data tables, and
+no public source has them:
+
+| File | Why it is held back |
+|---|---|
+| `src/member_change_menu/main/misc.c` | inline retail bytes |
+| `src/movie/main.c` | inline retail bytes |
+| `src/slus_006.64/main/main_loop.c` | inline retail bytes |
+| `src/slus_006.64/system/kernel_menu.c` | inline retail bytes |
+| `src/slus_006.64/system/sound.c` | inline retail bytes and data tables |
+| `src/slus_006.64/system/memory.c` | retail data tables and strings (found by a compiled-object scan) |
+| `src/slus_006.64/system/animation_scripts.c` | a retail data table (found by a compiled-object scan) |
+| `src/menu/main/misc.c` | retail strings of 32 bytes or more (found by a compiled-object scan) |
+| `src/menu/main/misc3.c` | retail strings of 32 bytes or more (found by a compiled-object scan) |
+
+What that means today. This was tested from a fresh clone of this repository,
+with the fetch script, a USA Disc 1, and a container built from the included
+`Dockerfile`:
+
+- **Matching build: 9 of 10 targets build and match retail.** For each missing
+  file, splat writes an assembly stub from your own disc, and the fetch script
+  switches `memory.c`'s small data segment to assembly as well. `make` gets
+  through splat and every compile step. `SLUS_006.64`, `field.bin`,
+  `battle.bin`, `battling.bin`, `world_map.bin`, `movie.bin`,
+  `shop_menu.bin`, `member_change_menu.bin` and `battle_command_file1.bin`
+  link and match their `config/checksum.sha` hashes. **`menu.bin` does not
+  link**, because `misc2.c` builds on the real `src/menu/main/misc.c`.
+- **PC port: not buildable yet.** The port compiles these files as native C,
+  where assembly stubs cannot stand in for them, so it needs all nine. It
+  was not attempted for this snapshot.
+
+These files will be published as their retail data moves to being loaded
+from your disc at runtime.
 
 ## Status
 
@@ -164,6 +267,7 @@ known difference from the PlayStation original.
 - Credits: [CREDITS.md](CREDITS.md). The upstream decomp authors, the font
   authors, and the tools and libraries.
 - License: [LICENSE](LICENSE) (MIT) for the original work in this repository
-  only.
+  only. Files that include upstream work are listed in
+  [UPSTREAM_FILES.md](UPSTREAM_FILES.md). They are not under the MIT license.
 - Legal notice and disclaimer: [NOTICE.md](NOTICE.md). Xenogears is © Square
   Enix. This project is not affiliated with or endorsed by Square Enix.

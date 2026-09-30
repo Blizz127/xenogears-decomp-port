@@ -30,6 +30,9 @@ static PcPortQuickRequestState s_request;
 static int s_loadReady;
 static int s_restoreReady;
 static PcPortQuickCheckpoint s_loaded;
+static int s_warpReady;
+static int s_warpMap, s_warpEntrance;
+static int s_spawnNaturally;
 
 static const char* checkpoint_path(void)
 {
@@ -81,6 +84,28 @@ void PcPort_QuickCheckpointRequestSave(void)
         return;
     }
     fprintf(stderr, "[xeno-port][quick] save queued\n");
+}
+
+void PcPort_QuickCheckpointSafetyDescribe(char* out, size_t n)
+{
+    ActorData* actor = player_actor(NULL);
+    snprintf(out, n, "map=%d field=%d actor=%d ADB68=%d ADB64=0x%X B21D0=%d lock=0x%X",
+             (int)(g_GameSceneMapNum & 0x3FFF), s_fieldActive, actor != NULL,
+             (int)D_800ADB68, (unsigned)D_800ADB64, (int)D_800B21D0,
+             actor ? (unsigned)(*(u32*)actor & 0x1800u) : 0u);
+}
+
+int PcPort_QuickCheckpointFieldIsSafe(void)
+{
+    return (g_GameSceneMapNum & 0x3FFF) != 490 && checkpoint_is_safe();
+}
+
+int PcPort_QuickCheckpointRequestWarp(int map, int entrance)
+{
+    if (!PcPort_QuickCheckpointFieldIsSafe() || s_request.action != PC_PORT_QUICK_REQUEST_NONE || s_loadReady || s_warpReady || map < 0 || map >= 0x400)
+        return 0;
+    s_warpMap = map; s_warpEntrance = entrance; s_warpReady = 1;
+    return 1;
 }
 
 void PcPort_QuickCheckpointRequestLoad(void)
@@ -140,6 +165,14 @@ int PcPort_QuickCheckpointPoll(void)
     PcPortQuickRequestAction request;
     /* A title-menu poll can prepare the load; keep the result available for
      * FieldMain's next poll after the menu's own cleanup has finished. */
+    if (s_warpReady && PcPort_QuickCheckpointFieldIsSafe()) {
+        memset(&s_loaded, 0, sizeof s_loaded);
+        memcpy(s_loaded.game_state, g_GameState, PC_PORT_QUICK_CHECKPOINT_STATE_BYTES);
+        s_loaded.map = (u16)s_warpMap;
+        s_loaded.entrance = (u16)s_warpEntrance;
+        s_warpReady = 0; s_spawnNaturally = 1; s_loadReady = 1;
+        fprintf(stderr, "[dev-menu] loading field %d entrance %d through field teardown\n", s_warpMap, s_warpEntrance);
+    }
     if (s_loadReady)
         return 1;
     if (s_request.action == PC_PORT_QUICK_REQUEST_NONE)
@@ -225,7 +258,8 @@ void PcPort_QuickCheckpointCommitLoad(void)
     *(u16*)(g_GameState + 0x231A) = s_loaded.map;
     *(u16*)(g_GameState + 0x2320) = s_loaded.entrance;
     s_loadReady = 0;
-    s_restoreReady = 1;
+    s_restoreReady = !s_spawnNaturally;
+    s_spawnNaturally = 0;
 }
 
 void PcPort_QuickCheckpointRestorePlayer(void)

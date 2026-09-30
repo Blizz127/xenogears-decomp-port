@@ -112,6 +112,38 @@ static int allow_unverified(void)
     return v && v[0] == '1';
 }
 
+/* Port sources build without SDL's include path; these two SDL2 entry points
+ * are declared here as in SDL_messagebox.h / SDL_error.h (the binary links
+ * libSDL2).  SDL_MESSAGEBOX_ERROR is 0x10; the parent window is SDL_Window*. */
+extern int SDL_ShowSimpleMessageBox(unsigned int flags, const char* title,
+                                    const char* message, void* window);
+extern const char* SDL_GetError(void);
+#define XENO_SDL_MESSAGEBOX_ERROR 0x00000010u
+
+/* A launcher or gamescope session has no terminal, so a check that stops
+ * the port also says why in a message box.  SDL_ShowSimpleMessageBox works
+ * before SDL_Init.  Skipped for headless runs (no display, or the dummy and
+ * offscreen video drivers) and with XENO_NO_DIALOG=1. */
+void PcPort_UserNotice(const char* title, const char* text)
+{
+    const char* no = getenv("XENO_NO_DIALOG");
+    const char* drv = getenv("SDL_VIDEODRIVER");
+    if (no != NULL && no[0] == '1')
+        return;
+    if (drv != NULL && (strcmp(drv, "dummy") == 0 || strcmp(drv, "offscreen") == 0))
+        return;
+    if (getenv("DISPLAY") == NULL && getenv("WAYLAND_DISPLAY") == NULL)
+        return;
+    if (SDL_ShowSimpleMessageBox(XENO_SDL_MESSAGEBOX_ERROR, title, text, NULL) != 0)
+        fprintf(stderr, "[xeno-port] message box failed: %s\n", SDL_GetError());
+}
+
+/* Strong override of retail_data.h's silent weak default. */
+void XenoRetailData_Notice(const char* title, const char* text)
+{
+    PcPort_UserNotice(title, text);
+}
+
 static void explain(const char* path, const char* problem)
 {
     fprintf(stderr,
@@ -122,10 +154,18 @@ static void explain(const char* path, const char* problem)
             "[xeno-port] e.g. disc/disc1.bin + disc/disc1.cue or XENO_DISC=/path/to.bin.\n"
             "[xeno-port] Expected (Redump, redump.org/disc/177): %lld bytes, sha1 %s.\n",
             path, problem, DISC1_SIZE, DISC1_SHA1);
-    if (allow_unverified())
+    if (allow_unverified()) {
         fprintf(stderr, "[xeno-port] XENO_ALLOW_UNVERIFIED_DISC=1: continuing anyway.\n\n");
-    else
+    } else {
+        char text[1024];
         fprintf(stderr, "[xeno-port] (XENO_ALLOW_UNVERIFIED_DISC=1 continues anyway)\n\n");
+        snprintf(text, sizeof text,
+                 "%s: %s\n\nThe port contains no game data and needs your own "
+                 "Xenogears (USA) Disc 1 as a raw BIN image (MODE2/2352, one track).\n"
+                 "Expected (Redump, redump.org/disc/177): %lld bytes, sha1 %s.",
+                 path, problem, DISC1_SIZE, DISC1_SHA1);
+        PcPort_UserNotice("Xenogears: disc image not usable", text);
+    }
 }
 
 int PcPort_VerifyDiscImage(const char* path)

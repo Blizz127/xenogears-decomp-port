@@ -1,0 +1,106 @@
+---
+overlays:
+#  - name: dir_0x01_file_0x02.bin
+#    directory_id: 0x01
+#    file_id: 0x02
+#  - name: dir_0x01_file_0x03.bin
+#    directory_id: 0x01
+#    file_id: 0x03
+#  - name: dir_0x01_file_0x04.bin
+#    directory_id: 0x01
+#    file_id: 0x04
+#  - name: dir_0x01_file_0x05.bin
+#    directory_id: 0x01
+#    file_id: 0x05
+#  - name: dir_0x01_file_0x06.bin
+#    directory_id: 0x01
+#    file_id: 0x06
+#    compressed: true
+#  - name: dir_0x01_file_0x07.bin
+#    directory_id: 0x01
+#    file_id: 0x07
+#    compressed: true
+  - name: battling.bin
+    file_id: 0x0D
+    directory_id: 0x01
+    compressed: true
+  - name: field.bin
+    file_id: 0x0E
+    directory_id: 0x01
+    compressed: true
+  - name: world_map.bin
+    file_id: 0x0F
+    directory_id: 0x01
+    compressed: true
+  - name: battle.bin
+    file_id: 0x10
+    directory_id: 0x01
+    compressed: true
+  - name: menu.bin
+    file_id: 0x11
+    directory_id: 0x01
+    compressed: true
+  - name: movie.bin
+    file_id: 0x12
+    directory_id: 0x01
+    compressed: true
+  # Movie player module (Square STR player + libpress/libcd), loaded raw by
+  # MovieMain (movie.bin 0x800737EC) to 0x801D3000.  Split by
+  # config/movie_player.yaml.
+  - name: movie_player.bin
+    file_id: 0x01
+    directory_id: 0x18
+#  - name: dir_0x10_file_0x1.bin
+#    file_id: 0x01
+#    directory_id: 0x10
+#  - name: dir_0x10_file_0x2.bin
+#    file_id: 0x02
+#    directory_id: 0x10
+#  - name: dir_0x10_file_0x3.bin
+#    file_id: 0x03
+#    directory_id: 0x10
+#  - name: dir_0x10_file_0x4.bin
+#    file_id: 0x04
+#    directory_id: 0x10
+#  - name: dir_0x10_file_0x5.bin
+#    file_id: 0x05
+#    directory_id: 0x10
+  - name: member_change_menu.bin
+    file_id: 0x06
+    directory_id: 0x10
+#  - name: dir_0x10_file_0x7.bin
+#    file_id: 0x07
+#    directory_id: 0x10
+#  - name: dir_0x10_file_0x8.bin
+#    file_id: 0x08
+#    directory_id: 0x10
+  - name: shop_menu.bin
+    directory_id: 0x10
+    file_id: 0x09
+#  - name: dir_0x10_file_0xa.bin
+#    file_id: 0x0a
+#    directory_id: 0x10
+#  - name: dir_0x10_file_0xb.bin
+#    file_id: 0x0b
+#    directory_id: 0x10
+#  - name: dir_0x10_file_0xc.bin
+#    file_id: 0x0c
+#    directory_id: 0x10
+#  - name: dir_0x10_file_0xd.bin
+#    file_id: 0x0d
+#    directory_id: 0x10
+#  - name: dir_0x10_file_0xe.bin
+#    file_id: 0x0e
+#    directory_id: 0x10
+#  - name: dir_0x10_file_0xf.bin
+#    file_id: 0x0f
+#    directory_id: 0x10
+#  - name: dir_0x10_file_0x10.bin
+#    file_id: 0x10
+#    directory_id: 0x10
+#  - name: dir_0x10_file_0x11.bin
+#    file_id: 0x11
+#    directory_id: 0x10
+#  - name: dir_0x10_file_0x12.bin
+#    file_id: 0x12
+#    directory_id: 0x10

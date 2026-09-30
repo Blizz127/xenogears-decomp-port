@@ -1,0 +1,107 @@
+
+ShopMenuIsCharacterFlagSet = 0x801C50B0;
+ShopMenuGetCharacterBitMask = 0x801C50CC;
+ShopMenuParseNumberToString = 0x801C50E8;
+
+ShopMenuSetManager = 0x801C51F8;
+ShopMenuSelectionMenuManager = 0x801C525C;
+ShopMenuUnk32CManager = 0x801C5194;
+ShopMenuUnk354Manager = 0x801C52C0;
+ShopMenuUnk330Manager = 0x801C5324;
+ShopMenuUnk348Manager = 0x801C5388;
+ShopMenuUnk1E20Manager = 0x801C53EC;
+ShopMenuShopManager = 0x801C5450;
+
+ShopMenuLoadResources = 0x801C54B4;
+ShopMenuInitialize = 0x801C58F4;
+ShopMenuResetRenderContext = 0x801C5A6C;
+
+ShopMenuInitializeWindowBorders = 0x801C5F44;
+ShopMenuMovePointerCursor = 0x801C604C;
+
+ShopMenuInitializeBackgrounds = 0x801C64DC;
+
+ShopMenuLoadShopItemsData = 0x801C6828;
+ShopMenuInitializeShopData = 0x801C6A6C;
+ShopMenuSetVertices = 0x801C6E90;
+ShopMenuSetWindowBorderPrimitive = 0x801C6EE8;
+ShopMenuUpdateScrollBarHandle = 0x801C6F30;
+ShopMenuFreeScrollBarHandle = 0x801C70B8;
+ShopMenuInitializeArrowCursor = 0x801C70FC;
+ShopMenuUpdateArrowCursor = 0x801C7178;
+ShopMenuFreeArrowCursor = 0x801C7314;
+ShopMenuInitializeWindowGraphics = 0x801C7370;
+ShopMenuInitializeScrollBar = 0x801C768C;
+ShopMenuInitializeWindowBorderCorners = 0x801C77F0;
+ShopMenuSetWindowBorderTop = 0x801C7A38;
+ShopMenuSetWindowBorderBottom = 0x801C7D7C;
+ShopMenuSetWindowBorderLeft = 0x801C80C8;
+ShopMenuSetWindowBorderRight = 0x801C8410;
+ShopMenuSetWindow = 0x801C875C;
+ShopMenuFreeWindow = 0x801C88E0;
+ShopMenuInitializeWindow = 0x801C896C;
+ShopMenuUpdateWindows = 0x801C8AF0;
+ShopMenuRenderPolygons = 0x801C8C3C;
+ShopMenuRenderString = 0x801C8D58;
+ShopMenuRenderScrollBarHandle = 0x801C8DDC;
+
+ShopMenuRenderTopWindowBorder = 0x801C8EB8;
+ShopMenuRenderBottomWindowBorder = 0x801C908C;
+ShopMenuRenderLeftWindowBorder = 0x801C9260;
+ShopMenuRenderRightWindowBorder = 0x801C9434;
+ShopMenuRenderWindowBackground = 0x801C9608;
+ShopMenuRenderWindowBorderCorners = 0x801C9744;
+ShopMenuRenderScrollBar = 0x801C9890;
+ShopMenuRenderWindows = 0x801C9AB4;
+ShopMenuRenderPointerCursors = 0x801C9C2C;
+
+ShopMenuRenderBackgroundDim = 0x801CA388;
+
+ShopMenuRenderSelectionMenu = 0x801CA444;
+
+ShopMenuRenderArrowCursors = 0x801CAB80;
+ShopMenuRender = 0x801CABF4;
+ShopMenuPlaySoundEffect = 0x801CAC7C;
+ShopMenuPollInput = 0x801CACC8;
+ShopMenuUpdateTransitionEffect = 0x801CAED4;
+ShopMenuUpdateAndRender = 0x801CB014;
+ShopMenuInitializePointerCursors = 0x801CB13C;
+ShopMenuFreePointerCursors = 0x801CB2FC;
+ShopMenuStartOpenMenuTransition = 0x801CB340;
+ShopMenuStartCloseMenuTransition = 0x801CB370;
+ShopMenuConfirmationWindowInitialize = 0x801CB384;
+ShopMenuConfirmationWindowFree = 0x801CB7F4;
+ShopMenuConfirmationWindowGetChoice = 0x801CB894;
+ShopMenuConfirmationWindow = 0x801CBA50;
+ShopMenuFree = 0x801CBB08;
+
+ShopMenuInitializeShopModeSelectionMenu = 0x801CC024;
+
+ShopMenuUpdateShopModeSelectionMenu = 0x801CC54C;
+
+ShopMenuShopModeMenuHandleSelectedOption = 0x801CC97C;
+ShopMenuShopModeMenuMain = 0x801CCAD8;
+
+ShopMenuMain = 0x801CCD28;
+
+ShopMenuSetStatChangeColor = 0x801CD404;
+ShopMenuUpdateCharacterPortraits = 0x801CD5D0;
+ShopMenuUpdateBuyMenuExplanationGraphics = 0x801CD6F8;
+ShopMenuUpdateSellMenuExplanationGraphics = 0x801CD7E4;
+ShopMenuUpdateGoldGraphics = 0x801CD8D0;
+ShopMenuGetCharacterEquippedItemFlags = 0x801CDBA0;
+
+ShopMenuHandleBoughtItems = 0x801CF2A0;
+ShopMenuSetFinalPriceGraphics = 0x801CF678;
+
+ShopMenuBuyMenu = 0x801CF780;
+
+ShopMenuHandleSoldItems = 0x801D0C18;
+ShopMenuSellMenu = 0x801D0E68;
+ShopMenuSellEquipmentMenu = 0x801D1658;
+ShopMenuSellAccessoriesMenu = 0x801D18A8;
+ShopMenuSellWeaponsMenu = 0x801D18E8;
+ShopMenuSellItemsMenu = 0x801D1928;
+
+ShopMenuSellModeMenuHandleSelectedOption = 0x801D1B18;
+ShopMenuSellModeMenu = 0x801D1CA4;

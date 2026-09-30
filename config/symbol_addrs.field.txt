@@ -1,0 +1,448 @@
+
+FieldActorWorldToScreenPosition = 0x80086200;
+
+FieldSetScreenDimensions = 0x80086D8C;
+
+FieldScriptCopyGear = 0x80087580;
+
+FieldScriptSetCharacterGear = 0x80088360;
+
+FieldScriptSetParticleBankDirections = 0x80088D38;
+FieldScriptInitializeParticleBank = 0x80089004;
+FieldScriptSetParticleBankPosition = 0x80089174;
+FieldScriptSetParticleBankPhysics = 0x80089374;
+FieldScriptSetParticleBankParameters = 0x80089574;
+FieldScriptSetParticleBankScale = 0x800896D4;
+FieldScriptSetParticleBankColor = 0x80089880;
+FieldScriptParticlesInitialize = 0x80089A80;
+FieldScriptStopParticleActor = 0x80089AE4;
+
+// Orphaned jump tables in early field rodata: each table's owning function
+// is now decompiled to C (matching switch statement), so the C compiler
+// emits its own jump table with its own case labels.  The original
+// hand-data .word .Lxxxxxxxx references point to assembly-local labels
+// that exist only in the consolidated asm (not used for the C build).
+// Declare as plain u32 data so gears emits the original literal word
+// values from the retail binary instead of symbolic label references.
+//
+// jtbl_8006FB8C (0x20 / 8 entries): func_8007BEF4 (misc4.c)
+// jtbl_8006FBAC (0x20 / 8 entries): func_8007C694 (misc4.c)
+// jtbl_8006FBCC (0x20 / 8 entries): func_8007CD80 (misc4.c)
+// jtbl_8006FBEC (0x20 / 8 entries): func_8007D3D4 (misc4.c)
+//   All four are switch (sideMask) { case 0..6 default } collision
+//   side-mask dispatch tables.
+// jtbl_8006FC88 (0x20 / 8 entries): func_8008E59C (misc.c) — orphaned since 98e2d00
+// jtbl_8006FD30 (0x14 / 5 entries): func_80099AC0 (misc7.c)
+// jtbl_8006FDAC (0x1C / 7 entries): func_800A5C40 (misc5.c)
+jtbl_8006FB8C = 0x8006FB8C; // type:u32 size:0x20
+jtbl_8006FBAC = 0x8006FBAC; // type:u32 size:0x20
+jtbl_8006FBCC = 0x8006FBCC; // type:u32 size:0x20
+jtbl_8006FBEC = 0x8006FBEC; // type:u32 size:0x20
+jtbl_8006FC88 = 0x8006FC88; // type:u32 size:0x20
+jtbl_8006FD30 = 0x8006FD30; // type:u32 size:0x14
+jtbl_8006FDAC = 0x8006FDAC; // type:u32 size:0x1C
+
+FieldLZSSDecompress = 0x8007008C;
+
+FieldFree = 0x800700B0;
+
+FieldLoadTIMWithClut = 0x80070340;
+
+FieldLoad = 0x80070CC8;
+
+FieldFadeInitialize = 0x80071A64;
+FieldFadeUpdate = 0x80071A8C;
+FieldFadeUpdateAndDraw = 0x80071CB4;
+FieldFadeSetParameters = 0x80071D08;
+FieldFadeToWhite = 0x80071DCC;
+FieldFadeToBlack = 0x80071E58;
+
+FieldInitializeControllersAndMouse = 0x80071EE8;
+FieldSetClipDimensions = 0x80071F64;
+FieldInitializeRenderContexts = 0x80071FB0;
+
+FieldPartyAllocateSkinDataBuffers = 0x80077C88;
+FieldPartyFreeSkinDataBuffers = 0x80077D2C;
+
+FieldLoadTIM = 0x800771F8;
+
+FieldMatrixResetTranslation = 0x80072140;
+FieldComputeSceneMatrices = 0x80072150;
+FieldMatrixCreateWorldToScreen = 0x800722F4;
+
+FieldMatrixLookAt = 0x80073750;
+
+FieldMathInterpolateAngle = 0x80073930;
+FieldMathUpdateAngle = 0x80073988;
+
+FieldClearAndSwapOTagInternal = 0x80073F50;
+FieldClearAndSwapOTag = 0x80073FE0;
+
+FieldMatrixCopy = 0x80074038;
+FieldMatrixCopyTranslation = 0x80074078;
+FieldMatrixCopyTransform = 0x8007409C;
+
+FieldPollControllers = 0x80074700;
+
+FieldAddPrimitives = 0x80075458;
+
+FieldInitializeControllers = 0x800775C0;
+FieldRenderSync = 0x800775F8;
+FieldLoadUITextures = 0x80077620;
+FieldUpdateDeltaTime = 0x8007781C;
+FieldMain = 0x80077E88;
+
+
+
+FieldSwapRenderContext = 0x800796FC;
+FieldRenderSyncAndFlush = 0x8007999C;
+
+FieldClampPolyFT4UVs = 0x8007A44C;
+FieldRenderQuad = 0x8007AB6C;
+
+FieldSetControllerBuffers = 0x8007AD8C;
+FieldSetMouseSpeed = 0x8007AE14;
+FieldSetMousePosition = 0x8007AE2C;
+
+FieldFadeInitializePrimitives = 0x8007D93C;
+FieldFadeDraw = 0x8007DA44;
+
+FieldTextBoxInitialize = 0x8007DECC;
+
+FieldTextBoxInitializePrimitives = 0x8007EE0C;
+
+// Script / Event
+
+FieldActorCopyPlacement = 0x8008D380;
+
+FieldPartyMemberIncreaseGearHp = 0x8008DB68;
+FieldPartyMemberDecreaseGearHp = 0x8008DBF0;
+FieldScriptVMHandlerIncreasePartyGearHp = 0x8008DC74;
+FieldScriptVMHandlerDecreasePartyGearHp = 0x8008DD6C;
+
+FieldScriptSetParentActor = 0x8008DE64;
+FieldScriptWriteActorFlags1 = 0x8008DEBC;
+FieldScriptWriteActorFlags2 = 0x8008DF44;
+FieldScriptWriteActorFlags3 = 0x8008DFCC;
+FieldScriptWriteActorFlags4 = 0x8008E054;
+FieldScriptVMConditionalJump6 = 0x8008E0DC;
+FieldScriptVMConditionalJump5 = 0x8008E148;
+FieldScriptWriteActorDistance = 0x8008E1B4;
+
+FieldScriptWaitForCameraMovement = 0x8008FA38;
+
+FieldScriptSetCameraInterpolationStep = 0x8008FD40;
+FieldScriptResetCameraTargetMovement = 0x8008FDD0;
+FieldScriptSetCameraTargetMovementFrom = 0x8008FE2C;
+FieldScriptSetCameraTargetMovementDestToActor = 0x8008FF04;
+FieldScriptSetCameraTargetMovementDest = 0x8008FF90;
+FieldScriptResetCameraPosMovement = 0x80090068;
+FieldScriptSetCameraPosMovementFrom = 0x800900C4;
+FieldScriptSetCameraPosMovementDestToActor = 0x8009019C;
+FieldScriptSetCameraPosMovementDest = 0x80090228;
+FieldScriptResetCameraMovements = 0x80090300;
+FieldScriptStartCameraMovement = 0x800903BC;
+FieldScriptWriteCurCameraTarget = 0x80090A10;
+FieldScriptWriteCurCameraPosition = 0x80090A94;
+FieldScriptWriteCameraTweenTarget = 0x80090B18;
+FieldScriptWriteCameraTweenPosition = 0x80090B9C;
+
+FieldScriptWriteCameraMovementParameter = 0x800915C4;
+FieldScriptSetCameraMovementParameter = 0x80091720;
+
+FieldScriptVMHandlerSetControllerBtnMask = 0x80092628;
+
+FieldScriptEnableCompass = 0x80093BFC;
+FieldScriptDisableCompass = 0x80093C20;
+FieldScriptVMHandlerDisableRandomEncounters = 0x80093C48;
+
+FieldScriptHandleTriggerZone2D = 0x8009533C;
+FieldScriptHandleTriggerZone = 0x80095520;
+FieldScriptCheckTriggerZone2D = 0x80095734;
+FieldScriptCheckTriggerZone = 0x800958C0;
+
+FieldProjectActorOriginToScreen = 0x80095A7C;
+
+FieldScriptCheckActorOnScreen = 0x80095C00;
+
+FieldScriptCheckActorDistance = 0x80095E48;
+
+FieldScriptCheckGoldAmount = 0x80095F24;
+FieldScriptIncreaseGold = 0x80095FB8;
+FieldScriptDecreaseGold = 0x8009601C;
+
+FieldScriptVMCheckControllerInput = 0x80096078;
+FieldScriptCheckControllerInputExact = 0x800960E4;
+
+FieldScriptCheckPartyMember = 0x800964B0;
+
+FieldScriptCheckScenarioFlagsLessThan = 0x80096644;
+FieldScriptCheckScenarioFlagsGreaterThan = 0x800966B4;
+FieldScriptCheckScenarioFlagsEqual = 0x80096724;
+FieldScriptSetScenarioFlags = 0x80096790;
+FieldScriptGetScenarioFlags = 0x800967E8;
+
+FieldPartyMemberIncreaseHp = 0x80096844;
+FieldPartyMemberDecreaseHp = 0x800968CC;
+FieldPartyMemberIncreaseMp = 0x80096920;
+FieldPartyMemberDecreaseMp = 0x800969A8;
+
+FieldScriptVMHandlerDecreasePartyHp = 0x800969FC;
+FieldScriptVMHandlerWritePartyMemberHp = 0x80096B58;
+FieldScriptVMHandlerWritePartyMemberMp = 0x80096C40;
+FieldScriptVMHandlerSetPartyMemberHp = 0x80096D28;
+FieldScriptVMHandlerSetPartyMemberMp = 0x80096E20;
+
+FieldScriptVMHandlerIncreasePartyMp = 0x80096F18;
+FieldScriptVMHandlerDecreasePartyMp = 0x80097010;
+
+FieldScriptVMHandlerRestoreCharacterHpAndMp = 0x80097200;
+FieldScriptVMHandlerRestoreHp = 0x80097264;
+FieldScriptVMHandlerRestoreMp = 0x800972AC;
+
+FieldScriptFadeOut = 0x8009731C;
+FieldScriptFadeIn = 0x80097364;
+
+FieldGetPlayerActorDirection = 0x8009744C;
+
+FieldGetVec3Magnitude = 0x80099A04;
+FieldGetVec2Magnitude = 0x80099A4C;
+FieldGetVec1Magnitude = 0x80099A8C;
+
+FieldScriptVMWriteCurCharacterID = 0x80099EF8;
+FieldScriptVMWritePartyLeaderCharacterID = 0x80099F48;
+
+FieldScriptVMHandlerGetActorDirection = 0x80099FC4;
+FieldScriptVMHandlerGetActorPosition = 0x8009A024;
+
+FieldScriptVMHandlerPlayAnimation = 0x8009A130;
+
+FieldGetCameraDirection = 0x8009A514;
+FieldScriptWriteCameraDirection = 0x8009A534;
+
+FieldScriptSetDollySet = 0x8009A634;
+FieldScriptSetDollyStop = 0x8009A670;
+FieldScriptCos = 0x8009A6AC;
+FieldScriptSin = 0x8009A768;
+FieldScriptAtan2 = 0x8009A824;
+FieldScriptGetCurActorDirection = 0x8009A8DC;
+FieldSetCurrentActorRotation = 0x8009A904;
+FieldScriptSetActorRotation = 0x8009A958;
+
+FieldScriptRotateActorClockwise = 0x8009AB5C;
+FieldScriptRotateActorCounterClockwise = 0x8009ABAC;
+FieldScriptSetActorDirection = 0x8009ABFC;
+
+FieldScriptVMHandlerSetCurActorRotation = 0x8009AC7C;
+
+FieldScriptVMGetActorIndex = 0x8009CDB4;
+
+FieldScriptArgument1 = 0x8009CF78;
+FieldScriptArgument2 = 0x8009CFBC;
+FieldScriptArgument3 = 0x8009D000;
+FieldScriptArgument4 = 0x8009D044;
+FieldScriptArgument5 = 0x8009D088;
+FieldScriptArgument6 = 0x8009D0CC;
+FieldScriptArgument7 = 0x8009D110;
+FieldScriptArgument8 = 0x8009D154;
+
+FieldScriptVMHandlerRandVariable = 0x8009D198;
+FieldScriptVMHandlerMulVariableWithRand = 0x8009D1F0;
+FieldScriptVMHandlerRShiftVariable = 0x8009D260;
+FieldScriptVMHandlerLShiftVariable = 0x8009D2D0;
+FieldScriptVMHandlerIncVariable = 0x8009D340;
+FieldScriptVMHandlerDecVariable = 0x8009D3A4;
+FieldScriptVMHandlerVariableUnsetBit = 0x8009D408;
+FieldScriptVMHandlerVariableXOR = 0x8009D4A0;
+FieldScriptVMHandlerVariableOR = 0x8009D52C;
+FieldScriptVMHandlerVariableAND = 0x8009D5B8;
+FieldScriptVMHandlerVariableSetBit = 0x8009D644;
+FieldScriptVMHandlerVariableMul = 0x8009D6D8;
+FieldScriptVMHandlerVariableDiv = 0x8009D768;
+FieldScriptVMHandlerVariableSub = 0x8009D804;
+FieldScriptVMHandlerVariableAdd = 0x8009D890;
+FieldScriptVMHandlerVariableSetFalse = 0x8009D91C;
+FieldScriptVMHandlerVariableSetTrue = 0x8009D960;
+FieldScriptVMHandlerVariableAssign = 0x8009D9A4;
+
+FieldScriptVMHandlerDisableDialogActivation = 0x8009DA1C;
+FieldScriptVMHandlerEnableDialogActivation = 0x8009DA44;
+
+FieldScriptVMHandlerEnableActorVM = 0x8009DBC8;
+
+FieldScriptVMHandlerSleep = 0x8009DD34;
+
+FieldScriptVMHandlerShowActorById = 0x8009DDEC;
+FieldScriptVMHandlerHideActorById = 0x8009DE94;
+FieldScriptVMHandlerShowActor = 0x8009DF10;
+
+FieldScriptVMHandlerHideActor = 0x8009E040;
+
+FieldActorGetScriptStatus = 0x8009EB48;
+
+FieldCharacterIdToPartyId = 0x8009FA00;
+
+FieldScriptPartyMemberRideGear = 0x8009FC48;
+FieldScriptPartyMemberDisembarkGear = 0x8009FCAC;
+
+FieldScriptVMHandlerConditionalJmp = 0x800A1BD0;
+FieldScriptVMHandlerJmp = 0x800A1E74;
+FieldScriptVMRun = 0x800A1EC8;
+FieldScriptVM2Run = 0x800869B8;
+FieldScriptVMHandlerNop = 0x800A2FC0;
+FieldScriptVMGetVariableSign = 0x800A2FE0;
+
+FieldScriptVMGetVariableValue = 0x800A3018;
+FieldScriptMemoryWriteU16 = 0x800A3074;
+FieldScriptGetBytecodeOffset = 0x800A3090;
+FieldScriptWritePartyMemberIDs = 0x800A30B4;
+
+FieldDistortionFree = 0x800A47D4;
+FieldDistortionInitialize = 0x800A484C;
+FieldDistortionSetTarget = 0x800A4CC4;
+FieldDistortionDraw = 0x800A4DAC;
+
+FieldZoomFadeEffectUpdate = 0x800A6408;
+FieldZoomFadeEffectInitialize = 0x800A663C;
+
+FieldDisplay = 0x800A6924;
+
+
+FieldImageConvert24BitColorTo15Bit = 0x800A7744;
+FieldImageConvert24BitTo15Bit = 0x800A77C4;
+
+
+FieldInitializeParticlePrimitive = 0x800A8EAC;
+FieldInitializeParticles = 0x800A9274;
+FieldParticlesFree = 0x800A92AC;
+FieldParticlesStop = 0x800A9374;
+FieldParticlesStopBanks = 0x800A93CC;
+FieldParticlesFreeAll = 0x800A9460;
+FieldInitializeDefaultParticleBanks = 0x800A94A4;
+FieldParticlesTickAndRender = 0x800A9688;
+FieldParticlesRandRange = 0x800A987C;
+FieldParticlesFindFreeIndex = 0x800A98B4;
+FieldParticleActorStop = 0x800A98E8;
+FieldInitializeParticleBanks = 0x800A99A8;
+FieldParticleUpdateColor = 0x800A9B1C;
+FieldParticleRender = 0x800A9B54;
+FieldParticleUpdateAndRender = 0x800A9F18;
+FieldParticleStart = 0x800AA6B4;
+
+FieldScriptVMGetInstructionArgumentS16 = 0x800ACD7C;
+FieldScriptVMGetInstructionArgument = 0x800ACDB8;
+FieldScriptVMGetArgument = 0x800ACDEC;
+
+g_FieldCurRenderContextIndex = 0x800ADB08;
+
+g_FieldParticleCurActor = 0x800ADB44;
+
+g_FieldRenderContextUseOT2 = 0x800ADB4C;
+
+g_FrameDeltaTime = 0x800ADBA4;
+
+
+g_FieldScriptVMCurScriptData = 0x800ADC00;
+
+D_800ADCE0 = 0x800ADCE0; // size:0x8
+D_800ADD28 = 0x800ADD28; // size:0x8
+D_800ADD70 = 0x800ADD70; // size:0x8
+D_800ADDB8 = 0x800ADDB8; // size:0x8
+
+
+g_pFieldTriggerZones = 0x800ADBF4;
+
+g_FieldCurScriptFile = 0x800ADBF8;
+
+g_FieldScriptVMHandlers = 0x800AE2A0; // type:VoidCallback_t[] size:0x400
+g_FieldScriptVMHandlers2 = 0x800AE6A0; // type:VoidCallback_t[] size:0x38C
+
+g_FieldNumPartyMembersMasks = 0x800AEA2C;
+
+g_FieldAngleToDirectionLUT = 0x800AEA34;
+
+g_CameraEye = 0x800AF880; // type:VECTOR size:0x10
+g_CameraAt = 0x800AF890; // type:VECTOR size:0x10
+g_CameraUp = 0x800AF8A0; // type:VECTOR size:0x10
+g_CameraEye2 = 0x800AF8B0; // type:VECTOR size:0x10
+g_CameraAt2 = 0x800AF8C0; // type:VECTOR size:0x10
+g_CamAtMovementFrom = 0x800AF8F0; // type:VECTOR size:0x10
+g_CamAtMovementTo = 0x800AF900; // type:VECTOR size:0x10
+g_CamEyeMovementFrom = 0x800AF910; // type:VECTOR size:0x10
+g_CamEyeMovementTo = 0x800AF920; // type:VECTOR size:0x10
+
+g_FieldCameraMode = 0x800AF934;
+
+g_CamMovementFlags = 0x800AF93C;
+g_CamAtMovementDuration = 0x800AF93E;
+g_CamAtMovementCurrent = 0x800AF940; // type:VECTOR size:0x10
+g_CamAtMovementDelta = 0x800AF950; // type:VECTOR size:0x10
+
+g_CamEyeMovementDuration = 0x800AF960;
+g_CamEyeMovementCurrent = 0x800AF964; // type:VECTOR size:0x10
+g_CamEyeMovementDelta = 0x800AF974; // type:VECTOR size:0x10
+g_CamInterpolation = 0x800AF984; // type:CameraInterpolation size:0xC
+g_Scene = 0x800AF990; // type:FieldScene size:0x134
+g_WorldScale = 0x800AFAC4;
+
+g_FieldNumActors = 0x800AFB0C;
+g_FieldActors = 0x800AFB10;
+
+g_FieldSpriteData = 0x800AFB1C;
+
+g_FieldStoredImageDest = 0x800AFC28; // type:RECT size:0x8
+g_FieldScriptMaxInstructionCount = 0x800AFC7C;
+
+D_800AEF10 = 0x800AEF10; // overlay layout xy, stride 8
+D_800AEF14 = 0x800AEF14; // overlay layout texture index
+D_800AEF16 = 0x800AEF16; // overlay layout flags
+
+D_800AFE24 = 0x800AFE24; // size:0xC
+D_800AFE3C = 0x800AFE3C; // size:0x8
+D_800AFE54 = 0x800AFE54; // size:0x10
+
+g_FieldParticleBankIndex = 0x800B0044;
+g_FieldDefaultParticleBanks = 0x800B02CC; // type:ParticleBank size:0x78
+
+g_pFieldControllerBuffer1 = 0x800B0054;
+g_pFieldControllerBuffer2 = 0x800B0058;
+g_FieldMouseSpeedX = 0x800B005C;
+g_FieldMouseSpeedY = 0x800B0060;
+g_FieldMousePositionsX = 0x800B0068;
+g_FieldMousePositionsY = 0x800B0070;
+
+
+g_FieldScriptVMCurActor = 0x800B0078;
+
+g_FieldParticleActorIDs = 0x800B0108;
+
+D_800B0188 = 0x800B0188; // size:0x140
+
+g_FieldZoomFadeEffect = 0x800B11AC; // size:0x2F8
+
+g_FieldPixelIndex = 0x800B14A8;
+
+g_FieldParticleStatuses = 0x800B14B0;
+
+g_FieldEffects = 0x800B2078; // size:0xFC
+
+g_FieldControl = 0x800B2176; // type:FieldControl size:0x6
+
+g_PlayerActorIndex = 0x800B226C;
+
+g_FieldRenderContexts = 0x800B249C; // size:0x101E8
+
+g_FieldCurPixel = 0x800C2688;
+
+g_FieldSystemMode = 0x800C268C; // CD or PC HDD
+
+g_FieldTextBoxes = 0x800C2698; // type:FieldTextBox size:0x498
+
+g_Field24BitImageData = 0x800C3904;
+g_Field15BitImageData = 0x800C390C;
+
+g_FieldParticleBanks = 0x800C3918;
+
+g_FieldScriptMemory = 0x800C3A68;
+
+g_FieldCurRenderContext = 0x800C426C;

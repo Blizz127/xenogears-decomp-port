@@ -1,0 +1,55 @@
+categories:
+  - id: sdk
+    name: Psy-Q SDK
+    paths:
+      - slus_006.64/psyq
+  - id: main
+    name: Main Executable
+    paths:
+      - slus_006.64
+  - id: field
+    name: Field Overlay
+    paths:
+      - field
+  - id: member_change_menu
+    name: Member Change Menu Overlay
+    paths:
+      - member_change_menu
+  - id: shop_menu
+    name: Shop Menu Overlay
+    paths:
+      - shop_menu
+  - id: menu
+    name: Menu Overlay
+    paths:
+      - menu
+  - id: battle
+    name: Battle Overlay
+    paths:
+      # trailing slash: a bare "battle" prefix also swallows "battling/..."
+      - battle/
+  - id: battling
+    name: Battling Overlay
+    paths:
+      - battling/
+  - id: movie
+    name: Movie Overlay
+    paths:
+      - movie/
+  - id: battle_command_file1
+    name: Battle Command File1
+    paths:
+      - battle_command_file1/
+  - id: world_map
+    name: World Map Overlay
+    paths:
+      - world_map/
+
+expected_paths:
+  asm: expected/asm
+  src: expected/src
+
+ignored_files:
+  - slus_006.64/header
+
+output: ./objdiff.json

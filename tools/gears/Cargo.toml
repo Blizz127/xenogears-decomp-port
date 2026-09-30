@@ -1,0 +1,15 @@
+[package]
+name = "gears"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+clap = { version = "4.6.0", features = ["derive"] }
+ninja-writer = "0.3.1"
+serde = { version = "1.0.228", features = ["derive", "rc"] }
+toml = "1.0.7"
+walkdir = "2.5.0"
+
+[profile.release]
+strip = true
+lto = true

@@ -1,0 +1,61 @@
+diff --git a/src/render/PsyX_render.cpp b/src/render/PsyX_render.cpp
+--- a/src/render/PsyX_render.cpp
++++ b/src/render/PsyX_render.cpp
+@@ -2123,6 +2123,8 @@
+  * RGBA8 (15-bit texels, or 24-bit packed bytes when rgb24) and blit it over
+  * the whole window, flipped like GR_MaterializeFramebufferRect.  Used when a
+  * vblank passes without any primitive having been drawn. */
++extern "C" int PsyX_HostToolbarReservedHeight(void) __attribute__((weak)); /* _xeno_present_vram_full_frame */
++
+ void GR_PresentVRAMDisplay(int x, int y, int w, int h, int rgb24, int displayEnabled)
+ {
+ #if USE_OPENGL
+@@ -2205,13 +2207,41 @@
+ 	}
+ 	glBindTexture(GL_TEXTURE_2D, 0);
+ 
+-	glBindFramebuffer(GL_READ_FRAMEBUFFER, fbo);
+-	glFramebufferTexture2D(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex, 0);
+-	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+-	glBlitFramebuffer(0, 0, w, h,
+-	                  0, g_windowHeight, g_windowWidth, 0,
+-	                  GL_COLOR_BUFFER_BIT, GL_NEAREST);
+-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
++	/* _xeno_present_vram_full_frame: this path (movies, and any frame with
++	 * no draw scene) must rewrite the WHOLE back buffer.  glBlitFramebuffer
++	 * honours the scissor test, which the last rendered split leaves on, and
++	 * g_windowWidth/Height only follow SDL_WINDOWEVENT_RESIZED, so a
++	 * fullscreen or compositor-sized drawable can be larger.  Any region left
++	 * unwritten keeps that buffer's old contents; a compositor that rotates
++	 * two or three buffers (gamescope) then shows those regions alternating.
++	 * Clear the full drawable, then blit to it with the scissor off. */
++	{
++		GLboolean scissorOn = glIsEnabled(GL_SCISSOR_TEST);
++		GLfloat clearRGBA[4];
++		int dw = g_windowWidth, dh = g_windowHeight;
++		SDL_GL_GetDrawableSize(g_window, &dw, &dh);
++		if (dw <= 0 || dh <= 0) { dw = g_windowWidth; dh = g_windowHeight; }
++		glGetFloatv(GL_COLOR_CLEAR_VALUE, clearRGBA);
++		glDisable(GL_SCISSOR_TEST);
++		glBindFramebuffer(GL_READ_FRAMEBUFFER, fbo);
++		glFramebufferTexture2D(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex, 0);
++		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
++		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
++		glClear(GL_COLOR_BUFFER_BIT);
++		/* The game content is the drawable minus the host toolbar strip on
++		 * top: exactly g_windowWidth x g_windowHeight when those are current. */
++		{
++			int reserve = PsyX_HostToolbarReservedHeight ? PsyX_HostToolbarReservedHeight() : 0;
++			int cw = dw, ch = dh - reserve;
++			if (ch <= 0) { cw = g_windowWidth; ch = g_windowHeight; }
++			glBlitFramebuffer(0, 0, w, h, 0, ch, cw, 0,
++			                  GL_COLOR_BUFFER_BIT, GL_NEAREST);
++		}
++		glBindFramebuffer(GL_FRAMEBUFFER, 0);
++		glClearColor(clearRGBA[0], clearRGBA[1], clearRGBA[2], clearRGBA[3]);
++		if (scissorOn)
++			glEnable(GL_SCISSOR_TEST);
++	}
+ #endif
+ }
+ 

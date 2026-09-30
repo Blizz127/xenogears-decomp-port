@@ -1,0 +1,89 @@
+# A Template to use to add splat configurations for new overlays
+#####
+# Copy this file to a new yaml file and follow the instructions in the
+# comments, then strip out the comments and commit.
+#
+# BEFORE YOU PROCEED: you should already have updated tools/scripts/overlays.yaml
+# and run tools/scripts/extract_overlays.py to extract the overlay into the
+# disc/ directory.
+#
+### Placeholders
+# * OVERLAY_FILE        The name of the overlay file (the name field in overlays.yaml), i.e. field.bin
+# * OVERLAY_NAME        The name that will be used to build the path of the generated files. Convention is
+#                       to take the '.bin' extension off OVERLAY_FILE
+# * OVERLAY_BASE_ADDR   The base address where the overlay is loaded into RAM.
+# * OVERLAY_SIZE_HEX    The size of the overlay, in bytes, in hexadecimal
+# * OVERLAY_EOF_HEX     OVERLAY_BASE_ADDR + OVERLAY_SIZE_HEX in hexadecimal
+# Name is freeform, human-readable.
+name: New Overlay
+# The sha1 is calculated by running `sha1sum disc/OVERLAY_FILE`
+sha1: 466f2d11b6bb49df667465c1df6eca74579b90b1
+options:
+  basename: OVERLAY_FILE
+  target_path: disc/OVERLAY_FILE
+  base_path: ../
+  platform: psx
+  compiler: PSYQ
+
+  asm_path: asm/OVERLAY_NAME
+  src_path: src/OVERLAY_NAME
+  build_path: build/
+
+  ld_script_path: linker/OVERLAY_NAME.ld
+
+  find_file_boundaries: False
+  # Do not modify gp_value unless you know what you are doing.
+  gp_value: 0x80059170
+  global_vram_start: 0x80010000
+
+  o_as_suffix: False
+  use_legacy_include_asm: False
+
+  asm_function_macro: glabel
+  asm_jtbl_label_macro: jlabel
+  asm_data_macro: dlabel
+
+  section_order: [".rodata", ".text", ".data", ".bss"]
+
+  symbol_addrs_path:
+    - config/symbol_addrs.OVERLAY_NAME.txt
+    - config/symbol_addrs.slus_006.64.txt
+  reloc_addrs_path:
+    - configs/reloc_addrs.OVERLAY_NAME.txt
+
+  undefined_funcs_auto_path: linker/undefined_funcs_auto.OVERLAY_NAME.txt
+  undefined_syms_auto_path: linker/undefined_syms_auto.OVERLAY_NAME.txt
+
+  extensions_path: tools/splat_ext
+
+  subalign: 4
+
+  string_encoding: ASCII
+  data_string_encoding: ASCII
+  rodata_string_guesser_level: 2
+  data_string_guesser_level: 2
+  ld_bss_is_noload: true
+segments:
+  - name: OVERLAY_NAME
+    type: code
+    start: 0x0
+    vram: OVERLAY_BASE_ADDR
+    bss_size: 0x20000
+    align: 4
+    subalign: 4
+    subsegments:
+      - [0x0, rodata]
+      # Add subsegments here to capture code!
+      # Syntax:
+      # - [ offset_hex, c, path/file ]
+      # where:
+      #   offset_hex: is the file offset the segment begins at, in hex (don't forget the 0x prefix!).
+      #               if you've analyzed the overlay in ghidra, you can calculate this by taking the address of
+      #               the function and subtracting the overlay's base address from it.
+      #   c:          this is just literally the string "c"
+      #   path/file   will generate the *.c file at the specified file relative to src/overlay_name
+      # ex: this starts at offset 0x5c0 and generates all code into main/main.c
+      # - [0x5c0, c, main/main]
+      # there's other types of segments, look at existing config yamls for examples
+      - { vram: OVERLAY_EOF_HEX, type: bss}
+  - [OVERLAY_SIZE_HEX]

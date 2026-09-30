@@ -1,0 +1,5 @@
+ninja
+pyyaml
+rabbitizer==1.12.6
+spimdisasm==1.33.0
+splat64[mips]==0.33.2

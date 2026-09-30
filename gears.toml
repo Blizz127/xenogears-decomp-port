@@ -1,0 +1,291 @@
+[directories]
+config = 'config'
+linker = 'linker'
+code = 'src'
+assembly = 'asm'
+build = 'build'
+
+[compilation]
+binary = "slus_006.64"
+overlays = ["field", "member_change_menu", "shop_menu", "menu", "battle", "battling", "movie", "battle_command_file1", "world_map"]
+target = 'mips-linux-gnu'
+
+[[build_preset]]
+name = "Default"
+# Every other preset will inhert the build variables from Default unless they override it
+build_variables = {
+    gcc = "gcc-2.7.2-psx",
+    cc_flags = "-mips1 -mcpu=3000 -w -funsigned-char -fpeephole -ffunction-cse -fpcc-struct-return -fcommon -fverbose-asm -msoft-float -mgas -fgnu-linker -quiet",
+    # Use the same exported jump-table labels as standalone Splat assembly.
+    cpp_flags = "-D_LANGUAGE_C -DUSE_INCLUDE_ASM -DINCLUDE_ASM_USE_MACRO_INC=1 -P -MMD -MP -undef -Wall -lang-c -nostdinc",
+    ld_flags = "-nostdlib --no-check-sections",
+    maspsx_flags = "--use-comm-section --run-assembler",
+    optimization_flag = "-O2",
+    gp_flag = "-G8",
+    endianness = "-EL"
+}
+
+[[build_preset]]
+name = "PSY-Q"
+build_variables = {
+    maspsx_flags = "--aspsx-version=2.56 --expand-div --use-comm-section --run-assembler",
+    optimization_flag = "-O3",
+    gp_flag = "-G0"
+}
+paths = [ "{binary}/psyq" ]
+
+[[build_preset]]
+name = "XenoLibrary"
+build_variables = {
+    gcc = "gcc-2.6.0-psx"
+}
+paths = [
+    "{binary}/system/libarchive.",
+    "{binary}/system/sound.",
+    "member_change_menu/main/misc.",
+    "shop_menu/main/misc.",
+    # The shop overlay's retail code interleaves unmatched regions with C runs,
+    # so its single TU is split over misc{,2..9}.c; every one of them is the
+    # same retail compiler (gcc-2.6.0-psx).  Preset keys are substring matches,
+    # so `shop_menu/main/misc.` would miss misc2.c..misc9.c and silently compile
+    # them with the Default 2.7.2 preset (measured: 15 functions changed size).
+    "shop_menu/main/misc2.",
+    "shop_menu/main/misc3.",
+    "shop_menu/main/misc4.",
+    "shop_menu/main/misc5.",
+    "shop_menu/main/misc6.",
+    "shop_menu/main/misc7.",
+    "shop_menu/main/misc8.",
+    "shop_menu/main/misc9.",
+]
+
+[[build_preset]]
+name = "XenoGraphics263"
+# temp1e1 (func_800251C8 alone): aspsx 2.67 like its XenoGraphics
+# neighbours, but only gcc-2.6.3-psx (provenance: see MenuG0) schedules its
+# stack load of `height` before the bounds check, as retail does.
+build_variables = {
+    gcc = "gcc-2.6.3-psx",
+    maspsx_flags = "--aspsx-version=2.67 --use-comm-section --run-assembler"
+}
+paths = [ "{binary}/system/temp1e1." ]
+
+[[build_preset]]
+name = "XenoGraphics"
+build_variables = {
+    gcc = "gcc-2.7.2-cdk-psx",
+    maspsx_flags = "--aspsx-version=2.67 --use-comm-section --run-assembler"
+}
+paths = [
+    "{binary}/system/animation_scripts.",
+    "{binary}/system/temp1a.",
+    "{binary}/system/temp1c.",
+    "{binary}/system/temp1d.",
+    "{binary}/system/temp1e.",
+    "{binary}/system/temp1e2.",
+]
+
+[[build_preset]]
+name = "BattleLiteral"
+# The battle layout has two assembler flavours of the `li` expansion: most
+# bodies use maspsx's lui/ori form, but a handful of retail bodies encode the
+# constant as `addiu $r,$zero,K` exactly like gas does when maspsx leaves `li`
+# alone.  Only the addiu-flavoured TUs (named `mainl*`) select this preset; it
+# changes nothing but the li expansion.
+build_variables = {
+    maspsx_flags = "--dont-expand-li --use-comm-section --run-assembler"
+}
+paths = [
+    "battle/mainl",
+]
+
+[[build_preset]]
+name = "SdataSmall"
+# Only TUs whose retail addresses *extern* (not TU-defined) symbols via
+# %gp_rel select this preset; it changes nothing but -G forwarding.
+# NOTE (temp3 lesson): a TU whose retail mixes absolute extern access with
+# %gp_rel does NOT belong here. The %gp_rel sites must be same-TU small
+# definitions (cc1 -G8 then emits explicit %gp_rel regardless of the
+# assembler -G flag), while plain externs assemble absolute under the
+# Default preset (maspsx force-appends -G0). Putting such a mixed TU here
+# flips every absolute access to GPREL16 and regresses the whole TU.
+#
+# temp1. and animation_scripts. were removed for exactly that reason: they are
+# mixed TUs, and listing them here was what kept build/out/slus_006.64 from
+# linking at all.  With --dont-force-G0 their plain externs assembled as
+# GPREL16, and four of them sit outside the +/-32 KiB window around the retail
+# gp (0x80059170): D_80050100 (-0x9070), D_8006BE10, D_800C3664, D_800C3E1C,
+# plus D_8006F99C / D_8006F9AC from animation_scripts.  ld then reported
+# "small-data section too large" with truncated R_MIPS_GPREL16 relocations.
+# Retail reaches those four with lui %hi / %lo -- see
+# asm/slus_006.64/matchings/system/temp1/func_800257F0.s:119, which is a
+# plain `lui $s0, %hi(D_80050100)`, not a gp-relative load.  So absolute is
+# the retail-correct encoding here and the Default preset is the right home.
+build_variables = {
+    maspsx_flags = "--dont-force-G0 --use-comm-section --run-assembler",
+}
+paths = [
+    "{binary}/system/memory.",
+    "{binary}/system/heap_debug.",
+]
+
+[[build_preset]]
+name = "SdataSmallLiteral"
+# SdataSmall's -G handling, plus the literal `li` flavour: retail work_list,
+# rendering and graphics never use the lui/ori `li` expansion (every small
+# constant load is `addiu $r,$zero,K`, 0 `ori $r,$zero,K` in their asm).
+build_variables = {
+    maspsx_flags = "--dont-expand-li --dont-force-G0 --use-comm-section --run-assembler",
+}
+paths = [
+    "{binary}/system/rendering.",
+    "{binary}/system/graphics.",
+]
+
+[[build_preset]]
+name = "MenuG0"
+# menu.bin never addresses anything through $gp, so its cc1 runs with -G0 like
+# the other overlays.  (-G8 used to hoist every INCLUDE_ASM ahead of the C
+# bodies.  include/include_asm.h now wraps INCLUDE_ASM in a function, which
+# keeps source order either way, but -G8 still leaves menu.bin 204 bytes off
+# retail: rodata 0x0-0xC4 plus about 40 text words.)
+# Key is prefixed with src/ so it cannot match shop_menu/ or
+# member_change_menu/ paths (preset keys are substring matches).
+#
+# Compiler: gcc 2.6.3 (psx), not the Default 2.7.2.  Retail menu writes a
+# constant-divide's high word straight into the result register (`mfhi $v0`),
+# which 2.7.2 never does (it goes through a scratch).  2.6.3 matches it, is a
+# strict superset of 2.7.2's matches on the original all-C misc.c (205 vs
+# 204), and also unlocks bodies 2.7.2 can't reach (e.g. func_801D84B4,
+# func_801E4928, func_801D1258, func_801DE29C).
+# tools/gcc-2.6.3-psx/cc1 comes from
+#   https://github.com/decompals/old-gcc/releases/download/0.12/gcc-2.6.3-psx.tar.gz
+# (the decomp.me "gcc2.6.3-psx" ps1 compiler).
+#   sha256(cc1) = 16696ec7b00a15c76bb5c245904799b547af59028416896e833eabc2939ed17a
+build_variables = {
+    gcc = "gcc-2.6.3-psx",
+    gp_flag = "-G0"
+}
+paths = [ "src/menu/main/misc.", "src/menu/main/misc2.", "src/menu/main/misc3." ]
+
+[[build_preset]]
+name = "XenoLiteral"
+# Default preset plus the literal `li` flavour. Retail temp1's compiled code
+# encodes every small constant load as `addiu $r,$zero,K`; its only
+# `ori $r,$zero,K` loads are in the trailing line-scroll bodies
+# (func_8002709C/800273C4/800278F8), which are INCLUDE_ASM.
+build_variables = {
+    maspsx_flags = "--dont-expand-li --use-comm-section --run-assembler",
+}
+paths = [
+    "{binary}/system/temp1.",
+    "{binary}/system/temp1b.",
+    "{binary}/system/temp1f.",
+    "{binary}/system/work_list.",
+]
+
+[[build_preset]]
+name = "XenoMain"
+build_variables = {
+    gp_flag = "-G0"
+}
+paths = [ "{binary}/main/main_loop." ]
+
+[[build_preset]]
+name = "BattleCdk"
+# Part of the battle overlay was built with the CDK compiler: it materialises a
+# call argument's symbol address as `lui %hi` before the call with `addiu %lo`
+# in the jal delay slot (and the a0 copy before the `lui`), where the PSY-Q
+# 2.7.2 cc1 emits a single `la` that gas expands in place.  Those TUs also
+# encode `li` as `addiu $r,$zero,K`, so they take the literal flavour too.
+# Bodies verified by shape harness: func_800B5924 38/38, func_800B5C18 42/42,
+# func_800BF7C8 37/37 (vs 34/38, 39/42, 33/37 with gcc-2.7.2-psx).
+# main87, main90, mainasm_4F3C4 and main101 are CDK code too: their
+# drafts (func_800B5FBC, func_800B6518, func_800BEEB4, func_800B81BC, ...)
+# match only here.
+build_variables = {
+    gcc = "gcc-2.7.2-cdk-psx",
+    maspsx_flags = "--dont-expand-li --use-comm-section --run-assembler"
+}
+paths = [
+    "battle/mainc",
+    "src/battle/main87.",
+    "src/battle/main90.",
+    "src/battle/mainasm_4F3C4.",
+    "src/battle/main101.",
+]
+
+[[build_preset]]
+name = "XenoGraphicsLibrary"
+build_variables = {
+    gcc = "gcc-2.6.0-psx",
+    maspsx_flags = "--expand-div --use-comm-section --run-assembler",
+}
+paths = [
+    "{binary}/graphics/line_scroll.",
+]
+
+[[build_preset]]
+name = "BattleGcc263"
+# battle TUs whose retail code matches gcc 2.6.3 (psx) rather than the Default
+# 2.7.2 (the same compiler as the src/menu/main/misc. preset above).  Each of
+# these holds a function whose draft matches only under 2.6.x; every listed TU
+# stays byte-exact as a whole under 2.6.3 (checked by rebuilding battle.bin).
+build_variables = {
+    gcc = "gcc-2.6.3-psx"
+}
+paths = [
+    "src/battle/main40_p2.",
+    "src/battle/main33.",
+    "src/battle/main53.",
+    "src/battle/main51.",
+    "src/battle/main2.",
+    "src/battle/main.c",
+    "src/battle/mainasm_1AFB0.",
+    "src/battle/main66.",
+    "src/battle/main72_p2.",
+    "src/battle/main61.",
+    "src/battle/main62.",
+    "src/battle/mainasm_16244.",
+]
+
+[[build_preset]]
+name = "Bcf1Gcc263"
+# battle_command_file1 (archive 0x20 file 1) is gcc 2.6.3 (psx) code: 23 of its
+# INCLUDE_ASM bodies match only under 2.6.x, and the TUs stay byte-exact as a
+# whole under it.
+build_variables = {
+    gcc = "gcc-2.6.3-psx"
+}
+paths = [ "src/battle_command_file1/" ]
+
+[[build_preset]]
+name = "BattleGcc263Div"
+# gcc 2.6.3 like BattleGcc263, plus maspsx --expand-div: retail main69's
+# signed division (func_800A5BE8's plane height) and main73_p1's
+# (func_800AF2C4) carry the aspsx divide-by-zero / overflow `break` checks.
+build_variables = {
+    gcc = "gcc-2.6.3-psx",
+    maspsx_flags = "--expand-div --use-comm-section --run-assembler"
+}
+paths = [ "src/battle/main69.", "src/battle/main73_p1." ]
+
+[[build_preset]]
+name = "BattleDiv"
+# Default compiler plus maspsx --expand-div: these battle TUs' retail signed
+# divisions carry the aspsx divide-by-zero / overflow break checks.
+build_variables = {
+    maspsx_flags = "--expand-div --use-comm-section --run-assembler"
+}
+paths = [ "src/battle/main68." ]
+
+[[build_preset]]
+name = "WorldMapDiv"
+# world_map: default compiler (the gcc-2.7.2 survey matched 33 m2c drafts
+# standalone) plus maspsx --expand-div: all 18 of its functions with a div
+# carry the aspsx divide-by-zero / overflow break checks, and small
+# constants are literal li (addiu $x, $zero, n), so --dont-expand-li too.
+build_variables = {
+    maspsx_flags = "--dont-expand-li --expand-div --use-comm-section --run-assembler"
+}
+paths = [ "src/world_map/" ]

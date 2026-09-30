@@ -1,0 +1,71 @@
+
+MemberChangeMenuIsCharacterFlagSet = 0x801C5018;
+MemberChangeMenuSetManager = 0x801C5098;
+MemberChangeMenuSetSelectionMenu = 0x801C50FC;
+
+MemberChangeMenuSetCharacters = 0x801C528C;
+MemberChangeMenuLoadResources = 0x801C5390;
+MemberChangeMenuInitialize = 0x801C559C;
+MemberChangeMenuResetRenderContext = 0x801C5714;
+
+MemberChangeMenuInitializeWindowBorders = 0x801C5BEC;
+
+MemberChangeMenuInitializeBackground = 0x801C5DA0;
+MemberChangeMenuSetVertices = 0x801C60EC;
+MemberChangeMenuSetWindowBorderPrimitive = 0x801C6144;
+
+MemberChangeMenuInitializeWindowGraphics = 0x801C618C;
+MemberChangeMenuInitializeScrollBar = 0x801C64A8;
+MemberChangeMenuInitializeWindowBorderCorners = 0x801C660C;
+MemberChangeMenuSetWindowBorderTop = 0x801C6854;
+MemberChangeMenuSetWindowBorderBottom = 0x801C6B98;
+MemberChangeMenuSetWindowBorderLeft = 0x801C6EE4;
+MemberChangeMenuSetWindowBorderRight = 0x801C722C;
+MemberChangeMenuSetWindow = 0x801C7578;
+MemberChangeMenuFreeWindow = 0x801C76FC;
+MemberChangeMenuInitializeWindow = 0x801C7788;
+MemberChangeMenuUpdateWindows = 0x801C790C;
+MemberChangeMenuDrawCursors = 0x801C7A58;
+
+MemberChangeMenuRenderBackgroundDim = 0x801C8040;
+MemberChangeMenuRenderCharacter = 0x801C80BC;
+MemberChangeMenuRenderCharacters = 0x801C83D0;
+
+MemberChangeMenuRenderTopWindowBorder = 0x801C849C;
+MemberChangeMenuRenderBottomWindowBorder = 0x801C8670;
+MemberChangeMenuRenderLeftWindowBorder = 0x801C8844;
+MemberChangeMenuRenderRightWindowBorder = 0x801C8A18;
+MemberChangeMenuRenderWindowBackground = 0x801C8BEC;
+MemberChangeMenuRenderWindowBorderCorners = 0x801C8D28;
+MemberChangeMenuRenderScrollBar = 0x801C8E74;
+MemberChangeMenuRenderWindows = 0x801C9098;
+MemberChangeMenuRender = 0x801C9210;
+MemberChangeMenuPlaySoundEffect = 0x801C9270;
+MemberChangeMenuPollInput = 0x801C92AC;
+MemberChangeMenuUpdateAndRender = 0x801C94A0;
+
+MemberChangeMenuParseNumberToString = 0x801C969C;
+
+MemberChangeMenuFree = 0x801C9748;
+
+MemberChangeMenuSetCharacterLevelStrings = 0x801C9F80;
+MemberChangeMenuSetCharacterHpAndMpStrings = 0x801CA24C;
+MemberChangeMenuUpdateCharacter = 0x801CA5C0;
+MemberChangeMenuUpdateCharacters = 0x801CA690;
+MemberChangeMenuSetCursorToCharacter = 0x801CA810;
+MemberChangeMenuInitializeCursors = 0x801CA944;
+MemberChangeMenuFreeCursors = 0x801CAB04;
+MemberChangeMenuSwapCharacters = 0x801CAB48;
+MemberChangeMenuMainLoop = 0x801CAD14;
+MemberChangeMenuMain = 0x801CB0A8;
+
+
+g_MemberChangeMenuCurserPositionsX = 0x801CB1A0;
+g_MemberChangeMenuCurserPositionsY = 0x801CB1C4;
+
+g_MemberChangeMenuBenchedCharPositionsX = 0x801CB1E8;
+g_MemberChangeMenuBenchedCharPositionsY = 0x801CB274;
+g_MemberChangeMenuCurCharPositionsX = 0x801CB22C;
+g_MemberChangeMenuCurCharPositionsY = 0x801CB2B8;
+g_MemberChangeMenuCharTexcoordsU = 0x801CB344;
+g_MemberChangeMenuCharTexcoordsV = 0x801CB390;

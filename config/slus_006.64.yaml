@@ -1,0 +1,210 @@
+name: Xenogears (USA)
+sha1: 560bbdbeb9264c935294ecad5a3d4ab230a006a9
+options:
+  basename: slus_006.64
+  target_path: disc/SLUS_006.64
+  elf_path: build/slus_006.64.elf
+  base_path: ../
+  platform: psx
+  compiler: PSYQ
+
+  asm_path: asm/slus_006.64
+  src_path: src/slus_006.64
+  build_path: build
+  # create_asm_dependencies: True
+
+  ld_script_path: linker/slus_006.64.ld
+  ld_dependencies: True
+
+  find_file_boundaries: False
+  gp_value: 0x80059170
+  global_vram_start: 0x80010000
+
+  o_as_suffix: False
+  use_legacy_include_asm: False
+
+  asm_function_macro: glabel
+  asm_jtbl_label_macro: jlabel
+  asm_data_macro: dlabel
+
+  section_order: [".rodata", ".text", ".sdata", ".data", ".sbss", ".bss"]
+  # auto_link_sections: [".data", ".rodata", ".bss"]
+
+  symbol_addrs_path: 
+    - config/symbol_addrs.slus_006.64.txt
+  reloc_addrs_path: 
+    - config/reloc_addrs.txt
+
+  undefined_funcs_auto_path: linker/undefined_funcs_auto.slus_006.64.txt
+  undefined_syms_auto_path: linker/undefined_syms_auto.slus_006.64.txt
+
+  extensions_path: tools/splat_ext
+
+  subalign: 4
+
+  string_encoding: ASCII
+  data_string_encoding: ASCII
+  rodata_string_guesser_level: 2
+  migrate_rodata_to_functions: true
+  data_string_guesser_level: 2
+
+  ld_bss_is_noload: True
+segments:
+  - name: header
+    type: header
+    start: 0x0
+
+  - name: main
+    type: code
+    start: 0x800
+    vram: 0x80010000
+    bss_size: 0x40000 # yolo
+    bss_contains_common: True
+    align: 4
+    subsegments:
+      - [0x800, rodata]
+      # MenuExecute switch tables jtbl_800183A4 (0x18) + jtbl_800183BC (0x1C)
+      - [0x8BA4, .rodata, system/menu]
+      - [0x8BD8, rodata]
+      - [0x8EE0, rodata]
+      #- [0x88FC, .rodata, main/main_loop]
+      #- [0x8A6C, rodata]
+      - [0x90F4, .rodata, system/archive]
+      - [0x9144, rodata]
+      - [0x9258, .rodata, system/memory]
+      - [0x927C, rodata]
+      - [0x93DC, .rodata, system/sound]
+      - [0x93F0, rodata]
+      - [0x969C, .rodata, psyq/libcd/bios]
+      - [0x96B0, rodata]
+      - [0x9788, .rodata, psyq/libgpu]
+      - [0x9858, rodata]
+      #- [0x9BD4, .rodata, psyq/libetc]
+      #- [0x9C08, rodata]
+      - [0x9C6C, .rodata, psyq/libspu/Spu]
+      - [0x9CB4, .rodata, psyq/libspu/SpuSetIRQ]
+      - [0x9CE4, .rodata, psyq/libspu/SpuSetCommonAttr]
+      - [0x9D24, asm]
+      - [0x9D60, hasm]
+      - [0x9D78, c, main/main] # main
+      - [0xA164, asm]
+      - [0xA16C, c, main/main_loop]
+      - [0xA9E4, c, system/kernel_menu]
+      - [0xADCC, c, system/temp3]
+      - [0xBEC4, c, system/temp3b]
+      - [0xC170, c, system/temp3c]
+      - [0xC5DC, c, system/menu]
+      - [0xD0DC, c, system/work_list]
+      - [0xDCE8, c, system/rendering]
+      - [0x103A4, c, system/animation_scripts]
+      - [0x1320C, c, system/graphics]
+      - [0x1332C, c, system/temp1] # Graphics stuff
+      - [0x137C4, c, system/temp1a]
+      - [0x15764, c, system/temp1b]
+      - [0x157F4, c, system/temp1c]
+      - [0x15844, c, system/temp1d]
+      - [0x158E0, c, system/temp1e]
+      - [0x159C8, c, system/temp1e1]
+      - [0x15A24, c, system/temp1e2]
+      - [0x16404, c, system/temp1f]
+      - [0x18564, c, graphics/line_scroll]
+      - [0x18A30, c, system/libarchive]
+      - [0x19E90, c, system/archive]
+      - [0x1B424, c, system/temp2]
+      - [0x22094, c, system/memory]
+      - [0x235CC, c, system/heap_debug]
+      - [0x23688, hasm, util/lzss]
+      - [0x23754, c, system/system]
+      - [0x25E9C, c, system/controller]
+      - [0x26644, c, system/controller2]
+      - [0x274D8, c, system/font]
+      - [0x28078, asm]
+      - [0x281D8, c, system/asset_loader]
+      - [0x28388, c, system/sound]
+      - [0x2FF38, asm]
+      - [0x300E8, c, psyq/libc]
+      - [0x30C54, hasm, psyq/libapi/FlushCache]
+      - [0x30C64, hasm, psyq/libapi/_bu_init]
+      - [0x30C74, hasm, psyq/libapi/OpenEvent]
+      - [0x30C84, hasm, psyq/libapi/CloseEvent]
+      - [0x30C94, hasm, psyq/libapi/TestEvent]
+      - [0x30CA4, hasm, psyq/libapi/EnableEvent]
+      - [0x30CB4, hasm, psyq/libapi/DisableEvent]
+      - [0x30CC4, hasm, psyq/libapi/UnDeliverEvent]
+      - [0x30CD4, hasm, psyq/libapi/EnterCriticalSection]
+      - [0x30CE4, hasm, psyq/libapi/ExitCriticalSection]
+      - [0x30CF4, asm] #SwEnterCriticalSection/SwExitCriticalSection
+      - [0x30D34, hasm, psyq/libapi/open]
+      - [0x30D44, hasm, psyq/libapi/read]
+      - [0x30D54, hasm, psyq/libapi/write]
+      - [0x30D64, hasm, psyq/libapi/close]
+      - [0x30D74, hasm, psyq/libapi/format]
+      - [0x30D84, hasm, psyq/libapi/firstfile]
+      - [0x30D94, hasm, psyq/libapi/nextfile]
+      - [0x30DA4, hasm, psyq/libapi/rename]
+      - [0x30DB4, hasm, psyq/libapi/erase]
+      - [0x30DC4, hasm, psyq/libapi/Krom2RawAdd]
+      - [0x30DD4, c, psyq/libapi]
+      - [0x3137C, asm] # Likely part of libapi
+      - [0x31508, c, psyq/libcd/event]
+      - [0x31618, hasm, psyq/libapi/DeliverEvent]
+      - [0x31628, c, psyq/libcd/sys]
+      - [0x31DB4, c, psyq/libcd/bios]
+      - [0x3358C, c, psyq/libc2/puts]
+      - [0x336F0, c, psyq/libcd/cdread]
+      - [0x33F6C, asm] # Likely part of libgpu
+      - [0x34128, c, psyq/libgpu]
+      - [0x35B7C, asm]
+      - [0x393C4, c, psyq/libgte]
+      - [0x3BCAC, asm] # Part of libetc
+      - [0x3BD4C, c, psyq/libetc/vsync]
+      - [0x3BF30, c, psyq/libapi_3]
+      - [0x3BF40, c, psyq/libetc/intr]
+      - [0x3C650, c, psyq/libapi_2]
+      - [0x3C720, c, psyq/libetc/intr_vsync]
+      - [0x3C848, c, psyq/libetc/intr_dma]
+      - [0x3CAF0, c, psyq/libetc/video_mode]
+      - [0x3CB18, c, psyq/libsn]
+      - [0x3CD30, asm]
+      - [0x3CD48, c, psyq/libspu/SpuInit] # S_I
+      - [0x3CD68, c, psyq/libspu/_SpuInit] # S_INI
+      - [0x3CEDC, c, psyq/libspu/Spu] # SPU
+      - [0x3DA70, c, psyq/libspu/SpuDataCallback] # S_DCB
+      - [0x3DA94, c, psyq/libspu/SpuQuit] # S_Q
+      - [0x3DB10, c, psyq/libspu/SpuInitMalloc] # S_M_INIT
+      - [0x3DB64, c, psyq/libspu/SpuSetNoiseClock] # S_SNC
+      - [0x3DBB4, c, psyq/libspu/SpuSetReverb] # S_SR
+      - [0x3DC84, c, psyq/libspu/_SpuIsInAllocateArea] # S_M_UTIL
+      - [0x3DD90, c, psyq/libspu/SpuReadDecodedData] # S_RDD
+      - [0x3DE00, c, psyq/libspu/SpuSetIRQ] # S_SI
+      - [0x3DF40, c, psyq/libspu/SpuSetIRQCallback] # S_SIC
+      - [0x3DF84, c, psyq/libspu/_SpuCallback] # S_CB
+      - [0x3DFA8, c, psyq/libspu/SpuGetVoiceEnvelopeAttr] # S_GVEA
+      - [0x3E018, c, psyq/libspu/SpuRead] # S_R
+      - [0x3E078, c, psyq/libspu/SpuWrite] # S_W
+      - [0x3E0D8, c, psyq/libspu/SpuSetTransferStartAddr] # S_STSA
+      - [0x3E130, c, psyq/libspu/SpuSetTransferMode] # S_STM
+      - [0x3E164, c, psyq/libspu/SpuSetTransferCallback] # S_STC
+      - [0x3E188, c, psyq/libspu/SpuSetCommonAttr] # S_SCA
+      - [0x3E51C, c, psyq/libspu/SpuSetReverbModeType] # S_SRMT
+      - [0x3E6F8, c, psyq/libspu/_spu_setReverbAttr] # S_SRA
+      - [0x3EBC8, c, psyq/libspu/SpuClearReverbWorkArea] # S_CRWA
+      - [0x3ED64, c, psyq/libapi/WaitEvent] # WaitEvent
+      - [0x3ED74, c, psyq/libspu/SpuSetReverbModeDepth] # S_SRMD
+      - [0x3EDA0, c, psyq/libspu/SpuSetReverbModeDelayTime] # S_SRMDT
+      - [0x3EEB8, c, psyq/libspu/SpuSetReverbModeFeedback] # S_SRMFB
+      - [0x3EF74, c, psyq/libspu/SpuGetReverbModeType] # S_GRMT
+      - [0x3EF84, c, psyq/libcard]
+      - [0x3F080, asm] # Likely part of libcard
+      - [0x3F290, sdata]
+      #- [0x480A4, .sdata, psyq/libetc]
+      #- [0x49140, sdata]
+      - [0x49A48, .sdata, system/memory]
+      - [0x49AB8, .sdata, system/heap_debug]
+      - [0x49ABC, data]
+      - { vram: 0x800592C0, type: sbss }
+      - { vram: 0x80059318, type: scommon, name: system/memory }
+      - { vram: 0x80059348, type: scommon, name: system/heap_debug }
+      - { vram: 0x80059350, type: bss }
+  - [0x49AC0, rodatabin]
+  - [0x4A000]

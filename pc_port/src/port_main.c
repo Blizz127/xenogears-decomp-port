@@ -1230,6 +1230,8 @@ int main(int argc, char** argv) {
            g_XenoRetailFiles[XENO_RD_SLUS].state > 0 ? g_XenoRetailFiles[XENO_RD_SLUS].path
                                                     : "not loaded");
 
+    { extern void PcPort_DevMenuInit(void); PcPort_DevMenuInit(); }
+
     /* 1. PSX main-RAM emulation must come first (PSX_ADDR targets live here). */
     PsxMemory_Init();
     /* W34C2: main-exe rodata/sdata into guest RAM (PSX_ADDR consumers). */

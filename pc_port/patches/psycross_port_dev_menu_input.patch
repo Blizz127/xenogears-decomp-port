@@ -1,0 +1,39 @@
+diff --git a/src/pad/PsyX_pad.cpp b/src/pad/PsyX_pad.cpp
+--- a/src/pad/PsyX_pad.cpp
++++ b/src/pad/PsyX_pad.cpp
+@@ -6,6 +6,8 @@
+ #include "PsyX/PsyX_public.h"
+ 
+ #include <string.h>
++/* _xeno_dev_menu_input: optional host menu, absent in standalone SDK tests. */
++extern "C" int PcPort_DevMenuFilterPad(unsigned held) __attribute__((weak));
+ #include <stdlib.h> /* _xeno_pad_stdlib */
+ 
+ extern "C"
+@@ -200,6 +202,7 @@
+ 	PsyXController* controller;
+ 	LPPADRAW pad;
+ 	u_short kbInputs;
++	int devMenuBlock = 0;
+ 
+ 	if (g_padCommEnable == 0)
+ 		return;
+@@ -216,6 +219,18 @@
+ 
+ 			PsyX_Pad_UpdateGameControllerInput(controller->gc, pad);
+ 
++			/* Keep menu navigation and the closing press out of retail pads. */
++			if (i == 0) {
++				unsigned held = (unsigned)(u_short)~(*(u_short*)pad->buttons & kbInputs);
++				if (abs((int)pad->analog[2] - 128) > 40 || abs((int)pad->analog[3] - 128) > 40) held |= 0x10000;
++				devMenuBlock = PcPort_DevMenuFilterPad ? PcPort_DevMenuFilterPad(held) : 0;
++			}
++			if (devMenuBlock) {
++				*(u_short*)pad->buttons = 0xffff;
++				memset(pad->analog, 128, sizeof pad->analog);
++				continue;
++			}
++
+ 			ushort test = *(u_short*)pad->buttons;
+ 
+ 			// In order to switch From/To analog user has to use left gamepad stick

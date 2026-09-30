@@ -234,6 +234,15 @@ XENO_RD_WEAK int XenoRetailData_Optional(void)
     return v != NULL && v[0] == '1';
 }
 
+/* Shown to a user who launched without a terminal (a launcher or gamescope)
+ * before the port exits; disc_check.c overrides it with an SDL message box.
+ * Tests and data-only links keep this silent default. */
+XENO_RD_WEAK void XenoRetailData_Notice(const char* title, const char* text)
+{
+    (void)title;
+    (void)text;
+}
+
 XENO_RD_WEAK void XenoRetailData_Fail(const char* what, int file, const char* detail)
 {
     const XenoRetailFileInfo* fi = XenoRetailData_FileInfo(file);
@@ -255,6 +264,18 @@ XENO_RD_WEAK void XenoRetailData_Fail(const char* what, int file, const char* de
         return;
     }
     fprintf(stderr, "[xeno-port] (XENO_RETAIL_DATA_OPTIONAL=1 skips this check for development)\n\n");
+    {
+        char text[1024];
+        snprintf(text, sizeof text,
+                 "%s: %s\n%s\n\n"
+                 "The port contains no game data. It reads it from your own copy of "
+                 "Xenogears (USA, SLUS-00664): put the files extracted from your disc "
+                 "(README-TEST.txt lists them) in one folder and pass that folder to "
+                 "xenogears.sh.\n\nExpected %s: %zu bytes, sha256 %s",
+                 what, fi ? fi->name : "?", detail, fi ? fi->name : "?",
+                 fi ? fi->size : (size_t)0, fi ? fi->sha256 : "?");
+        XenoRetailData_Notice("Xenogears: game files missing", text);
+    }
     exit(78); /* EX_CONFIG */
 }
 

@@ -1,0 +1,11 @@
+# Optional: `pip install pre-commit && pre-commit install` runs the port
+# policy guards (no retail bytes, no Psy-Q code in pc_port) before each commit.
+repos:
+  - repo: local
+    hooks:
+      - id: port-guards
+        name: port guards (retail data / Psy-Q)
+        entry: tools/analysis/pre-commit-port-guards
+        language: script
+        pass_filenames: false
+        always_run: true

@@ -1,0 +1,1067 @@
+start = 0x80019524;
+ClearMemory = 0x80019560;
+ChangeGameState = 0x8001996C;
+LoadGameStateOverlay = 0x800199CC;
+MainLoop = 0x80019ACC;
+HeapResetUser = 0x80019C7C;
+GameCheckAndHandleSoftReset = 0x80019CA0;
+GameSoftReset = 0x80019CD0;
+GameShowSplashScreen = 0x80019D48;
+GameHandleError = 0x80019EF8;
+printf = 0x80019964;
+
+// Kernel
+KernelMenuInitializeCursor = 0x8001A1E4;
+KernelMenuInitialize = 0x8001A250;
+KernelMenuUpdate = 0x8001A344;
+KernelMenuMain = 0x8001A4B4;
+
+//
+GamePartySignalReinitialize = 0x8001AC94;
+GameCharacterGetGearID = 0x8001ACF0;
+GameWaitForCdData = 0x8001AD1C;
+GamePartyCharactersInitializeSkins = 0x8001AD4C;
+GamePartyGearsInitializeSkins = 0x8001AEB8;
+GamePartySyncSkinData = 0x8001B044;
+GamePartyStreamLoadSkinData = 0x8001B158;
+GamePartySyncStreamedData = 0x8001B3A8;
+
+// Menu
+MenuInitializeGfxEnvironment = 0x8001BDDC;
+MenuInitializeGfxEnvironments = 0x8001BE14;
+func_8001BEEC = 0x8001BEEC;
+MenuProcessControllerInput = 0x8001BF38;
+MenuExecute = 0x8001C1A8;
+// MenuExecute's switch tables (0x800183A4, 0x18 + 0x800183BC, 0x1C) are owned
+// by system/menu.c via the `.rodata, system/menu` split in slus_006.64.yaml:
+// GCC's emitted tables are byte-identical to retail (5 entries + pad, 7 entries).
+MenuMain = 0x8001C634;
+
+// Each table's owning function is now
+// decompiled to C as an if/else-chain (opcode/dispatch-index bounds checks)
+// instead of a GCC switch, so the original hand-data case-target labels are
+// dead; declare them as plain u32 data so gears emits literal word values.
+// jtbl_800183D8 (0x1D0) + jtbl_800185A8 (0x9C): func_8001FBE4
+//   (animation_scripts.c) -- stub decompile, real dispatch not yet migrated
+//   (dispatchIndex bounds check 0x73 matches a ~115-entry table).
+// jtbl_800186E0 (0x1EC): func_800248D4 (temp1.c) -- opcode dispatch rewritten
+//   as if/else chains (`if (opcode < 0x10)`, etc.), tail case still asserts.
+jtbl_800183D8 = 0x800183D8; // type:u32 size:0x1D0
+jtbl_800185A8 = 0x800185A8; // type:u32 size:0x9C
+jtbl_800186E0 = 0x800186E0; // type:u32 size:0x1EC
+// jtbl_80018A7C (0x40, in data/927C.rodata.s -- a different rodata object,
+// grouped here with its sibling fixes for readability): func_80033DF0
+// (system.c) -- the script-byte dispatch loop rewritten as if/else-if chains
+// on code/subcode values instead of a GCC switch.
+jtbl_80018A7C = 0x80018A7C; // type:u32 size:0x40
+jtbl_80018E9C = 0x80018E9C; // type:u32 size:0x14
+// Work List
+WorkListsFreeAllEntries = 0x8001C8DC;
+WorkListsReset = 0x8001C944;
+TimerWorkListUpdate = 0x8001C964;
+WorkListUpdate = 0x8001C9F8;
+WorkListAddTask = 0x8001CA58;
+WorkListAllocateTask = 0x8001CAF0;
+WorkListRemoveTask = 0x8001CB48;
+WorkListDeleteTask = 0x8001CBE8;
+TimerWorkListAddTask = 0x8001CC18;
+TimerWorkListAllocateTask = 0x8001CD08;
+WorkListSetTaskCallback = 0x8001CD64;
+TimerWorkListSetTaskCallback = 0x8001CD6C;
+WorkListTaskSetOnFreeCallback = 0x8001CD74;
+WorkListTaskGetTaskCallback = 0x8001CD7C;
+WorkListTaskGetOnFreeCallback = 0x8001CD88;
+TimerWorkListRemoveTask = 0x8001CD94;
+TimerWorkListDeleteTask = 0x8001CE44;
+
+WorkListsDeleteTasks = 0x8001D19C;
+WorkListsAddTasks = 0x8001D1D8;
+
+// Rendering / Graphics
+GraphicsDrawPauseLetters = 0x8001FAB4;
+
+// Animation Stuff
+SpriteSetColor = 0x80021B98;
+SpriteSetSpecialAnimFile = 0x80021BF0;
+AnimScriptStackPopU8 = 0x80021C20;
+AnimScriptStackPopU16 = 0x80021C3C;
+AnimScriptStackPopU24 = 0x80021C6C;
+AnimScriptStackPushU8 = 0x80021CA0;
+AnimScriptStackPushU16 = 0x80021CC4;
+AnimScriptStackPushU24 = 0x80021CF8;
+
+SpriteSetScale = 0x80022000;
+SpriteComputeTransformMatrix = 0x80022090;
+
+GfxLoadImageAccelerated = 0x80022A0C;
+GfxLoadClutsAccelerated = 0x80022A70;
+
+// Animation task callbacks registered by retail 800233A4 / 80024730.
+func_80022DF4 = 0x80022DF4;
+func_80022E8C = 0x80022E8C;
+func_80022EB8 = 0x80022EB8;
+
+AnimScriptTick = 0x80023210;
+
+GfxAllocateWorkBuffers = 0x80024F64;
+GfxFreeWorkBuffers = 0x80024FB8;
+GfxSetCurrentOT = 0x80024FE4;
+
+GfxLineScrollInitialize = 0x80027D64;
+GfxLineScrollUpdate = 0x80027EAC;
+GfxLineScrollFree = 0x8002800C;
+
+// Archive / Filesystem
+ArchiveInit = 0x80028230;
+ArchiveReset = 0x800283D4;
+ArchiveSetIndex = 0x80028470;
+ArchiveGetArchiveOffsetIndices = 0x800284B4;
+ArchiveGetDiscNumber = 0x80028530;
+ArchiveReadHddFile = 0x80028570;
+ArchiveGetCurFileSize = 0x800286BC;
+ArchiveDataSync = 0x800286CC;
+ArchiveDecodeSize = 0x80028738;
+ArchiveDecodeSizeAligned = 0x80028808;
+ArchiveDecodeAlignedSize = 0x800288EC;
+ArchiveDecodeSizeAbsolute = 0x80028928;
+ArchiveGetFilePath = 0x80028998;
+ArchiveDecodeSector = 0x800289D0;
+ArchiveCdDataSync = 0x80028A60;
+ArchiveChangeStreamingFile = 0x80028A94;
+ArchiveClearStreamFileSections = 0x80028AAC;
+ArchiveConsolidateStreamFileEntry = 0x80028ECC;
+ArchiveReadFileFromCdSector = 0x8002954C;
+ArchiveReadFileToBuffer = 0x800295D8;
+ArchiveReadFile = 0x80029690;
+ArchiveAllocStreamFile = 0x8002A260;
+ArchiveCdSeekToFile = 0x8002A394;
+ArchiveCdSetMode = 0x8002A428;
+ArchiveStreamFreeQueueData = 0x8002A524;
+ArchiveCdDriveCommandHandler = 0x8002A68C;
+
+// Heap / Dynamic Memory
+HeapGetNextBlockHeader = 0x80031894;
+HeapGetBlockUser = 0x800318A8;
+HeapGetBlockSourceAddress = 0x800318BC;
+HeapIsBlockPinned = 0x800318DC;
+HeapLoadSymbols = 0x800318F8;
+HeapReset = 0x80031A30;
+HeapInit = 0x80031A68;
+HeapRelocate = 0x80031B10;
+HeapGetCurrentUser = 0x80031B9C;
+HeapSetCurrentUser = 0x80031BA8;
+HeapToggleErrorHandler = 0x80031BB4;
+HeapGetAllocInformation = 0x80031bc4;
+HeapAlloc = 0x80031BDC;
+HeapInsertAlloc = 0x80031F70;
+HeapConsolidate = 0x80031FF8;
+HeapPinBlock = 0x800320A4;
+HeapUnpinBlock = 0x800320B8;
+HeapUnpinBlockCopy = 0x800320D0;
+HeapFree = 0x800320e8;
+HeapFreeBlocksWithFlag = 0x8003218C;
+HeapFreeAllBlocks = 0x8003223C;
+HeapForceFreeAllBlocks = 0x800322B4;
+HeapGetTotalFreeSize = 0x80032340;
+HeapWalkUntilEnd = 0x800323B4;
+HeapGetLargestFreeBlockSize = 0x80032404;
+HeapChangeCurrentUser = 0x80032498;
+HeapSetCurrentContentType = 0x800324B8;
+HeapGetSymbolNameFromAddress = 0x800324C4;
+HeapDebugDumpBlock = 0x80032584;
+HeapDebugDump = 0x8003278C;
+HeapAllocSound = 0x80032B0C;
+HeapCalloc = 0x80032B64;
+HeapForceFree = 0x80032BAC;
+HeapPrintf = 0x80032BDC;
+HeapDelayedFree = 0x80032C18;
+HeapTickDelayedFree = 0x80032CB8;
+HeapFreeAllDelayedBlocks = 0x80032D60;
+HeapWriteToDebugFile = 0x80032DCC;
+HeapDumpToFile = 0x80032E04;
+HeapDerefPtr = 0x80032E7C;
+
+// Utility
+LZSSHeapDecompress = 0x80032e88;
+LZSSDecompress = 0x80032eb4;
+
+ResolveArchiveEntryPointers = 0x8003342C;
+ResolveFileEntryPointers = 0x80033474;
+
+GetSystemFontFile = 0x800334B8;
+GetSystemDataFile = 0x800334C8;
+SystemFreeFont = 0x800334D8;
+SystemFreeData = 0x80033518;
+SystemInitializeFont = 0x80033558;
+SystemInitializeData = 0x800335F4;
+SystemInitialize = 0x80033668;
+SystemTransferPaletteToVRAM = 0x80033698;
+
+GetStringEntry = 0x80033728;
+
+DialogGetWidth = 0x8003373C;
+DialogGetHeight = 0x80033760;
+
+GetAccessoryName = 0x800337E8;
+GetItemName = 0x80033818;
+GetWeaponName = 0x80033848;
+
+SystemRenderStringEntry = 0x80034EAC;
+
+// Controllers
+ControllerGetButtonState = 0x8003569C;
+ControllerGetType = 0x80035734;
+ControllerRemapButtonState = 0x800357C0;
+ControllerRemapAnalogJoystickState = 0x8003582C;
+ControllerStickToAnalogX = 0x80035884;
+ControllerStickToAnalogY = 0x800358A0;
+ControllerPoll = 0x800358BC;
+ControllerPushState = 0x80035C0C;
+ControllerPopState = 0x80035CDC;
+ControllerGetNumStates = 0x80035DA0;
+ControllerResetState = 0x80035DB0;
+ControllerInit = 0x80036288;
+ControllerDebugPrint = 0x800365FC;
+
+// Font / Text
+FontSetFlag = 0x80036CD8;
+FontRemoveFlag = 0x80036CF8;
+FontGetFlags = 0x80036D18;
+FontSetLetterFlag = 0x80036D30;
+FontRemoveLetterFlag = 0x80036D50;
+FontGetLetterFlags = 0x80036D70;
+FontSetLetterWidth = 0x80036D88;
+FontSetRowHeight = 0x80036D98;
+FontSetCurLetterX = 0x80036DA8;
+FontSetCurLetterY = 0x80036DB8;
+FontSetColor = 0x80036DC8;
+FontLoadClut = 0x80036E4C;
+FontGetDefaultLetterWidth = 0x80036F44;
+FontGetDefaultLetterHeight = 0x80036F5C;
+FontGetCurLetterX = 0x80036F74;
+FontGetCurLetterY = 0x80036F8C;
+FontGetCurLetterCount = 0x80036FA4;
+FontStoreCurrentPositions = 0x80036FBC;
+FontRestoreCurrentPositions = 0x80036FE4;
+FontPrintf = 0x8003700C;
+FontSetPositionsByOffset = 0x80037058;
+FontAddLetterPrimitive = 0x800370DC;
+FontResetLetterRendering = 0x800372CC;
+FontDrawLetters = 0x80037324;
+FontFree = 0x8003748C;
+FontLoadFont = 0x800374E8;
+
+// Sound
+SoundInitialize = 0x80037B88;
+SoundReset = 0x80037DC0;
+SoundEnableAllSpuChannels = 0x80037E8C;
+SoundMuteAllSpuChannels = 0x80037EE4;
+SoundLoadWdsFile = 0x80037FD8;
+SoundSpuMemoryAllocateWDS = 0x800381F4;
+SoundWdsSetTransferParamters = 0x80038264;
+SoundTransferWdsPart = 0x8003827C;
+SoundFreeWdsEntry = 0x80038310;
+SoundFindWdsEntry = 0x800383EC;
+SoundAddSedsEntry = 0x80038428;
+SoundSetupCdMix = 0x8003885C;
+SoundSetReverbModeWithAllocation = 0x80038934;
+SoundInitiateReverbWorkAreaTransfer = 0x80038AD4;
+SoundExecuteReverbWorkAreaTransfer = 0x80038B4C;
+SoundSetMasterVolumeWithFade = 0x80038C68;
+SoundSetCdVolumeWithFade = 0x80038D18;
+SoundSetCdAttr = 0x80038DB4;
+SoundApplyVolumeSettings = 0x80038DF4;
+SoundSetVolumeWithPhase = 0x80038E6C;
+SoundHeapInitialize = 0x80038EC0;
+SoundHeapAllocate = 0x80038F18;
+SoundHeapFree = 0x80039144;
+SoundHeapSetBlockMemory = 0x80039248;
+SoundHeapClearBlockMemory = 0x800392EC;
+SoundSpuMemoryInitialize = 0x80039360;
+SoundSpuMemoryAllocateBlock = 0x800393B8;
+SoundSpuMemoryAllocateBlockAtAddress = 0x800395B8;
+SoundSpuMemoryFreeBlock = 0x800396E0;
+SoundSpuMemoryGetFreeBlock = 0x80039784;
+SoundSpuMemoryFindBlock = 0x800397C0;
+SoundAbortAllVoices = 0x8003AFFC;
+SoundReleaseAllVoices = 0x8003B060;
+SoundInitializeAudioManager = 0x8003B370;
+SoundCopyAudioManagerData = 0x8003B97C;
+SoundAddAudioManagerToList = 0x8003B9E4;
+SoundRemoveAudioManagerFromList = 0x8003BA38;
+SoundCalculateAudioManagerSize = 0x8003BB40;
+SoundOnTransferCallback = 0x8003BB64;
+SoundQueueSpuWriteCommand = 0x8003BC10;
+SoundQueueSpuReadCommand = 0x8003BC34;
+SoundQueueTransferCommand = 0x8003BCA0;
+SoundTransferQueueSync = 0x8003BDBC;
+SoundProcessTransferCommand = 0x8003BE68;
+SoundSpuIRQHandler = 0x8003BFA0;
+SoundSetSpuIrqCallback = 0x8003C010;
+SoundTickInterpolator = 0x8003C484;
+SoundScriptSetVoiceFlags4000ClearMode = 0x8003D59C;
+SoundScriptSkip3 = 0x8003D5BC;
+SoundScriptNop = 0x8003D5C4;
+SoundScriptNop2 = 0x8003D5CC;
+SoundScriptCallE5BC = 0x8003D5D4;
+SoundScriptSetAttackTime = 0x8003D640;
+SoundScriptSetDecayTime = 0x8003D65C;
+SoundScriptSetSustain = 0x8003D678;
+SoundScriptSetRelease = 0x8003D694;
+SoundScriptSetSustainLevel = 0x8003D6B4;
+SoundScriptSetAdsrDRAndSR = 0x8003D6D0;
+SoundScriptSetAttackMode = 0x8003D6F8;
+SoundScriptSetSustainMode = 0x8003D714;
+SoundScriptSetReleaseMode = 0x8003D730;
+SoundScriptSetUnk6E = 0x8003D74C;
+SoundScriptAddUnk6E = 0x8003D770;
+SoundClearVoiceDataPointers = 0x8003E700;
+unk_SoundSetFlagsOnActiveVoices = 0x8003E680;
+SoundSetFlagsOnActiveVoices = 0x8003E6C0;
+SoundAssignVoiceToChannelAndStop = 0x8003E724;
+SoundAssignVoiceToChannel = 0x8003E7E0;
+SoundReleaseVoiceFromChannel = 0x8003E83C;
+SoundAbortVoiceOnChannel = 0x8003E8A4;
+SoundAssignVoiceToChannelAndPlay = 0x8003EF04;
+SoundStopVoiceOnChannel = 0x8003EFA0;
+SoundSetVoiceKeyOn = 0x8003F468;
+SoundSetVoiceKeyOff = 0x8003F484;
+SoundSetReverbVoices = 0x8003F4A0;
+SoundUnkDebugNoReturn_8003F4BC = 0x8003F4BC;
+SoundSetVoiceStartAddress = 0x8003F4C4;
+SoundSetVoiceLoopAddress = 0x8003F4E0;
+SoundSetVoiceVolume = 0x8003F4FC;
+SoundSetVoicePitch = 0x8003F518;
+SoundSetVoiceAdsrAttackModeAndRate = 0x8003F530;
+SoundSetVoiceAdsrDecayShift = 0x8003F560;
+SoundSetVoiceAdsrSustainRateAndDirection = 0x8003F588;
+SoundSetVoiceAdsrReleaseShiftAndMode = 0x8003F5BC;
+SoundSetVoiceAdsrSustainLevel = 0x8003F5EC;
+SoundValidateFile = 0x8003F614;
+SoundUnkDebug0 = 0x8003F67C;
+SoundFileComputeChecksum = 0x8003F684;
+SoundHandleError = 0x8003F6B0;
+SoundScriptDefaultHandler = 0x8003CD00;
+SoundScriptFermata = 0x8003CD30;
+SoundScriptNop3 = 0x8003CD4C;
+SoundScriptDefaultSkip3 = 0x8003CD7C;
+SoundScriptNop4 = 0x8003CD84;
+SoundScriptSaveOctaveAndIP = 0x8003CE04;
+SoundScriptSetOctave = 0x8003CE18;
+SoundScriptRaiseOctave = 0x8003CE38;
+SoundScriptLowerOctave = 0x8003CE50;
+SoundScriptSetManagerUnk1a = 0x8003CEC0;
+SoundScriptAddManagerUnk1a = 0x8003CED4;
+SoundScriptSetUnk62 = 0x8003D208;
+SoundScriptPercussionOff = 0x8003D328;
+SoundScriptSetActiveFlag800 = 0x8003D340;
+SoundScriptClearActiveFlag800 = 0x8003D358;
+SoundScriptSetVoiceFlags2000AndMode = 0x8003D4A4;
+SoundScriptSetVoiceFlags2000ClearMode = 0x8003D4C4;
+SoundScriptToggleUnk04Bit2 = 0x8003D854;
+SoundScriptClearUnk04Bit1 = 0x8003D86C;
+SoundScriptSetUnkCEAndF6 = 0x8003DAEC;
+SoundScriptClearUnkCEAndF6 = 0x8003DB0C;
+SoundScriptSetUnkCEAndUnk116 = 0x8003DE54;
+SoundScriptClearUnkCEAndUnk116 = 0x8003DE74;
+SoundScriptSetUnk74 = 0x8003DE94;
+SoundScriptSetUnkCEAndUnk136 = 0x8003E140;
+SoundScriptNop5 = 0x8003E358;
+
+RotMatrix = 0x8003F738;
+
+rcos = 0x8003F8B0;
+rsin = 0x8003F8CC;
+
+
+// PSY-Q Standard Library
+bzero = 0x8003F8E8;
+memchr = 0x8003F918;
+memcpy = 0x8003F968;
+memmove = 0x8003F99C;
+memset = 0x8003FA08;
+rand = 0x8003FA38;
+srand = 0x8003FA68;
+strcat = 0x8003FA78;
+strcmp = 0x8003FB20;
+strcpy = 0x8003FB84;
+strlen = 0x8003FBC8;
+Sprintf = 0x8003FBF8;
+
+// PSY-Q Kernel / libapi
+FlushCache = 0x80040454;
+_bu_init = 0x80040464;
+OpenEvent = 0x80040474;
+CloseEvent = 0x80040484;
+TestEvent = 0x80040494;
+EnableEvent = 0x800404A4;
+DisableEvent = 0x800404B4;
+UnDeliverEvent = 0x800404C4;
+EnterCriticalSection = 0x800404D4;
+ExitCriticalSection = 0x800404E4;
+SwEnterCriticalSection = 0x800404F4;
+SwExitCriticalSection = 0x80040514;
+open = 0x80040534;
+read = 0x80040544;
+write = 0x80040554;
+close = 0x80040564;
+format = 0x80040574;
+firstfile = 0x80040584; // type:func (retail .text function -- the port generator must not emit a data stub)
+nextfile = 0x80040594; // type:func (retail .text function -- the port generator must not emit a data stub)
+rename = 0x800405A4;
+erase = 0x800405B4;
+Krom2RawAdd = 0x800405C4;
+ChangeClearPAD = 0x800405D4;
+SetRCnt = 0x800405F4;
+GetRCnt = 0x80040690;
+StartRCnt = 0x800406C8;
+StopRCnt = 0x800406FC;
+ResetRCnt = 0x80040734;
+// ...
+InitPAD = 0x80040828;
+StartPAD = 0x800408C4;
+InitPAD2 = 0x80040A8C;
+StartPAD2 = 0x80040A9C;
+StopPAD2 = 0x80040AAC;
+func_80040ABC = 0x80040ABC;
+SysEnqIntRP = 0x80040ACC;
+SysDeqIntRP = 0x80040ADC;
+EnablePAD = 0x80040AEC;
+func_80040B00 = 0x80040B00;
+_patch_pad = 0x80040B14;
+
+// PSY-Q CD
+CD_str0 = 0x80018E28;
+CD_str1 = 0x80018E38;
+CD_str2 = 0x80018EC4;
+CD_str3 = 0x80018ECC;
+CD_str4 = 0x80018EDC;
+CdInit = 0x80040D08;
+def_cbsync = 0x80040DA0;
+def_cbready = 0x80040DC8;
+def_cbread = 0x80040DF0;
+DeliverEvent = 0x80040E18;
+CdStatus = 0x80040E28;
+CdMode = 0x80040E38;
+CdLastCom = 0x80040E48;
+CdLastPos = 0x80040E58;
+CdReset = 0x80040E68;
+CdFlush = 0x80040ED4;
+CdSetDebug = 0x80040EF4;
+CdComstr = 0x80040F0C;
+CdIntstr = 0x80040F40;
+CdSync = 0x80040F74;
+CdReady = 0x80040F94;
+CdSyncCallback = 0x80040FB4;
+CdReadyCallback = 0x80040FCC;
+CdControl = 0x80040FE4;
+CdControlF = 0x8004111C;
+CdControlB = 0x80041248;
+CdMix = 0x8004138C;
+CdGetSector = 0x800413AC;
+CdGetSector2 = 0x800413CC;
+CdDataCallback = 0x800413EC;
+CdDataSync = 0x80041410;
+CdIntToPos = 0x80041430;
+CdPosToInt = 0x80041534;
+getintr = 0x800415B4;
+CD_sync = 0x80041B3C;
+CD_ready = 0x80041DBC;
+CD_cw = 0x80042088;
+CD_vol = 0x800424A4;
+CD_flush = 0x8004252C;
+CD_initvol = 0x8004260C;
+CD_initintr = 0x80042700;
+CD_init = 0x80042750;
+CD_datasync = 0x8004293C;
+CD_getsector = 0x80042AA8;
+CD_getsector2 = 0x80042BA8;
+//...
+CD_set_test_parmnum = 0x80042C98;
+callback = 0x80042CA8;
+toupper = 0x80042E90;
+tolower = 0x80042EC0;
+cb_read = 0x80042EF0;
+cb_data = 0x800431C0;
+cd_read_retry = 0x800432BC;
+CdReadBreak = 0x800434D0;
+CdRead = 0x8004356C;
+CdReadSync = 0x80043670;
+CdReadCallback = 0x8004373C;
+CdReadMode = 0x80043754;
+setloc = 0x80056420; // size:0x80
+CD_cbsync = 0x800564A8;
+CD_debug = 0x800564B4;
+CD_status = 0x800564B8;
+CD_status1 = 0x800564BC;
+CD_cbready = 0x800564AC;
+CD_nopen = 0x800564C0;
+CD_pos = 0x800564C4; // type:CdlLOC size:0x4
+CD_mode = 0x800564C8;
+CD_com = 0x800564C9;
+CD_comstr = 0x800564D0; // size:0x80
+CD_intstr = 0x80056550; // size:0x20
+ComAttr = 0x800565F0; // size:0x180
+reg0 = 0x80056770;
+reg1 = 0x80056774;
+reg2 = 0x80056778;
+reg3 = 0x8005677C;
+com_delay = 0x80056780;
+_spu = 0x80056784;
+Intr = 0x80056788; // size:0x3
+cdrom_delay = 0x800567A4;
+d_pcr = 0x800567A8;
+d3_madr = 0x800567AC;
+d3_bcr = 0x800567B0;
+d3_chcr = 0x800567B4;
+CD_cbread = 0x80056844;
+ReadAttr = 0x80056848; // size:0x3C
+Result = 0x8005A210; // size:0x18
+Alarm = 0x8005A228; // size:0xC
+
+// PSY-Q Std library?
+puts = 0x80042D8C;
+putchar = 0x80042DDC;
+
+// PSY-Q Graphics (libgpu)
+SetDefDrawEnv = 0x80043928;
+SetDefDispEnv = 0x800439E0;
+GetTPage = 0x80043A1C;
+GetClut = 0x80043A58;
+DumpTPage = 0x80043A70;
+DumpClut = 0x80043AD0;
+NextPrim = 0x80043B10;
+IsEndPrim = 0x80043B2C;
+AddPrim = 0x80043B48;
+AddPrims = 0x80043B84;
+CatPrim = 0x80043BC0;
+TermPrim = 0x80043BE4;
+SetSemiTrans = 0x80043BFC;
+SetShadeTex = 0x80043C24;
+SetPolyF3 = 0x80043C4C;
+SetPolyFT3 = 0x80043C60;
+SetPolyG3 = 0x80043C74;
+SetPolyGT3 = 0x80043C88;
+SetPolyF4 = 0x80043C9C;
+SetPolyFT4 = 0x80043CB0;
+SetPolyG4 = 0x80043CC4;
+SetPolyGT4 = 0x80043CD8;
+SetSprt8 = 0x80043CEC;
+SetSprt16 = 0x80043D00;
+SetSprt = 0x80043D14;
+SetTile1 = 0x80043D28;
+SetTile8 = 0x80043D3C;
+SetTile16 = 0x80043D50;
+SetTile = 0x80043D64;
+SetLineF2 = 0x80043D78;
+SetLineG2 = 0x80043D8C;
+SetLineF3 = 0x80043DA0;
+SetLineG3 = 0x80043DC0;
+SetLineF4 = 0x80043DE0;
+SetLineG4 = 0x80043E00;
+SetDrawTPage = 0x80043E20;
+SetDrawMove = 0x80043E4C;
+DumpDrawEnv = 0x80043F50;
+DumpDispEnv = 0x80044064;
+ResetGraph = 0x80044110;
+SetGraphReverse = 0x80044294;
+SetGraphDebug = 0x800443A8;
+GetGraphDebug = 0x800444C8;
+DrawSyncCallback = 0x800444D8;
+SetDispMask = 0x80044534;
+DrawSync = 0x800445D0;
+ClearImage = 0x80044764;
+ClearImage2 = 0x800447F8;
+LoadImage = 0x80044894;
+StoreImage = 0x800448F8;
+MoveImage = 0x8004495C;
+ClearOTag = 0x80044A20;
+ClearOTagR = 0x80044AD8;
+DrawPrim = 0x80044B70;
+DrawOTag = 0x80044BD0;
+PutDrawEnv = 0x80044C44;
+DrawOTagEnv = 0x80044D48;
+GetDrawEnv = 0x80044E64;
+PutDispEnv = 0x80044E9C;
+GetDispEnv = 0x80045344;
+
+SetDrawMode = 0x800454DC;
+
+OpenTIM = 0x800471B4;
+ReadTIM = 0x800471C4;
+
+// PSY-Q Libgte
+InitGeom = 0x80048BC4;
+SquareRoot0 = 0x80048C4C;
+InvSquareRoot = 0x80048CDC;
+VectorNormalS = 0x80048D68;
+VectorNormal = 0x80048D7C;
+VectorNormalSS = 0x80048DA8;
+LoadAverage12 = 0x80048F7C;
+LoadAverage0 = 0x80048FCC;
+LoadAverageByte = 0x8004912C;
+LoadAverageCol = 0x8004918C;
+MulMatrix0 = 0x8004920C;
+CompMatrix = 0x8004931C;
+ApplyMatrixLV = 0x8004947C;
+ApplyRotMatrix = 0x800495DC;
+PushMatrix = 0x8004960C;
+PopMatrix = 0x800496AC;
+ScaleMatrixL = 0x8004974C;
+SetMulMatrix = 0x8004987C;
+ApplyRotMatrixLV = 0x8004998C;
+MulMatrix = 0x80049ACC;
+MulMatrix2 = 0x80049BDC;
+ApplyMatrix = 0x80049CEC;
+ApplyMatrixSV = 0x80049D3C; // type:func
+TransMatrix = 0x80049D9C;
+ScaleMatrix = 0x80049DCC;
+SetRotMatrix = 0x80049EFC;
+SetLightMatrix = 0x80049F2C;
+SetColorMatrix = 0x80049F5C;
+SetTransMatrix = 0x80049F8C;
+SetVertex0 = 0x80049FAC;
+SetVertex1 = 0x80049FBC;
+SetVertex2 = 0x80049FCC;
+SetVertexTri = 0x80049FDC;
+SetRGBfifo = 0x80049FFC;
+SetIR123 = 0x8004A010;
+SetIR0 = 0x8004A024;
+SetSZfifo3 = 0x8004A030;
+SetSZfifo4 = 0x8004A044;
+SetSXSYfifo = 0x8004A05C;
+SetRii = 0x8004A070;
+SetMAC123 = 0x8004A084;
+SetData32 = 0x8004A098;
+SetDQA = 0x8004A0A4;
+SetDQB = 0x8004A0B0;
+ReadGeomOffset = 0x8004A0BC;
+ReadGeomScreen = 0x8004A0DC;
+SetBackColor = 0x8004A0EC;
+SetFarColor = 0x8004A10C;
+SetGeomOffset = 0x8004A12C;
+SetGeomScreen = 0x8004A14C;
+LocalLight = 0x8004A15C;
+DpqColor = 0x8004A180;
+NormalColor = 0x8004A19C;
+NormalColor3 = 0x8004A1B8;
+NormalColorDpq = 0x8004A1F4;
+NormalColorDpq3 = 0x8004A218;
+NormalLightCol = 0x8004A260;
+NormalColorCol3 = 0x8004A280;
+ColorDpq = 0x8004A2C4;
+ColorCol = 0x8004A2EC;
+AverageSZ3 = 0x8004A310;
+AverageSZ4 = 0x8004A320;
+LightColor = 0x8004A33C;
+DpqColorLight = 0x8004A364;
+DpqColor3 = 0x8004A38C;
+Intpl = 0x8004A3C8;
+Square12 = 0x8004A3EC;
+Square0 = 0x8004A414;
+AverageZ3 = 0x8004A43C;
+AverageZ4 = 0x8004A45C;
+OuterProduct12 = 0x8004A480;
+OuterProduct0 = 0x8004A4D8;
+Lzc = 0x8004A530;
+RotTransSV = 0x8004A54C;
+SquareSS12 = 0x8004A57C;
+SquareSS0 = 0x8004A5B4;
+SquareSL12 = 0x8004A5EC;
+SquareSL0 = 0x8004A61C;
+RotTransPers = 0x8004A64C;
+RotTransPers3 = 0x8004A67C;
+RotTrans = 0x8004A6DC;
+NormalClip = 0x8004A70C;
+RotTransPers4 = 0x8004A73C;
+RotAverage4 = 0x8004A7BC;
+RotAverageNclip4 = 0x8004A83C;
+TransposeMatrix = 0x8004A8EC;
+RotMatrixYXZ = 0x8004A92C;
+RotMatrixZYX = 0x8004ABBC;
+RotMatrixX = 0x8004AE4C;
+RotMatrixY = 0x8004AFEC;
+RotMatrixZ = 0x8004B18C;
+ratan2 = 0x8004B32C;
+
+// PSY-Q Interrupts (libetc)
+Vsync = 0x8004B54C;
+v_wait = 0x8004B694;
+ChangeClearRCnt = 0x8004B730;
+ResetCallback = 0x8004B740;
+InterruptCallback = 0x8004B770;
+DMACallback = 0x8004B7A0;
+StopCallback = 0x8004B834;
+RestartCallback = 0x8004B864;
+CheckCallback = 0x8004B894;
+GetIntrMask = 0x8004B8A4;
+SetIntrMask = 0x8004B8BC;
+startIntr = 0x8004B8D8;
+trapIntr = 0x8004B9B4;
+setIntr = 0x8004BB9C;
+stopIntr = 0x8004BCF0;
+restartIntr = 0x8004BD9C;
+memclrIntr = 0x8004BE24;
+setjmp = 0x8004BE50;
+longjmp = 0x8004BE8C;
+func_8004BEC0 = 0x8004BEC0;
+func_8004BED8 = 0x8004BED8;
+ReturnFromException = 0x8004BEF0;
+ResetEntryInt = 0x8004BF00;
+HookEntryInt = 0x8004BF10;
+startIntrVSync = 0x8004BF20;
+trapIntrVSync = 0x8004BF78;
+setIntrVSync = 0x8004BFF0;
+memclrIntrVSync = 0x8004C01C;
+startIntrDMA = 0x8004C048;
+trapIntrDMA = 0x8004C098;
+setIntrDMA = 0x8004C21C;
+memclrIntrDMA = 0x8004C2C4;
+SetVideoMode = 0x8004C2F0;
+GetVideoMode = 0x8004C308;
+
+// PSY-Q Host / PC Interface (libsn)
+PCopen = 0x8004c318;
+PCclose = 0x8004c338;
+PClseek = 0x8004c348;
+PCcreate = 0x8004c36c;
+PCinit = 0x8004c38c;
+PCread = 0x8004c398;
+PCwrite = 0x8004c470;
+
+// PSY-Q SPU (libspu)
+SpuInit = 0x8004C548;
+_SpuInit = 0x8004C568;
+SpuStart = 0x8004C660;
+_spu_init = 0x8004C6DC;
+_spu_FwriteByIO = 0x8004C970;
+_spu_FiDMA = 0x8004CB3C;
+_spu_Fr_ = 0x8004CBFC;
+_spu_t = 0x8004CCA8;
+_spu_Fw = 0x8004CF38;
+_spu_Fr = 0x8004CFC0;
+_spu_FsetRXX = 0x8004D028;
+_spu_FsetRXXa = 0x8004D070;
+_spu_FgetRXXa = 0x8004D114;
+_spu_FsetPCR = 0x8004D150;
+_spu_FsetDelayW = 0x8004D1B0;
+_spu_FsetDelayR = 0x8004D1DC;
+_spu_Fw1ts = 0x8004D208;
+_SpuDataCallback = 0x8004D270;
+SpuQuit = 0x8004D294;
+SpuInitMalloc = 0x8004D310;
+SpuSetNoiseClock = 0x8004D364;
+SpuSetReverb = 0x8004d3b4;
+_SpuIsInAllocateArea = 0x8004D484;
+_SpuIsInAllocateArea_ = 0x8004D504;
+SpuReadDecodedData = 0x8004D590;
+SpuSetIRQ = 0x8004D600;
+SpuSetIRQCallback = 0x8004D740;
+_SpuCallback = 0x8004D784;
+SpuGetVoiceEnvelopeAttr = 0x8004D7A8;
+SpuRead = 0x8004D818;
+SpuWrite = 0x8004D878;
+SpuSetTransferStartAddr = 0x8004D8D8;
+SpuSetTransferMode = 0x8004D930;
+SpuSetTransferCallback = 0x8004D964;
+SpuSetCommonAttr = 0x8004D988;
+SpuSetReverbModeType = 0x8004DD1C;
+_spu_setReverbAttr = 0x8004DEF8;
+SpuClearReverbWorkArea = 0x8004E3C8;
+WaitEvent = 0x8004E564;
+SpuSetReverbModeDepth = 0x8004E574;
+SpuSetReverbModeDelayTime = 0x8004E5A0;
+SpuSetReverbModeFeedback = 0x8004E6B8;
+SpuGetReverbModeType = 0x8004E774;
+
+// PSY-Q Memory Card
+_card_info = 0x8004E784;
+InitCARD = 0x8004E794;
+StartCARD = 0x8004E7E8;
+StopCARD = 0x8004E820;
+InitCARD2 = 0x8004E850;
+StartCARD2 = 0x8004E860;
+StopCARD2 = 0x8004E870;
+
+// -----------------------------------------------
+
+
+
+g_MainGameStateOverlayBuffer = 0x80018084;
+g_CurGameState = 0x80018088;
+g_MainGameStates = 0x8001808C;
+g_CurGameStateOverlayBuffer = 0x800592bc;
+g_CurGameStateOverlayID =  0x800592C0;
+g_GameStateOverlayArchiveOffsets = 0x8004EAA0;
+
+g_GameSceneMapNum = 0x8004F34C;
+
+g_GameHasLoadedWDS = 0x8004F360;
+g_GameCurLoadedWDS = 0x8006258C;
+
+g_PublishedByLogoCompressed = 0x8004EABC;
+
+g_ArchiveTable = 0x8004FDF0;
+g_ArchiveHeader = 0x8004FDF4;
+g_ArchiveCurFileSize = 0x8004FDF8;
+g_ArchiveCurFileSector = 0x8004FE04;
+g_CurArchiveOffset = 0x8004FE14;
+g_ArchiveCdDriveState = 0x8004FE1C;
+g_ArchiveCdDriveError = 0x8004FE20;
+g_ArchiveCurStreamFile = 0x8004FE30;
+g_ArchiveDebugTable = 0x8004FE48;
+g_ArchiveCdCurLocation = 0x80059F10;
+
+g_GfxPauseLettersCompressed = 0x8004FBD8;
+
+g_pRCounters = 0x80056400;
+g_InterruptStatusMasks = 0x80056404;
+g_pInterruptStatusRegister = 0x800563FC;
+
+
+g_pGPUSTAT = 0x8005783C;
+g_pTMR_HRETRACE_VAL = 0x80057840;
+g_HsyncInterruptCount = 0x80057844;
+g_VsyncPrevInterruptCount = 0x80057848;
+
+g_pI_STAT = 0x80058930;
+g_pI_MASK = 0x80058934;
+g_pDMA_DPCR = 0x80058938;
+
+g_VsyncInterruptCallbacks = 0x80058940;
+g_VsyncInterruptCount = 0x80058960;
+g_VideoMode = 0x80058990;
+g_InterruptEnvironment = 0x800578A4; // type:InterruptEnvironment_t size:0x1068 (ends at g_InterruptControl - sizeless entry made spimdisasm emit D_800578xx for field offsets)
+g_InterruptControl = 0x8005890C;
+g_pInterruptControl = 0x8005892C;
+
+g_pDMA_DICR = 0x80058968;
+g_DmaInterruptCallbacks = 0x8005896C;
+
+// PSY-Q LibC
+g_RandomSeed = 0x8005A1FC;
+
+// PSY-Q Libgpu
+g_GpuPrintf = 0x800568CC;
+g_GraphDebugLevel = 0x800568D2;
+g_DrawSyncCallbackFn = 0x800568DC;
+g_GpuDrawEnv = 0x800568E0;
+g_GpuDispEnv = 0x8005693C;
+
+g_GpuCurTIMHandle = 0x8005A37C;
+
+// PSY-Q SPU
+_spu_EVdma               = 0x8005899C;
+_spu_keystat             = 0x800589A0;
+_spu_trans_mode          = 0x800589A4;
+_spu_rev_flag            = 0x800589A8;
+_spu_rev_reserve_wa      = 0x800589AC;
+_spu_rev_offsetaddr      = 0x800589B0;
+_spu_rev_attr            = 0x800589B4; // type:SpuReverbAttr size:0x14
+_spu_RQvoice             = 0x800589C8;
+_spu_RQmask              = 0x800589CC;
+_spu_voice_centerNote    = 0x800589D0;
+_spu_zerobuf             = 0x80058A00;
+_spu_env                 = 0x80058E00;
+g_SpuRunning             = 0x80058E04;
+_spu_RXX                 = 0x80058E08;
+_spu_madr                = 0x80058E0C;
+_spu_bcr                 = 0x80058E10;
+_spu_chcr                = 0x80058E14;
+_spu_delay               = 0x80058E1C;
+_spu_sys_pcr             = 0x80058E18;
+_spu_tsa                 = 0x80058E20;
+_spu_transMode           = 0x80058E24;
+_spu_addrMode            = 0x80058E28;
+_spu_mem_mode            = 0x80058E2C;
+_spu_mem_mode_plus       = 0x80058E30;
+_spu_mem_mode_unit       = 0x80058E34;
+_spu_mem_mode_unitM      = 0x80058E38;
+_spu_inTransfer          = 0x80058E3C;
+_spu_transferCallback    = 0x80058E40;
+_spu_IRQCallback         = 0x80058E44;
+_spu_dummy               = 0x80058E48; // size:0x20
+_spu_dma_mode            = 0x80058E58;
+_spu_transfer_startaddr  = 0x80058E5C;
+_spu_transfer_time       = 0x80058E60;
+_spu_AllocBlockNum       = 0x80058E64;
+_spu_AllocLastNum        = 0x80058E68;
+_spu_memList             = 0x80058E6C;
+_spu_rev_startaddr       = 0x80058E70;
+_spu_rev_param           = 0x80058EC0;
+_spu_RQ                  = 0x8005A4C8;
+
+// Main
+g_KernelErrorDescriptions = 0x8004F2C0;
+
+// Kernel
+g_KernelMenuCurChoice = 0x8004F2D8;
+g_KernelMenuIsRunning = 0x800592D0;
+g_KernelMenuCurRenderEnvironment = 0x800592CC;
+g_KernelMenuRenderEnvironments = 0x800595E8;
+
+// Work List
+g_NumTimerWorkListEntries = 0x80059188;
+g_NumWorkListEntries = 0x8005918C;
+g_WorkListCurTimer = 0x80059428;
+g_TimerWorkList = 0x8005958C;
+g_WorkList = 0x80059594;
+
+// Rendering
+g_GfxCurContext = 0x800592F8; // Possibly only for the image list stuff
+
+g_GfxWorkBufferSize = 0x800592FC;
+g_GfxCurWorkBufferEnd = 0x80059534;
+
+g_GfxWorkBuffers = 0x800594B4;
+g_GfxWorkBuffer2 = 0x800594B8;
+
+g_GfxImageList = 0x800594C4;
+
+g_GfxCurOT = 0x8005956C;
+g_GfxCurWorkBuffer = 0x80059580;
+
+// Heap
+g_HeapContentTypeNames = 0x80050140;
+g_HeapDebugPrintfFn = 0x800592B8;
+g_HeapCurContentType = 0x80059318;
+g_HeapCurUser = 0x8005931C;
+g_Heap = 0x80059320;
+g_HeapNeedsConsolidation = 0x8005932C;
+g_HeapIsErrorHandlerOff = 0x80059330;
+g_SymbolData = 0x80059334;
+g_SymbolDataEndAddress = 0x80059338;
+g_HeapLastAllocSize = 0x8005933C;
+g_HeapLastAllocSrcAddr = 0x80059340;
+D_80059344 = 0x80059344;
+g_HeapDebugDumpFileHandle = 0x80059348;
+g_HeapUserContentNames = 0x80059FA4;
+g_HeapDelayedFreeBlocksHead = 0x80059FCC;
+
+// System
+g_SystemPaletteData = 0x80050190;
+g_SystemPalette1 = 0x800595D4;
+g_SystemPalette2 = 0x80059414;
+g_SystemDataEntries = 0x80059360;
+g_SystemDataFile = 0x80059368;
+g_SystemFontFile = 0x8005936C;
+
+// Font
+g_FontClutData = 0x80050598;
+g_Font = 0x80059394;
+g_FontClutDest = 0x80059398;
+
+// Sound
+g_SoundScriptHandlers = 0x80050624;
+g_pSoundSpuRegisters = 0x800508E4; // Weird. This is a pointer to the hardware register, but referenced in sound.c
+g_ReverbWorkAreaSizes = 0x800508E8; // size:0x28
+g_SoundReverbType = 0x80059409;
+g_SoundReverbDelay = 0x8005940A;
+g_SoundReverbFeedback = 0x8005940B;
+g_SoundReverbDepth = 0x8005940C; // type:SpuVolume size:0x4
+g_SoundHeapHead = 0x80059410;
+g_SoundSedsLinkedList = 0x80059440;
+g_SoundTransferQueue = 0x80059458; // Alternatively, a more generic SPU command queue
+g_SoundReverbMemoryHandle = 0x800594D8;
+g_SoundTransferQueueWriteIndex = 0x800594F4;
+g_SoundKeyOnFlags = 0x800594FC;
+g_SoundSpuErrorId = 0x80059500;
+g_SoundSpuIrqCallbackFn = 0x8005950C;
+g_SoundTransferQueueReadIndex = 0x80059510;
+g_SoundSpuIRQCount = 0x80059514;
+g_SoundHeapSize = 0x8005951C;
+g_SoundCdRomAttenuation = 0x80059530; // type:CdlATV size:0x4
+g_SoundKeyOffFlags = 0x80059550;
+g_unk_VoicesNeedingProcessing = 0x80059554;
+g_SoundAudioManagerListHead = 0x80059564;
+g_SoundWdsLinkedList = 0x80059558;
+g_SoundControlFlags = 0x8005957C;
+g_SoundWdsCurSpuAddress = 0x80059584;
+g_SoundWdsRemainingBytes = 0x80059588;
+g_SoundUploadDestBuffer = 0x800595A4;
+// Battle loader stores archive file 3 here (8001BC50); module reads 800595A8.
+D_800595A8 = 0x800595A8; // size:0x4
+// Paired-asset loader outputs (8001BB0C / 800379D8), one retail pointer each.
+D_80059470 = 0x80059470; // size:0x4
+D_8005949C = 0x8005949C; // size:0x4
+D_80059520 = 0x80059520; // size:0x4
+D_800658C8 = 0x800658C8; // size:0x4
+g_SoundUploadSourceAddr = 0x800595DC;
+g_SoundUploadBytesRemaining = 0x800595E0;
+g_SoundVolumeController = 0x8005A3C0; // type:SoundVolumeController size:0x48
+g_unk_SoundEvent = 0x800595BC;
+g_SoundHeapEnd = 0x800595E4;
+g_SoundCurrentCdVolumeFp = 0x8005A3FC;
+g_SoundCdVolumeStepPerFrame = 0x8005A400;
+g_SoundCdFadeFramesRemaining = 0x8005A404;
+g_SoundTargetCdVolume = 0x8005A406;
+g_SoundChannels = 0x8006252C; // type:SoundVoiceData*[] size:0xC0
+g_SoundSpuMemoryBlocks = 0x8006F9FC; // type:SoundSpuMemoryBlock[] size:0xb0
+g_SoundSpuMemoryTableStart = 0x8006FAC8; // type:u8 size:0x24
+D_800658DC = 0x800658DC; // type:u8 size:0x200 walkmesh decompress scratch -- retail-sized, the default 32-byte stub let FieldLoad's LZSS write trample the neighbouring stubs (incl. the sound heap the 240Hz tick reads)
+D_80065ADC = 0x80065ADC; // type:u8 size:0x30 walkmesh scratch tail (referenced by field misc4), sits between the scratch and the sound heap
+D_80065B0C = 0x80065B0C; // type:u8 size:0x6300
+
+// Controller
+g_ControllerButtonMasks = 0x800501E8;
+g_ControllerIsStateStackFull = 0x80050208;
+g_ControllerStickToAnalogX = 0x8005020C;
+g_ControllerStickToAnalogY = 0x8005021C;
+g_ControllerButtonMappings = 0x80050238;
+
+// Controller Input States
+g_C1PrevButtonState = 0x80059374;
+g_C2PrevButtonState = 0x80059378;
+g_ControllerNumStates = 0x8005937C;
+g_ControllerCurStateWriteIndex = 0x80059380;
+g_ControllerCurStateReadIndex = 0x80059384;
+g_ControllerType = 0x80059388;
+g_C1LeftStickXAxis = 0x80059430;
+g_C2LeftStickXAxis = 0x80059434;
+g_C1LeftStickYAxis = 0x80059438;
+g_C2LeftStickYAxis = 0x8005943C;
+g_C1RightStickXAxis = 0x80059444;
+g_C2RightStickXAxis = 0x80059448;
+g_C1RightStickYAxis = 0x8005944C;
+g_C2RightStickYAxis = 0x80059450;
+g_C1ButtonState = 0x80059570;
+g_C2ButtonState = 0x80059574;
+g_C1ButtonStateReleased = 0x8005948C;
+g_C2ButtonStateReleased = 0x80059490;
+g_C1ButtonStatePressedOnce = 0x800594A4;
+g_C2ButtonStatePressedOnce = 0x800594A8;
+
+g_C1ButtonStatesPressed = 0x8005A0FC;
+g_C2ButtonStatesPressed = 0x8005A11C;
+g_C1ButtonStatesReleased = 0x8005A13C;
+g_C2ButtonStatesReleased = 0x8005A15C;
+g_C1ButtonStatesPressedOnce = 0x8005A17C;
+g_C2ButtonStatesPressedOnce = 0x8005A19C;
+
+// TODO: Temporary sized, fix up when known
+g_GameState = 0x8006D634; // type:GameState size:0x2300
+
+g_pGameState = 0x8005A39C;
+g_GamePartyMembers = 0x80062590; // size:0xC
+
+g_MenuDebugEnabled = 0x80059178;
+g_Menu = 0x800625A0; // type:SystemMenu size:0x1E98
+
+g_PartyIsWaitingForStreamData = 0x8004F374;
+g_PartyDataBuffers = 0x8005A414;
+// g_PartyStreamDataQueue spans to g_C1Buffer: GamePartyStreamLoadSkinData queues up to six entries
+// (3 skins, 0xA7, 0xA8, terminator); a 0x20 port stub overran into g_SoundAudioManagerListHead.
+g_PartyStreamDataQueue = 0x800625A4; // type:StreamDataQueueEntry[] size:0x58
+g_PartyStreamDataPointers = 0x80065AFC;
+
+g_GamePartyMemberSkins = 0x8006FABC; // size:0xC
+g_GamePartySkinsInitialized = 0x8004F30C;
+
+g_C1Buffer = 0x800625FC;
+g_C2Buffer = 0x8006261E;
+D_8005A470 = 0x8005A470; // type:s32 size:0x4 movie player module (archive 0x18/1) cdstream no-back-location flag (func_801D586C / func_801D5A94)
+D_80062514 = 0x80062514; // type:u16 size:0x2 movie frame count -- MovieMain uses it as END FRAME when D_8004FE44 bit 7 is set
+D_80062648 = 0x80062648; // type:u8 size:0x3200 field song-file buffer (func_80085C90 reads dir-0x1C song files here) -- retail BSS span 0x62648..0x65848 flush to the next referenced symbol, sized ahead of M2/M3 so the port stub cannot be overrun (the D_800658DC lesson)
+
+g_pTMR_HRETRACE_MODE = 0x80058964;
+_ctype_ = 0x800567C1;

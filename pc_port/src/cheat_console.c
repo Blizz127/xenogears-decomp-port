@@ -28,6 +28,7 @@
 
 #include "cheat_console.h"
 #include "god_mode.h"
+#include "port_dev_menu.h"
 #include "quick_checkpoint.h"
 #include "../include/xg_plat/config.h"
 #include "../include/xg_plat/mods.h"
@@ -67,6 +68,10 @@ int PcPort_CheatExec(const char* line)
     if (!strcmp(argv[0], "help")) {
         printf("[cheat] commands: god [on|off], encounters [on|off], save, load, "
                "warp <map> <x> <z>, battle <id>, speed <1..5>, bind [<button> <key>], mods\n");
+    } else if (!strcmp(argv[0], "dev") && argc >= 2) {
+        char command[80];
+        snprintf(command, sizeof command, "%s%s%s", argv[1], argc > 2 ? " " : "", argc > 2 ? argv[2] : "");
+        return PcPort_DevMenuAction(command);
     } else if (!strcmp(argv[0], "god")) {
         if (parse_onoff(argc > 1 ? argv[1] : NULL, PcPort_GodModeEnabled()) != PcPort_GodModeEnabled())
             PcPort_GodModeToggle();

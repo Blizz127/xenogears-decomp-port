@@ -935,7 +935,17 @@ static int runtime_bridge_call(void *opaque, PcPortMipsCpu *cpu, uint32_t target
         }
         if (resolved == NULL) {
             snprintf(fallback, sizeof(fallback), "func_%08X", target);
-            fallback_host = dlsym(RTLD_DEFAULT, fallback);
+            fallback_host = NULL;
+            if (target_is_guest_code(target)) {
+                /* A battle function whose name another overlay also defines
+                 * is linked as battle_func_<addr> (build_port.sh); the plain
+                 * name would be the other overlay's body. */
+                char battle_name[40];
+                snprintf(battle_name, sizeof(battle_name), "battle_%s", fallback);
+                fallback_host = dlsym(RTLD_DEFAULT, battle_name);
+            }
+            if (fallback_host == NULL)
+                fallback_host = dlsym(RTLD_DEFAULT, fallback);
             if (fallback_host != NULL &&
                 (!target_is_guest_code(target) || overlay_leaf_host_ok(fallback))) {
                 memcpy(slot->name, fallback, sizeof(slot->name));
