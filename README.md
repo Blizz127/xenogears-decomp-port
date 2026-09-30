@@ -16,7 +16,7 @@ This is a passion project. I'm working hard on it, but it's made for fun and for
 
 ## How to play
 
-A native Linux build of Xenogears, not an emulator. You need your own copy of the game; nothing from the game is included. No BIOS is needed.
+A native Linux build of Xenogears, not an emulator. You need your own copy of the game; no game assets (graphics, music, movies, text) are included. No BIOS is needed. (The r5 build does contain about 6.6 KB of transcribed retail data tables; v0.6.0 loads them from your disc instead.)
 
 ### 1. Download
 
@@ -102,7 +102,7 @@ Port extras (keyboard, or click the toolbar at the top of the screen):
 ### FAQ
 
 - **Do I need a PlayStation BIOS?** No. The port includes a public-domain font instead.
-- **Is the game included?** No. There are no game files, music or movies. You must own the disc, and the port reads your copy.
+- **Is the game included?** No. There are no game files, music or movies. You must own the disc, and the port reads your copy. (The r5 binary still contains about 6.6 KB of small retail data tables compiled from the decompiled code; they are removed in v0.6.0.)
 - **How far does it go?** Title screen, New Game, the prologue and Lahan, including the first Gear battle. The route toward Black Moon Forest stops at the Mountain Path (map 15) for now.
 
 ## What is here
