@@ -20,8 +20,13 @@ Contributors to the upstream decompilation, from its git history:
 - James Brown
 - Akshay Gopinath
 
-The upstream project has not published a license, so none of its code is
-included or relicensed here. Its work remains its authors'.
+The upstream project has not published a license, so none of its source
+code is included or relicensed here; its work remains its authors'. The
+Linux build on the Releases page is compiled from the full decompilation,
+which includes their code. The owner is re-deriving the upstream-authored
+parts independently from the retail binary, so that the complete
+decompilation can later be published here under this repository's own
+license.
 
 The upstream project also thanks the
 [Silent Hill decompilation](https://github.com/Vatuu/silent-hill-decomp) as
