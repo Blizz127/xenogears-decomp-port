@@ -10,17 +10,23 @@ echo "OUTPUT $OUT"
 SRC="${PARTY_RECORD_SOURCE:-src/menu/main/misc.c}"
 awk '/^void func_801E4258\(/ || /^void func_801E42AC\(/ || /^void func_801E41C0\(/ || /^void func_801E4998\(/ || /^void func_801E35BC\(/ {body=1} body {print} /^}/ {body=0}' "$SRC" > "$OUT/records.inc"
 test "$(grep -c '^void func_801' "$OUT/records.inc")" -eq 5
+python3 - "$SRC" "$OUT/u6macro.inc" <<'PY'
+import sys
+s=open(sys.argv[1]).read(); a=s.index('#ifdef XENO_PC_PORT\n#define MENU_U6_TABLE'); b=s.index('#endif\n',a)+7
+open(sys.argv[2],'w').write(s[a:b])
+PY
 BASE=(-std=gnu17 -DXENO_PC_PORT -DSKIP_ASM -D_LANGUAGE_C -DUSE_EXTENDED_PRIM_POINTERS=0 -I"$OUT" -Ipc_port/src -Ipc_port/include_shim -Iinclude -Ipc_port/extern/PsyCross/include -Ipc_port/extern/PsyCross/include/psx)
 "${CC:-gcc}" "${BASE[@]}" -O0 pc_port/tests/menu_party_record_pins_test.c -o "$OUT/good"
 timeout 30s "$OUT/good"
 cp "$OUT/records.inc" "$OUT/good.inc"
-for mutant in stride-0x28 conditional-3f conditional-9f extra-halving slot-by-slotidx; do
+for mutant in stride-0x28 conditional-3f conditional-9f extra-halving slot-by-slotidx raw-u6-table; do
     cp "$OUT/good.inc" "$OUT/records.inc"
     case "$mutant" in
         stride-0x28) sed -i '0,/idx \* 0xA4/s//idx * 0x28/' "$OUT/records.inc" ;;
         conditional-3f) sed -i 's/    pEntry\[0x3F\] = pTable\[0xE\];/    if (0) pEntry[0x3F] = pTable[0xE];/' "$OUT/records.inc" ;;
         conditional-9f) sed -i 's/    pEntry\[0x9F\] = pTable\[0x17\];/    if (0) pEntry[0x9F] = pTable[0x17];/' "$OUT/records.inc" ;;
         extra-halving) sed -i 's|(val / 10) \* 2 / 9;|(val / 10) * 2 / 9 / 2;|' "$OUT/records.inc" ;;
+        raw-u6-table) sed -i 's/MENU_U6_TABLE(arg0, 8)/(*(u8**)((u8*)(uintptr_t)(arg0) + 8))/' "$OUT/records.inc" ;;
         slot-by-slotidx) sed -i 's/(uintptr_t)pCtx + charIdx \* 4 + 0x20/(uintptr_t)pCtx + slotIdx * 4 + 0x20/' "$OUT/records.inc" ;;
     esac
     ! cmp -s "$OUT/good.inc" "$OUT/records.inc"

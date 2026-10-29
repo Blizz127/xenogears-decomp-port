@@ -233,9 +233,102 @@ void func_801CDD14(s32 firstItem, s32 gold, u8* affordable) {
 #else
 INCLUDE_ASM("asm/shop_menu/nonmatchings/main/misc7", func_801CDD14);
 #endif
-#ifndef XENO_PC_PORT
-INCLUDE_ASM("asm/shop_menu/nonmatchings/main/misc7", func_801CE480);
-#endif
+/* Retail 801CE480..801CE8D8 (matched). Buy-menu stat preview for one
+ * party member: attack (weapons) or defense (accessories) with the current
+ * equipment versus with item `id` equipped. Writes |delta| to changes[0..1]
+ * and MENU_STAT_CHANGE_INCREASE/DECREASE to colors[0..1]. Character 4 has
+ * four weapon slots (unk6F[0..3]) where an item of the same weapon class
+ * (byte 6, class 5 excepted) is replaced; others use unk6A[0]. An equipped
+ * accessory of the same nonzero kind (u16 at +0xE) is replaced, otherwise
+ * the lowest-defense slot is. pWeapon/pAccessory are deliberately reused
+ * temporaries: retail's register allocation follows that shape. */
+void func_801CE480(s32* changes, u8* colors, u8 id, u8 type, u8 character) {
+    s16 newStats[2];
+    s16 curStats[2];
+    MenuShopWeapon* candidateWeapon;
+    MenuShopWeapon* pWeapon;
+    MenuShopAccessory* candidateAccessory;
+    MenuShopAccessory* pAccessory;
+    u8 notEquippedInKind;
+    u8 minDefense;
+    int minSlot;
+    int i;
+
+    curStats[1] = 0;
+    curStats[0] = 0;
+    newStats[1] = 0;
+    newStats[0] = 0;
+
+    switch (type) {
+        case ITEM_TYPE_WEAPON:
+            if (character != 4) {
+                pWeapon = &g_Menu->unk330->pWeaponsData[g_GameState.characters[character].unk6A[0]];
+                curStats[0] = pWeapon->unk6[6] + g_GameState.characters[character].attack;
+                pWeapon = &g_Menu->unk330->pWeaponsData[id];
+                newStats[0] = pWeapon->unk6[6] + g_GameState.characters[character].attack;
+            } else {
+                for (i = 0; i < 4; i++) {
+                    pWeapon = &g_Menu->unk330->pWeaponsData[g_GameState.characters[character].unk6F[i]];
+                    curStats[0] += pWeapon->unk6[6];
+                }
+                candidateWeapon = &g_Menu->unk330->pWeaponsData[id];
+                for (i = 0; i < 4; i++) {
+                    pWeapon = &g_Menu->unk330->pWeaponsData[g_GameState.characters[character].unk6F[i]];
+                    if (pWeapon->unk6[0] == candidateWeapon->unk6[0] && pWeapon->unk6[0] != 5) {
+                        newStats[0] += candidateWeapon->unk6[6];
+                    } else {
+                        newStats[0] += pWeapon->unk6[6];
+                    }
+                }
+            }
+            break;
+
+        case ITEM_TYPE_ACCESSORY:
+            notEquippedInKind = TRUE;
+            curStats[1] = newStats[1] = g_GameState.characters[character].defense;
+            for (i = 0; i < 3; i++) {
+                pAccessory = &g_Menu->unk330->pAccessoriesData[g_GameState.characters[character].unk74[i]];
+                curStats[1] += pAccessory->unk4[4];
+            }
+            candidateAccessory = &g_Menu->unk330->pAccessoriesData[id];
+            for (i = 0; i < 3; i++) {
+                pAccessory = &g_Menu->unk330->pAccessoriesData[g_GameState.characters[character].unk74[i]];
+                if (*(u16*)&pAccessory->unk4[0xA] != 0 && *(u16*)&pAccessory->unk4[0xA] == *(u16*)&candidateAccessory->unk4[0xA]) {
+                    newStats[1] += candidateAccessory->unk4[4];
+                    notEquippedInKind = FALSE;
+                } else {
+                    newStats[1] += pAccessory->unk4[4];
+                }
+            }
+            if (notEquippedInKind) {
+                minDefense = 0xFF;
+                for (i = 0; i < 3; i++) {
+                    if (g_Menu->unk330->pAccessoriesData[g_GameState.characters[character].unk74[i]].unk4[4] <= minDefense) {
+                        minDefense = g_Menu->unk330->pAccessoriesData[g_GameState.characters[character].unk74[i]].unk4[4];
+                        minSlot = i;
+                    }
+                }
+                newStats[1] = g_GameState.characters[character].defense + candidateAccessory->unk4[4];
+                for (i = 0; i < 3; i++) {
+                    if (i != minSlot) {
+                        pAccessory = &g_Menu->unk330->pAccessoriesData[g_GameState.characters[character].unk74[i]];
+                        newStats[1] += pAccessory->unk4[4];
+                    }
+                }
+            }
+            break;
+    }
+
+    for (i = 0; i < 2; i++) {
+        if (newStats[i] >= curStats[i]) {
+            changes[i] = newStats[i] - curStats[i];
+            colors[i] = MENU_STAT_CHANGE_INCREASE;
+        } else {
+            changes[i] = curStats[i] - newStats[i];
+            colors[i] = MENU_STAT_CHANGE_DECREASE;
+        }
+    }
+}
 
 /* Retail 801CE8D8..801CE91C: nonpositive counts return before touching either
  * array. Keep the signed end-address comparison and native pointer width. */

@@ -1,0 +1,138 @@
+[
+  {
+    "name": "baseline",
+    "rect": [
+      100,
+      37,
+      78,
+      120
+    ],
+    "visible_window_source_alpha_bbox": [
+      104,
+      38,
+      177,
+      98
+    ],
+    "estimated_capture_left_unoccluded": 299.2307692307692,
+    "reference_retail_visible_left": 309
+  },
+  {
+    "name": "padding_200",
+    "rect": [
+      0,
+      37,
+      200,
+      120
+    ],
+    "visible_window_source_alpha_bbox": [
+      104,
+      38,
+      199,
+      98
+    ],
+    "estimated_capture_left_unoccluded": 310.48,
+    "reference_retail_visible_left": 309
+  },
+  {
+    "name": "padding_184",
+    "rect": [
+      0,
+      37,
+      184,
+      120
+    ],
+    "visible_window_source_alpha_bbox": [
+      104,
+      38,
+      183,
+      98
+    ],
+    "estimated_capture_left_unoccluded": 311.5652173913044,
+    "reference_retail_visible_left": 309
+  },
+  {
+    "name": "padding_216",
+    "rect": [
+      0,
+      37,
+      216,
+      120
+    ],
+    "visible_window_source_alpha_bbox": [
+      104,
+      38,
+      215,
+      98
+    ],
+    "estimated_capture_left_unoccluded": 309.55555555555554,
+    "reference_retail_visible_left": 309
+  },
+  {
+    "name": "padding_200_down20",
+    "rect": [
+      0,
+      57,
+      200,
+      120
+    ],
+    "visible_window_source_alpha_bbox": [
+      95,
+      57,
+      199,
+      118
+    ],
+    "estimated_capture_left_unoccluded": 309.4,
+    "reference_retail_visible_left": 309
+  },
+  {
+    "name": "padding_200_down40",
+    "rect": [
+      0,
+      77,
+      200,
+      120
+    ],
+    "visible_window_source_alpha_bbox": [
+      95,
+      77,
+      199,
+      138
+    ],
+    "estimated_capture_left_unoccluded": 309.4,
+    "reference_retail_visible_left": 309
+  },
+  {
+    "name": "padding_184_down40",
+    "rect": [
+      0,
+      77,
+      184,
+      120
+    ],
+    "visible_window_source_alpha_bbox": [
+      95,
+      77,
+      183,
+      138
+    ],
+    "estimated_capture_left_unoccluded": 310.39130434782606,
+    "reference_retail_visible_left": 309
+  },
+  {
+    "name": "padding_216_down40",
+    "rect": [
+      0,
+      77,
+      216,
+      120
+    ],
+    "visible_window_source_alpha_bbox": [
+      95,
+      77,
+      215,
+      138
+    ],
+    "estimated_capture_left_unoccluded": 308.55555555555554,
+    "reference_retail_visible_left": 309
+  }
+]

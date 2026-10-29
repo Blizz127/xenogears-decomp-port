@@ -14,6 +14,7 @@
 
 #include "common.h"
 #include "psx_memory.h"
+#include "world_map_retail_trig.h"
 #include "world_map_callback_8e76c.h"
 #include "world_map_common_tail.h"
 #include "world_map_func_95414.h"
@@ -40,8 +41,6 @@
 #include "world_map_terrain_sampler.h"
 
 extern void func_800245D8(void* object, s16 animation);
-extern long rcos(long a);
-extern long rsin(long a);
 extern void wm_80075228(void);
 extern void wm_8007528C(void);
 extern void wm_80093660(void);

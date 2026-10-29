@@ -359,9 +359,21 @@ s32 func_80077E10(void) {
  * and the raw-0x80280000 dev read. Port-only instrumentation is guarded. */
 #ifdef XENO_PC_PORT
 extern int printf(const char*, ...);
+#include <stdio.h>
+#include <stdlib.h>
 #define FM_LOG(...) printf("[FieldMain] " __VA_ARGS__)
+/* Isolated integrator diagnostic; inert unless explicitly requested. */
+static void field_transition_stage(const char *stage, int exitCode) {
+    const char *enabled = getenv("XENO_FIELD_TRANSITION_DIAG");
+    if (enabled && enabled[0] == '1') {
+        fprintf(stderr, "[field-transition] exit=%d %s\n", exitCode, stage);
+        fflush(stderr);
+    }
+}
+#define FT_STAGE(stage) field_transition_stage(stage, exitCode)
 #else
 #define FM_LOG(...) ((void)0)
+#define FT_STAGE(stage) ((void)0)
 #endif
 
 extern int g_FieldSystemMode;
@@ -705,26 +717,58 @@ void FieldMain(void) {
 teardown:  /* .L80078ABC */
     FM_LOG("teardown exitCode=%d\n", exitCode);
 #ifdef XENO_PC_PORT
+    FT_STAGE("before PcPort_QuickCheckpointSetFieldActive(0)");
     PcPort_QuickCheckpointSetFieldActive(0);
+    FT_STAGE("after PcPort_QuickCheckpointSetFieldActive(0)");
 #endif
+    FT_STAGE("before func_800798BC()");
     func_800798BC();
+    FT_STAGE("after func_800798BC()");
+    FT_STAGE("before func_800A91F0()");
     func_800A91F0();
+    FT_STAGE("after func_800A91F0()");
+    FT_STAGE("before func_800A31E8()");
     func_800A31E8();
+    FT_STAGE("after func_800A31E8()");
+    FT_STAGE("before FieldParticlesFreeAll()");
     FieldParticlesFreeAll();
+    FT_STAGE("after FieldParticlesFreeAll()");
+    FT_STAGE("before func_800864F0()");
     func_800864F0();
+    FT_STAGE("after func_800864F0()");
+    FT_STAGE("before func_8007FFE8()");
     func_8007FFE8();
+    FT_STAGE("after func_8007FFE8()");
+    FT_STAGE("before DrawSync(0)");
     DrawSync(0);
+    FT_STAGE("after DrawSync(0)");
+    FT_STAGE("before Vsync(0)");
     Vsync(0);
+    FT_STAGE("after Vsync(0)");
+    FT_STAGE("before FieldFree()");
     FieldFree();
+    FT_STAGE("after FieldFree()");
+    FT_STAGE("before FieldPartyFreeSkinDataBuffers()");
     FieldPartyFreeSkinDataBuffers();
+    FT_STAGE("after FieldPartyFreeSkinDataBuffers()");
+    FT_STAGE("before func_80085988()");
     func_80085988();
+    FT_STAGE("after func_80085988()");
     D_8004F31C = 0;
+    FT_STAGE("before HeapFree(D_800ADB30)");
     HeapFree(D_800ADB30);
+    FT_STAGE("after HeapFree(D_800ADB30)");
 #ifdef XENO_PC_PORT
     if (exitCode == 4) {
+        FT_STAGE("before PcPort_QuickCheckpointCommitLoad()");
         PcPort_QuickCheckpointCommitLoad();
+        FT_STAGE("after PcPort_QuickCheckpointCommitLoad()");
+        FT_STAGE("before ChangeGameState(1)");
         ChangeGameState(1);
+        FT_STAGE("after ChangeGameState(1)");
+        FT_STAGE("before MainLoop(0)");
         MainLoop(0);
+        FT_STAGE("after MainLoop(0)");
     }
 #endif
     func_8007954C(exitCode);

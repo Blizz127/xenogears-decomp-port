@@ -2,8 +2,8 @@
 
 
 #ifdef XENO_PC_PORT
-/* Coexistence: decompiled and logic-faithful, but not byte-exact yet, so the
- * matching build assembles retail bytes below and the port uses this body. */
+/* Port body; the matching build compiles the byte-exact C in the #else
+ * arm below. */
 /* func_800B6464.s: for each of (a0[0x40] >> 2) 0x18-byte primitives starting
  * at (*(a0+0x20))->+0x30 + 0xC, add a1[0] to the 6-bit u field and a1[1] to
  * the 9-bit v field packed in the halfword. The counter is a halfword; retail
@@ -30,7 +30,34 @@ void func_800B6464(u8* a0, u8* a1) {
     }
 }
 #else
-INCLUDE_ASM("asm/battle/nonmatchings/mainc89", func_800B6464);
+/* i = 0 is set before the count test, so dbr takes it for the beqz delay
+ * slot and the a1 copy stays first; the separate field sums give retail's
+ * register order. */
+void func_800B6464(u8* a0, u8* a1) {
+    s32 c = a0[0x40] >> 2;
+    u8* base = *(u8**)(*(u8**)(a0 + 0x20) + 0x30);
+    s16 i = 0;
+
+    if (c != 0) {
+        s32 n = c;
+        u16* p = (u16*)(base + 0xC);
+
+        do {
+            u32 v;
+            u32 u;
+            u32 w;
+
+            i++;
+            v = *p;
+            u = v & 0x3F;
+            w = (v >> 6) & 0x1FF;
+            u += a1[0];
+            w += a1[1];
+            *p = u | (w << 6);
+            p += 0xC;
+        } while (i != n);
+    }
+}
 #endif
 extern u8* TimerWorkListAllocateTask(u32 owner, u32 size);
 extern void TimerWorkListSetTaskCallback(void* pTask, void* callback);

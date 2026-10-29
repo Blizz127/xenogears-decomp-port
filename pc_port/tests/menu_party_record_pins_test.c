@@ -11,7 +11,11 @@
 #include "main/game.h"
 #include "system/menu.h"
 GameState g_GameState;
+#include "u6macro.inc"
 #include "records.inc"
+/* Retail MenuUnk6 +0x08/+0x0C/+0x10 table words live in the host struct's
+ * unk8[] as PSX-width (u32) words (func_801C72BC modes 1/3 store them). */
+static void set_u6(u8 *ctx, int off, void *tbl) { *(u32 *)&((MenuUnk6 *)ctx)->unk8[off - 8] = (u32)(uintptr_t)tbl; }
 static u8 *rec(int idx) { return (u8 *)&g_GameState + 0x978 + idx * 0xA4; }
 int main(void) {
     /* The retail ctx arg is an s32 holding a pointer: keep it below 4 GiB. */
@@ -25,7 +29,7 @@ int main(void) {
     rec(2)[8] = 3;
     *(u16 *)(tbl10 + 3 * 0x14 + 8) = 0x1234;
     *(u16 *)(tbl10 + 3 * 0x14 + 0xA) = 0x5678;
-    *(u8 **)(ctx + 0x10) = tbl10;   /* 4258 table: 0x14-byte rows */
+    set_u6(ctx, 0x10, tbl10);   /* 4258 table: 0x14-byte rows */
     func_801E4258(ctx, 2);
     assert(*(u16 *)(rec(2) + 0x70) == 0x1234 && *(u16 *)(rec(2) + 0x72) == 0x5678);
     assert(*(u16 *)(rec(0) + 0x70) == 0 && *(u16 *)((u8 *)&g_GameState + 0x978 + 2 * 0x28 + 0x70) == 0);
@@ -34,7 +38,7 @@ int main(void) {
     *(u16 *)(rec(1) + 0x38) = 5;
     *(u16 *)(tbl0c + 2 * 0x10 + 6) = 9;
     tbl0c[2 * 0x10 + 0xC] = 0x11; tbl0c[2 * 0x10 + 0xD] = 0x22; tbl0c[2 * 0x10 + 0xE] = 0x33;
-    *(u8 **)(ctx + 0x0C) = tbl0c;   /* 42AC table: 0x10-byte rows */
+    set_u6(ctx, 0x0C, tbl0c);   /* 42AC table: 0x10-byte rows */
     func_801E42AC((s32)(uintptr_t)ctx, 1);
     assert(*(u16 *)(rec(1) + 0x3A) == 9 && rec(1)[0x3C] == 0x11 && rec(1)[0x3D] == 0x22 && rec(1)[0x3E] == 0x33);
     assert(rec(1)[0x3F] == 0x33 && *(u16 *)(rec(1) + 0x38) == 5);
@@ -83,7 +87,7 @@ int main(void) {
         *(u32 *)(tbl08 + 1 * 0x18 + 4) = 777;
         tbl08[1 * 0x18 + 0x14] = 1; tbl08[1 * 0x18 + 0x15] = 2;
         tbl08[1 * 0x18 + 0x16] = 3; tbl08[1 * 0x18 + 0x17] = 4;
-        *(u8 **)(ctx + 8) = tbl08;
+        set_u6(ctx, 8, tbl08);
         func_801E41C0((s32)(uintptr_t)ctx, 3);
         assert(*(u32 *)(rec(3) + 0x60) == 777 && *(u32 *)(rec(3) + 0x64) == 777);
         assert(rec(3)[0x98] == 1 && rec(3)[0x9E] == 2 && rec(3)[0x9D] == 3 && rec(3)[0x9F] == 4);

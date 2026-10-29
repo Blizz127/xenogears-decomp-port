@@ -50,17 +50,112 @@ s32 func_battle_command_file1_801E563C(void) {
 }
 
 INCLUDE_ASM("asm/battle_command_file1/nonmatchings/before_controller", func_battle_command_file1_801E5768);
-INCLUDE_ASM("asm/battle_command_file1/nonmatchings/before_controller", func_battle_command_file1_801E57C4);
+s32 func_battle_command_file1_801E57C4(s32 arg0) {
+    s32 i;
+
+    for (i = 1; i < 8; i++) {
+        if (*(u8 *)(arg0 + i + 0x10) == 0xFF) {
+            break;
+        }
+    }
+    return i & 0xFFFF;
+}
+
 INCLUDE_ASM("asm/battle_command_file1/nonmatchings/before_controller", func_battle_command_file1_801E57F8);
 INCLUDE_ASM("asm/battle_command_file1/nonmatchings/before_controller", func_battle_command_file1_801E58EC);
-INCLUDE_ASM("asm/battle_command_file1/nonmatchings/before_controller", func_battle_command_file1_801E5A98);
+extern u8 D_800D2D24[];
+
+s32 func_battle_command_file1_801E5A98(s32 arg0) {
+    s32 var_a2;
+    s32 var_v1;
+    u8 temp_v0;
+
+    var_a2 = 0;
+    if ((arg0 & 0xFF) < 0x10U) {
+        var_v1 = 0;
+        do {
+            temp_v0 = D_800D2D24[var_v1];
+            if (temp_v0 != 0xFF && temp_v0 == (arg0 & 0xFF)) {
+                goto found;
+            }
+            var_v1 += 1;
+        } while (var_v1 < 3);
+        goto end;
+found:
+        var_a2 = var_v1;
+    } else {
+        var_a2 = arg0 - 0xD;
+    }
+end:
+    return var_a2 & 0xFF;
+}
+
 INCLUDE_ASM("asm/battle_command_file1/nonmatchings/before_controller", xeno_battle_command_file1_helper_5B00);
 INCLUDE_ASM("asm/battle_command_file1/nonmatchings/before_controller", func_battle_command_file1_801E5C1C);
 INCLUDE_ASM("asm/battle_command_file1/nonmatchings/before_controller", func_battle_command_file1_801E5CE4);
 INCLUDE_ASM("asm/battle_command_file1/nonmatchings/before_controller", func_battle_command_file1_801E5D24);
 INCLUDE_ASM("asm/battle_command_file1/nonmatchings/before_controller", func_battle_command_file1_801E5DCC);
-INCLUDE_ASM("asm/battle_command_file1/nonmatchings/before_controller", func_battle_command_file1_801E5EF8);
-INCLUDE_ASM("asm/battle_command_file1/nonmatchings/before_controller", func_battle_command_file1_801E5F8C);
+void func_battle_command_file1_801E5DCC(s32, u8 *);
+
+s32 func_battle_command_file1_801E5EF8(s32 arg0, u8 *arg1) {
+    u8 *base;
+    u8 *p;
+    u8 *q;
+    s32 ret;
+    u8 x;
+
+    base = D_800D3278;
+    p = base + arg0 * 0x38;
+    ret = 0;
+    x = p[0x23];
+    if (x != (arg1[2] & 0x1F)) {
+        func_battle_command_file1_801E5DCC(arg0, arg1);
+    } else {
+        q = base + arg1[1] * 0x38;
+        if (x == q[0x21]) {
+            p[0x23] = 0xFF;
+            ret = 3;
+        }
+    }
+    return ret;
+}
+
+void func_battle_command_file1_801E5DCC(s32, u8 *);
+
+s32 func_battle_command_file1_801E5F8C(s32 arg0, u8 *arg1) {
+    u8 *base;
+    u8 *q;
+    u8 *p;
+    s32 ret;
+    s32 i;
+    u8 x;
+    u8 flag;
+
+    ret = 0;
+    base = D_800D3278;
+    x = *(u8 *)((s32)base - (-(arg0 * 0x38)) + 0x23);
+    flag = 1;
+    if (x != (arg1[2] & 0x1F)) {
+        func_battle_command_file1_801E5DCC(arg0, arg1);
+    } else {
+        q = base + arg1[1] * 0x38;
+        for (i = 0; i < 8; i++) {
+            if ((q + i)[0x18] == x) {
+                flag = 0;
+                break;
+            }
+        }
+        if (flag) {
+            p = (u8 *)((*(s32*)&D_800D3278) - (-(arg0 * 0x38)));
+            if (p[0x23] != *(u8 *)((*(s32*)&D_800D3278) - (-(arg1[1] * 0x38)) + 0x21)) {
+                ret = 3;
+                p[0x23] = 0xFF;
+            }
+        }
+    }
+    return ret;
+}
+
 
 s32 func_battle_command_file1_801E6084(s32 arg0, void *arg1) {
     func_battle_command_file1_801E57F8(arg1, 2, *(u8 *)((s8*)(arg1) + 5), 0);
@@ -204,7 +299,12 @@ s32 func_battle_command_file1_801E65FC(s32 arg0, void *arg1) {
     return 5;
 }
 
-INCLUDE_ASM("asm/battle_command_file1/nonmatchings/before_controller", func_battle_command_file1_801E6660);
+s32 func_battle_command_file1_801E6660(s32 arg0, void *arg1) {
+    func_battle_command_file1_801E57F8(arg1, 2, *(u8 *)((s8*)(arg1) + 5), 0);
+    *(s16 *)((s8*)(((((*(u8 *)((s8*)(arg1) + 2) << 8) | *(u8 *)((s8*)(arg1) + 1)) & 0xFFFE) + (*(s32*)&D_800D3278))) + 0x394) = (s16) (*(u16 *)((s8*)((*(s32*)&D_800D3278)) + 0x380) * *(u16 *)((s8*)((*(s32*)&D_800D3278)) + 0x382));
+    return 6;
+}
+
 
 s32 func_battle_command_file1_801E66D8(s32 arg0, void *arg1) {
     func_battle_command_file1_801E57F8(arg1, 2, *(u8 *)((s8*)(arg1) + 5), 0);

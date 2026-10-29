@@ -270,6 +270,12 @@ void PcPort_FieldPosDiag(void)
         printf("\n");
     }
 
+    {
+        /* Save-point flag (field opcode FE99, func_8008848C): the Triangle
+         * menu copies it into D_80059171 and the card screen offers Save. */
+        extern s16 D_800B236C;
+        printf("[xeno-port][test] SAVEFLAG %d\n", (int)D_800B236C);
+    }
     printf("[xeno-port][test] POSDIAG map=%d pos=(%d,%d,%d) inZones=[%s] "
            "scenario=%u var20=%u held=0x%04x newpress=0x%04x "
            "canRun=%d owner=0x%02x b21d0=%u status=0x%04x "

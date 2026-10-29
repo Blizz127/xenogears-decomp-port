@@ -54,13 +54,22 @@ static void file1_digest(const uint8_t *data, size_t length, uint8_t out[32])
     for (unsigned i=0;i<32;i++) out[i]=(uint8_t)(h[i/4]>>(24u-(i%4)*8u));
 }
 
+/* Lower-case hex digit computed, not looked up: a "0123456789abcdef" table
+ * followed by alignment padding is byte-identical to the BIOS's own digit
+ * table, which retail_binary_guard rightly rejects (seen at 32 and 64 bytes
+ * depending on what the linker placed next to it). */
+static char file1_hex_digit(unsigned nibble)
+{
+    return (char)(nibble < 10u ? '0' + nibble : 'a' + (nibble - 10u));
+}
+
 static int file1_hash_matches(size_t length, const char *hex)
 {
-    static const char digits[] = "0123456789abcdef";
     uint8_t digest[32];
     file1_digest(g_PsxRam + (FILE1_BASE - 0x80000000u), length, digest);
     for (unsigned i=0;i<32;i++)
-        if (digits[digest[i]>>4] != hex[i*2] || digits[digest[i]&15] != hex[i*2+1]) return 0;
+        if (file1_hex_digit(digest[i]>>4) != hex[i*2] ||
+            file1_hex_digit(digest[i]&15u) != hex[i*2+1]) return 0;
     return 1;
 }
 

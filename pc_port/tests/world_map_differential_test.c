@@ -146,6 +146,16 @@ uint64_t wmd_host_call(unsigned idx, uint64_t a0, uint64_t a1, uint64_t a2, uint
     return rv[k % MAX_RV];
 }
 
+/* UBSan regime (-DWMD_UBSAN): the TUs under test are built with
+ * -fsanitize=undefined -fno-sanitize-recover=all (shift-base included) and
+ * UBSAN_OPTIONS=abort_on_error=1; a report in a host body is a FAIL, never an
+ * inconclusive case. */
+static volatile int ub_hit;
+#ifdef WMD_UBSAN
+extern void __sanitizer_set_death_callback(void (*)(void));
+static void on_ub_death(void) { ub_hit = 1; }
+#endif
+
 static void on_signal(int sig)
 {
     if (host_active)
@@ -212,6 +222,7 @@ static int bus_write(void *o, uint32_t a, unsigned w, uint32_t v)
 }
 
 static uint32_t memcpy_addr, memset_addr;
+static uint32_t retail_copy_bytes;
 
 static int bus_bridge(void *o, PcPortMipsCpu *cpu, uint32_t target)
 {
@@ -225,6 +236,12 @@ static int bus_bridge(void *o, PcPortMipsCpu *cpu, uint32_t target)
         return 0;
     if (target == memcpy_addr || target == memset_addr) {
         uint32_t d = cpu->gpr[4], x = cpu->gpr[5], n = cpu->gpr[6], i;
+        /* A bridged copy costs one step; bound the bytes so a garbage length
+         * cannot stall the run (reported as an inconclusive case). */
+        if (n > 0x40000u || (retail_copy_bytes += n) > 0x400000u) {
+            snprintf(cpu->error, sizeof cpu->error, "retail memcpy/memset length 0x%x over budget", n);
+            return -1;
+        }
         for (i = 0; i < n && i < RAM_BYTES; i++)
             g_PsxRam[(d + i) & MASK] = target == memcpy_addr ? g_PsxRam[(x + i) & MASK] : (uint8_t)x;
         cpu->gpr[2] = d;
@@ -354,6 +371,7 @@ static Result run_case(const WmdCase *c, int pattern)
         cpu.gpr[4 + i] = v;
     }
     rcount = 0;
+    retail_copy_bytes = 0;
     rc = PcPortMipsRun(&cpu, c->addr, HALT_PC, STEP_LIMIT);
     if (rc != PC_PORT_MIPS_HALTED) {
         snprintf(detail, sizeof detail, "retail rc=%d %s", rc, cpu.error);
@@ -388,6 +406,11 @@ static Result run_case(const WmdCase *c, int pattern)
     fflush(stderr);
     dup2(saved, 2);
     close(saved);
+    if (sig != 0 && ub_hit) {
+        ub_hit = 0;
+        snprintf(detail, sizeof detail, "host UBSan report (undefined behaviour; see UBSAN log)");
+        return R_FAIL;
+    }
     if (sig != 0) {
         snprintf(detail, sizeof detail, "host signal %d", sig);
         return R_INCONCLUSIVE;
@@ -508,6 +531,10 @@ int main(int argc, char **argv)
     signal(SIGFPE, on_signal);
     signal(SIGALRM, on_signal);
     signal(SIGABRT, on_signal);
+    signal(SIGILL, on_signal);
+#ifdef WMD_UBSAN
+    __sanitizer_set_death_callback(on_ub_death);
+#endif
 
     for (i = 0; i < CASE_COUNT; i++) {
         const WmdCase *c = &kCases[i];

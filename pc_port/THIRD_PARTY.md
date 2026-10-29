@@ -1,7 +1,9 @@
 # Third-party code in the native PC port
 
-The port (`pc_port/`) ships no Sony Psy-Q SDK code and no game data. Its PSX
-hardware layer is PsyCross, plus the port's own `pc_port/src/psyq_compat.c`.
+The port (`pc_port/`) excludes the matching build's translated Sony Psy-Q
+library sources. Its PSX hardware layer is PsyCross, plus the port's own
+compatibility layer. The compatibility layer's clean-room provenance is
+not yet established; clean-room replacement and oracle validation are required.
 The default KROM fallback embeds Jiskan 16 public-domain glyph data; see
 [`font_data/README.md`](font_data/README.md) for its source and checksum.
 
@@ -29,14 +31,26 @@ distributed under the same MIT license.
 
 ### Tables inside PsyCross
 
-PsyCross's GTE emulation (`src/psx/LIBGTE.C`, `src/gte/`) carries its own
-`rcossin_tbl` (sine/cosine) and `SQRT` tables, which are byte-identical to the
-corresponding tables in the retail Psy-Q libgte. They are part of the MIT
-third-party project, not added by this repo, and
-`tools/analysis/psyq_port_guard.py` exempts symbols defined by
-`libpsycross.a` from its binary table check. Everything the port adds on top
-(`pc_port/src/psyq_compat*`, `gte_normalize_table.h`) is written from the
-documented interface or computed from its definition.
+Upstream PsyCross carries `rcossin_tbl` (sine/cosine), `ratan_tbl`
+(arctangent), and `SQRT` (square root) data that match retail Psy-Q libgte
+bytes. The port patches remove their compiled initializers: sine/cosine
+and arctangent storage is populated from the user's disc at startup, and
+square-root lookup reads the user's loaded retail memory. The table bytes
+must not be redistributed in the executable, including within PsyCross.
+
+The release gate runs `tools/analysis/psyq_port_guard.py --strict
+--require-empty-allowlist --require-exe` against both the build executable
+and the packaged executable. The build executable must retain DWARF
+(`--require-dwarf`) for translation-unit attribution. The packaged copy
+is scanned again after debug stripping for tables and absolute build paths.
+Strict mode has no PsyCross table exemption. PsyCross's MIT notice remains
+in every package. Passing this guard checks classified code and data; it
+does not establish clean-room provenance or native gameplay coverage.
+
+The current runtime still interprets some retail CPU code from the user's
+disc, including SDK calls on those paths. Native conversion remains open;
+no new public binary is authorized until the native-execution requirement
+and the strict SDK gate are both satisfied.
 
 ### License text (from PsyCross `LICENSE` at the pinned commit)
 

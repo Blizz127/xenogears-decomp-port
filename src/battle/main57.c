@@ -2,7 +2,55 @@
 
 
 #ifndef XENO_PC_PORT
-INCLUDE_ASM("asm/battle/nonmatchings/main57", func_8009AFD8);
+extern u8* D_800C34B0;
+extern u8* D_800C3E00;
+extern u8 g_GameState[];
+
+/* func_8009AFD8.s, byte-exact: by the D_800C34B0+0x5FC2 mode, tick down
+ * the g_GameState+0x2286 counter of D_800C3E00's +0x6F id (modes 0-3), of
+ * its +0x72 id (mode 6), or of both (modes 7-19; that case falls through
+ * into mode 6's).  The switch table is this object's .rodata (placed at
+ * jtbl_80070428 by config/battle.yaml).  Retail decrements with
+ * `addiu 0xFF`: gcc 2.6.x gives that for -= 1 (the BattleGcc263 preset),
+ * while 2.7.2 and the CDK cc1 give `addiu -1`, as does -- under every cc1. */
+void func_8009AFD8(void) {
+    u32 id;
+
+    switch (D_800C34B0[0x5FC2]) {
+    case 0:
+    case 1:
+    case 2:
+    case 3:
+        id = D_800C3E00[0x6F];
+        break;
+    case 7:
+    case 8:
+    case 9:
+    case 10:
+    case 11:
+    case 12:
+    case 13:
+    case 14:
+    case 15:
+    case 16:
+    case 17:
+    case 18:
+    case 19:
+        id = D_800C3E00[0x6F];
+        if (g_GameState[0x2286 + id] != 0) {
+            g_GameState[0x2286 + id] -= 1;
+        }
+        /* fall through */
+    case 6:
+        id = D_800C3E00[0x72];
+        break;
+    default:
+        return;
+    }
+    if (g_GameState[0x2286 + id] != 0) {
+        g_GameState[0x2286 + id] -= 1;
+    }
+}
 #endif
 
 
@@ -28,8 +76,8 @@ void func_8009B098(void) {
 }
 
 
-/* ---- Port bodies (fo/bat3).  Not byte-matching: the matching build keeps
- * the retail bytes from the INCLUDE_ASM block above. ---- */
+/* ---- Port bodies (fo/bat3).  The retail build compiles func_8009AFD8's
+ * byte-exact C at the top of this file. ---- */
 #ifndef XENO_PC_PORT
 extern u8* D_800C34B0;
 #endif

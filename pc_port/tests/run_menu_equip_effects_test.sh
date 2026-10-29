@@ -27,7 +27,7 @@ done
 python3 - <<'PYGEN'
 from pathlib import Path
 p=Path('pc_port/build_native/menu_equip_effects');s=Path('src/menu/main/misc.c').read_text();a=s.index('void func_801E36D4(void* resourceArg');z=s.index('\n#endif',a);b=s[a:z]
-mutants={'effect_type':('case 7: target = 0x8E','case 6: target = 0x8E'),'bonus_bit':('0x80 >> bit','0x40 >> bit'),'secondary_weapon':('i == 2 ? 0x18 : 0','i == 2 ? 0x14 : 0'),'weapon_mask':('character[3] == 0x64','character[3] == 0x63')}
+mutants={'effect_type':('        case 7:\n','        case 6:\n'),'bonus_bit':('& 0x8000)','& 0x0080)'),'secondary_weapon':('*(u16*)(c + 0x18)','*(u16*)(c + 0x14)'),'weapon_mask':('c[3] == 0x64','c[3] == 0x63')}
 for n,(old,new) in mutants.items():
  assert b.count(old)==1
  (p/(n+'.c')).write_text(s[:a]+b.replace(old,new)+s[z:])

@@ -1,0 +1,49 @@
+/* Actual retail 80025FA8 instructions versus the decomp-owned C body.
+ * Both use PsyCross GTE: this is not an independent hardware oracle. */
+#include "battle_mips_runtime.c"
+#include "psx/gtereg.h"
+/* Unused runtime globals required by the linked fixture. */
+void *g_Heap;
+unsigned int g_HeapIsErrorHandlerOff;
+uint8_t g_PsxRam[PSX_RAM_SIZE];
+uint8_t g_PsxScratchpad[4096];
+int g_GPUDisabledState;
+unsigned g_PcPortPresentedFrames;
+/* compat.o's real pump is the sole definition; with a frozen vblank count it
+ * early-returns before touching pad state (a conflicting no-op stub here
+ * breaks the link with multiple-definition). */
+int PsyX_Sys_GetVBlankCount(void) { return 0; }
+void PsyX_UpdateInput(void) {}
+void ControllerPoll(void) {}
+void ControllerPushState(void) {}
+char PsyX_BeginScene(void) { abort(); }
+void ClearSplits(void) { abort(); }
+void DrawAllSplits(void) { abort(); }
+void ParsePrimitivesLinkedList(u_long *p, int s) { (void)p; (void)s; abort(); }
+extern int func_80025FA8(uint8_t *, int, uint8_t *, int, int, int, int, int, int)
+    __attribute__((weak));
+extern int ReadGeomScreen(void);
+extern void ReadGeomOffset(long *, long *);
+extern MATRIX *ScaleMatrixL(MATRIX *, VECTOR *);
+
+static int sdk_bridge(void *opaque, PcPortMipsCpu *cpu, uint32_t target)
+{
+    if (target >= 0x80025fa8u && target < 0x80026338u) return 0;
+    if (target >= 0x80043a1cu && target < 0x80043d00u) return 0;
+    return runtime_bridge(opaque, cpu, target);
+}
+
+static void initial_gte(void)
+{
+    memset(&gteRegs, 0, sizeof(gteRegs));
+    CTC2(4096, 0); CTC2(4096, 2); CTC2(4096, 4);
+    CTC2(123, 5); CTC2(456, 6); CTC2(789, 7);
+    SetGeomOffset(160, 112); SetGeomScreen(512);
+}
+
+
+static int no_bridge(void*p,PcPortMipsCpu*c,uint32_t t){(void)p;(void)c;(void)t;return 0;}
+static uint8_t initial[PSX_RAM_SIZE],expected[PSX_RAM_SIZE];
+int main(void){const uint32_t target[]={0x80089c08u,0x8009ab00u,0x80085e78u,0x8007fce8u,0x8007fdecu,0x8007fb70u,0x8007fbe0u,0x800baf40u};const uint32_t ra[]={0x8008061cu,0x80080614u,0x8008060cu,0x80080a70u,0x80080a78u,0x80080a88u,0x800806f0u,0x80080a38u};const unsigned lengths[]={28,56,60,80,80,112,264,8};FILE*f=fopen("disc/battle.bin","rb");assert(f);for(unsigned k=0;k<8;k++){assert(!fseek(f,target[k]-0x8006faf0u,SEEK_SET));assert(fread(PSX_ADDR(target[k]),1,lengths[k],f)==lengths[k]);}fclose(f);BattleMipsRuntime runtime={0};
+assert(!setenv("XENO_BATTLE_NATIVE_HOSTS","1",1));assert(!setenv("XENO_BATTLE_NATIVE_COMMAND_MENU_EXPERIMENT","1",1));const char *flags[]={"XENO_BATTLE_NATIVE_TARGET_MASK_EXPERIMENT","XENO_BATTLE_NATIVE_ACTOR_CLEAR_FLAG_EXPERIMENT","XENO_BATTLE_NATIVE_MENU_RESET_EXPERIMENT","XENO_BATTLE_NATIVE_INACTIVE_FREE_EXPERIMENT","XENO_BATTLE_NATIVE_INACTIVE_STATE_EXPERIMENT","XENO_BATTLE_NATIVE_SMALL_CURSOR_EXPERIMENT","XENO_BATTLE_NATIVE_EMPTY_MENU_EXPERIMENT"};for(unsigned i=0;i<7;i++)assert(!setenv(flags[i],"1",1));
+for(unsigned k=0;k<8;k++){store_le(PSX_ADDR(0x800c3eacu),4,0x80100000u);store_le(PSX_ADDR(0x800d2d28u),4,0x80110000u);store_le(PSX_ADDR(0x800c34b0u),4,0x80120000u);store_le(PSX_ADDR(0x800c344cu),2,0xa55au);store_le(PSX_ADDR(0x800d2d26u),1,0);store_le(PSX_ADDR(0x800ccb34u),1,3);store_le(PSX_ADDR(0x80120000u+2*0x170u+0x15au),1,0xff);store_le(PSX_ADDR(0x80110096u),1,0);store_le(PSX_ADDR(0x801100aeu),1,0);memcpy(initial,g_PsxRam,sizeof initial);initial_gte();PcPortMipsCpu cpu;initialize_cpu(&cpu,&runtime);cpu.bus.bridge=no_bridge;for(unsigned i=1;i<32;i++)cpu.gpr[i]=0x31400000u+i;cpu.gpr[4]=k==6?1:2;cpu.gpr[5]=1;cpu.gpr[29]=0x801ff000u;cpu.gpr[31]=ra[k];PcPortMipsCpu host=cpu;host.bus.bridge=runtime_bridge;assert(PcPortMipsRun(&cpu,target[k],ra[k],1000)==PC_PORT_MIPS_HALTED);memcpy(expected,g_PsxRam,sizeof expected);GTERegisters want=gteRegs;memcpy(g_PsxRam,initial,sizeof initial);initial_gte();runtime.initialized=1;g_ActiveBattleRuntime=&runtime;runtime.bridge_cpu=&host;assert(!setenv("XENO_DISABLE_CPU_INTERPRETER","1",1));int rc=PcPortMipsRun(&host,target[k],ra[k],1000);unsetenv("XENO_DISABLE_CPU_INTERPRETER");if(rc!=PC_PORT_MIPS_HALTED){fprintf(stderr,"route %u refused: %s\n",k,host.error);return 1;}for(unsigned i=1;i<32;i++)if(cpu.gpr[i]!=host.gpr[i]){fprintf(stderr,"route %u r%u cpu=%08x host=%08x\n",k,i,cpu.gpr[i],host.gpr[i]);return 1;}assert(cpu.hi==host.hi&&cpu.lo==host.lo&&!memcmp(expected,g_PsxRam,sizeof expected));assert(!memcmp(&want,&gteRegs,sizeof(gteRegs)));}puts("menu data runtime dispatch PASS eight fixed paths, CPU disabled");return 0;}

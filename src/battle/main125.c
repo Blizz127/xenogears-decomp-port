@@ -14,9 +14,9 @@ extern void func_800AA320(u32 arg0, u32 arg1, u32 arg2);
 /* func_800BEE2C: HeapAlloc(0x1000, 1), then run func_800AA320(arg0 & 0xFFFF,
  * arg1 & 0xFFFF, arg2) on a stack switched onto that heap block -- retail
  * stores the caller's $sp at buf+0xF9C, sets $sp to buf+0xF98, calls, then
- * reloads $sp from the slot -- and finally HeapFree(buf).  Reassigning $sp is
- * not expressible in portable C, so this stays retail assembly; the port does
- * not link this reference-only TU. */
+ * reloads $sp from the slot -- and finally HeapFree(buf).  The byte-exact C
+ * body is in main125_q1.c (retail build only); it switches $sp with GCC
+ * inline asm.  The port does not link this reference-only TU. */
 #ifndef XENO_PC_PORT
 extern u8 D_800C3EB0[];
 #endif
@@ -26,9 +26,9 @@ extern u8 D_800C3EB0[];
  * and append the row to out, returning the number appended.  Retail advances
  * the row base by 4 each iteration (re-adding the 0x8C8C constant) and writes
  * the terminator through out[count], not through the append cursor. */
-/* Not yet byte-matching: the matching build assembles retail bytes for
- * this function from its own asm segment (see config/battle.yaml).  The
- * body below is kept for the port and the differential harnesses. */
+/* The retail build compiles this function's byte-exact C in
+ * mainasm_4F3C4.c.  The body below is kept for the port and the
+ * differential harnesses. */
 #ifdef XENO_PC_PORT
 u32 func_800BEEB4(u32 mask, u32 *out, u32 value) {
     u8 *p = D_800C3EB0;
@@ -60,9 +60,9 @@ extern s32 func_80023124(s32 pointA, s32 pointB);
 /* Retail builds each coordinate pair in a stack local and reads it back as
  * two halfwords, so the pair is a struct, not a fused expression. */
 typedef struct { s16 lo, hi; } BattlePairXZ;
-/* Not yet byte-matching: the matching build assembles retail bytes for
- * this function from its own asm segment (see config/battle.yaml).  The
- * body below is kept for the port and the differential harnesses. */
+/* The retail build compiles this function's byte-exact C in
+ * mainasm_4F3C4.c.  The body below is kept for the port and the
+ * differential harnesses. */
 #ifdef XENO_PC_PORT
 u32 func_800BEF24(u8 *arg0, u8 *arg1) {
     BattlePairXZ a, b;
@@ -84,9 +84,9 @@ u32 func_800BEF24(u8 *arg0, u8 *arg1) {
         (s32)((u32)(u16)a.lo | ((u32)(u16)a.hi << 16)));
 }
 #endif /* XENO_PC_PORT */
-/* Not yet byte-matching: the matching build assembles retail bytes for
- * this function from its own asm segment (see config/battle.yaml).  The
- * body below is kept for the port and the differential harnesses. */
+/* The retail build compiles this function's byte-exact C in
+ * mainasm_4F3C4.c.  The body below is kept for the port and the
+ * differential harnesses. */
 #ifdef XENO_PC_PORT
 u32 func_800BEF8C(u8 *arg0) {
     BattlePairXZ a, b;
@@ -116,9 +116,9 @@ extern void func_800245D8(u32 arg0, u32 arg1);
 extern u8 *D_800C3610;
 #endif
 
-/* Not yet byte-matching: the matching build assembles retail bytes for
- * this function from its own asm segment (see config/battle.yaml).  The
- * body below is kept for the port and the differential harnesses. */
+/* The retail build compiles this function's byte-exact C in
+ * mainasm_4F3C4.c.  The body below is kept for the port and the
+ * differential harnesses. */
 #ifdef XENO_PC_PORT
 void func_800BEFF4(u32 arg0) {
     u8 *base = D_800C3610;

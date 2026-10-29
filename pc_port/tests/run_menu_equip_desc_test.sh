@@ -16,8 +16,10 @@ assert hashlib.sha256(b).hexdigest()=='82f84a24ac1fd1979754e1cc9c861405fb59ce95d
 print('DFF5C instruction words OK, bytes', len(words)*4)
 PYGEN
 BASE=(-std=gnu17 -fno-pie -ffunction-sections -fdata-sections -fno-strict-aliasing -DXENO_PC_PORT -DXENO_EQUIP_DESC_TEST -DSKIP_ASM -D_LANGUAGE_C -DUSE_EXTENDED_PRIM_POINTERS=0 -include assert.h -fpermissive -w -Ipc_port/include_shim -Iinclude -Ipc_port/extern/PsyCross/include -Ipc_port/extern/PsyCross/include/psx -Ipc_port/src)
-for mode in O0 UBSan; do
-  flags=(-O0); if [[ "$mode" == UBSan ]]; then flags=(-O0 -fsanitize=undefined -fno-sanitize-recover=all); fi
+for mode in O0 O2 UBSan; do
+  # -U_FORTIFY_SOURCE: optimizing builds turn on glibc's fortified bzero,
+  # which clashes with the test's own bzero(void*, s32).
+  flags=(-"$mode" -U_FORTIFY_SOURCE); if [[ "$mode" == UBSan ]]; then flags=(-O0 -fsanitize=undefined -fno-sanitize-recover=all); fi
   gcc "${BASE[@]}" "${flags[@]}" -c src/menu/main/misc.c -o "$OUT/$mode.owner.o"
   gcc "${BASE[@]}" "${flags[@]}" -c pc_port/tests/menu_equip_desc_test.c -o "$OUT/$mode.test.o"
   gcc "${BASE[@]}" -O0 -c pc_port/src/battle_mips_adapter.c -o "$OUT/$mode.mips.o"
@@ -36,15 +38,16 @@ mutants={
  'entry_stride':('s32 entryBase = itemId * 3','s32 entryBase = itemId * 2'),
  'visible_flag':('listBuf[0xA18] = 1','listBuf[0xA18] = 0'),
  'equip_weapon':('itemId = state[0x2D6 + base]','itemId = state[0x2D7 + base]'),
+ 'raw_render_context':('descLine[0x7D] = *(u8*)&g_Menu->renderContext','descLine[0x7D] = ((u8*)g_Menu)[0x308]'),
 }
 for n,(old,new) in mutants.items():
  assert b.count(old)==1, (n,old,b.count(old))
  (p/(n+'.c')).write_text(s[:a]+b.replace(old,new)+s[z:])
 PYGEN
-for mutant in kind_bias entry_stride visible_flag equip_weapon; do
+for mutant in kind_bias entry_stride visible_flag equip_weapon raw_render_context; do
   gcc "${BASE[@]}" -O0 -c "$OUT/$mutant.c" -o "$OUT/$mutant.o"
   clang -no-pie -Wl,--gc-sections "$OUT/$mutant.o" "$OUT/O0.test.o" "$OUT/O0.mips.o" -o "$OUT/$mutant"
   if "$OUT/$mutant" >"$OUT/$mutant.log" 2>&1; then echo "FAIL survived $mutant"; exit 1; fi
   grep -q '^FAIL' "$OUT/$mutant.log"
 done
-echo 'EQUIP DESC negative controls PASS count=4'
+echo 'EQUIP DESC negative controls PASS count=5'

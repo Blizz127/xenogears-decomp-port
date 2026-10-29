@@ -1,0 +1,34 @@
+--- a/src/psx/LIBAPI.C
++++ b/src/psx/LIBAPI.C
+@@ -371,0 +372,31 @@
++/* _xeno_sound_reservation: reserve only an enabled sound-tick event.
++ * This is a raw mutex hold, not a DisableEvent bracket and not a change to
++ * event state. The caller must release on every exit, on the same thread.
++ * No live sound caller uses this experimental primitive yet. */
++static __thread unsigned int s_soundReservation = 0;
++extern "C" int PsyX_Sys_ReserveSoundEvent(unsigned int event)
++{
++    if (!g_SoundTickMutex || s_soundReservation || s_soundTickHold ||
++        event < 1 || event > PSYX_EVENT_MAX)
++        return 0;
++    if (SDL_LockMutex(g_SoundTickMutex) != 0)
++        return 0;
++    PsyXEventSlot* slot = &s_psyxEvents[event - 1];
++    if (!slot->in_use || !slot->enabled || !PsyX_EventSlotIsSoundTick(slot))
++    {
++        SDL_UnlockMutex(g_SoundTickMutex);
++        return 0;
++    }
++    s_soundReservation = event;
++    return 1;
++}
++
++extern "C" int PsyX_Sys_ReleaseSoundEventReservation(void)
++{
++    if (!s_soundReservation || !g_SoundTickMutex)
++        return 0;
++    s_soundReservation = 0;
++    SDL_UnlockMutex(g_SoundTickMutex);
++    return 1;
++}
++

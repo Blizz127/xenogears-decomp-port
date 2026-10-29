@@ -27,11 +27,14 @@ INC=(-Ipc_port/include_shim -Iinclude -Ipc_port/extern/PsyCross/include
 
 # Title-screen leaves the test replaces.  Everything else in the menu object
 # stays the shipped code (func_801C7D78, func_801C58EC, func_801C531C,
-# func_801C8574).
+# func_801C8574).  func_801E23CC (Gear) and func_801D9808 (sound mode) have
+# native bodies since claude/h-menu-misc; the test still supplies its own
+# dispatcher-entry doubles for them.
 MENU_WEAKEN=(func_801C7BF4 func_801E8474 func_801E8018 func_801E8070
              func_801D22C4 func_801E8044 func_801E8978 func_801D3674
              func_801E3088 func_801D29A8 func_801D1EB0 func_801DE29C
-             func_801DBE54 func_801E0F78 func_801E2BE4)
+             func_801DBE54 func_801E0F78 func_801E2BE4 func_801D9F98
+             func_801E23CC func_801D9808)
 
 compile_and_run() {
     local name="$1"

@@ -198,14 +198,18 @@ void wm_80072BB0(void)
     SetFarColor(WM_U8(WM_FOG_R_ABS), WM_U8(WM_FOG_G_ABS),
                 WM_U8(WM_FOG_B_ABS));
 
-    /* 0x80072D80–0x80072D94: fog near/far.
-     * mode == 2: near = 0x800 (2048); else near = 0xB00 (2816).
-     * far = 0xE80 (3712), H = *(BCDC) = 256. */
-    if (mode == 2) {
-        func_80048AB0(2048, 3712, 256);
-    } else {
-        func_80048AB0(2816, 3712, 256);
-    }
+    /* 0x80072D74–0x80072D98: fog near/far.
+     *   80072D80  bne  v1(D7CC), v0(2), 0x80072D8C
+     *   80072D84   addiu a0, zero, 0x800     (delay slot: always)
+     *   80072D88  addiu a0, zero, 0xB00      (only when D7CC == 2)
+     *   80072D90  lw   a2, D_8009BCDC
+     *   80072D94  jal  func_80048AB0         (a1 = 0xE80 in the delay slot)
+     * so D7CC == 2 gives near 0xB00 (2816) and every other value 0x800
+     * (2048).  The port had the two swapped, so the Lahan session (D7CC 2)
+     * started the depth-cue fog at 2048 instead of 2816 and faded the
+     * middle distance toward the far colour. */
+    func_80048AB0(mode == 2 ? 0xB00 : 0x800, 0xE80,
+                  (long)(s32)WM_U32(WM_BCDC_ABS));
 
     fprintf(stderr, "[worldmap-fbi] exit mode=%u\n", mode);
 }

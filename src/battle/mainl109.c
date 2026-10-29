@@ -7,6 +7,8 @@ extern void func_80021FE0(u8* p, s16 v);
 
 
 /* func_800B9B54.s */
+/* Adopted host TUs use the port body in mainl109_port.c. */
+#ifndef XENO_BATTLE_OVERLAY_HOST_BODIES
 void func_800B9B54(u8* a, u8* b) {
     if (a == b) {
         return;
@@ -19,3 +21,4 @@ void func_800B9B54(u8* a, u8* b) {
     func_800223B0(b, (s16)func_800BEF24(b, a));
     func_80021FE0(b, (s16)func_800BEF24(b, a));
 }
+#endif /* XENO_BATTLE_OVERLAY_HOST_BODIES */

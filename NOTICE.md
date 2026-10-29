@@ -50,11 +50,11 @@ are replaced.
 Before publishing, every file was checked:
 
 1. **Retail-data guard, strict mode, against the retail files and the BIOS**
-   (`tools/analysis/retail_data_guard.py --strict`, with SLUS_006.64, the nine
-   overlay files and the SCPH-5500 BIOS as the reference). It found no
+   (`tools/analysis/retail_data_guard.py --strict`, with SLUS_006.64, the eleven
+   overlay files (including `name_entry_menu.bin` and `battle_module_0c4.bin`) and the SCPH-5500 BIOS as the reference). It found no
    "data"-class run: no game data or BIOS bytes. The only runs it reports are
    its "address-table" class, listed below.
-2. **Compiled-object scan.** Every game translation unit included here was
+2. **Compiled-object scan** (for the later source snapshot of `d64e54d2`: matching/MIPS build only; the x86-64 port build was not run). Every game translation unit included here was
    compiled, in both the matching (MIPS) and the port (x86-64) build, and the
    `.data`, `.rodata` and `.sdata` sections of each object were compared
    byte by byte against the same references. Translation units that produced
@@ -75,7 +75,7 @@ lives), not game data.
 | `config/symbol_addrs.field.txt` | 11–18 | 32 | field.bin, vaddr 0x800AE8E0 |
 | `config/symbol_addrs.slus_006.64.txt` | 307–315 | 36 | SLUS_006.64, vaddr 0x8005072C |
 | `pc_port/src/data_slus_sdata.c` | 122 | 64 | SLUS_006.64, vaddr 0x80050150 |
-| `pc_port/src/world_map_scheduler.c` | 1365–1425 | 64 | world_map.bin, vaddr 0x80099EC4 |
+| `pc_port/src/world_map_scheduler.c` | 1374–1434 | 64 | world_map.bin, vaddr 0x80099EC4 |
 | `pc_port/tests/sprite_dispatch_arithmetic_retail_test.c` | 95 | 40 | SLUS_006.64, vaddr 0x80018504 |
 | `pc_port/tests/w34b3_prod_test.c` | 98–129 | 296 | world_map.bin, vaddr 0x80099F0C |
 | `tools/remu/tests/diff_80085618.c` | 180–182 | 40 | battle.bin, vaddr 0x80070250 |

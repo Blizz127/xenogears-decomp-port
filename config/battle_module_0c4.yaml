@@ -1,0 +1,54 @@
+# Raw archive directory 0x0C, file 4: the battle startup module (stage
+# loader, dispatcher, timer task, startup actor/resource/queue routines).
+# This is not battle.bin.  Other modules reuse 0x801E4000.. addresses
+# (battle_command_file1 at 0x801E5000, menu.bin, the field object overlay),
+# so keep a separate namespace.  Assembly only: no C reconstruction yet.
+# The payload is extracted into the ignored disc/ directory by
+# tools/scripts/extract_battle_module_0c4.py; no retail bytes are committed.
+name: Battle startup module, archive 0x0C file 4
+sha1: 1e0a331245ad46c3bde1a70ad144771c4bd5c26a
+options:
+  basename: battle_module_0c4.bin
+  target_path: disc/battle_module_0c4.bin
+  base_path: ../
+  platform: psx
+  compiler: PSYQ
+  asm_path: asm/battle_module_0c4
+  src_path: src/battle_module_0c4
+  build_path: build/
+  ld_script_path: linker/battle_module_0c4.ld
+  find_file_boundaries: False
+  gp_value: 0x80059170
+  global_vram_start: 0x80010000
+  o_as_suffix: False
+  use_legacy_include_asm: False
+  asm_function_macro: glabel
+  asm_jtbl_label_macro: jlabel
+  asm_data_macro: dlabel
+  symbol_name_format: battle_module_0c4_$VRAM
+  symbol_name_format_no_rom: $VRAM
+  section_order: [".rodata", ".text", ".data", ".bss"]
+  symbol_addrs_path:
+    - config/symbol_addrs.battle_module_0c4.txt
+    - config/symbol_addrs.slus_006.64.txt
+  undefined_funcs_auto_path: linker/undefined_funcs_auto.battle_module_0c4.txt
+  undefined_syms_auto_path: linker/undefined_syms_auto.battle_module_0c4.txt
+  extensions_path: tools/splat_ext
+  subalign: 4
+  string_encoding: ASCII
+  data_string_encoding: ASCII
+segments:
+  - name: battle_module_0c4
+    type: code
+    start: 0
+    vram: 0x801E4000
+    align: 4
+    subsegments:
+      # 801E4000..801E4048: jump tables only (the 32 bytes the port's module
+      # hosts pin start here).
+      - [0x0000, rodata, jtbls]
+      # 801E4048..801E95BC: code; the last function returns at 801E95B4.
+      - [0x0048, asm, text]
+      # 801E95BC..801E96C0: initialised data.
+      - [0x55BC, data, module_data]
+  - [0x56C0]

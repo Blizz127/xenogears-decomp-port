@@ -76,6 +76,7 @@ range	0x8004E880	0x8004EA90	libcard	text
 data	0x800523F0	0x800563F0	libgte	rcossin_tbl
 data	0x80056A00	0x80056B94	libgte	sqrt_tbl
 data	0x80056B94	0x80056D20	libgte	normalize_tbl
+data	0x80057030	0x80057832	libgte	ratan_tbl
 func	0x8003F8E8	-	libc	bzero
 func	0x8003F918	-	libc	memchr
 func	0x8003F968	-	libc	memcpy

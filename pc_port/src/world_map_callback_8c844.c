@@ -9,6 +9,7 @@
 
 #include "common.h"
 #include "psx_memory.h"
+#include "world_map_retail_trig.h"
 #include "world_map_callback_8c844.h"
 #include "world_map_animation_guard.h"
 #include "world_map_common_tail.h"
@@ -26,8 +27,6 @@
 #include "world_map_helper_97770.h"
 
 extern void func_800245D8(void* object, s16 animation);
-extern long rcos(long a);
-extern long rsin(long a);
 extern void wm_8007528C(void);
 
 /* ------------------------------------------------------------------ */
@@ -492,13 +491,13 @@ s32 wm_8008C844(s32 slot_idx)
         c844_sh(s1 + 0x48, (u16)v0);
 
         /* velocity.x = rcos(heading) * 32 */
-        cos_val = (s32)rcos((long)(s16)(u16)v0);
+        cos_val = (s32)wm_retail_rcos((int)((long)(s16)(u16)v0));
         v1 = cos_val * 3;
         v1 = v1 << 5;
         c844_sw(s4 + 0, c844_lw(s1 + 0x28) + (u32)v1);
 
         /* velocity.z = -rsin(heading) * 32 */
-        sin_val = (s32)rsin((long)c844_lh(s1 + 0x48));
+        sin_val = (s32)wm_retail_rsin((int)((long)c844_lh(s1 + 0x48)));
         v0 = (u32)(-(s32)sin_val);
         v1 = (s32)v0 * 3;
         v1 = v1 << 5;

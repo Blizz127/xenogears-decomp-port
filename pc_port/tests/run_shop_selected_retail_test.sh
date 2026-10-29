@@ -11,7 +11,8 @@ COMMON=(-std=gnu17 -fno-pie -fno-builtin -DXENO_PC_PORT -DSKIP_ASM -D_LANGUAGE_C
 for mode in O0 O2 UBSan; do
  flags=(-"$mode"); if [ "$mode" = UBSan ]; then flags=(-O2 -fsanitize=undefined -fno-sanitize-recover=all); fi
  gcc "${COMMON[@]}" "${flags[@]}" -fpermissive -w -c src/shop_menu/main/misc8.c -o "$OUT/$mode.source.o"
- gcc "${COMMON[@]}" "${flags[@]}" -w -c src/shop_menu/main/misc7.c -o "$OUT/$mode.lookup.o"
+ # misc7.c now defines func_801CE480 natively; keep this test's own double.
+ gcc "${COMMON[@]}" "${flags[@]}" -Dfunc_801CE480=xeno_unused_func_801CE480 -w -c src/shop_menu/main/misc7.c -o "$OUT/$mode.lookup.o"
  gcc "${COMMON[@]}" "${flags[@]}" -Wall -Wextra -Werror -c pc_port/tests/shop_selected_retail_test.c -o "$OUT/$mode.test.o"
  gcc "${COMMON[@]}" "${flags[@]}" -c pc_port/src/battle_mips_adapter.c -o "$OUT/$mode.cpu.o"
  gcc -no-pie "${flags[@]}" -Wl,--gc-sections "$OUT/$mode.source.o" "$OUT/$mode.lookup.o" "$OUT/$mode.test.o" "$OUT/$mode.cpu.o" -o "$OUT/$mode"

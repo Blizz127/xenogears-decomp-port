@@ -10,7 +10,12 @@ for mode in O0 O2 ASan; do
  flags=(-"$mode" -fstack-protector-all)
  if [ "$mode" = ASan ]; then flags=(-O1 -fsanitize=address,undefined -fno-sanitize-recover=all -fstack-protector-all); fi
  for part in misc7 misc8; do
-  gcc "${COMMON[@]}" "${flags[@]}" -w -c "src/shop_menu/main/$part.c" -o "$OUT/$mode.$part.o"
+  # misc7.c now defines func_801CE480 natively; keep this test's own double
+  # (misc8's calls must still bind to it, so rename only misc7's definition).
+  # misc8.c still calls shop helpers without prototypes; gcc >= 14 needs
+  # -fpermissive for that (as run_shop_selected_retail_test.sh already passes).
+  extra=(-fpermissive); if [ "$part" = misc7 ]; then extra=(-Dfunc_801CE480=xeno_unused_func_801CE480); fi
+  gcc "${COMMON[@]}" "${flags[@]}" "${extra[@]}" -w -c "src/shop_menu/main/$part.c" -o "$OUT/$mode.$part.o"
  done
  gcc "${COMMON[@]}" "${flags[@]}" -Wall -Wextra -Werror -c pc_port/tests/shop_buy_cancel_test.c -o "$OUT/$mode.test.o"
  gcc -no-pie "${flags[@]}" -Wl,--gc-sections "$OUT/$mode.misc7.o" "$OUT/$mode.misc8.o" "$OUT/$mode.test.o" -o "$OUT/$mode"
@@ -18,7 +23,7 @@ for mode in O0 O2 ASan; do
 done
 # Restore the undersized native declaration: ASan must identify the overwrite.
 sed 's/u8 sp28\[MAX_ITEMS_IN_VIEW\];/u8 sp28[4];/' src/shop_menu/main/misc8.c > "$OUT/mutant.c"
-gcc "${COMMON[@]}" "${flags[@]}" -w -c "$OUT/mutant.c" -o "$OUT/mutant.o"
+gcc "${COMMON[@]}" "${flags[@]}" -fpermissive -w -c "$OUT/mutant.c" -o "$OUT/mutant.o"
 gcc -no-pie "${flags[@]}" -Wl,--gc-sections "$OUT/ASan.misc7.o" "$OUT/mutant.o" "$OUT/ASan.test.o" -o "$OUT/mutant"
 rc=0; "$OUT/mutant" > "$OUT/mutant.log" 2>&1 || rc=$?
 if [ "$rc" = 0 ] || ! grep -q 'AddressSanitizer: stack-buffer-overflow' "$OUT/mutant.log"; then

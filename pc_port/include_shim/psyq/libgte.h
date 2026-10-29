@@ -3,6 +3,7 @@
 /* Port build: redirect the game's PsyQ GTE header to PsyCross's implementation. */
 #include <libgte.h>
 extern long VectorNormalSS(SVECTOR* v0, SVECTOR* v1);
+extern long VectorNormalS(VECTOR* v0, SVECTOR* v1);
 
 /* Xenogears' decomp symbol map names the retail executable's two trig entry
  * points opposite to PsyCross's conventional implementations.  At 0x8003F8B0

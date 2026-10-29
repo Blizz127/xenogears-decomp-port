@@ -2,7 +2,51 @@
 
 
 #ifndef XENO_PC_PORT
-INCLUDE_ASM("asm/battle/nonmatchings/mainc132", func_800BFA9C);
+extern u8 D_800C362C[];
+extern u32 D_800C3E1C[];
+extern u32 D_800C35D8[];
+extern u8 D_800C3EB0__rows[][28] asm("D_800C3EB0");
+extern void func_800B8D04(void);
+extern void func_800BE790(void);
+extern void func_800BB760(u32 slot);
+
+/* func_800BFA9C.s, byte-exact: when D_800C362C is set, run func_800B8D04,
+ * wait two frames, then for each party slot whose 28-byte row has byte 8
+ * set and byte 6 below 0x11 call func_800BB760(slot) -- except, in mode 2,
+ * the slot equal to the 4-bit class of the actor D_800C3E1C (+0xAC bits
+ * 0..1 above +0xA8 bits 30..31); wait while D_800C35D8 is set; clear
+ * D_800C362C.  The rows are a 2D view indexed by `i`: with a walking row
+ * pointer the loop has 19 real insns at loop.c time and its 2/3 constants
+ * are hoisted, where retail reloads them each pass (with the indexed rows
+ * it has 24 and they stay).  The class uses a separate +0xA8 temporary
+ * (one expression is 1 or 17 insns off). */
+void func_800BFA9C(void) {
+    s32 i;
+    u32 lo;
+    u32 cls;
+
+    if (D_800C362C[0] == 0) {
+        return;
+    }
+    func_800B8D04();
+    func_800BE790();
+    func_800BE790();
+    lo = *(u32*)(D_800C3E1C[0] + 0xA8) >> 30;
+    cls = ((*(u32*)(D_800C3E1C[0] + 0xAC) & 3) << 2) | lo;
+    for (i = 0; i != 3; i++) {
+        if (D_800C3EB0__rows[i][8] != 0) {
+            if (D_800C362C[0] != 2 || i != cls) {
+                if (D_800C3EB0__rows[i][6] < 0x11) {
+                    func_800BB760(i);
+                }
+            }
+        }
+    }
+    while (D_800C35D8[0] != 0) {
+        func_800BE790();
+    }
+    D_800C362C[0] = 0;
+}
 #endif
 
 

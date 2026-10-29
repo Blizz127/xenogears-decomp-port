@@ -8,7 +8,10 @@
 #include <string.h>
 
 SystemMenu* g_Menu;
-u8 D_801EA730[0x190];
+/* +8: with all 200 candidates accepted, the fill loop stores one count past
+ * the 0xC8-entry list (D_801EA7F8[0xC8], retail 0x801EA8C0, the next
+ * variable).  Without the pad that store landed on g_Menu's low byte here. */
+u8 D_801EA730[0x190 + 8];
 __asm__(".globl D_801EA7F8\n.set D_801EA7F8, D_801EA730 + 0xC8\n");
 extern u8 D_801EA7F8[];
 u16 D_801E96A8[32];
@@ -26,6 +29,7 @@ static u8 resources[0xCC];
 static MenuUnk6 nativeResources;
 static u8 work[0x400];
 static u8 listBuf[0xA1C];
+static u8 expLines[0x800]; /* retail run: name lines at 0, count lines at 0x400 */
 static u8 weaponData[256 * 16];
 static u8 accessoryData[256 * 16];
 static u8 gearWeaponData[256 * 20];
@@ -171,7 +175,11 @@ static void init_case(unsigned seed, unsigned ch, unsigned gear, unsigned slot,
     menu.pManager = &manager;
     memset(&nativeResources, 0, sizeof nativeResources);
     menu.unk330 = &nativeResources;
-    ((u8*)&menu)[0x308] = (u8)(seed & 1);
+    /* renderContext: the host field for the C body, retail offset 0x308 in
+     * the retail image.  The host object's raw byte 0x308 belongs to another
+     * field; the sentinel there catches a body that reads raw retail offsets. */
+    menu.renderContext = (s32)(seed & 1);
+    ((u8*)&menu)[0x308] = 0xEE;
     retailMenu[0x308] = (u8)(seed & 1);
     /* C path reads remapped PSX slots (unk358[2], unk42C[2]).  Guest MIPS
      * still overlays retail byte offsets onto the same SystemMenu object. */
@@ -392,6 +400,7 @@ int main(void) {
                     expRet = (s32)c.gpr[2];
                     memcpy(expIds, D_801EA730, 0xC8);
                     memcpy(expCounts, D_801EA7F8, 0xC8);
+                    memcpy(expLines, listBuf, sizeof expLines);
 
                     init_case(seed, ch, gear, slot, 0);
                     {
@@ -404,6 +413,17 @@ int main(void) {
                                     "ret %d vs %d\n",
                                     seed, cat, mode, group, got, expRet);
                             return 1;
+                        }
+                        /* Every name/count line carries renderContext at +0x7D. */
+                        for (unsigned k = 0; k < sizeof expLines / 0x80; k++) {
+                            if (listBuf[k * 0x80 + 0x7D] != expLines[k * 0x80 + 0x7D]) {
+                                fprintf(stderr,
+                                        "FAIL list renderContext seed=%u cat=%d mode=%u "
+                                        "group=%u line %u: %02X vs %02X\n",
+                                        seed, cat, mode, group, k,
+                                        listBuf[k * 0x80 + 0x7D], expLines[k * 0x80 + 0x7D]);
+                                return 1;
+                            }
                         }
                     }
                     cases++;

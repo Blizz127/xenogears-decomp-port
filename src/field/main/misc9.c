@@ -34,10 +34,11 @@ void func_800AA9DC(void* pModelData) {
         max = dz;
     }
 
-    *(s16*)(pModel + 0x18) = minX + ((dx + ((u32)dx >> 31)) >> 1);
-    *(s16*)(pModel + 0x1A) = minY + ((dy + ((u32)dy >> 31)) >> 1);
-    *(s16*)(pModel + 0x1C) = minZ + ((dz + ((u32)dz >> 31)) >> 1);
-    *(s16*)(pModel + 0x20) = (max << 1) + 1;
+    /* srl 31 + addu + sra 1 (signed halving), then sll 1 + addiu 1 as u32. */
+    *(s16*)(pModel + 0x18) = minX + ((dx + (s32)((u32)dx >> 31)) >> 1);
+    *(s16*)(pModel + 0x1A) = minY + ((dy + (s32)((u32)dy >> 31)) >> 1);
+    *(s16*)(pModel + 0x1C) = minZ + ((dz + (s32)((u32)dz >> 31)) >> 1);
+    *(s16*)(pModel + 0x20) = (s16)(((u32)max << 1) + 1);
 }
 #endif /* XENO_PC_PORT */
 
@@ -89,16 +90,17 @@ s32 func_800AAA74(void* pModelData) {
     maxX = (s16)(screenXY >> 16);
     maxY = (s16)screenXY;
 
-    if (minX >= D_800C3A60 + 0xE0) {
+    /* addiu / negu wrap: u32 arithmetic, no host signed-overflow UB. */
+    if (minX >= (s32)((u32)D_800C3A60 + 0xE0)) {
         return -1;
     }
-    if (-D_800C3A60 >= maxX) {
+    if ((s32)(0u - (u32)D_800C3A60) >= maxX) {
         return -1;
     }
-    if (minY >= D_800C3A5C + 0x140) {
+    if (minY >= (s32)((u32)D_800C3A5C + 0x140)) {
         return -1;
     }
-    if (-D_800C3A5C >= maxY) {
+    if ((s32)(0u - (u32)D_800C3A5C) >= maxY) {
         return -1;
     }
     return 0;
@@ -167,8 +169,8 @@ void func_800AAE4C(int index, int x, int y, int type) {
 
     D_800AFC68_PTR->sprites[index][g_FieldCurRenderContextIndex].x0 = x;
     D_800AFC68_PTR->sprites[index][g_FieldCurRenderContextIndex].y0 = y;
-    addPrim(g_FieldCurRenderContext->ot3, &D_800AFC68_PTR->sprites[index][g_FieldCurRenderContextIndex]);
-    addPrim(g_FieldCurRenderContext->ot3, &D_800AFC68_PTR->drModes[index][g_FieldCurRenderContextIndex]);
+    addPrim(FIELD_CTX_OT3(g_FieldCurRenderContext), &D_800AFC68_PTR->sprites[index][g_FieldCurRenderContextIndex]);
+    addPrim(FIELD_CTX_OT3(g_FieldCurRenderContext), &D_800AFC68_PTR->drModes[index][g_FieldCurRenderContextIndex]);
 }
 
 extern u32 D_800B1DF0;
@@ -237,7 +239,16 @@ void func_800AAF80(void) {
 extern void* g_pGameState;
 
 #ifndef XENO_PC_PORT
-INCLUDE_ASM("asm/field/nonmatchings/main/misc9", func_800AB328);
+s32 func_800AB328__ret(s32 arg0) asm("func_800AB328");
+s32 func_800AB328__ret(s32 arg0) {
+    s32 i;
+    u8 *p;
+    for (i = 0; i < 0x96; i++) {
+        p = (u8 *)g_pGameState + i;
+        if (p[0x2026] == arg0 && p[0x1F90] != 0) return 0;
+    }
+    return -1;
+}
 #else
 s32 func_800AB328(u8 characterId) {
     u8* pGS = (u8*)g_pGameState;
@@ -277,14 +288,14 @@ void func_800AB378(s8 color) {
         D_800B1DF0_PTR->sprites[i][g_FieldCurRenderContextIndex].y0 = y + D_800AFE7C;
 
         setRGB0(&D_800B1DF0_PTR->sprites[i][g_FieldCurRenderContextIndex & 1], color, color, color);
-        addPrim(g_FieldCurRenderContext->ot3, &D_800B1DF0_PTR->sprites[i][g_FieldCurRenderContextIndex]);
-        addPrim(g_FieldCurRenderContext->ot3, &D_800B1DF0_PTR->drModes[i][g_FieldCurRenderContextIndex]);
+        addPrim(FIELD_CTX_OT3(g_FieldCurRenderContext), &D_800B1DF0_PTR->sprites[i][g_FieldCurRenderContextIndex]);
+        addPrim(FIELD_CTX_OT3(g_FieldCurRenderContext), &D_800B1DF0_PTR->drModes[i][g_FieldCurRenderContextIndex]);
     }
 
     for (i = 0; i < 3; i++) {
         setRGB0(&D_800C3A3C_PTR->polys[i][g_FieldCurRenderContextIndex & 1], color, color, color);
-        addPrim(g_FieldCurRenderContext->ot3, &D_800C3A3C_PTR->polys[i][g_FieldCurRenderContextIndex]);
-        addPrim(g_FieldCurRenderContext->ot3, &D_800C3A3C_PTR->drModes[i][g_FieldCurRenderContextIndex]);
+        addPrim(FIELD_CTX_OT3(g_FieldCurRenderContext), &D_800C3A3C_PTR->polys[i][g_FieldCurRenderContextIndex]);
+        addPrim(FIELD_CTX_OT3(g_FieldCurRenderContext), &D_800C3A3C_PTR->drModes[i][g_FieldCurRenderContextIndex]);
     }
 }
 
@@ -545,14 +556,27 @@ void func_800ABEC8(void) {
 
     if (D_800ADB54) {
         for (i = 0; i < 5; i++) {
-            addPrim(g_FieldCurRenderContext->ot3, &D_800B0188.sprites[i][g_FieldCurRenderContextIndex]);
-            addPrim(g_FieldCurRenderContext->ot3, &D_800B0188.drModes[i][g_FieldCurRenderContextIndex]);
+            addPrim(FIELD_CTX_OT3(g_FieldCurRenderContext), &D_800B0188.sprites[i][g_FieldCurRenderContextIndex]);
+            addPrim(FIELD_CTX_OT3(g_FieldCurRenderContext), &D_800B0188.drModes[i][g_FieldCurRenderContextIndex]);
         }
     }
 }
 
 #ifndef XENO_PC_PORT
-INCLUDE_ASM("asm/field/nonmatchings/main/misc9", func_800ABFDC);
+s32 func_800ABFDC__ret(void *arg0, s32 *arg1) asm("func_800ABFDC");
+s32 func_800ABFDC__ret(void *arg0, s32 *arg1) {
+    u16 code;
+    s32 ret;
+    code = *(u8 *)((u8 *)arg0 + 1) | (*(u8 *)arg0 << 8);
+    if ((u16)(code + 0x7AC0) >= 0x340) {
+        *arg1 = 0;
+        ret = Krom2RawAdd(code);
+    } else {
+        *arg1 = 1;
+        ret = code - 0x8540;
+    }
+    return ret;
+}
 #else
 intptr_t func_800ABFDC(u8* pChar, s32* pOutIndex) {
     u16 code = (u16)((u16)pChar[0] << 8) | pChar[1];
@@ -571,7 +595,62 @@ intptr_t func_800ABFDC(u8* pChar, s32* pOutIndex) {
 #endif /* XENO_PC_PORT */
 
 #ifndef XENO_PC_PORT
-INCLUDE_ASM("asm/field/nonmatchings/main/misc9", func_800AC03C);
+void func_800AC03C__ret(u8 *arg0, u16 *arg1) asm("func_800AC03C");
+void func_800AC03C__ret(u8 *arg0, u16 *arg1) {
+    s32 var_a3;
+    u8 fill;
+    s32 var_a3_2;
+    s32 var_v1;
+    s32 var_v1_2;
+    u8 *var_a0;
+    u8 *var_a2;
+    u8 *var_a2_2;
+    s8 temp_v0;
+    s8 temp_v0_2;
+    u16 *var_a1;
+
+    var_a0 = arg0;
+    var_a1 = arg1;
+    var_a3 = 0;
+    if (var_a1 == (u16 *)-1) {
+        fill = 0xFF;
+        var_a3 = 0x11F;
+        do {
+            *var_a0 = fill;
+            var_a3 -= 1;
+            var_a0 += 1;
+        } while (var_a3 >= 0);
+        return;
+    }
+    do {
+        var_v1 = 7;
+        var_a2 = var_a0;
+loop_5:
+        var_a2 += 1;
+        var_a0 += 1;
+        temp_v0 = -(((s32) *var_a1 >> var_v1) & 1);
+        var_v1 -= 1;
+        *(u8 *)((s8*)(var_a2) + -1) = temp_v0;
+        if (var_v1 >= 0) {
+            goto loop_5;
+        }
+        var_v1_2 = 0xF;
+        var_a2_2 = var_a0;
+loop_7:
+        var_a2_2 += 1;
+        temp_v0_2 = -(((s32) *var_a1 >> var_v1_2) & 1);
+        var_v1_2 -= 1;
+        *(u8 *)((s8*)(var_a2_2) + -1) = temp_v0_2;
+        var_a0 += 1;
+        if (var_v1_2 >= 8) {
+            goto loop_7;
+        }
+        *var_a0++ = 0;
+        *var_a0++ = 0;
+        var_a3 += 1;
+        var_a1 += 1;
+    } while (var_a3 < 0xF);
+}
 #else
 void func_800AC03C(u8* pOut, u16* pData, s32 count) {
     s32 i;
@@ -911,10 +990,9 @@ void func_800AC99C(void) {
 
 #undef AC99C_PACK_ADDR
 
-#ifndef XENO_PC_PORT
-INCLUDE_ASM("asm/field/nonmatchings/main/misc9", func_800ACB90);
-#else
+
 void func_800ACB90(void) {
+#ifdef XENO_PC_PORT
     RECT rect;
     s32 i;
     u8* pBuf;
@@ -943,8 +1021,34 @@ void func_800ACB90(void) {
     LoadImage(&rect, pBuf);
     DrawSync(0);
     HeapFree(pBuf);
+#else
+    RECT rect;
+    register s32 fill asm("$4");
+    s32 *var_v0;
+    s32 temp_v0;
+    s32 var_v1;
+
+    FieldLoadTIMWithClut(D_800AF784, 0x380, 0x100, 0, 0x1FF, 0, 0);
+    DrawSync(0);
+    HeapFree(D_800AF784);
+    temp_v0 = HeapAlloc(0x200, 1);
+    fill = -1;
+    var_v1 = 0x7F;
+    var_v0 = temp_v0 + 0x1FC;
+    do {
+        *var_v0 = fill;
+        var_v1 -= 1;
+        var_v0--;
+    } while (var_v1 >= 0);
+    rect.x = 0x3C0;
+    rect.y = 0x100;
+    rect.w = 0x40;
+    rect.h = 4;
+    LoadImage(&rect, temp_v0);
+    DrawSync(0);
+    HeapFree(temp_v0);
+#endif
 }
-#endif /* XENO_PC_PORT */
 
 extern s32 D_8004F300;
 extern void* D_800AF76C;

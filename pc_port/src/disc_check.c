@@ -24,6 +24,7 @@
 #include <openssl/evp.h>
 
 #include "disc_check.h"
+#include "host_only_bss.h"
 
 #define DISC1_SIZE 718738272LL
 #define DISC1_SHA1 "12db8ccb93516c391630f046a143762337cc21f4"
@@ -84,7 +85,7 @@ static void stamp_add(const char* key)
 
 static int sha1_file(const char* path, char hex[41])
 {
-    static unsigned char buf[1 << 20];
+    static unsigned char buf[1 << 20] HOST_ONLY_BSS;
     unsigned char md[EVP_MAX_MD_SIZE];
     unsigned int mdlen = 0, i;
     EVP_MD_CTX* ctx = EVP_MD_CTX_new();

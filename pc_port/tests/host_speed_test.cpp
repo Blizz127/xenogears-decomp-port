@@ -7,7 +7,6 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include "../src/psycross_host_toolbar_logic.h"
 
 #define eprintinfo(...) ((void)0)
 #define eprintwarn(...) ((void)0)
@@ -116,10 +115,6 @@ int main()
     assert(PsyX_GetSpeedMultiplier() == 1);
     unsetenv("XENO_SPEED"); PsyX_InitialiseSpeed();
     assert(PsyX_GetSpeedMultiplier() == 1);
-    assert(PcPort_HostToolbarHitTest(288, 4) == PC_PORT_TOOLBAR_SPEED);
-    assert(PcPort_HostToolbarHitTest(391, 29) == PC_PORT_TOOLBAR_SPEED);
-    assert(PcPort_HostToolbarHitTest(392, 29) == PC_PORT_TOOLBAR_NONE);
-    assert(PcPort_HostToolbarHitTest(300, 34) == PC_PORT_TOOLBAR_NONE);
 
     /* Changing presentation pitch must retain the emulated voice registers. */
     for (int i = 0; i < 3; i++) {

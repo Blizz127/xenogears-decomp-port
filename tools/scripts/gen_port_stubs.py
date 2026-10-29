@@ -172,6 +172,78 @@ def classify_from_maps(map_paths):
     return table
 
 
+# Main-executable data (below the overlay base): a stub there backs a battle
+# runtime binding whose guest extent runs to the next retail data symbol
+# (battle_mips_runtime.c inferred_data_size), so the stub must cover it.
+MAIN_EXE_DATA = (0x80010000, 0x8006FAF0)
+
+# Native field packets link through compact 24-bit host addresses (the port is
+# non-PIE), so these stubs must end below 0x1000000
+# (tools/analysis/field_render_address_guard.py checks the linked binary). As
+# .bss arrays they sit wherever the growing .bss puts them; .data comes first
+# and grows slowly, so keep them there.
+COMPACT_GPU_DATA = frozenset({"g_FieldRenderContexts"})
+_ADDR_ASSIGN_RE = re.compile(r"^\s*([A-Za-z_.$][\w.$]*)\s*=\s*(0x[0-9A-Fa-f]+)\s*;(.*)$")
+_D_NAME_RE = re.compile(r"^D_([0-9A-Fa-f]{8})$")
+
+
+def guest_data_extents(elf_paths, map_paths, symbol_addr_paths):
+    """Return {name: extent} for main-executable data symbols: the distance to
+    the next data symbol any source knows (matching ELFs, link maps, all
+    symbol_addrs files), when within 0x10000 -- the inferred_data_size rule
+    over the finest symbol set available."""
+    address_of, functions, data_addresses = {}, set(), set()
+    for elf in elf_paths:
+        out = subprocess.run(["readelf", "-sW", elf], capture_output=True, text=True,
+                             check=True).stdout
+        for line in out.splitlines():
+            parts = line.split()
+            if len(parts) < 8 or not parts[0].endswith(":") or parts[6] == "UND":
+                continue
+            try:
+                value = int(parts[1], 16)
+            except ValueError:
+                continue
+            if parts[3] == "FUNC":
+                functions.add(parts[7])
+            else:
+                address_of.setdefault(parts[7], value)
+    for path in map_paths:
+        with open(path, errors="replace") as fh:
+            for line in fh:
+                m = _MAP_SYMBOL_RE.match(line)
+                if m:
+                    address_of.setdefault(m.group(2), int(m.group(1), 16))
+    for path in symbol_addr_paths:
+        with open(path, errors="replace") as fh:
+            for line in fh:
+                m = _ADDR_ASSIGN_RE.match(line)
+                if not m:
+                    continue
+                if "type:func" in m.group(3) or m.group(1).startswith("func_"):
+                    functions.add(m.group(1))
+                else:
+                    address_of.setdefault(m.group(1), int(m.group(2), 16))
+    lo, hi = MAIN_EXE_DATA
+    for name, value in address_of.items():
+        if name not in functions and lo <= value < hi:
+            data_addresses.add(value)
+    ordered = sorted(data_addresses)
+
+    def extent(name):
+        m = _D_NAME_RE.match(name)
+        value = address_of.get(name, int(m.group(1), 16) if m else None)
+        if value is None or not lo <= value < hi:
+            return 0
+        import bisect
+        i = bisect.bisect_right(ordered, value)
+        if i < len(ordered) and ordered[i] - value <= 0x10000:
+            return ordered[i] - value
+        return 0
+
+    return extent
+
+
 def classify_by_name_prefix(name):
     """Last-resort type for splat-style names the ELF/map missed.
 
@@ -240,11 +312,12 @@ def main():
         print(f"  classified {prefixed} leftover splat-style names by prefix "
               f"(func_/D_/g_/jtbl_/jpt_)", file=sys.stderr)
     sym_sizes = parse_symbol_sizes(args.symbol_addrs)
+    guest_extent = guest_data_extents(args.elf, args.map, args.symbol_addrs)
     # `type:func` overrides an ABS/NOTYPE (data-looking) ELF sighting. This is
     # the only signal for a .text function that overlay ELFs reference as ABS.
     sym_types = parse_symbol_types(args.symbol_addrs)
 
-    funcs, data, resized = [], [], 0
+    funcs, data, resized, extended = [], [], 0, 0
     for n in names:
         info = table.get(n)
         if info[0] or n.startswith("func_") or sym_types.get(n) == "func":  # is_func
@@ -261,9 +334,16 @@ def main():
             # up to 2x. Doubling is the safe upper bound (pointer-only data is exactly
             # 2x; byte/int data merely over-reserves zeroed memory). Without this,
             # e.g. g_PartyDataBuffers[2] reads off the end of its stub.
+            # A main-executable stub also covers its guest extent (the bytes up
+            # to the next retail data symbol), which a battle runtime binding
+            # maps onto it; without that, guest bytes past the old 16-byte
+            # floor ran into the stub's link neighbours.
             base = max(info[1], sym_sizes.get(n, 0), 16)
             if sym_sizes.get(n, 0) > max(info[1], 16):
                 resized += 1
+            if guest_extent(n) > base:
+                base = guest_extent(n)
+                extended += 1
             data.append((n, base * 2))
 
     os.makedirs(os.path.dirname(args.out), exist_ok=True)
@@ -282,7 +362,11 @@ def main():
 
         f.write(f"/* ---- {len(data)} data symbols ---- */\n")
         for name, size in data:
-            f.write(f"unsigned char {name}[{size}] __attribute__((aligned(8)));\n")
+            if name in COMPACT_GPU_DATA:
+                f.write(f"unsigned char {name}[{size}] "
+                        f"__attribute__((aligned(8), section(\".data.compact_gpu\")));\n")
+            else:
+                f.write(f"unsigned char {name}[{size}] __attribute__((aligned(8)));\n")
 
         # The helper above is itself an undefined ref during the trial link
         # (game_overrides calls it before stubs.o exists). Never emit a stub
@@ -305,7 +389,8 @@ def main():
         f.write("}\n")
 
     print(f"Wrote {args.out}: {len(funcs)} function stubs, {len(data)} data symbols "
-          f"({resized} sized from symbol_addrs)", file=sys.stderr)
+          f"({resized} sized from symbol_addrs, {extended} widened to their guest extent)",
+          file=sys.stderr)
     return 0
 
 

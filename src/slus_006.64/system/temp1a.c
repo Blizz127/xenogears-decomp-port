@@ -7,11 +7,6 @@
  * INCLUDE_ASM uses it finds in this file, and the real ones live in the
  * TEMP1_PART_A2 half of temp1.c. Keep this list in sync with them. */
 #if 0
-INCLUDE_ASM(TEMP1_ASM, func_80023124);
-INCLUDE_ASM(TEMP1_ASM, func_80023170);
-INCLUDE_ASM(TEMP1_ASM, func_80023290);
-INCLUDE_ASM(TEMP1_ASM, func_80023468);
-INCLUDE_ASM(TEMP1_ASM, func_800234AC);
 INCLUDE_ASM(TEMP1_ASM, func_80023538);
 INCLUDE_ASM(TEMP1_ASM, func_80023804);
 INCLUDE_ASM(TEMP1_ASM, func_80023A48);

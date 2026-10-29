@@ -1,0 +1,17 @@
+--- a/src/render/PsyX_render.cpp
++++ b/src/render/PsyX_render.cpp
+@@ -1569,7 +1569,13 @@
+ void GR_Clear(int x, int y, int w, int h, unsigned char r, unsigned char g, unsigned char b)
+ {
+ 	framebuffer_need_update = 1;
+-	g_xeno_vram_fb_synced = 0; /* _xeno_drmove_fb_synced */
++	/* _xeno_clear_keeps_vram_synced: ClearImage already wrote the fill into
++	 * CPU VRAM (GR_ClearVRAM), and the last capture was mirrored when it was
++	 * taken (_xeno_fb_mirror_readpixels), so vram[] stays the newest copy.
++	 * Marking it unsynced here let the next overlapping MoveImage splat that
++	 * old capture back over everything written since -- e.g. the converted
++	 * attract frame the field saves at (0,0) for its return crossfade, which
++	 * became black on the port. */
+ 
+ #if USE_OPENGL
+ 	glClearColor(r / 255.0f, g / 255.0f, b / 255.0f, 1.0f);

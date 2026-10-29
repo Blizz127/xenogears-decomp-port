@@ -1,0 +1,6 @@
+# Battle data bindings wider than their host object (inferred size > ELF size).
+# Empty: build_port.sh sizes the bridge map from the linked binary
+# (gen_battle_bridge_map.py --size-from-host) and data stubs cover their guest
+# extent (gen_port_stubs.py), so none remain.  A NEW line here needs a reason;
+# check_battle_binding_sizes.py fails on any binding this file does not list.
+# Columns: guest address, inferred binding size, host object size (hex), symbol.

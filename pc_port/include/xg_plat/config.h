@@ -13,6 +13,7 @@
 #ifndef XG_PLAT_CONFIG_H
 #define XG_PLAT_CONFIG_H
 
+#include <stddef.h>
 #include "renderer.h"
 
 #ifdef __cplusplus
@@ -32,6 +33,16 @@ const char* xg_plat_config_path(void);
 /* Value for `key` (environment override first), or NULL. */
 const char* xg_plat_config_get(const char* key);
 int xg_plat_config_int(const char* key, int fallback);
+/* Save one key ("input.pad_confirm" -> `pad_confirm = value` under [input]) in
+ * the user's config file: --config FILE, else $XENO_CONFIG, else the file
+ * that was loaded, else ${XDG_CONFIG_HOME:-~/.config}/xenogears-port/
+ * config.ini (created with its directories).  Other lines and comments are
+ * kept.  Falls back to the XDG file when the loaded one is not writable.
+ * Returns 1 on success.  Note --set and XENO_* environment values still
+ * override the file at the next start. */
+int xg_plat_config_persist(const char* key, const char* value);
+/* Where xg_plat_config_persist writes (into `out`), or NULL. */
+const char* xg_plat_config_user_path(char* out, size_t n);
 /* Parse text directly (tests; replaces any loaded values). */
 int xg_plat_config_parse(const char* text);
 

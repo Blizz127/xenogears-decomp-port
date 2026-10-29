@@ -52,13 +52,14 @@ extern ModelPrimDesc D_8004FE50[17];
 /* Retail .sdata mapping used throughout this project. */
 #define FILE_OFF(vaddr) (0x800u + (vaddr) - 0x80010000u)
 
-/* Rows the port currently populates.  Rows 0x0B, 0x0F and 0x10 are still
- * absent: each needs a walker (retail 0x8002E22C, 0x80030750) that has no port
- * implementation under any name yet.
+/* Rows the port currently populates.  Row 0x10 is still absent: it needs
+ * walker 0x80030750, which has no port implementation yet.  Rows 0x0B/0x0F
+ * (POLY_GT4, walkers 0x8002E22C/E64C/EAB8) are filled by the shared quad
+ * spines in game_overrides.c.
  * See docs/evidence/prim-table-rows-20260906/README.md. */
 static const int kExpectedPopulated[] = {
-    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0C,
-    0x0D, 0x0E
+    0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B,
+    0x0C, 0x0D, 0x0E, 0x0F
 };
 static const int kExpectedPopulatedCount =
     (int)(sizeof(kExpectedPopulated) / sizeof(kExpectedPopulated[0]));

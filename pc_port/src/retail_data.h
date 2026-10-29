@@ -31,6 +31,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#if defined(__cplusplus) && defined(__linux__)
+#include <unistd.h>
+#endif
 
 typedef enum {
     XENO_RD_SLUS = 0,        /* SLUS_006.64 (PS-X EXE; offsets include the 0x800 header) */
@@ -61,6 +64,8 @@ typedef struct {
 #define XENO_RD_SLUS_OFF(vaddr)    (0x800u + (uint32_t)(vaddr) - 0x80010000u)
 #define XENO_RD_FIELD_OFF(vaddr)   ((uint32_t)(vaddr) - 0x8006FAF0u)
 #define XENO_RD_MENU_OFF(vaddr)    ((uint32_t)(vaddr) - 0x801C5000u)
+/* world_map.bin loads at the field overlay base too. */
+#define XENO_RD_WORLD_MAP_OFF(vaddr) ((uint32_t)(vaddr) - 0x8006FAF0u)
 
 #define XENO_RD(sym, file, off, size) \
     { (void*)&(sym), (size), (off), (file), XENO_RD_BYTES, #sym }
@@ -286,8 +291,14 @@ XENO_RD_WEAK int XenoRetailData_ExeDir(char* out, size_t out_size)
     /* Declared here rather than via <unistd.h>, which clashes with the psyq
      * type definitions some including TUs use; compatible with the libc
      * prototype (ssize_t / size_t are long / unsigned long on LP64). */
+#if defined(__cplusplus)
+    /* C++ includers (PsyCross LIBGTE.C) take the libc prototype instead:
+     * a block-scope redeclaration would clash with its noexcept. */
+    long n = (long)readlink("/proc/self/exe", out, out_size - 1);
+#else
     extern long readlink(const char* path, char* buf, unsigned long size);
     long n = readlink("/proc/self/exe", out, (unsigned long)(out_size - 1));
+#endif
     char* slash;
     if (n <= 0 || (size_t)n >= out_size - 1)
         return 0;

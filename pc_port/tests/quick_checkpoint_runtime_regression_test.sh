@@ -14,9 +14,9 @@ grep -q 'PcPort_QuickCheckpointSetFieldActive(1)' "$field"
 grep -q 'PcPort_QuickCheckpointPoll()' "$field"
 grep -q 'PcPort_QuickCheckpointCommitLoad()' "$field"
 grep -q 'PcPort_QuickCheckpointRestorePlayer()' "$field"
-grep -q 'SDL_SCANCODE_F7' "$psyx"
+grep -q 'case SDL_SCANCODE_F11:' "$psyx"
 grep -q 'PcPort_QuickCheckpointRequestSave' "$psyx"
-grep -q 'SDL_SCANCODE_F8' "$psyx"
+grep -q 'case SDL_SCANCODE_F12:' "$psyx"
 grep -q 'PcPort_QuickCheckpointRequestLoad' "$psyx"
 grep -q 'PcPort_QuickRequestTakeIfSafe' "$runtime"
 grep -q 'PcPort_QuickCheckpointGetUiState' "$runtime"
@@ -25,11 +25,15 @@ if grep -q 'request rejected: wait for free field control' "$runtime"; then
     exit 1
 fi
 
-# Existing PsyCross F5/F6 debug bindings remain intact; checkpoint keys are
-# host-only and never enter the active-low PlayStation pad mapping.
-grep -A3 -q 'SDL_SCANCODE_F5' "$psyx"
-grep -A3 -q 'SDL_SCANCODE_F6' "$psyx"
-if rg -q 'SDL_SCANCODE_F[78]' \
+# Host keys (psycross_host_hotkeys.patch): F11/F12 checkpoint, F6 is the
+# fast-forward toggle, PsyCross's F3-F5 debug toggles are unbound.  The
+# checkpoint keys never enter the active-low PlayStation pad mapping.
+grep -A3 -q 'case SDL_SCANCODE_F6:' "$psyx"
+if grep -Eq 'case SDL_SCANCODE_F[345]:' "$psyx"; then
+    echo 'PsyCross F3-F5 debug toggles are bound in the default build' >&2
+    exit 1
+fi
+if grep -Eq 'SDL_SCANCODE_F1[12]' \
     "$repo_root/pc_port/extern/PsyCross/src/pad/PsyX_pad.cpp"; then
     echo 'checkpoint hotkey leaked into PlayStation pad mapping' >&2
     exit 1

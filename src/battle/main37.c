@@ -76,9 +76,9 @@ extern u32 func_80076A10(u32 a0, u32 a1, u32 a2, u32 a3);
  * old byte is reloaded after the jal, then addu+sb wraps mod 256).
  * Finally D_800D2D28[0xA4] = D_800CCB34. Takes no args (every arg
  * register is set internally); retail v0 residue is ignored. */
-/* Not yet byte-matching: the matching build assembles retail bytes for
- * this function from its own asm segment (see config/battle.yaml).  The
- * body below is kept for the port and the differential harnesses. */
+/* The retail build compiles this function's byte-exact C in
+ * mainasm_16244.c.  The body below is kept for the port and the
+ * differential harnesses. */
 #ifdef XENO_PC_PORT
 void func_80085D34(void) {
     u32 r;

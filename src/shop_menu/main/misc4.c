@@ -134,9 +134,72 @@ void func_801CCE1C(void* output, u8 characterId);
  * regions with C runs; cc1 emits every file-scope __asm__ block before every
  * compiled body, so each part below is (one retail asm run) + (the C run that
  * follows it) - the layout the compiler produces inside a single TU. */
-#ifndef XENO_PC_PORT
-INCLUDE_ASM("asm/shop_menu/nonmatchings/main/misc4", func_801CC278);
-#endif
+/* Retail 801CC278..801CC54C (matched). Opening animation of the
+ * second-level shop menu strip: for count = 1..4 it rebuilds the first
+ * `count` {cursor, label} entries of row (arg0 + menu1Choice) of D_801D1F6C
+ * (0xFFFF ends the row), waiting two frames after each column while the
+ * row is still growing. */
+extern s32 D_801D1F6C[];
+
+void func_801CC278(u_char arg0) {
+    int shouldWait;
+    int count;
+    int i;
+
+    g_Menu->pSelectionMenu->unk1192 = 0;
+    g_Menu->pSelectionMenu->unk1193 = 0;
+    g_Menu->unk354->unk1400 = 0;
+    g_Menu->unk354->unk1404 = 0;
+    g_Menu->pManager->unkA = TRUE;
+
+    shouldWait = TRUE;
+    for (count = 1; count < 5; count++) {
+        g_Menu->unk354->unk1400 = 0;
+        g_Menu->unk33A = 0;
+
+        for (i = 0; i < count; i++) {
+            if (D_801D1F6C[(arg0 + g_Menu->menu1Choice) * 8 + i * 2] != 0xFFFF) {
+                g_Menu->unk354->unk1400 += func_8002675C(
+                    g_Menu->unk2DC, D_801D1F6C[(arg0 + g_Menu->menu1Choice) * 8 + i * 2],
+                    &g_Menu->unk354->polys0[g_Menu->unk354->unk1400 * 2],
+                    g_Menu->renderContext,
+                    160, 150,
+                    0x1000
+                );
+                g_Menu->unk33A++;
+            } else {
+                shouldWait = FALSE;
+            }
+        }
+
+        g_Menu->unk354->unk1408 = g_Menu->renderContext;
+        if (shouldWait) {
+            for (i = 0; i < 2; i++) {
+                ShopMenuUpdateAndRender();
+            }
+        }
+
+        g_Menu->unk354->unk1404 = 0;
+        for (i = 0; i < count; i++) {
+            if (D_801D1F6C[(arg0 + g_Menu->menu1Choice) * 8 + i * 2] != 0xFFFF) {
+                g_Menu->unk354->unk1404 += func_8002675C(
+                    g_Menu->unk2DC, D_801D1F6C[(arg0 + g_Menu->menu1Choice) * 8 + i * 2 + 1],
+                    &g_Menu->unk354->polys500[g_Menu->unk354->unk1404 * 2],
+                    g_Menu->renderContext,
+                    160, 150,
+                    0x1000
+                );
+            }
+        }
+
+        g_Menu->unk354->unk1409 = g_Menu->renderContext;
+        if (shouldWait) {
+            for (i = 0; i < 2; i++) {
+                ShopMenuUpdateAndRender();
+            }
+        }
+    }
+}
 
 void ShopMenuUpdateShopModeSelectionMenu(u_char numOptions, u_char selectedIndex, int* pTextureIDs) {
     int cursorTextureID;

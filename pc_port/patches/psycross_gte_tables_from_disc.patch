@@ -1,0 +1,31 @@
+diff --git a/src/psx/LIBGTE.C b/src/psx/LIBGTE.C
+--- a/src/psx/LIBGTE.C
++++ b/src/psx/LIBGTE.C
+@@ -9,9 +9,24 @@
+ #include <assert.h>
+ 
+ #include "../gte/PsyX_GTE.h"
+-#include "../gte/rcossin_tbl.h"
+-#include "../gte/ratan_tbl.h"
+-#include "../gte/sqrt_tbl.h"
++
++// _xeno_gte_tables_from_disc: rcossin_tbl and ratan_tbl are the retail
++// executable's own tables (bit-identical to SLUS_006.64 0x800523F0 and
++// 0x80057030). The port ships no game data (pc_port/THIRD_PARTY.md), so they
++// are zero storage filled before main() from the user's disc/SLUS_006.64 by
++// the port's retail-data loader. SQRT is no longer compiled in: SquareRoot0
++// reads the retail table from guest memory (psycross_sqrt_retail_memory).
++extern "C" {
++#include "../../../../src/retail_data.h"
++
++short rcossin_tbl[8192];
++short ratan_tbl[1025];
++
++XENO_RETAIL_DATA_BEGIN(psycross_gte)
++    XENO_RD(rcossin_tbl, XENO_RD_SLUS, XENO_RD_SLUS_OFF(0x800523F0u), 0x4000),
++    XENO_RD(ratan_tbl, XENO_RD_SLUS, XENO_RD_SLUS_OFF(0x80057030u), 0x802),
++XENO_RETAIL_DATA_END(psycross_gte)
++}
+ 
+ #define ONE_BITS			12
+ #define ONE					(1 << 12)

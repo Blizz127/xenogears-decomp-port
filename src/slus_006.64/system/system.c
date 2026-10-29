@@ -7,6 +7,67 @@
 #ifdef XENO_PC_PORT
 #include "guest_prim_link.h"
 #define SYSTEM_ADD_PRIM(ot, prim) PcPort_AddPrimDomainAware((ot), (prim))
+
+#include "system_window_guard.h"
+void func_80031798(void *, void *);
+#include <stdlib.h>
+static _Thread_local const PcPortSystemWindowGuard *s_SystemWindowGuard;
+const PcPortSystemWindowGuard *PcPort_SystemWindowGuardSwap(
+    const PcPortSystemWindowGuard *next)
+{
+    const PcPortSystemWindowGuard *previous = s_SystemWindowGuard;
+    s_SystemWindowGuard = next;
+    return previous;
+}
+static void SystemWindowReject(const char *site)
+{
+    s_SystemWindowGuard->reject(s_SystemWindowGuard->opaque, site);
+    abort(); /* A rejection callback must not return into unchecked C. */
+}
+static void *SystemWindowBytes(const void *base, ptrdiff_t offset,
+                               size_t bytes, unsigned alignment, int write,
+                               const char *site)
+{
+    uintptr_t address = (uintptr_t)base;
+    if (s_SystemWindowGuard) {
+        if ((offset < 0 && address < (uintptr_t)(-(offset + 1)) + 1u) ||
+            (offset > 0 && (uintptr_t)offset > UINTPTR_MAX - address))
+            SystemWindowReject(site);
+        s_SystemWindowGuard->check(s_SystemWindowGuard->opaque,
+            address + (uintptr_t)offset, bytes, alignment, write, site);
+    }
+    return (void *)(address + (uintptr_t)offset);
+}
+static u8 SystemWindowByte(const void *base, ptrdiff_t offset)
+{
+    return *(u8 *)SystemWindowBytes(base, offset, 1, 1, 0, "text byte");
+}
+static u32 SystemWindowWord(const void *base, ptrdiff_t offset)
+{
+    return *(u32 *)SystemWindowBytes(base, offset, 4, 4, 0, "text pointer/word");
+}
+static void SystemWindowLink(void *ot, void *prim, int tagged)
+{
+    SystemWindowBytes(ot, 0, 4, 4, 1, "ordering-table word");
+    SystemWindowBytes(prim, 0, 4, 4, 1, "primitive link word");
+    if (s_SystemWindowGuard)
+        s_SystemWindowGuard->packet(s_SystemWindowGuard->opaque, ot, prim);
+    if (tagged) func_80031798(ot, prim);
+    else PcPort_AddPrimDomainAware(ot, prim);
+}
+static void SystemWindowUpload(RECT *rect, u_long *data)
+{
+    if (s_SystemWindowGuard) {
+        SystemWindowBytes(rect, 0, sizeof(*rect), 2, 0, "upload rectangle");
+        if (rect->x < 0 || rect->y < 0 || rect->w < 0 || rect->h < 0 ||
+            (int)rect->x + rect->w > 1024 || (int)rect->y + rect->h > 512)
+            SystemWindowReject("unsupported upload rectangle");
+        SystemWindowBytes(data, 0, (size_t)rect->w * rect->h * 2u, 2, 0,
+                          "upload pixels");
+    }
+    LoadImage(rect, data);
+}
+
 #else
 #define SYSTEM_ADD_PRIM(ot, prim) AddPrim((ot), (prim))
 #endif
@@ -234,10 +295,9 @@ void SystemFreeData(void) {
 }
 
 
-#ifndef XENO_PC_PORT
-INCLUDE_ASM("asm/slus_006.64/nonmatchings/system/system", SystemInitializeFont);
-#else
+
 void SystemInitializeFont(void* pSystemFont) {
+#ifdef XENO_PC_PORT
     if (pSystemFont == NULL) {
         HeapSetCurrentContentType(0x20);
         return;
@@ -252,8 +312,26 @@ void SystemInitializeFont(void* pSystemFont) {
     D_80059358 = *(u16*)((u8*)pSystemFont + 0x0A);
     D_8005935C = (u32)(uintptr_t)((u8*)pSystemFont + *(u16*)((u8*)pSystemFont + 0x02));
     D_80059364 = *(u16*)((u8*)pSystemFont + 0x0C);
-}
+#else
+    s32 offset;
+    s32 count;
+    if (pSystemFont == NULL) {
+        HeapSetCurrentContentType(0x20);
+        return;
+    }
+    HeapPinBlock(pSystemFont);
+    g_SystemFontFile = pSystemFont;
+    D_8005935C = pSystemFont;
+    offset = *(u16 *)((u8 *)pSystemFont + 2);
+    D_8005934C = (s32) *(u16 *)((s8*)(pSystemFont) + 4);
+    D_80059350 = (s32) *(u16 *)((s8*)(pSystemFont) + 6);
+    D_80059354 = (s32) *(u16 *)((s8*)(pSystemFont) + 8);
+    D_80059358 = (s32) *(u16 *)((s8*)(pSystemFont) + 0xA);
+    count = *(u16 *)((u8 *)pSystemFont + 0xC);
+    D_8005935C = pSystemFont + offset;
+    D_80059364 = count;
 #endif
+}
 
 void SystemInitializeData(void* pSystemData) {
     if (pSystemData == 0) {
@@ -282,7 +360,13 @@ void SystemTransferPaletteToVRAM(short xDest, short yDest) {
 }
 
 void* GetStringEntry(void* arg0, s32 arg1) {
+#ifdef XENO_PC_PORT
+    u16 offset = *(u16 *)SystemWindowBytes(arg0, (ptrdiff_t)arg1 * 2 + 4,
+                                          2, 2, 0, "string-table offset");
+    return SystemWindowBytes(arg0, offset, 0, 1, 0, "string entry");
+#else
     return (u8*)arg0 + *(u16*)((u8*)arg0 + arg1 * 2 + 4);
+#endif
 }
 
 // TODO: Cleanup code
@@ -387,10 +471,10 @@ INCLUDE_ASM("asm/slus_006.64/nonmatchings/system/system", func_80033ABC);
 void func_80033ABC(u16* pIndices) {
     u8* pOut = D_8005A0E4;
     u16 idx = pIndices[0];
-    u8* pTable = (u8*)(uintptr_t)*(u32*)((u8*)g_SystemDataEntries + 0x6C);
+    u8* pTable = (u8*)(uintptr_t)SystemWindowWord(g_SystemDataEntries, 0x6C);
 
     while (idx != 0xFFFF) {
-        u8* pEntry = idx * 2 + pTable;
+        u8* pEntry = SystemWindowBytes(pTable, (ptrdiff_t)idx * 2, 2, 1, 0, "numeric glyph pair");
 
         u8 first = pEntry[0];
         u8 second;
@@ -506,6 +590,7 @@ INCLUDE_ASM("asm/slus_006.64/nonmatchings/system/system", func_80033CF0);
  * before the digits so the scan loop's pre-increment lands on digit 0. */
 void func_80033CF0(s32 value, s32 fontOffset, s32 signedMode) {
     u32 divisor = 1000000000;
+    u32 magnitude = (u32)value;
     s32 signChar = 0;
     u16* pDigits = NUM_SCRATCH_DIGITS;
     u16* p;
@@ -516,14 +601,15 @@ void func_80033CF0(s32 value, s32 fontOffset, s32 signedMode) {
         if (value >= 0) {
             signChar = 0xB;
         } else {
-            value = -value;
+            /* Retail NEGU wraps even for INT32_MIN; keep DIVU unsigned. */
+            magnitude = 0u - magnitude;
             signChar = 0xA;
         }
     }
 
     for (i = 0; i < 10; i++) {
-        pDigits[i] = (u16)((u32)value / divisor + fontOffset);
-        value = (u32)value % divisor;
+        pDigits[i] = (u16)(magnitude / divisor + fontOffset);
+        magnitude %= divisor;
         divisor /= 10;
     }
 
@@ -566,7 +652,7 @@ void func_80033DD4(void* arg0, s32 arg1) {
 INCLUDE_ASM("asm/slus_006.64/nonmatchings/system/system", func_80033DF0);
 #else
 void func_80033DF0(void* arg0) {
-    u8* pWindow = arg0;
+    u8* pWindow = SystemWindowBytes(arg0, 0, 0x90, 4, 1, "text window");
     s32 count;
 
     count = pWindow[0x69];
@@ -590,7 +676,7 @@ void func_80033DF0(void* arg0) {
             u8* pRows = (u8*)(uintptr_t)SYSTEM_TEXT_ADDRESS(pWindow, 0x28);
             s16 oldBase = *(s16*)(pWindow + 0x16);
 
-            *(s16*)(pRows + oldBase * 0x60 + 0x58) = 0;
+            *(s16*)SystemWindowBytes(pRows, (ptrdiff_t)oldBase * 0x60 + 0x58, 2, 2, 1, "cleared text row") = 0;
             oldBase++;
             *(s16*)(pWindow + 0x16) = oldBase;
             if (oldBase >= *(s16*)(pWindow + 0x0C)) {
@@ -598,11 +684,14 @@ void func_80033DF0(void* arg0) {
             }
         }
 
+        if (s_SystemWindowGuard && *(s16*)(pWindow + 0x0C) == -1)
+            SystemWindowReject("zero row-page divisor");
         pageCount = *(s16*)(pWindow + 0x18) % (*(s16*)(pWindow + 0x0C) + 1);
         {
             s16 row = *(s16*)(pWindow + 0x02);
-            u8* pRow = (u8*)(uintptr_t)SYSTEM_TEXT_ADDRESS(pWindow, 0x28) + row * 0x60;
-            s32 shade = (pageCount + ((u32)pageCount >> 31)) >> 1;
+            u8* pRow = SystemWindowBytes((void*)SYSTEM_TEXT_ADDRESS(pWindow, 0x28), (ptrdiff_t)row * 0x60, 0x60, 4, 1, "active text row");
+            /* Retail SRL/add/SRA divides a signed page count toward zero. */
+            s32 shade = (s32)pageCount / 2;
             s32 color = *(u8*)(pWindow + 0x0E) + shade * 13;
 
             pRow[0x5C] = color;
@@ -630,7 +719,7 @@ void func_80033DF0(void* arg0) {
      * and skipped codes consume one. */
     while (count != -1) {
         u8* pScript = (u8*)(uintptr_t)SYSTEM_TEXT_ADDRESS(pWindow, 0x1C);
-        s32 code = pScript[0];
+        s32 code = SystemWindowByte(pScript, 0);
 
         if (code == 0) {
             /* End of (possibly nested) string: pop back to the caller string,
@@ -660,7 +749,7 @@ void func_80033DF0(void* arg0) {
             pWindow[0x6B] = 2;
             *(u16*)(pWindow + 0x10) |= 0x48;
             SYSTEM_TEXT_ADVANCE(pWindow, 1);
-            if (pScript[1] == 1) {
+            if (SystemWindowByte(pScript, 1) == 1) {
                 SYSTEM_TEXT_ADVANCE(pWindow, 1);
             }
             return;
@@ -670,7 +759,7 @@ void func_80033DF0(void* arg0) {
             SYSTEM_TEXT_ADVANCE(pWindow, 1);
             return;
         } else if (code == 0x0F) {
-            s32 subcode = pScript[1];
+            s32 subcode = SystemWindowByte(pScript, 1);
 
             if (subcode >= 0x10) {
                 /* 800340A0: out-of-range subcode consumes budget only. */
@@ -680,12 +769,12 @@ void func_80033DF0(void* arg0) {
 
             switch (subcode) {
             case 0x0: /* delay N frames */
-                *(s16*)(pWindow + 0x84) = pScript[2];
+                *(s16*)(pWindow + 0x84) = SystemWindowByte(pScript, 2);
                 SYSTEM_TEXT_ADVANCE(pWindow, 3);
                 return;
 
             case 0x1: { /* text speed override / restore */
-                s32 value = pScript[2];
+                s32 value = SystemWindowByte(pScript, 2);
 
                 if (value != 0) {
                     u8 old = pWindow[0x68];
@@ -706,13 +795,13 @@ void func_80033DF0(void* arg0) {
 
             case 0x2: /* delay N frames, suppress auto-advance */
                 pWindow[0x6C] = 1;
-                *(s16*)(pWindow + 0x84) = pScript[2];
+                *(s16*)(pWindow + 0x84) = SystemWindowByte(pScript, 2);
                 SYSTEM_TEXT_ADVANCE(pWindow, 3);
                 return;
 
             case 0x3: { /* system string table[a] entry b */
-                void* table = (void*)(uintptr_t)*(u32*)((u8*)g_SystemDataEntries + pScript[2] * 4);
-                s32 entry = pScript[3];
+                void* table = (void*)(uintptr_t)SystemWindowWord(g_SystemDataEntries, SystemWindowByte(pScript, 2) * 4);
+                s32 entry = SystemWindowByte(pScript, 3);
 
                 SYSTEM_TEXT_ADVANCE(pWindow, 3);
                 func_80033DD4(pWindow, GetStringEntry(table, entry));
@@ -740,21 +829,21 @@ void func_80033DF0(void* arg0) {
                     continue;
                 }
                 func_80033DD4(pWindow,
-                              GetStringEntry((void*)(uintptr_t)*(u32*)((u8*)g_SystemDataEntries + tableOfs),
+                              GetStringEntry((void*)(uintptr_t)SystemWindowWord(g_SystemDataEntries, tableOfs),
                                              item & 0xFF));
                 count--;
                 continue;
             }
 
             case 0x5: { /* character name: direct id, or party slot (>= 0x80) */
-                s32 id = pScript[2];
+                s32 id = SystemWindowByte(pScript, 2);
                 void* name;
 
                 SYSTEM_TEXT_ADVANCE(pWindow, 2);
                 if (id >= 0x80) {
                     id = *((u8*)&g_GameState + 0x1CB4 + id);
                     if (id == 0xFF) {
-                        name = GetStringEntry((void*)(uintptr_t)*(u32*)((u8*)g_SystemDataEntries + 0x68), 0);
+                        name = GetStringEntry((void*)(uintptr_t)SystemWindowWord(g_SystemDataEntries, 0x68), 0);
                         func_80033DD4(pWindow, name);
                         continue;
                     }
@@ -765,34 +854,31 @@ void func_80033DF0(void* arg0) {
             }
 
             case 0x6: { /* weapon name; retail 80034304 loads +0x5C */
-                s32 entry = pScript[2];
+                s32 entry = SystemWindowByte(pScript, 2);
 
                 SYSTEM_TEXT_ADVANCE(pWindow, 2);
                 func_80033DD4(pWindow,
-                              GetStringEntry((void*)(uintptr_t)*(u32*)((u8*)g_SystemDataEntries +
-                                                                       0x5C),
+                              GetStringEntry((void*)(uintptr_t)SystemWindowWord(g_SystemDataEntries, 0x5C),
                                              entry));
                 continue;
             }
 
             case 0x7: { /* table +0x60 name; retail 8003432C loads +0x60 */
-                s32 entry = pScript[2];
+                s32 entry = SystemWindowByte(pScript, 2);
 
                 SYSTEM_TEXT_ADVANCE(pWindow, 2);
                 func_80033DD4(pWindow,
-                              GetStringEntry((void*)(uintptr_t)*(u32*)((u8*)g_SystemDataEntries +
-                                                                       0x60),
+                              GetStringEntry((void*)(uintptr_t)SystemWindowWord(g_SystemDataEntries, 0x60),
                                              entry));
                 continue;
             }
 
             case 0x8: { /* table +0x64 name; retail 80034354 loads +0x64 */
-                s32 entry = pScript[2];
+                s32 entry = SystemWindowByte(pScript, 2);
 
                 SYSTEM_TEXT_ADVANCE(pWindow, 2);
                 func_80033DD4(pWindow,
-                              GetStringEntry((void*)(uintptr_t)*(u32*)((u8*)g_SystemDataEntries +
-                                                                       0x64),
+                              GetStringEntry((void*)(uintptr_t)SystemWindowWord(g_SystemDataEntries, 0x64),
                                              entry));
                 continue;
             }
@@ -800,18 +886,18 @@ void func_80033DF0(void* arg0) {
             case 0x9:   /* number, font row 0, unsigned */
             case 0xA:   /* number, font row 1, unsigned */
             case 0xC: { /* number, font row 1, signed */
-                s32 var = pScript[2];
+                s32 var = SystemWindowByte(pScript, 2);
                 s32 fontRow = (subcode == 0x9) ? 0 : 1;
                 s32 signedMode = (subcode == 0xC) ? 1 : 0;
 
                 SYSTEM_TEXT_ADVANCE(pWindow, 2);
-                func_80033CF0(*(s32*)(pWindow + 0x70 + var * 4), fontRow, signedMode);
+                func_80033CF0((s32)SystemWindowWord(pWindow, 0x70 + var * 4), fontRow, signedMode);
                 func_80033DD4(pWindow, D_8005A0E4);
                 continue;
             }
 
             case 0xB: /* set byte +0x6D */
-                pWindow[0x6D] = pScript[2];
+                pWindow[0x6D] = SystemWindowByte(pScript, 2);
                 SYSTEM_TEXT_ADVANCE(pWindow, 2);
                 count--;
                 continue;
@@ -819,7 +905,7 @@ void func_80033DF0(void* arg0) {
             case 0xD: /* delay N, suppress auto-advance, flag 0x200 */
                 pWindow[0x6C] = 1;
                 *(u16*)(pWindow + 0x10) |= 0x200;
-                *(s16*)(pWindow + 0x84) = pScript[2];
+                *(s16*)(pWindow + 0x84) = SystemWindowByte(pScript, 2);
                 SYSTEM_TEXT_ADVANCE(pWindow, 3);
                 return;
 
@@ -827,17 +913,19 @@ void func_80033DF0(void* arg0) {
                 pWindow[0x6A] = pWindow[0x68];
                 pWindow[0x68] = 1;
                 pWindow[0x69] = 1;
-                *(s16*)(pWindow + 0x88) = pScript[2];
-                *(s16*)(pWindow + 0x86) = pScript[2];
+                *(s16*)(pWindow + 0x88) = SystemWindowByte(pScript, 2);
+                *(s16*)(pWindow + 0x86) = SystemWindowByte(pScript, 2);
                 SYSTEM_TEXT_ADVANCE(pWindow, 3);
                 return;
 
             case 0xF: { /* button name via controller mapping */
-                s32 button = pScript[2];
+                s32 button = SystemWindowByte(pScript, 2);
+                if (s_SystemWindowGuard && button >= 8)
+                    SystemWindowReject("unsupported controller mapping index");
 
                 SYSTEM_TEXT_ADVANCE(pWindow, 2);
                 func_80033DD4(pWindow,
-                              GetStringEntry((void*)(uintptr_t)*(u32*)((u8*)g_SystemDataEntries + 0xC4),
+                              GetStringEntry((void*)(uintptr_t)SystemWindowWord(g_SystemDataEntries, 0xC4),
                                              g_ControllerButtonMappings[button]));
                 continue;
             }
@@ -855,7 +943,7 @@ void func_80033DF0(void* arg0) {
                 consumed = 1;
             } else {
                 lead = code & 0xFF;
-                trail = pScript[1];
+                trail = SystemWindowByte(pScript, 1);
                 consumed = 2;
             }
 
@@ -868,10 +956,10 @@ void func_80033DF0(void* arg0) {
 
             {
                 s16 row = *(s16*)(pWindow + 0x02);
-                u8* pRow = (u8*)(uintptr_t)SYSTEM_TEXT_ADDRESS(pWindow, 0x28) + row * 0x60;
+                u8* pRow = SystemWindowBytes((void*)SYSTEM_TEXT_ADDRESS(pWindow, 0x28), (ptrdiff_t)row * 0x60, 0x60, 4, 1, "active text row");
                 u8 rowPage = pRow[0x5A];
 
-                func_80034FFC(lead, trail, (u8*)(uintptr_t)SYSTEM_TEXT_ADDRESS(pWindow, 0x2C) + oldX * 2,
+                func_80034FFC(lead, trail, SystemWindowBytes((void*)SYSTEM_TEXT_ADDRESS(pWindow, 0x2C), (ptrdiff_t)oldX * 2, 0, 2, 1, "glyph raster origin"),
                               *(s16*)(pWindow + 0x12), rowPage);
                 SYSTEM_TEXT_ADVANCE(pWindow, consumed);
                 *(s16*)(pWindow + 0x00) = oldX + width;
@@ -1040,12 +1128,16 @@ int func_8003487C(void* arg0) {
 INCLUDE_ASM("asm/slus_006.64/nonmatchings/system/system", func_80034888);
 #else
 void func_80034888(void* arg0, void* ot, s32 renderContextIndex) {
-    u8* pWindow = arg0;
+    u8* pWindow = SystemWindowBytes(arg0, 0, 0x90, 4, 1, "render window");
     u16 flags;
     u8* pRows;
     s32 rowIndex;
+    s32 rowCursor;
     s32 rowOffset;
     s32 ctxOffset;
+
+    if (s_SystemWindowGuard && (u32)renderContextIndex > 1u)
+        SystemWindowReject("unsupported window context");
 
     flags = *(u16*)(pWindow + 0x10);
     if (!(flags & 0x4)) {
@@ -1055,6 +1147,7 @@ void func_80034888(void* arg0, void* ot, s32 renderContextIndex) {
             return;
         }
 
+        SystemWindowBytes((void*)(uintptr_t)nodeAddr, -8, 16, 4, 1, "queued node and heap header");
         *(u32*)(pWindow + 0x1C) = *(u32*)(uintptr_t)(nodeAddr + 4);
         *(u32*)(pWindow + 0x8C) = *(u32*)(uintptr_t)nodeAddr;
         HeapFree((void*)(uintptr_t)nodeAddr);
@@ -1092,13 +1185,14 @@ void func_80034888(void* arg0, void* ot, s32 renderContextIndex) {
         *(s16*)(pWindow + 0x18) = 0;
         *(s16*)(pWindow + 0x02) = 0;
         *(s16*)(pWindow + 0x00) = 0;
+        SystemWindowBytes(pRows, 0, 0x60, 4, 1, "first reset row");
         pRows[0x5C] = *(u16*)(pWindow + 0x0E);
         *(u16*)(pRows + 0x5E) = g_SystemPalette1;
         pRows[0x5A] = 0;
         *(u16*)(pRows + 0x52) = *(u16*)(pWindow + 0x0E);
 
         for (rowIndex = 0; rowIndex < *(s16*)(pWindow + 0x0C); rowIndex++) {
-            *(s16*)(pRows + rowIndex * 0x60 + 0x58) = 0;
+            *(s16*)SystemWindowBytes(pRows, (ptrdiff_t)rowIndex * 0x60 + 0x58, 2, 2, 1, "reset row width") = 0;
         }
 
         *(u16*)(pWindow + 0x10) &= 0xFFDE;
@@ -1106,9 +1200,17 @@ void func_80034888(void* arg0, void* ot, s32 renderContextIndex) {
 
     ctxOffset = renderContextIndex * 0x28;
     rowIndex = 0;
-    rowOffset = *(s16*)(pWindow + 0x16) * 0x60;
+    rowCursor = *(s16*)(pWindow + 0x16);
+    rowOffset = rowCursor * 0x60;
     while (rowIndex < *(s16*)(pWindow + 0x0C)) {
-        u8* row = pRows + rowOffset;
+        /* Retail wraps the source cursor before access; rowIndex remains the
+         * independent screen row used for selection and vertical position. */
+        if (rowCursor >= *(s16*)(pWindow + 0x0C)) {
+            rowCursor = 0;
+            rowOffset = 0;
+        }
+        pRows = (u8*)(uintptr_t)*(u32*)(pWindow + 0x28);
+        u8* row = SystemWindowBytes(pRows, rowOffset, 0x60, 4, 1, "render row");
         u8* prim = row + ctxOffset;
 
         if (*(u8*)(pWindow + 0x6E) != rowIndex) {
@@ -1122,22 +1224,28 @@ void func_80034888(void* arg0, void* ot, s32 renderContextIndex) {
             *(u16*)(prim + 0x22) = *(u16*)(row + 0x5E);
             *(u16*)(prim + 0x1E) = *(u16*)(pWindow + 0x06) + *(s16*)(pWindow + 0x14) * rowIndex;
             *(u16*)(prim + 0x24) = (*(s16*)(row + 0x58) - 0x40) << 2;
-            func_80031798(ot, prim + 0x14);
+            SystemWindowLink(ot, prim + 0x14, 1);
         }
 
         rowIndex++;
+        rowCursor++;
         rowOffset += 0x60;
-        if (rowIndex >= *(s16*)(pWindow + 0x0C)) {
-            rowOffset = 0;
-        }
     }
 
-    SYSTEM_ADD_PRIM(ot, pWindow + 0x3C);
+    SystemWindowLink(ot, pWindow + 0x3C, 0);
 
     rowIndex = 0;
-    rowOffset = *(s16*)(pWindow + 0x16) * 0x60;
+    rowCursor = *(s16*)(pWindow + 0x16);
+    rowOffset = rowCursor * 0x60;
     while (rowIndex < *(s16*)(pWindow + 0x0C)) {
-        u8* row = pRows + rowOffset;
+        /* Retail wraps the source cursor before access; rowIndex remains the
+         * independent screen row used for selection and vertical position. */
+        if (rowCursor >= *(s16*)(pWindow + 0x0C)) {
+            rowCursor = 0;
+            rowOffset = 0;
+        }
+        pRows = (u8*)(uintptr_t)*(u32*)(pWindow + 0x28);
+        u8* row = SystemWindowBytes(pRows, rowOffset, 0x60, 4, 1, "render row");
         u8* prim = row + ctxOffset;
 
         if (*(u8*)(pWindow + 0x6E) != rowIndex) {
@@ -1150,15 +1258,13 @@ void func_80034888(void* arg0, void* ot, s32 renderContextIndex) {
             prim[0x0D] = row[0x5C];
             *(u16*)(prim + 0x0E) = *(u16*)(row + 0x5E);
             *(u16*)(prim + 0x0A) = *(u16*)(pWindow + 0x06) + *(s16*)(pWindow + 0x14) * rowIndex;
-            *(u16*)(prim + 0x10) = (*(s16*)(row + 0x58) < 0x41) ? (*(s16*)(row + 0x58) << 2) : 0x100;
-            func_80031798(ot, prim);
+            *(u16*)(prim + 0x10) = (*(s16*)(row + 0x58) < 0x41) ? ((u32)(s32)*(s16*)(row + 0x58) << 2) : 0x100;
+            SystemWindowLink(ot, prim, 1);
         }
 
         rowIndex++;
+        rowCursor++;
         rowOffset += 0x60;
-        if (rowIndex >= *(s16*)(pWindow + 0x0C)) {
-            rowOffset = 0;
-        }
     }
 
     if (*(s16*)(pWindow + 0x84) != 0) {
@@ -1169,7 +1275,8 @@ void func_80034888(void* arg0, void* ot, s32 renderContextIndex) {
         *(s16*)(pWindow + 0x86) = *(s16*)(pWindow + 0x88);
         if ((*(u16*)(pWindow + 0x10) & 0x58) == 0) {
             func_80033DF0(pWindow);
-            LoadImage((RECT*)(pRows + *(s16*)(pWindow + 0x02) * 0x60 + 0x50),
+            pRows = (u8*)(uintptr_t)*(u32*)(pWindow + 0x28);
+            SystemWindowUpload((RECT*)SystemWindowBytes(pRows, (ptrdiff_t)*(s16*)(pWindow + 0x02) * 0x60 + 0x50, 8, 2, 0, "selected upload rectangle"),
                       (u_long*)(uintptr_t)*(u32*)(pWindow + 0x2C));
         }
     }
@@ -1183,17 +1290,21 @@ void func_80034888(void* arg0, void* ot, s32 renderContextIndex) {
 
     if (!(*(u16*)(pWindow + 0x10) & 0x2)) {
         u8* prim = pWindow + renderContextIndex * 0x10;
-        s32 xy = (*(s16*)(pWindow + 0x04) - 7) | ((*(s16*)(pWindow + 0x06) - 5) << 16);
-        s32 wh = (((*(s16*)(pWindow + 0x0A) | 1) << 2) + 0xD) |
-                 (((*(s16*)(pWindow + 0x0C) * *(s16*)(pWindow + 0x14) + 0xA) << 16));
+        /* Unsigned shifts preserve the retail low 32 bits for negative
+         * coordinates/widths without signed-left-shift undefined behavior.
+         * Do not mask the low halves: retail ORs their sign-extended values. */
+        u32 xy = (u32)(*(s16*)(pWindow + 0x04) - 7) |
+                 ((u32)(*(s16*)(pWindow + 0x06) - 5) << 16);
+        u32 wh = (((u32)(s32)(*(s16*)(pWindow + 0x0A) | 1) << 2) + 0xD) |
+                 ((u32)(*(s16*)(pWindow + 0x0C) * *(s16*)(pWindow + 0x14) + 0xA) << 16);
 
-        *(s32*)(prim + 0x50) = xy;
-        *(s32*)(prim + 0x54) = wh;
-        SYSTEM_ADD_PRIM(ot, prim + 0x48);
+        *(u32*)(prim + 0x50) = xy;
+        *(u32*)(prim + 0x54) = wh;
+        SystemWindowLink(ot, prim + 0x48, 0);
     }
 
     *(u16*)(pWindow + 0x10) &= 0xFEFF;
-    SYSTEM_ADD_PRIM(ot, pWindow + 0x30);
+    SystemWindowLink(ot, pWindow + 0x30, 0);
 }
 #endif
 
@@ -1426,32 +1537,34 @@ void func_80034FFC(s32 arg0, s32 arg1, void* arg2, s32 arg3, s32 arg4) {
            block below D_8005935C. Compute the delta as a signed s32 so it sign-
            extends when added to the 64-bit host pointer; unsigned subtraction here
            would zero-extend (e.g. -286 -> 0xFFFFFEE2) and corrupt the address. */
-        s32 glyphOffset = ((s32)trail - (s32)D_80059364) * 0x16;
-        glyphData = (u8*)(uintptr_t)D_8005935C + glyphOffset;
+        ptrdiff_t glyphOffset = ((ptrdiff_t)trail - (s32)D_80059364) * 0x16;
+        glyphData = SystemWindowBytes((void*)(uintptr_t)D_8005935C, glyphOffset, 22, 2, 0, "single-byte glyph");
     } else if (lead == 0xFF && trail == 0xFF) {
         glyphData = (u8*)D_800501D0;
     } else {
-        s32 leadOffset = ((s32)lead - (s32)D_8005934C) * 0x1600;
+        ptrdiff_t leadOffset = ((ptrdiff_t)lead - (s32)D_8005934C) * 0x1600;
         s32 trailOffset = (s32)trail * 0x16;
-        glyphData = (u8*)(uintptr_t)D_8005935C + D_80059350 + trailOffset + leadOffset;
+        glyphData = SystemWindowBytes((void*)(uintptr_t)D_8005935C, (ptrdiff_t)D_80059350 + trailOffset + leadOffset, 22, 2, 0, "two-byte glyph");
     }
 
+    SystemWindowBytes(glyphData, 0, 22, 2, 0, "glyph bitmap");
     clearMask = arg4 ? 0x3333 : 0xCCCC;
-    prev = arg2;
+    prev = SystemWindowBytes(arg2, 0, 6, 2, 1, "first glyph row");
     prev[0] &= clearMask;
     prev[1] &= clearMask;
     prev[2] &= clearMask;
 
-    cur = (u16*)((u8*)arg2 + step);
+    cur = SystemWindowBytes(arg2, step, 6, 2, 1, "second glyph row");
     cur[0] &= clearMask;
     cur[1] &= clearMask;
     cur[2] &= clearMask;
 
-    next = (u16*)((u8*)cur + step);
+    next = SystemWindowBytes(cur, step, 0, 2, 1, "glyph row advance");
 
     for (i = 0; i < 0xB; i++) {
         u16 glyph = *(u16*)glyphData;
 
+        SystemWindowBytes(next, 0, 6, 2, 1, "next glyph row");
         next[0] &= clearMask;
         next[1] &= clearMask;
         next[2] &= clearMask;
@@ -1463,9 +1576,9 @@ void func_80034FFC(s32 arg0, s32 arg1, void* arg2, s32 arg3, s32 arg4) {
         }
 
         glyphData += 2;
-        prev = (u16*)((u8*)prev + step);
-        cur = (u16*)((u8*)cur + step);
-        next = (u16*)((u8*)next + step);
+        prev = SystemWindowBytes(prev, step, 0, 2, 1, "glyph row advance");
+        cur = SystemWindowBytes(cur, step, 0, 2, 1, "glyph row advance");
+        next = SystemWindowBytes(next, step, 0, 2, 1, "glyph row advance");
     }
 }
 #endif

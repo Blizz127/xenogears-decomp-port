@@ -12,6 +12,12 @@ typedef struct PcPortQuickCheckpoint {
     uint16_t entrance;
     int32_t position[3];
     int16_t rotation[3];
+    /* The retail rand seed (g_RandomSeed, a host global in the port, so not
+     * part of g_GameState), kept in a sidecar "<path>.rng" tied to this
+     * checkpoint by its checksum. The main file format is unchanged; a save
+     * without a valid matching sidecar loads with has_random_seed = 0. */
+    uint8_t has_random_seed;
+    uint32_t random_seed;
 } PcPortQuickCheckpoint;
 
 /* Return 0 on success; all failures are reported as nonzero. */

@@ -54,12 +54,14 @@ segments:
     subalign: 4
     subsegments:
       - [0x0, .rodata, main/misc]
-      # misc2 / misc3 are separate retail TUs (see the note at the top of
-      # src/menu/main/misc.c): each begins where a jump table must open its
-      # TU's .rodata to keep retail's 4-mod-8 alignment.
+      # misc1b / misc2 / misc3 are separate retail TUs (see the note at the
+      # top of src/menu/main/misc.c): each begins where a jump table must
+      # open its TU's .rodata to keep retail's 4-mod-8 alignment.
+      - [0xfc, .rodata, main/misc1b]
       - [0x22c, .rodata, main/misc2]
       - [0x278, .rodata, main/misc3]
       - [0x31c, c, main/misc]
+      - [0x16e54, c, main/misc1b]
       - [0x1eecc, c, main/misc2]
       - [0x23070, c, main/misc3]
       - [0x246a4, data]

@@ -1,0 +1,198 @@
+diff --git a/src/pad/PsyX_pad.cpp b/src/pad/PsyX_pad.cpp
+--- a/src/pad/PsyX_pad.cpp
++++ b/src/pad/PsyX_pad.cpp
+@@ -6,8 +6,13 @@
+ #include "PsyX/PsyX_public.h"
+ 
+ #include <string.h>
+-/* _xeno_dev_menu_input: optional host menu, absent in standalone SDK tests. */
+-extern "C" int PcPort_DevMenuFilterPad(unsigned held) __attribute__((weak));
++/* _xeno_dev_menu_input: optional host menu, absent in standalone SDK tests.
++ * Polled from port 1's active pad (port_dev_menu.h PcPort_DevMenuPad). */
++extern "C" unsigned PcPort_DevMenuPad(unsigned bits, int instance, int held_any, unsigned now_ms) __attribute__((weak));
++/* Host fast-forward (PsyX_main.cpp, psycross_host_hotkeys.patch): L3 toggles,
++ * R3 holds, like F6 / Backspace. */
++extern "C" void PsyX_HostFastForwardToggle(void) __attribute__((weak));
++extern "C" void PsyX_HostFastForwardPadHold(int held) __attribute__((weak));
+ #include <stdlib.h> /* _xeno_pad_stdlib */
+ 
+ extern "C"
+@@ -37,6 +42,10 @@
+ u_short PsyX_Pad_UpdateKeyboardInput();
+ void	PsyX_Pad_UpdateGameControllerInput(SDL_GameController* cont, LPPADRAW pad);
+ 
++/* _xeno_pad_select: sanitised Steam hints, one active pad for port 1 keyed by
++ * instance id, left stick as D-pad for the digital pad. */
++#include "../../../../src/psycross_pad_select.inl"
++
+ // Initializes SDL controllers
+ int PsyX_Pad_InitSystem()
+ {
+@@ -49,6 +58,8 @@
+ 	// init keyboard state
+ 	g_sdlKeyboardState = SDL_GetKeyboardState(NULL);
+ 
++	PsyX_Pad_ApplyHints();
++
+ 	if (SDL_InitSubSystem(SDL_INIT_GAMECONTROLLER | SDL_INIT_HAPTIC) < 0)
+ 	{
+ 		eprinterr("Failed to initialise SDL GameController subsystem!\n");
+@@ -155,46 +166,24 @@
+ // called from Psy-X SDL events
+ void PsyX_Pad_Event_ControllerAdded(Sint32 deviceId)
+ {
+-	int i;
+-	PsyXController* controller;
+-
+ 	// reinitialize haptics (why we still here?)
+ 	SDL_QuitSubSystem(SDL_INIT_HAPTIC);			// FIXME: this will crash if you already have haptics
+ 	SDL_InitSubSystem(SDL_INIT_HAPTIC);
+ 
+ 	PsyX_Pad_Debug_ListControllers();
+ 
+-	// find mapping and open
+-	for (i = 0; i < MAX_CONTROLLERS; i++)
+-	{
+-		controller = &g_controllers[i];
+-
+-		if (controller->deviceId == -1 || controller->deviceId == deviceId)
+-		{
+-			PsyX_Pad_OpenController(deviceId, i);
+-			break;
+-		}
+-	}
++	/* SDL_CONTROLLERDEVICEADDED carries a device index; the host table
++	 * tracks instance ids and picks port 1's pad in PsyX_Pad_HostSelect. */
++	PsyX_Pad_HostDeviceAdded(deviceId);
+ }
+ 
+ // called from Psy-X SDL events
+ void PsyX_Pad_Event_ControllerRemoved(Sint32 deviceId)
+ {
+-	int i;
+-	PsyXController* controller;
+-
+ 	PsyX_Pad_Debug_ListControllers();
+ 
+-	// find mapping and close
+-	for (int i = 0; i < MAX_CONTROLLERS; i++)
+-	{
+-		controller = &g_controllers[i];
+-
+-		if (controller->deviceId == deviceId)
+-		{
+-			PsyX_Pad_CloseController(i);
+-		}
+-	}
++	/* SDL_CONTROLLERDEVICEREMOVED carries an instance id. */
++	PsyX_Pad_HostDeviceRemoved((SDL_JoystickID)deviceId);
+ }
+ 
+ void PsyX_Pad_InternalPadUpdates()
+@@ -202,13 +191,17 @@
+ 	PsyXController* controller;
+ 	LPPADRAW pad;
+ 	u_short kbInputs;
+-	int devMenuBlock = 0;
++	unsigned devMenu = 0;
+ 
+ 	if (g_padCommEnable == 0)
+ 		return;
+ 
+ 	kbInputs = PsyX_Pad_UpdateKeyboardInput();
+ 
++	/* One active controller feeds port 1; port 2 has none. */
++	g_controllers[0].gc = PsyX_Pad_HostSelect();
++	g_controllers[1].gc = NULL;
++
+ 	for (int i = 0; i < MAX_CONTROLLERS; i++)
+ 	{
+ 		controller = &g_controllers[i];
+@@ -219,46 +212,36 @@
+ 
+ 			PsyX_Pad_UpdateGameControllerInput(controller->gc, pad);
+ 
+-			/* Keep menu navigation and the closing press out of retail pads. */
++			/* Port 1: dev-menu combo / navigation / input capture and the
++			 * L3/R3 fast-forward keys, all from the active pad itself.
++			 * PsyCross's Select+Start analog toggle is gone: Xenogears is
++			 * a digital-pad game and Select+Start opens the dev menu. */
+ 			if (i == 0) {
+-				unsigned held = (unsigned)(u_short)~(*(u_short*)pad->buttons & kbInputs);
+-				if (abs((int)pad->analog[2] - 128) > 40 || abs((int)pad->analog[3] - 128) > 40) held |= 0x10000;
+-				devMenuBlock = PcPort_DevMenuFilterPad ? PcPort_DevMenuFilterPad(held) : 0;
+-			}
+-			if (devMenuBlock) {
+-				*(u_short*)pad->buttons = 0xffff;
+-				memset(pad->analog, 128, sizeof pad->analog);
+-				continue;
+-			}
+-
+-			ushort test = *(u_short*)pad->buttons;
+-
+-			// In order to switch From/To analog user has to use left gamepad stick
+-
+-			// Select + Start pressed
+-			if ((test & 0x1) == 0 && (test & 0x8) == 0)
+-			{
+-				*(u_short*)pad->buttons = 0xffff;
+-
+-				if (!controller->switchingAnalog)
+-				{
+-					// switch to analog state
+-					if (pad->id == 0x41)
+-					{
+-						eprintf("Port %d ANALOG: ON\n", i + 1);
+-						pad->id = 0x73;
+-					}
+-					else
+-					{
+-						eprintf("Port %d ANALOG: OFF\n", i + 1);
+-						pad->id = 0x41;
+-					}
++				u_short padBits = *(u_short*)pad->buttons;
++				SDL_GameController* gc = controller->gc;
++				unsigned menuBits = 0;
++				int heldAny = (u_short)~(padBits & kbInputs) != 0;
++				if (gc) {
++					if (!(padBits & 0x10)) menuBits |= 1u << 0;	/* up (D-pad or stick) */
++					if (!(padBits & 0x40)) menuBits |= 1u << 1;	/* down */
++					if (SDL_GameControllerGetButton(gc, SDL_CONTROLLER_BUTTON_A)) menuBits |= 1u << 2;
++					if (SDL_GameControllerGetButton(gc, SDL_CONTROLLER_BUTTON_B)) menuBits |= 1u << 3;
++					if (SDL_GameControllerGetButton(gc, SDL_CONTROLLER_BUTTON_BACK)) menuBits |= 1u << 4;
++					if (SDL_GameControllerGetButton(gc, SDL_CONTROLLER_BUTTON_START)) menuBits |= 1u << 5;
+ 				}
+-				controller->switchingAnalog = true;
+-			}
+-			else
+-			{
+-				controller->switchingAnalog = false;
++				devMenu = PcPort_DevMenuPad
++					? PcPort_DevMenuPad(menuBits, gc ? (int)PsyX_Pad_HostActiveInstance() : -1, heldAny, SDL_GetTicks())
++					: 0;
++				XenoPad_FastForwardKeys(gc, (devMenu & 1u) != 0);
++				if (devMenu & 1u) {	/* menu open or closing drain */
++					*(u_short*)pad->buttons = 0xffff;
++					memset(pad->analog, 128, sizeof pad->analog);
++					continue;
++				}
++				if (devMenu & (1u << 1)) *(u_short*)pad->buttons |= 0x1;	/* Select held back */
++				if (devMenu & (1u << 2)) *(u_short*)pad->buttons |= 0x8;	/* Start held back */
++				if (devMenu & (1u << 3)) *(u_short*)pad->buttons &= ~0x1;	/* replayed Select tap */
++				if (devMenu & (1u << 4)) *(u_short*)pad->buttons &= ~0x8;	/* replayed Start tap */
+ 			}
+ 
+ 			// Update keyboard for PAD
+@@ -355,6 +338,12 @@
+ 	if (GetControllerButtonState(cont, mapping.gc_dpad_right) > 16384)//RIGHT
+ 		ret &= ~0x20;
+ 
++	/* The digital pad has no sticks: the left stick drives the D-pad. */
++	if (pad->id != 0x73)
++		ret &= XenoPad_StickToDpad(
++			GetControllerButtonState(cont, mapping.gc_axis_left_x),
++			GetControllerButtonState(cont, mapping.gc_axis_left_y));
++
+ 	if (GetControllerButtonState(cont, mapping.gc_l3) > 16384)//L3
+ 		ret &= ~0x2;
+ 

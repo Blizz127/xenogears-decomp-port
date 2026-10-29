@@ -403,7 +403,8 @@ static void test_title_loop_new_game(void)
 
 /* The default cursor (Continue) confirmed as-is must NOT start a new game --
  * that is the func_801D9F98 save/load path -- and the loop must keep running
- * (the port's screen stub returns 0, retail returns to the title loop too). */
+ * (the fixture's card screen backs out and returns 0, as retail does when the
+ * player cancels Continue). */
 static void test_title_loop_default_is_continue(void)
 {
     static const u8 script[] = { 8, 4 };

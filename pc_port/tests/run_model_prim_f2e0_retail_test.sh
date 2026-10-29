@@ -54,10 +54,13 @@ for opt in O0 O2 UBSan; do
                 "model_link:pc_port/src/model_prim_link.c" \
                 "guest_link:pc_port/src/guest_prim_link.c"; do
         name=${pair%%:*}; source=${pair#*:}
-        if [ "$name" = body ]; then
+        if [ "$name" = body ] || [ "$name" = cpu ]; then
             # Compile the actual game TU with its own includes. Pre-including
             # PsyCross's inline_c.h into an extracted body hid a native build
             # that emitted PsyQ's MIPS assembler placeholders into x86 code.
+            # The interpreter (cpu) is host code with system headers
+            # (<signal.h>, <unistd.h>); the PsyQ sys/types.h pre-include
+            # redefines uid_t/gid_t and breaks it.
             gcc "${COMMON[@]}" "${GAME[@]}" "${flags[@]}" -fpermissive -w \
                 -c "$source" -o "$OUT/$opt.$name.o"
             continue

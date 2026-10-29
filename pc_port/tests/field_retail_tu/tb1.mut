@@ -1,0 +1,3 @@
+[
+ ("func_8009BC98", "if (*(s16*)(pTextBox + 0x9C) == 0 || *(u8*)(pTextBox + 0x84) == 0) {", "if (*(s16*)(pTextBox + 0x84) == 0 || *(u8*)(pTextBox + 0x6C) == 0) {"),
+]

@@ -1,0 +1,5 @@
+[
+ ("func_800A2030", "actor->scriptFlags.flags &= 0xFEFFFFFF;", "actor->flags &= 0xFEFFFFFF;"),
+ ("func_800A30FC", "*(u16*)((u8*)g_pGameState + 0x1938) << 9;", "*(u16*)((u8*)g_pGameState + 0x1938) << 8;"),
+ ("func_800A31E8", "seconds = 0x3B;", "seconds = 0x3A;"),
+]

@@ -171,12 +171,22 @@ void wm_80094A5C_set_trace(wm_94a5c_trace_fn fn)
 #define MASK_AND 0xFFF80000u
 #endif
 
+/* Retail adds one 0x80000 cell (addu, 0x80094C04/0x80094D6C/0x80094E98) to
+ * the masked coordinate.  Bit 19 survives the 0xFFF80000 mask, so an OR (the
+ * port's former reading) left the coordinate in the same cell whenever bit 19
+ * was already set. */
+#if defined(WM_94A5C_MUTANT_CELL_OR)
+#define WM_94A5C_NEXT_CELL(v) ((v) | 0x00080000u)
+#else
+#define WM_94A5C_NEXT_CELL(v) ((v) + 0x00080000u)
+#endif
+
 static void set_case5_mask(u32 base)
 {
     u32 b0 = load_u32(base + 0);
     u32 b2 = load_u32(base + 8);
-    store_u32(WS + 0, (b0 & MASK_AND) | 0x00080000u);
-    store_u32(WS + 8, (b2 & MASK_AND) | 0x00080000u);
+    store_u32(WS + 0, WM_94A5C_NEXT_CELL(b0 & MASK_AND));
+    store_u32(WS + 8, WM_94A5C_NEXT_CELL(b2 & MASK_AND));
 }
 
 static void set_case6_mask(u32 base)
@@ -184,14 +194,14 @@ static void set_case6_mask(u32 base)
     u32 b0 = load_u32(base + 0);
     u32 b2 = load_u32(base + 8);
     store_u32(WS + 0, b0 & MASK_AND);
-    store_u32(WS + 8, (b2 & MASK_AND) | 0x00080000u);
+    store_u32(WS + 8, WM_94A5C_NEXT_CELL(b2 & MASK_AND));
 }
 
 static void set_case9_mask(u32 base)
 {
     u32 b0 = load_u32(base + 0);
     u32 b2 = load_u32(base + 8);
-    store_u32(WS + 0, (b0 & MASK_AND) | 0x00080000u);
+    store_u32(WS + 0, WM_94A5C_NEXT_CELL(b0 & MASK_AND));
     store_u32(WS + 8, b2 & MASK_AND);
 }
 
@@ -205,7 +215,7 @@ static void set_case10_mask(u32 base)
 
 /* ------------------------------------------------------------------ */
 /* Delta + GTE probe block (retail 0x80094C1C..0x80094CA4 and its      */
-/* three identical twins).  Reads WS[0], WS[2], WS[0x10], WS[0x18],     */
+/* three identical twins).  Reads WS+0, WS+8, WS+0x10, WS+0x18,     */
 /* base[0], base[8]; writes WS[0x20..0x48]; returns the signed probe   */
 /* result used to pick the X-probe vs Z-probe pair order.              */
 /* ------------------------------------------------------------------ */
@@ -218,10 +228,18 @@ static s32 probe_v(u32 base, s32 mode)
     s32 d30 = s32_sra(as_s32((u32)(load_u32(WS + 0x10) - load_u32(WS + 0))), 12);
     store_u32(WS + 0x30, as_u32(d30));
 
-    s32 d38 = s32_sra(as_s32((u32)(load_u32(WS + 0x18) - load_u32(WS + 2))), 12);
+    /* WS[2] of the retail word array: byte offset 8 (lw 0x8($s1)).  The
+     * port once read byte offset 2 here and below, a misaligned word made
+     * of WS.x's high half and WS.y's low half. */
+#if defined(WM_94A5C_MUTANT_WS_BYTE2)
+    const u32 ws_z = WS + 2u;
+#else
+    const u32 ws_z = WS + 8u;
+#endif
+    s32 d38 = s32_sra(as_s32((u32)(load_u32(WS + 0x18) - load_u32(ws_z))), 12);
     store_u32(WS + 0x38, as_u32(d38));
 
-    s32 d28 = s32_sra(as_s32((u32)(load_u32(base + 8) - load_u32(WS + 2))), 12);
+    s32 d28 = s32_sra(as_s32((u32)(load_u32(base + 8) - load_u32(ws_z))), 12);
     store_u32(WS + 0x28, as_u32(d28));
 
     store_u32(WS + 0x44, 0u);

@@ -21,7 +21,23 @@ FieldActor* volatile g_FieldActors = g_TestFieldActors;
 s32 D_800ADB64;
 s32 D_800ADB68;
 s32 D_800ADBFC = 1;
+s32 D_800ADB2C;
 u8 D_800B21D0;
+uint32_t g_RandomSeed;   /* retail rand seed: quicksaves carry it (trailer) */
+
+/* g_FieldScriptMemory is a raw buffer in the game (field/actor.h declares it
+ * `void*` and uses its address); give the symbol 0x800 bytes here. */
+unsigned char g_TestScriptMemory[0x800] __attribute__((aligned(8)));
+__asm__(".globl g_FieldScriptMemory\n.set g_FieldScriptMemory, g_TestScriptMemory\n");
+static int s_syncCalls;
+
+/* Stand-in for retail func_800A30FC: the part the checkpoint relies on, the
+ * copy of the live script variables into g_GameState+0x1930. */
+void func_800A30FC(void)
+{
+    memcpy(g_GameState + 0x1930, g_TestScriptMemory, 0x400);
+    s_syncCalls++;
+}
 
 static ActorData* g_actor;
 static void* g_actor_mapping;
@@ -50,9 +66,12 @@ static void reset_case(void)
     g_PlayerActorIndex = 0;
     g_FieldActors = g_TestFieldActors;
     D_800ADBFC = 1;
+    D_800ADB2C = 0;
     D_800ADB64 = 0xFF;
     D_800ADB68 = 1;
     D_800B21D0 = 0;
+    memset(g_TestScriptMemory, 0x5A, sizeof(g_TestScriptMemory));
+    s_syncCalls = 0;
     g_actor->position.vx = 181 << 16;
     g_actor->position.vy = 0;
     g_actor->position.vz = 4 << 16;
@@ -70,6 +89,26 @@ static void expect_pending(const char* label)
             message);
     snprintf(message, sizeof(message), "%s wrote a blocked checkpoint", label);
     require(access(g_path, F_OK) != 0, message);
+}
+
+static void expect_scene_refused(const char* label)
+{
+    char message[128];
+    const char* notice;
+    snprintf(message, sizeof(message), "%s poll unexpectedly completed", label);
+    require(PcPort_QuickCheckpointPoll() == 0, message);
+    snprintf(message, sizeof(message), "%s was not refused", label);
+    require(PcPort_QuickCheckpointGetUiState() == PC_PORT_QUICK_UI_SAVE_ERROR,
+            message);
+    snprintf(message, sizeof(message), "%s wrote a checkpoint", label);
+    require(access(g_path, F_OK) != 0, message);
+    notice = PcPort_QuickCheckpointNotice();
+    snprintf(message, sizeof(message), "%s showed no scene notice", label);
+    require(notice && strcmp(notice, "CAN'T QUICKSAVE DURING A SCENE") == 0, message);
+    snprintf(message, sizeof(message), "%s left the request queued", label);
+    require(PcPort_QuickCheckpointPoll() == 0 &&
+            PcPort_QuickCheckpointGetUiState() == PC_PORT_QUICK_UI_SAVE_ERROR &&
+            access(g_path, F_OK) != 0, message);
 }
 
 static void expect_saved(const char* label)
@@ -116,10 +155,14 @@ int main(int argc, char** argv)
     expect_saved("stable foot field");
     puts("QUICK GATE stable foot field: PASS");
 
+    /* Option (b), 2026-09-30: a save asked for while a field script event
+     * holds control (player script lock 0x1800, event lock D_800B21D0) is
+     * refused with the scene notice instead of waiting for the lock to clear
+     * (these two cases used to expect a pending save). */
     reset_case();
     *(u32*)g_actor = 0x1800;
     PcPort_QuickCheckpointRequestSave();
-    expect_pending("actor control lock");
+    expect_scene_refused("actor control lock");
 
     reset_case();
     D_800ADB64 = 2;
@@ -129,20 +172,51 @@ int main(int argc, char** argv)
     reset_case();
     D_800B21D0 = 1;
     PcPort_QuickCheckpointRequestSave();
-    expect_pending("transition lock");
+    expect_scene_refused("transition lock");
 
     reset_case();
     D_800ADB68 = 0;
     PcPort_QuickCheckpointRequestSave();
     expect_pending("player control disabled");
 
+    /* The frame an event lets go of control is still the scene: the state
+     * sync at the start of that frame predates the unlock.  The next frame
+     * is settled and saves. */
     reset_case();
     *(u32*)g_actor = 0x1800;
     PcPort_QuickCheckpointRequestSave();
-    expect_pending("locked then release before clear");
+    expect_scene_refused("locked request");
     *(u32*)g_actor = 0;
-    expect_saved("naturally cleared control lock");
-    puts("QUICK GATE blocked controls and natural release: PASS");
+    PcPort_QuickCheckpointRequestSave();
+    expect_scene_refused("frame the lock was released");
+    PcPort_QuickCheckpointRequestSave();
+    expect_saved("settled frame after the release");
+    reset_case();
+    D_800B21D0 = 1;
+    require(PcPort_QuickCheckpointPoll() == 0, "idle poll during an event");
+    D_800B21D0 = 0;
+    PcPort_QuickCheckpointRequestSave();
+    expect_scene_refused("event lock released this frame");
+    PcPort_QuickCheckpointRequestSave();
+    expect_saved("settled after the event lock");
+    puts("QUICK GATE blocked controls and scene refusal: PASS");
+
+    /* The saved image is the live script state, not the start-of-frame copy
+     * in g_GameState (field 14: the copy still said scenario 3 after the
+     * painting scene had set 6 and handed over control).  Saving leaves the
+     * running game's buffers untouched. */
+    reset_case();
+    *(u16*)(g_GameState + 0x1930) = 3;
+    *(u16*)(g_TestScriptMemory + 0) = 6;
+    PcPort_QuickCheckpointRequestSave();
+    expect_saved("live script image");
+    { PcPortQuickCheckpoint saved;
+      require(PcPort_QuickCheckpointReadFile(g_path, &saved) == 0 &&
+              *(u16*)(saved.game_state + 0x1930) == 6,
+              "checkpoint kept the stale scenario copy");
+      require(*(u16*)(g_GameState + 0x1930) == 3 && s_syncCalls == 1,
+              "saving changed the live g_GameState"); }
+    puts("QUICK GATE live script image: PASS");
 
     reset_case();
     PcPort_QuickCheckpointSetFieldActive(0);
@@ -155,8 +229,10 @@ int main(int argc, char** argv)
     /* A real field checkpoint can be loaded from the fully initialized title
      * loop, whose script owns control and has no usable player actor. */
     reset_case();
+    g_RandomSeed = 0x62264E95u;
     PcPort_QuickCheckpointRequestSave();
     expect_saved("title fixture");
+    g_RandomSeed = 0x12345678u;
     g_GameSceneMapNum = 490;
     D_800ADB68 = 0;
     D_800B21D0 = 1;
@@ -172,6 +248,7 @@ int main(int argc, char** argv)
     require(*(u16*)(g_GameState + 0x231A) == 13 &&
             *(u16*)(g_GameState + 0x2320) == 7 && g_GameState[0] == 0x5A,
             "title load did not restore saved state/map/entrance");
+    require(g_RandomSeed == 0x62264E95u, "load did not restore the saved rand seed");
     PcPort_QuickCheckpointRequestSave();
     require(PcPort_QuickCheckpointGetUiState() == PC_PORT_QUICK_UI_SAVE_ERROR,
             "title save must be rejected");
@@ -205,6 +282,34 @@ int main(int argc, char** argv)
             "corrupt title checkpoint was not rejected");
     unlink(g_path);
     puts("QUICK GATE title load/overwrite protection/invalid files: PASS");
+
+    /* A warp accepted during a live stream must retain its request and leave
+     * the field running until the consumer signals completion. */
+    reset_case();
+    D_800ADB2C = 1;
+    require(PcPort_QuickCheckpointRequestWarp(12, 2) == 1, "stream warp not queued");
+    require(PcPort_QuickCheckpointPoll() == 0, "stream warp tore down field");
+    require(PcPort_QuickCheckpointPoll() == 0, "queued stream warp lost deferral");
+    require(g_GameSceneMapNum == 13 && s_syncCalls == 0, "deferred warp changed field state");
+    D_800ADB2C = 0;
+    require(PcPort_QuickCheckpointPoll() == 1, "completed stream did not release warp");
+    PcPort_QuickCheckpointCommitLoad();
+    require(*(u16*)(g_GameState + 0x231A) == 12 &&
+            *(u16*)(g_GameState + 0x2320) == 2, "deferred warp lost destination");
+
+    reset_case();
+    PcPort_QuickCheckpointRequestSave();
+    expect_saved("stream load fixture");
+    D_800ADB2C = 1;
+    PcPort_QuickCheckpointRequestLoad();
+    require(PcPort_QuickCheckpointPoll() == 0 &&
+            PcPort_QuickCheckpointGetUiState() == PC_PORT_QUICK_UI_LOAD_PENDING,
+            "stream load tore down field or lost request");
+    D_800ADB2C = 0;
+    require(PcPort_QuickCheckpointPoll() == 1, "completed stream did not release load");
+    PcPort_QuickCheckpointCommitLoad();
+    require(*(u16*)(g_GameState + 0x231A) == 13, "deferred load lost saved map");
+    puts("QUICK GATE active stream load/warp deferral: PASS");
 
     require(munmap(g_actor_mapping, 4096) == 0, "actor unmap");
     puts("QUICK CHECKPOINT GATE PASS stable-file/blocked-controls/release");

@@ -1,9 +1,110 @@
 #include "battle_mips_adapter.h"
 
 #include <limits.h>
+#include <inttypes.h>
 #include <stdarg.h>
+#include <signal.h>
 #include <stdio.h>
+#include <unistd.h>
+#include <stdlib.h>
 #include <string.h>
+
+static PcPortMipsExecutionStats execution_stats;
+static int execution_stats_enabled = -1;
+
+PcPortMipsExecutionStats PcPortMipsExecutionStatsGet(void)
+{
+    return execution_stats;
+}
+
+static void execution_stats_write(const char *kind)
+{
+    fprintf(stderr, "[xeno-port][%s] entries=%" PRIu64
+            " native_bridges=%" PRIu64 " interpreted_instructions=%" PRIu64
+            " disabled_refusals=%" PRIu64 " unresolved_bridges=%" PRIu64 "\n",
+            kind, execution_stats.entries, execution_stats.native_bridges,
+            execution_stats.interpreted_instructions,
+            execution_stats.disabled_refusals, execution_stats.unresolved_bridges);
+}
+
+static void execution_stats_report(void)
+{
+    execution_stats_write("cpu-execution");
+}
+
+/* Opt-in with the counters: a run stopped by SIGINT/SIGTERM (a harness
+ * timeout) still reports them.  Installed before SDL, which then keeps it. */
+static size_t stats_put_u64(char *out, uint64_t v)
+{
+    char digits[24];
+    size_t n = 0, i;
+    do {
+        digits[n++] = (char)('0' + v % 10u);
+        v /= 10u;
+    } while (v != 0);
+    for (i = 0; i < n; i++)
+        out[i] = digits[n - 1 - i];
+    return n;
+}
+
+static size_t stats_put_str(char *out, const char *s)
+{
+    size_t n = strlen(s);
+    memcpy(out, s, n);
+    return n;
+}
+
+/* Async-signal-safe: formats by hand and write(2)s once (stdio in a handler
+ * can deadlock on a lock another thread holds -- the likely reason a
+ * reference run ended by SIGINT lost its receipt). */
+static void execution_stats_signal(int sig)
+{
+    char line[256];
+    size_t n = 0;
+    ssize_t ignored;
+
+    n += stats_put_str(line + n, "[xeno-port][cpu-execution] entries=");
+    n += stats_put_u64(line + n, execution_stats.entries);
+    n += stats_put_str(line + n, " native_bridges=");
+    n += stats_put_u64(line + n, execution_stats.native_bridges);
+    n += stats_put_str(line + n, " interpreted_instructions=");
+    n += stats_put_u64(line + n, execution_stats.interpreted_instructions);
+    n += stats_put_str(line + n, " disabled_refusals=");
+    n += stats_put_u64(line + n, execution_stats.disabled_refusals);
+    n += stats_put_str(line + n, " unresolved_bridges=");
+    n += stats_put_u64(line + n, execution_stats.unresolved_bridges);
+    line[n++] = '\n';
+    ignored = write(2, line, n);
+    (void)ignored;
+    _exit(128 + sig);
+}
+
+void PcPortMipsExecutionStatsInit(void)
+{
+    const char *value;
+    if (execution_stats_enabled >= 0)
+        return;
+    value = getenv("XENO_CPU_EXECUTION_STATS");
+    execution_stats_enabled = value && value[0] && strcmp(value, "0") != 0;
+    if (execution_stats_enabled && atexit(execution_stats_report) != 0)
+        fprintf(stderr, "[xeno-port][cpu-execution] exit report registration failed\n");
+    if (execution_stats_enabled) {
+        signal(SIGINT, execution_stats_signal);
+        signal(SIGTERM, execution_stats_signal);
+    }
+}
+
+int PcPortMipsInterpreterDisabled(void)
+{
+#ifdef XENO_NATIVE_ONLY
+    /* This target contains no CPU instruction engine. Runtime settings may
+     * never turn a missing native body into an interpreted instruction. */
+    return 1;
+#else
+    const char *value = getenv("XENO_DISABLE_CPU_INTERPRETER");
+    return value != NULL && value[0] != '\0' && strcmp(value, "0") != 0;
+#endif
+}
 
 typedef struct PendingLoad {
     uint32_t value;
@@ -22,6 +123,7 @@ static int cpu_error(PcPortMipsCpu *cpu, int code, const char *fmt, ...)
     return code;
 }
 
+#ifndef XENO_NATIVE_ONLY
 static int mem_read(PcPortMipsCpu *cpu, uint32_t address, unsigned width,
                     uint32_t *value)
 {
@@ -79,6 +181,7 @@ static int signed_sub_overflow(int32_t a, int32_t b, int32_t *out)
     *out = (int32_t)value;
     return value > INT32_MAX || value < INT32_MIN;
 }
+#endif
 
 void PcPortMipsCpuInit(PcPortMipsCpu *cpu, const PcPortMipsBus *bus)
 {
@@ -87,6 +190,7 @@ void PcPortMipsCpuInit(PcPortMipsCpu *cpu, const PcPortMipsBus *bus)
         cpu->bus = *bus;
 }
 
+#ifndef XENO_NATIVE_ONLY
 static int execute_one(PcPortMipsCpu *cpu, uint32_t instruction,
                        PendingLoad *next_load, uint32_t *written_mask)
 {
@@ -406,40 +510,66 @@ static int execute_one(PcPortMipsCpu *cpu, uint32_t instruction,
     return 0;
 }
 
+#endif /* !XENO_NATIVE_ONLY: no instruction decoder in the native target */
+
 int PcPortMipsRun(PcPortMipsCpu *cpu, uint32_t entry, uint32_t halt_pc,
                   uint64_t max_steps)
 {
     uint64_t start_steps = cpu->steps;
+    int interpreter_disabled = PcPortMipsInterpreterDisabled();
+
+    PcPortMipsExecutionStatsInit();
+    if (execution_stats_enabled)
+        execution_stats.entries++;
 
     cpu->pc = entry;
     cpu->next_pc = entry + 4u;
     cpu->error[0] = '\0';
 
     while (cpu->steps - start_steps < max_steps) {
+#ifndef XENO_NATIVE_ONLY
         PendingLoad old_load;
         PendingLoad next_load;
         uint32_t instruction;
         uint32_t current_pc;
         uint32_t following_pc;
         uint32_t written_mask = 0;
-        int bridge_rc;
         int rc;
+#endif
+        int bridge_rc;
 
         if (cpu->pc == halt_pc)
             return PC_PORT_MIPS_HALTED;
 
         if (cpu->bus.bridge != NULL) {
             bridge_rc = cpu->bus.bridge(cpu->bus.opaque, cpu, cpu->pc);
-            if (bridge_rc < 0)
+            if (bridge_rc < 0) {
+                if (execution_stats_enabled)
+                    execution_stats.unresolved_bridges++;
                 return cpu_error(cpu, PC_PORT_MIPS_UNRESOLVED_CALL,
                                  "unresolved call target 0x%08x", cpu->pc);
+            }
             if (bridge_rc > 0) {
+                if (execution_stats_enabled)
+                    execution_stats.native_bridges++;
                 cpu->pc = cpu->gpr[31];
                 cpu->next_pc = cpu->pc + 4u;
                 continue;
             }
         }
 
+        if (interpreter_disabled) {
+            if (execution_stats_enabled) {
+                execution_stats.disabled_refusals++;
+                /* Production callers abort on this error, bypassing atexit. */
+                execution_stats_write("cpu-execution-refusal");
+                fflush(stderr);
+            }
+            return cpu_error(cpu, PC_PORT_MIPS_INTERPRETER_DISABLED,
+                             "CPU interpreter disabled: unconverted target 0x%08x",
+                             cpu->pc);
+        }
+#ifndef XENO_NATIVE_ONLY
         if (mem_read(cpu, cpu->pc, 4, &instruction) != 0)
             return PC_PORT_MIPS_FAULT;
 
@@ -453,6 +583,8 @@ int PcPortMipsRun(PcPortMipsCpu *cpu, uint32_t entry, uint32_t halt_pc,
         following_pc = cpu->next_pc;
         cpu->next_pc = following_pc + 4u;
         cpu->steps++;
+        if (execution_stats_enabled)
+            execution_stats.interpreted_instructions++;
 
         /* execute_one reports the address of the current instruction through
          * cpu->pc, so temporarily expose it while retaining the pipeline PCs. */
@@ -472,6 +604,7 @@ int PcPortMipsRun(PcPortMipsCpu *cpu, uint32_t entry, uint32_t halt_pc,
         cpu->load_value = next_load.value;
         cpu->load_mask = next_load.mask;
         cpu->gpr[0] = 0;
+#endif
     }
 
     return cpu_error(cpu, PC_PORT_MIPS_BUDGET,

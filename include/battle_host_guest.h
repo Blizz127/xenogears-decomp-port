@@ -24,23 +24,20 @@
 #ifdef XENO_PC_PORT
 #include <stdint.h>
 #include "psx_memory.h"
+#include "battle_guest_resolver.h"
 #include "types.h"
 
-/* Mirrors the interpreter's resolve_memory(): KSEG0/KSEG1 addresses are
- * guest RAM (masked to the 2 MiB mirror), the scratchpad is its own buffer,
- * and anything else is a raw native address.  The last case is real: native
- * main-exe services (TimerWorkListAllocateTask, the work-list entries) hand
- * the overlay u32 host addresses -- the port is -no-pie, so they fit -- and
- * retail stores and later dereferences them like any other pointer. */
+/* The interpreter's own resolver (pc_port/src/battle_guest_resolver.h, the
+ * code resolve_memory() runs): KSEG0/KSEG1 addresses are guest RAM (masked to
+ * the 2 MiB mirror) -- except main-executable globals the active runtime binds
+ * to a native copy, which resolve to that copy exactly as an interpreted load
+ * does -- the scratchpad is its own buffer, and anything else is a raw native
+ * address.  The last case is real: native main-exe services
+ * (TimerWorkListAllocateTask, the work-list entries) hand the overlay u32 host
+ * addresses -- the port is -no-pie, so they fit -- and retail stores and later
+ * dereferences them like any other pointer. */
 static inline void* bg_ptr(u32 address) {
-    if ((address & 0xFF800000u) == 0x80000000u ||
-        (address & 0xFF800000u) == 0xA0000000u) {
-        return PSX_ADDR(address);
-    }
-    if ((address & 0xFFFFF000u) == 0x1F800000u) {
-        return g_PsxScratchpad + (address & 0xFFFu);
-    }
-    return (void*)(uintptr_t)address;
+    return battle_guest_resolve_native(address);
 }
 
 static inline u32 bg_addr(const void* pointer) {
@@ -63,8 +60,11 @@ static inline u32 bg_addr(const void* pointer) {
 
 /* JALR through a retail function pointer, dispatched the way the
  * interpreter's bridge would (pc_port/src/battle_mips_runtime.c):
- *  - overlay code runs in the interpreter with the raw guest argument words
- *    (PcPort_BattleMipsCallGuest);
+ *  - overlay code goes to PcPort_BattleMipsCallGuest with the raw guest
+ *    argument words: an adopted guest-ABI leaf with a typed thunk
+ *    (pc_port/src/battle_guest_abi_thunks.inc) runs its native body through
+ *    the runtime's guest-address -> native map, anything else runs in the
+ *    interpreter;
  *  - a KSEG0 main-executable address goes through the runtime's callback
  *    dispatcher (one argument, as the work-list adapter uses it);
  *  - anything else is a native function address that a native allocator put

@@ -1,0 +1,7 @@
+[
+ ("func_80091ADC", "ClearImage((RECT*)rect, 0, 0, 0);", "ClearImage((RECT*)rect, 0, 0, 1);"),
+ ("func_80091BBC", "func_80091ADC(arg3, arg4, arg5, arg6, 0, 0, 1);", "func_80091ADC(arg3, arg4, arg5, arg6, 0, 0, 0);"),
+ ("func_80092148", "if (arg3 < ((s16*)(tbl + 0x104))[arg1])", "if (arg3 <= ((s16*)(tbl + 0x104))[arg1])"),
+ ("func_800921E8", "HeapAlloc(count + 1, 0)", "HeapAlloc(count + 2, 0)"),
+ ("func_80092894", "targetX = arg3;", "targetX = arg4;"),
+]

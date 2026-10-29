@@ -61,9 +61,48 @@ void func_800408F4(void)
  * is 64-bit on the native port. */
 uint32_t g_RandomSeed;
 
+/* DIAGNOSTIC (counters only; the sequence is unchanged): calls, and calls
+ * from any thread other than the one running the game's vblank dispatch,
+ * for XENO_FIELD_STEP_RNG_LOG (determinism investigation, follow-up e). */
+static uint32_t s_rand_calls, s_rand_calls_off_main;
+/* Weak: tests that link this TU without the field-step probe (test_input.c)
+ * or the game globals (game_overrides.c) still link; the trace is then off. */
+extern int g_GameSceneMapNum __attribute__((weak));
+extern int PcPort_FieldStepPadArmedStep(unsigned* step) __attribute__((weak));
+static void* s_rand_last_off_main;
+static __thread int s_rand_on_main;
+
 int rand(void)
 {
     uint32_t next = g_RandomSeed * UINT32_C(0x41C64E6D) + UINT32_C(0x3039);
+    s_rand_calls++;
+    /* XENO_RAND_TRACE=<path>: one line per call (index, map, caller) until
+     * the field-step probe arms -- localizes run-to-run differences in how
+     * many calls the boot/title/load phase makes (follow-up e). */
+    {
+        static int trace_state = -1;
+        static FILE* trace;
+        unsigned step;
+        if (trace_state < 0) {
+            const char* e = getenv("XENO_RAND_TRACE");
+            trace = (e != NULL && e[0] != '\0' && PcPort_FieldStepPadArmedStep && &g_GameSceneMapNum)
+                ? fopen(e, "w") : NULL;
+            trace_state = trace != NULL;
+        }
+        if (trace_state == 1) {
+            if (PcPort_FieldStepPadArmedStep(&step)) {
+                fclose(trace);
+                trace_state = 0;
+            } else {
+                fprintf(trace, "%u %d %p\n", (unsigned)s_rand_calls, g_GameSceneMapNum,
+                        __builtin_return_address(0));
+            }
+        }
+    }
+    if (!s_rand_on_main) {
+        s_rand_calls_off_main++;
+        s_rand_last_off_main = __builtin_return_address(0);
+    }
     g_RandomSeed = next;
     return (int)((next >> 16) & UINT32_C(0x7FFF));
 }
@@ -233,9 +272,13 @@ static int32_t GteClampS32(int64_t value)
  */
 void OuterProduct0(VECTOR* v0, VECTOR* v1, VECTOR* out)
 {
-    out->vx = v0->vy * v1->vz - v0->vz * v1->vy;
-    out->vy = v0->vz * v1->vx - v0->vx * v1->vz;
-    out->vz = v0->vx * v1->vy - v0->vy * v1->vx;
+    /* GTE MAC1..3 are 44-bit; the 32-bit read-back keeps the low word, so the
+     * products and differences wrap modulo 2^32 (never signed-overflow UB). */
+    uint32_t x0 = (uint32_t)v0->vx, y0 = (uint32_t)v0->vy, z0 = (uint32_t)v0->vz;
+    uint32_t x1 = (uint32_t)v1->vx, y1 = (uint32_t)v1->vy, z1 = (uint32_t)v1->vz;
+    out->vx = (int32_t)(y0 * z1 - z0 * y1);
+    out->vy = (int32_t)(z0 * x1 - x0 * z1);
+    out->vz = (int32_t)(x0 * y1 - y0 * x1);
 }
 
 void OuterProduct12(VECTOR* v0, VECTOR* v1, VECTOR* v2)
@@ -263,7 +306,7 @@ static int32_t VectorNormalWork(int32_t x, int32_t y, int32_t z, int32_t* outX, 
     int32_t sx = (int16_t)x;
     int32_t sy = (int16_t)y;
     int32_t sz = (int16_t)z;
-    uint32_t squared = (uint32_t)(sx * sx + sy * sy + sz * sz);
+    uint32_t squared = (uint32_t)sx * (uint32_t)sx + (uint32_t)sy * (uint32_t)sy + (uint32_t)sz * (uint32_t)sz; /* wraps like the 32-bit GTE read-back, no signed-overflow UB */
     int lzc;
     int lzcEven;
     int shift;
@@ -879,6 +922,43 @@ static unsigned short PcPort_PadTestGameToPhysical(unsigned short game)
     return physical;
 }
 
+/* Runtime-held buttons (game CTRL_BTN_* bits), set by the harness command
+ * `dev pad <hex>` (port_dev_menu_actions.c) so a test can press a button from
+ * the moment a quick-load finishes instead of guessing a Vsync frame.  Applied
+ * only while XENO_PAD_TEST_INPUT is active, like the schedule itself. */
+static volatile unsigned short s_padTestRuntimeHeld;
+void PcPort_PadTestInputHold(unsigned held) { s_padTestRuntimeHeld = (unsigned short)held; }
+
+/* TEST TOOLING: the cheat console's `pad <mask> [frames]` (headless drivers,
+ * pc_port/tests/*_easel_*). Holds GAME buttons (same CTRL_BTN_* space and
+ * physical remap as XENO_PAD_TEST_INPUT) for that many Vsync-shim frames.
+ * Inert unless the console queues a hold. */
+static volatile unsigned short s_padConsoleMask;
+static volatile int s_padConsoleFrames;
+
+void PcPort_PadConsoleHold(unsigned short gameMask, int frames)
+{
+    s_padConsoleMask = gameMask;
+    s_padConsoleFrames = frames > 0 ? frames : 0;
+}
+
+static void PcPort_PadConsoleInject(void)
+{
+    extern unsigned char g_C1Buffer[];
+    unsigned short value;
+
+    if (s_padConsoleFrames <= 0)
+        return;
+    value = PcPort_PadTestGameToPhysical(s_padConsoleMask);
+    g_C1Buffer[0x2] &= (unsigned char)~(unsigned char)(value >> 8);
+    g_C1Buffer[0x3] &= (unsigned char)~(unsigned char)(value & 0xFF);
+    if (--s_padConsoleFrames == 0) {
+        printf("[xeno-port][test] console pad 0x%04x released\n",
+               (unsigned)s_padConsoleMask);
+        fflush(stdout);
+    }
+}
+
 /* Must run AFTER PsyX_UpdateInput() refreshes g_C1Buffer from SDL and BEFORE
  * ControllerPoll() derives the edge state from it. */
 static void PcPort_PadTestInputInject(void)
@@ -887,6 +967,7 @@ static void PcPort_PadTestInputInject(void)
     unsigned short value;
     int previousStep;
 
+    PcPort_PadConsoleInject();
     if (s_padTestState < 0)
         PcPort_PadTestInputInit();
     if (s_padTestState != 1)
@@ -928,6 +1009,8 @@ static void PcPort_PadTestInputInject(void)
         s_padTestCurrentStep++;
     value = s_padTestSuppress ? 0 : s_padTestSteps[s_padTestCurrentStep].value;
 
+    value |= s_padTestRuntimeHeld;
+
 #if defined(XENO_PAD_TEST_INPUT_MUTANT_NO_INJECT)
     /* Deliberate mutant control: parse and log the schedule but never touch
      * the pad buffer, so nothing the schedule asks for can happen. */
@@ -955,6 +1038,14 @@ static void PcPort_PadTestInputInject(void)
         fflush(stdout);
     }
     s_padTestFrame++;
+}
+
+/* TEST TOOLING: the XENO_PAD_TEST_INPUT schedule clock (-1 when no schedule
+ * is active), read by the XENO_PRESENT_HASH_LOG present hash
+ * (psycross_hd2d_hooks.patch) so a run can stop at a schedule frame. */
+int PcPort_PadTestInputFrame(void)
+{
+    return s_padTestState == 1 ? (int)s_padTestFrame : -1;
 }
 
 /* TEST TOOLING -- set by func_800799D4 just before MenuMain when the field
@@ -1704,19 +1795,460 @@ static void PcPort_ForcedMenuActionEdges(void)
     #undef HASH_REGION
 }
 
+/* TEST TOOLING for the field-step slice (run_field14_step_slice.sh), all
+ * keyed to XENO_FIELD_STEP_PAD_INPUT's field-step clock and inert unless set:
+ *   XENO_FIELD_STEP_SPU_LOG=<file>  one line per vblank once armed: vblank
+ *       index since arming, step, FNV-1a of the 0x200-byte SPU register page
+ *       the sound driver writes (g_pSoundSpuRegisters).  That page is the
+ *       sound driver's output as retail hardware would receive it; the port
+ *       does not yet render it to an audio device (sound.c, WDS/B5).
+ *   XENO_FIELD_STEP_SAVE_AT=<step> / XENO_FIELD_STEP_LOAD_AT=<step>  queue
+ *       the ordinary F11 quick save / F12 quick load once the step clock
+ *       reaches that step (retried per vblank until queued). */
+/* DIAGNOSTIC: XENO_FIELD_VAR_WATCH=<byte offset> -- called by the field
+ * VM's script-memory writer for every write (src/field/scripts/
+ * virtual_machine.c); logs writes to the watched offset with the writing
+ * actor and instruction pointer, the field-step clock and the game, serviced
+ * and host vblank counts.  Logging only. */
+void PcPort_FieldVarWatch(int address, unsigned short old_value, unsigned short new_value,
+                          int actor, int ip)
+{
+    extern int PcPort_FieldStepPadArmedStep(unsigned *step);
+    extern int D_80059488;
+    extern int PsyX_Sys_GetVBlankCount(void);
+    static int watch = -2;
+    unsigned step = 0;
+    int armed;
+
+    if (watch == -2) {
+        const char* e = getenv("XENO_FIELD_VAR_WATCH");
+        watch = (e != NULL && e[0] != '\0') ? (int)strtol(e, NULL, 0) : -1;
+    }
+    if (watch < 0 || ((address ^ watch) & ~1) != 0)
+        return;
+    armed = PcPort_FieldStepPadArmedStep(&step);
+    fprintf(stderr, "[var-watch] off=0x%x %u->%u actor=%d ip=%d armed=%d step=%u game_vblank=%d "
+            "serviced=%d host_vblank=%d\n", address, old_value, new_value, actor, ip, armed, step,
+            D_80059488, PcPort_GetServicedVblankCount ? PcPort_GetServicedVblankCount() : -1,
+            PsyX_Sys_GetVBlankCount());
+}
+
+int PcPort_DeterministicVblankLogGate(void);
+
+static void PcPort_FieldStepEvidenceOnVblank(void)
+{
+    extern int PcPort_FieldStepPadArmedStep(unsigned *step);
+    extern void* g_pSoundSpuRegisters;
+    extern void PcPort_QuickCheckpointRequestSave(void);
+    extern void PcPort_QuickCheckpointRequestLoad(void);
+    extern int PcPort_QuickCheckpointGetUiState(void);
+    static int init;
+    static FILE* spu;
+    static FILE* rng;
+    static long save_at = -1, load_at = -1;
+    static int saved, loaded;
+    static unsigned vblanks;
+    unsigned step;
+
+    if (!init) {
+        const char* e;
+        init = 1;
+        e = getenv("XENO_FIELD_STEP_SPU_LOG");
+        if (e != NULL && e[0] != '\0')
+            spu = fopen(e, "w");
+        /* XENO_FIELD_STEP_RNG_LOG=<path>: per armed vblank, the retail rand
+         * seed and call counters (all / off the game thread, last off-thread
+         * caller). The game thread is the one running this hook. */
+        e = getenv("XENO_FIELD_STEP_RNG_LOG");
+        if (e != NULL && e[0] != '\0')
+            rng = fopen(e, "w");
+        e = getenv("XENO_FIELD_STEP_SAVE_AT");
+        if (e != NULL && e[0] != '\0')
+            save_at = strtol(e, NULL, 10);
+        e = getenv("XENO_FIELD_STEP_LOAD_AT");
+        if (e != NULL && e[0] != '\0')
+            load_at = strtol(e, NULL, 10);
+    }
+    s_rand_on_main = 1;
+    if (!PcPort_FieldStepPadArmedStep(&step))
+        return;
+    if (rng != NULL) {
+        fprintf(rng, "%u %u %08x %u %u %p\n", vblanks, step, (unsigned)g_RandomSeed,
+                (unsigned)s_rand_calls, (unsigned)s_rand_calls_off_main, s_rand_last_off_main);
+        fflush(rng);
+    }
+    /* XENO_FIELD_STEP_EXIT_AT=<step>: end the run by itself on its frame cap
+     * (exit(0), so atexit receipts are written); the driver's timeout is
+     * then only a hang detector. */
+    {
+        static long exit_at = -2;
+        if (exit_at == -2) {
+            const char* e = getenv("XENO_FIELD_STEP_EXIT_AT");
+            exit_at = (e != NULL && e[0] != '\0') ? strtol(e, NULL, 10) : -1;
+        }
+        if (exit_at >= 0 && step >= (unsigned long)exit_at) {
+            fprintf(stderr, "[field-step-pad] frame cap: exiting at step=%u\n", step);
+            fflush(stdout);
+            fflush(stderr);
+            exit(0);
+        }
+    }
+    if (spu != NULL && g_pSoundSpuRegisters != NULL && PcPort_DeterministicVblankLogGate()) {
+        const unsigned char* page = (const unsigned char*)g_pSoundSpuRegisters;
+        unsigned int h = 2166136261u;
+        unsigned i;
+        for (i = 0; i < 0x200u; i++) {
+            h ^= page[i];
+            h *= 16777619u;
+        }
+        fprintf(spu, "%u %u %08x\n", vblanks, step, h);
+        fflush(spu);
+    }
+    vblanks++;
+    /* Queued == UI state SAVE_PENDING (1) / LOAD_PENDING (2); an ignored
+     * request (not in a field) is retried about once a second, like a key
+     * pressed again. */
+    if (save_at >= 0 && !saved && step >= (unsigned long)save_at && vblanks % 60u == 1u) {
+        PcPort_QuickCheckpointRequestSave();
+        saved = PcPort_QuickCheckpointGetUiState() == 1;
+        if (saved)
+            fprintf(stderr, "[field-step-pad] F11 quick save requested at step=%u\n", step);
+    }
+    if (load_at >= 0 && !loaded && step >= (unsigned long)load_at && vblanks % 60u == 1u) {
+        PcPort_QuickCheckpointRequestLoad();
+        loaded = PcPort_QuickCheckpointGetUiState() == 2;
+        if (loaded)
+            fprintf(stderr, "[field-step-pad] F12 quick load requested at step=%u\n", step);
+    }
+}
+
 /* Called once per dispatched game vblank, not once per timing query. */
 void PcPort_PrepareControllerPoll(void)
 {
     extern void PsyX_UpdateInput(void);
     PsyX_UpdateInput();
     PcPort_PadTestInputInject();
+    {
+        /* XENO_FIELD_STEP_PAD_INPUT (test_input.c): field-step-clocked
+         * presses on the physical pad, so every control mask still applies.
+         * An invalid schedule stops the run instead of running without it. */
+        extern int PcPort_FieldStepPadApply(unsigned char *,
+                                            unsigned short (*)(unsigned short), int);
+        extern unsigned char g_C1Buffer[];
+        extern int g_GameSceneMapNum;
+
+        if (PcPort_FieldStepPadApply(g_C1Buffer, PcPort_PadTestGameToPhysical,
+                                     g_GameSceneMapNum) != 0)
+            exit(EXIT_FAILURE);
+    }
+    PcPort_FieldStepEvidenceOnVblank();
     PcPort_PadOnControl();
     PcPort_ForcedMenuNav();
+}
+
+/* TEST TOOLING -- XENO_CARD_SCREEN_TEST=back (pc_port/tests/
+ * run_title_continue_test.sh).  Once the Save/Load card screen is up
+ * (func_801D9F98 sets g_XenoCardScreenActive), retire the XENO_PAD_TEST_INPUT
+ * schedule so its Circle pulse train cannot act on the file list, then inject
+ * one Cross release (MENU_INPUT_BACK) 90 menu-reader ticks later.  Clocked by
+ * reader ticks (game-thread menu frames), not vblanks, so host load cannot
+ * land the press on a different screen.  Inert unless the variable is set. */
+static void PcPort_CardScreenTestEdges(void)
+{
+    extern unsigned short g_C1ButtonStateReleased;
+    extern int g_XenoMenuNavReaderTicks;
+    extern int g_XenoCardScreenActive __attribute__((weak));
+    static int armed = -1;
+    static int enterTick = -1;
+    static int backInjected;
+
+    if (armed < 0) {
+        const char* e = getenv("XENO_CARD_SCREEN_TEST");
+        armed = (e != NULL && strcmp(e, "back") == 0);
+    }
+    if (!armed || &g_XenoCardScreenActive == NULL)
+        return;
+    if (!g_XenoCardScreenActive) {
+        enterTick = -1;
+        return;
+    }
+    if (enterTick < 0) {
+        enterTick = g_XenoMenuNavReaderTicks;
+        if (!s_padTestSuppress) {
+            s_padTestSuppress = 1;
+            printf("[xeno-port][test] XENO_CARD_SCREEN_TEST: card screen up "
+                   "at reader tick %d; pad schedule retired\n", enterTick);
+            fflush(stdout);
+        }
+    }
+    if (!backInjected && g_XenoMenuNavReaderTicks >= enterTick + 90) {
+        backInjected = 1;
+        g_C1ButtonStateReleased |= 0x40; /* CTRL_BTN_CROSS */
+        printf("[xeno-port][test] XENO_CARD_SCREEN_TEST: Cross back "
+               "at reader tick %d\n", g_XenoMenuNavReaderTicks);
+        fflush(stdout);
+    }
 }
 
 void PcPort_BeforeControllerPush(void)
 {
     PcPort_ForcedMenuActionEdges();
+    PcPort_CardScreenTestEdges();
+}
+
+/* TEST TOOLING: XENO_DETERMINISTIC_VBLANK=<K> -- a jitter-free
+ * test-determinism clock, NOT a retail-timing claim.  The port's game vblank
+ * count normally follows host wall time, so how many vblanks one field
+ * iteration spans varies with host speed (usually 2, sometimes 3), and
+ * everything clocked by vblanks (pad pushes, Vsync(1) frame deltas,
+ * vblank-driven script counters, the lock-step sound tick) varies with it.
+ * From XENO_FIELD_STEP_PAD_INPUT arming (boot and title keep the host clock),
+ * or with XENO_DETERMINISTIC_VBLANK_FROM_FIELD=<map> from the first vblank in
+ * that field (e.g. 490, the title map: the title's frame count is otherwise
+ * host-paced, and its per-frame effects consume a varying number of rand()
+ * calls before a later slice arms), each blocking Vsync in the live field loop (frozen while loading)
+ * advances a virtual count by exactly K (Vsync(n>=2): n), Vsync(1) returns it,
+ * and the vblank service (controller_vblank_service.c) follows it instead of
+ * the host counter.  Presentation is still paced by the host.  Retail's own
+ * per-frame vblank cost, and its slowdowns, are not modelled: K is a fixed
+ * cadence (2 for the field, the port's usual no-jitter value). */
+static int s_detVblankK = -1;
+static int s_detVblankOn;         /* armed: the test clock is in charge of Vsync(1) */
+static int s_detVblankLive;       /* the field loop is running (a drain since the last load) */
+static uint32_t s_detVblankNow;   /* service clock while live (service cursor domain) */
+static uint32_t s_detQuery;       /* game-visible clock returned by Vsync(1) */
+static int s_detLastQuery;        /* last host Vsync(1) value before arming */
+static unsigned s_detLoadStep;    /* drain count at the last load */
+static unsigned s_detDrains;      /* FieldPollControllers drains since boot */
+static int s_detFromField = -2;   /* XENO_DETERMINISTIC_VBLANK_FROM_FIELD, -1 unset */
+/* Busy-wait polls: the field's frame wait (func_8007554C) spins on Vsync(-1)
+ * until s1 + D_800B217C + 2 -- the script frame rate (0/1/2 = 30/20/15 fps).
+ * The test clock adds K per blocking Vsync only, so at 20/15 fps the target
+ * was never reached (follow-up d, the map-2 hang). A Vsync(-1) whose
+ * previous Vsync call was also a Vsync(-1) returning the same count is a
+ * spin: it advances the test clock by one vblank, as real vblanks keep
+ * arriving on hardware while the game spins. Any Vsync(1) or blocking Vsync
+ * ends the spin, so the per-frame s1 read and the first loop check never
+ * advance; at 30 fps nothing changes. */
+static int s_detPollPending;
+static uint32_t s_detPollLast;
+static uint32_t s_detSpinVblanks;
+
+/* Every FieldPollControllers drain, armed or not (test_input.c). */
+void PcPort_DetVblankNoteDrain(void)
+{
+    s_detDrains++;
+}
+static int s_detPrevLatch;
+
+static int PcPort_DetVblankK(void)
+{
+    if (s_detVblankK < 0) {
+        const char* e = getenv("XENO_DETERMINISTIC_VBLANK");
+        s_detVblankK = (e != NULL && e[0] != '\0') ? atoi(e) : 0;
+        if (s_detVblankK < 0 || s_detVblankK > 8)
+            s_detVblankK = 0;
+    }
+    return s_detVblankK;
+}
+
+static int PcPort_DetVblankActive(void)
+{
+    return s_detVblankLive;
+}
+
+/* TEST TOOLING: XENO_DETERMINISTIC_VBLANK_BATTLE=1 (needs the armed test
+ * clock above; not a retail-timing claim).  Without it the battle runs
+ * host-paced: battle.bin is entered from a field teardown (a load) and has
+ * no field-step drain, so the clock only goes live at the next field.  The
+ * retail battle frame (func_800BE790) turns elapsed Vsync(-1) vblanks into
+ * D_80059494 catch-up ticks (cap 4), so a faster host then gets more battle
+ * frames for the same game time.  With the switch, battle entry
+ * (func_80070F40) puts the service on the field's rule -- +K per blocking
+ * Vsync (Vsync(n>=2): n), the Vsync(-1) spin rule -- seeded from the
+ * service cursor, so elapsed vblanks per battle frame follow the game's own
+ * calls.  Battle-internal loads (HeapAlloc, CD reads) are synchronous host
+ * calls here, so they need no host-paced span.  A guest wait that makes
+ * no Vsync call (a loop on a vblank-callback counter) would never see the
+ * clock move, so a stall guard: after DET_BATTLE_STALL_VBLANKS host vblanks
+ * (10 s) without any test-clock advance (blocking Vsync or Vsync(-1) spin)
+ * the service follows the host, one vblank per host vblank, until the next
+ * Vsync advance.  It never fires in a battle whose frames keep calling
+ * Vsync; when it does fire it is logged and counted at return (that battle
+ * is not frame-comparable).  Service queries are not counted: the battle
+ * bridge pumps the service before every interpreted instruction, so query
+ * counts differ between native and interpreted runs.  Battle return restores the saved live/load state and
+ * keeps the service continuous: until the next field goes live it runs
+ * host-paced from the battle's final cursor (host + offset), instead of
+ * stalling until the host count catches up with a cursor that ran ahead.
+ * The switch is read once, at the first battle entry. */
+#define DET_BATTLE_STALL_VBLANKS 600u
+static int s_detBattleEnv = -1;   /* XENO_DETERMINISTIC_VBLANK_BATTLE, read once */
+static int s_detBattle;           /* inside a battle on the deterministic rule */
+static int s_detBattleSavedLive;
+static unsigned s_detBattleSavedLoadStep;
+static uint32_t s_detBattleMark;      /* host vblank count at the last test-clock advance */
+static int s_detBattleStalled;        /* stall guard: following the host until a Vsync */
+static unsigned s_detBattleStalls;    /* stall-guard episodes this battle */
+static uint32_t s_detBattleStallVblanks;  /* vblanks the guard added this battle */
+static unsigned s_detBattleCount;
+static int s_detHostOffsetOn;         /* after a deterministic battle: host + offset */
+static uint32_t s_detHostOffset;
+
+void PcPort_DetVblankBattleEnter(void)
+{
+    if (s_detBattleEnv < 0) {
+        const char* e = getenv("XENO_DETERMINISTIC_VBLANK_BATTLE");
+        s_detBattleEnv = (e != NULL && e[0] != '\0' && atoi(e) != 0) ? 1 : 0;
+    }
+    if (!s_detBattleEnv)
+        return;
+    s_detBattleCount++;
+    if (PcPort_DetVblankK() == 0 || !s_detVblankOn) {
+        fprintf(stderr, "[det-vblank] battle %u enter: XENO_DETERMINISTIC_VBLANK_BATTLE set but "
+                "the test clock is not armed (K=%d armed=%d): battle stays host-paced\n",
+                s_detBattleCount, PcPort_DetVblankK(), s_detVblankOn);
+        return;
+    }
+    s_detBattle = 1;
+    s_detBattleSavedLive = s_detVblankLive;
+    s_detBattleSavedLoadStep = s_detLoadStep;
+    s_detBattleStalled = 0;
+    s_detBattleStalls = 0;
+    s_detBattleStallVblanks = 0;
+    s_detPollPending = 0;
+    /* Not live (entered from a field teardown): the next service query seeds
+     * s_detVblankNow from the service cursor, exactly as the field does. */
+    fprintf(stderr, "[det-vblank] battle %u enter: deterministic battle clock K=%d "
+            "(saved live=%d, drain %u; not a retail-timing claim)\n",
+            s_detBattleCount, s_detVblankK, s_detBattleSavedLive, s_detDrains);
+}
+
+void PcPort_DetVblankBattleReturn(void)
+{
+    extern int PsyX_Sys_GetVBlankCount(void);
+    if (!s_detBattle)
+        return;
+    s_detBattle = 0;
+    s_detPollPending = 0;
+    s_detVblankLive = s_detBattleSavedLive;
+    s_detLoadStep = s_detBattleSavedLoadStep;
+    if (!s_detVblankLive) {
+        s_detHostOffset = s_detVblankNow - (uint32_t)PsyX_Sys_GetVBlankCount();
+        s_detHostOffsetOn = 1;
+    }
+    fprintf(stderr, "[det-vblank] battle %u return: restored live=%d, cursor %u, "
+            "stall-guard episodes %u (+%u vblanks)\n", s_detBattleCount, s_detVblankLive,
+            s_detVblankNow, s_detBattleStalls, s_detBattleStallVblanks);
+}
+
+/* A test-clock advance by the game's own Vsync call: ends a stall span. */
+static void PcPort_DetBattleNoteAdvance(void)
+{
+    extern int PsyX_Sys_GetVBlankCount(void);
+    s_detBattleMark = (uint32_t)PsyX_Sys_GetVBlankCount();
+    s_detBattleStalled = 0;
+}
+
+/* Two clocks.  The SERVICE clock (pad pushes, sound ticks, the callbacks a
+ * field load waits on) stays host-paced while loading, so a load cannot
+ * stall; it becomes deterministic (+K per blocking Vsync, seeded from the
+ * service's own cursor, so no jump) once the field loop is live: a
+ * field-step drain has happened since the last load (arming, or the field
+ * teardown of an F12 reload).  The GAME-VISIBLE clock (Vsync(1), which the
+ * field turns into frame deltas) advances only while live, so a load's
+ * duration never becomes field time.  Hook for controller_vblank_service.c
+ * (weak there); *now carries the service cursor in. */
+int PcPort_DeterministicVblank(uint32_t* now)
+{
+    extern int PcPort_FieldStepPadArmedStep(unsigned *step);
+    extern int PcPort_QuickCheckpointFieldIsActive(void);
+    unsigned step;
+    int latch;
+
+    if (PcPort_DetVblankK() == 0)
+        return 0;
+    if (s_detFromField == -2) {
+        const char* e = getenv("XENO_DETERMINISTIC_VBLANK_FROM_FIELD");
+        s_detFromField = (e != NULL && e[0] != '\0') ? (atoi(e) & 0xFFF) : -1;
+    }
+    if (!PcPort_FieldStepPadArmedStep(&step)) {
+        extern int g_GameSceneMapNum;
+        step = 0;
+        if (!s_detVblankOn && (s_detFromField < 0 || (g_GameSceneMapNum & 0xFFF) != s_detFromField))
+            return 0;
+    }
+    latch = PcPort_QuickCheckpointFieldIsActive();
+    if (!s_detVblankOn) {
+        s_detVblankOn = 1;
+        s_detLoadStep = s_detDrains;
+        s_detQuery = (uint32_t)s_detLastQuery;
+        fprintf(stderr, "[det-vblank] jitter-free test clock armed: K=%d at step %u drain %u "
+                "(not a retail-timing claim)\n", s_detVblankK, step, s_detDrains);
+    }
+    if (s_detPrevLatch && !latch && !s_detBattle) {  /* field teardown: a load begins */
+        s_detVblankLive = 0;
+        s_detLoadStep = s_detDrains;
+        fprintf(stderr, "[det-vblank] load: host-paced service from step %u drain %u\n", step,
+                s_detDrains);
+    }
+    s_detPrevLatch = latch;
+    if (s_detBattle) {                        /* XENO_DETERMINISTIC_VBLANK_BATTLE */
+        extern int PsyX_Sys_GetVBlankCount(void);
+        uint32_t h = (uint32_t)PsyX_Sys_GetVBlankCount();
+        if (!s_detVblankLive) {
+            s_detVblankLive = 1;
+            s_detVblankNow = *now;
+            s_detBattleMark = h;
+            s_detBattleStalled = 0;
+            fprintf(stderr, "[det-vblank] battle %u live: deterministic service, cursor %u\n",
+                    s_detBattleCount, *now);
+        }
+        if (!s_detBattleStalled && h - s_detBattleMark >= DET_BATTLE_STALL_VBLANKS &&
+            (int32_t)(h - s_detBattleMark) > 0) {
+            s_detBattleStalled = 1;
+            s_detBattleMark = h;
+            if (s_detBattleStalls++ == 0)
+                fprintf(stderr, "[det-vblank] battle %u stall guard: %u host vblanks without a "
+                        "Vsync advance; following the host until the next Vsync (this battle "
+                        "is not frame-comparable)\n", s_detBattleCount, DET_BATTLE_STALL_VBLANKS);
+        }
+        if (s_detBattleStalled && (int32_t)(h - s_detBattleMark) > 0) {
+            uint32_t d = h - s_detBattleMark;
+            s_detBattleMark = h;
+            s_detVblankNow += d;
+            s_detQuery += d;
+            s_detBattleStallVblanks += d;
+        }
+        *now = s_detVblankNow;
+        return 1;
+    }
+    if (!s_detVblankLive) {
+        if (s_detDrains <= s_detLoadStep) {
+            /* still loading: host-paced service */
+            if (s_detHostOffsetOn) {
+                /* after a deterministic battle: continue from its cursor */
+                extern int PsyX_Sys_GetVBlankCount(void);
+                uint32_t h = (uint32_t)PsyX_Sys_GetVBlankCount() + s_detHostOffset;
+                if ((int32_t)(h - *now) > 0)
+                    *now = h;
+                return 1;
+            }
+            return 0;
+        }
+        s_detVblankLive = 1;
+        s_detVblankNow = *now;
+        fprintf(stderr, "[det-vblank] live: deterministic service from step %u, cursor %u\n",
+                step, *now);
+    }
+    *now = s_detVblankNow;
+    return 1;
+}
+
+int PcPort_DeterministicVblankLogGate(void)
+{
+    /* Evidence logs keyed to game time cover only the deterministic spans. */
+    return PcPort_DetVblankK() == 0 || s_detVblankLive;
 }
 
 int Vsync(int mode)
@@ -1732,8 +2264,30 @@ int Vsync(int mode)
      * twice (PsyX_EndScene + VRAM fallback) and flickers. Keep presentation
      * in the blocking path. */
     if (mode == 1 || mode < 0) {
+        if (mode < 0 && PcPort_DetVblankActive()) {
+            if (s_detPollPending && s_detPollLast == s_detVblankNow) {
+                s_detVblankNow++;
+                s_detQuery++;
+                if (s_detBattle)
+                    PcPort_DetBattleNoteAdvance();
+                if (s_detSpinVblanks++ == 0)
+                    fprintf(stderr, "[det-vblank] busy-wait Vsync(-1) poll advances the test "
+                            "clock by one vblank per spin (not a retail-timing claim)\n");
+            }
+            s_detPollPending = 1;
+            s_detPollLast = s_detVblankNow;
+        } else {
+            s_detPollPending = 0;
+        }
         count = VSync(mode);
         XENO_SERVICE_VBLANK();
+        if (mode == 1) {
+            /* Test clock: the game-visible count, frozen while loading. */
+            if (s_detVblankOn)
+                count = (int)s_detQuery;
+            else
+                s_detLastQuery = count;
+        }
         return (mode < 0 && PcPort_GetServicedVblankCount) ? PcPort_GetServicedVblankCount() : count;
     }
 
@@ -1753,7 +2307,16 @@ int Vsync(int mode)
          * area from the VRAM mirror instead (patches/psycross_display_present). */
         extern int PsyX_IsSceneOpen(void);
         extern int PsyX_PresentDisplayFromVRAM(void);
+        extern int PsyX_GpuTraceOn(void);
+        extern int g_xeno_swap_index;
         int sceneOpen = PsyX_IsSceneOpen();
+
+        /* Diagnostic (XENO_GPU_TRACE, psycross_gpu_trace.patch). */
+        if (PsyX_GpuTraceOn()) {
+            printf("[gputrace] s=%d Vsync(%d) scene=%d\n", g_xeno_swap_index,
+                   mode, sceneOpen);
+            fflush(stdout);
+        }
 
         DrawAllSplits();
 
@@ -1781,8 +2344,23 @@ int Vsync(int mode)
     { extern void PcPort_WalkmeshDump(void) __attribute__((weak)); if (PcPort_WalkmeshDump) PcPort_WalkmeshDump(); }
     /* Pace first so the newly elapsed tick is serviced before returning.
      * All entry points share one counter cursor, including the guest pump. */
+    /* XENO_DETERMINISTIC_VBLANK: this wait consumes exactly K (or n) game
+     * vblanks; VSync below still paces presentation to the host. */
+    /* Frozen while loading (field latch clear), so a host-timed load --
+     * the fixture load or an F12 reload -- adds no game vblanks, pad
+     * samples or sound ticks.  Test-clock behaviour, not retail timing. */
+    s_detPollPending = 0;
+    if (PcPort_DetVblankActive()) {
+        uint32_t step_vblanks = (uint32_t)(mode >= 2 ? mode : s_detVblankK);
+        s_detVblankNow += step_vblanks;
+        s_detQuery += step_vblanks;
+        if (s_detBattle)
+            PcPort_DetBattleNoteAdvance();
+    }
     count = VSync(mode);
     XENO_SERVICE_VBLANK();
+    if (s_detVblankOn)
+        count = (int)s_detQuery;
 
     /* Headless menu driver (no-op unless XENO_KERNEL_SEL is set). Must run after
      * ControllerPoll, which recomputes g_C1ButtonState* each frame -- we OR the

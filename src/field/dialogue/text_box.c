@@ -89,7 +89,9 @@ void func_8009BC98(void) {
     pTextBox = (u8*)&g_FieldTextBoxes[textBoxIndex];
     isReady = func_80033CD0(pTextBox + 0x18);
     if (isReady != 1) {
-        if (*(s16*)(pTextBox + 0x84) == 0 || *(u8*)(pTextBox + 0x6C) == 0) {
+        /* Retail 8009BD30/40: lh 0x84 / lbu 0x6C off (box + 0x18), i.e.
+         * box+0x9C and box+0x84 (the port read 0x18 bytes too low). */
+        if (*(s16*)(pTextBox + 0x9C) == 0 || *(u8*)(pTextBox + 0x84) == 0) {
             D_800B00C0 = 1;
             return;
         }
@@ -397,98 +399,78 @@ s32 func_8009C5A8(s32 actorIndex, s32 mode) {
         }
     }
 
+    /* Retail 8009C824..8009C858: the low half is ALWAYS written back
+     * (clearing the upper half) before the script byte is tested. */
     dialogFlags = g_FieldScriptVMCurActor->dialogFlags & 0xFFFF;
+    g_FieldScriptVMCurActor->dialogFlags = dialogFlags;
     if (SCRIPT_READ_U8_REL(3) != 0) {
         dialogFlags = (dialogFlags & 0xFF00) | SCRIPT_READ_U8_REL(3);
-        g_FieldScriptVMCurActor->dialogFlags = (dialogFlags << 16) | (g_FieldScriptVMCurActor->dialogFlags & 0xFFFF);
+        g_FieldScriptVMCurActor->dialogFlags = ((u32)dialogFlags << 16) | (g_FieldScriptVMCurActor->dialogFlags & 0xFFFF);
     }
 
+    /* Retail 8009C85C..8009CA60: two exclusive arms (flags 1 / flags 0x81),
+     * each with ONE func_8007F814 call for modes 0/3; placement type 3 stores
+     * no flags and goes straight to the clamp with y = 0x10 and retail's
+     * (uninitialised) screenX -- the port keeps 0xA0 there (DIVERGES). */
     placementType = (dialogFlags >> 4) & 3;
-    if (placementType == 0) {
-        s32 facingCamera;
+    y = 0x10;
+    if (placementType != 3) {
+        s32 below;
 
-        facingCamera = ((g_FieldScriptVMCurActor->direction - (FieldGetCameraDirection() & 0xFFFF)) &
-                        MASK_8DIR_MOVEMENT_NUM_DIRECTIONS) < 5;
-        if (!facingCamera) {
-            if ((usedBoxFlags & 0x80) != 0) {
-                g_FieldTextBoxes[textBoxIndex].flags = 0x81;
-            } else if (usedBoxCount != 0) {
-                g_FieldTextBoxes[textBoxIndex].flags = 0x81;
+        if (placementType == 0) {
+            s32 facingCamera;
+
+            facingCamera = ((g_FieldScriptVMCurActor->direction - (FieldGetCameraDirection() & 0xFFFF)) &
+                            MASK_8DIR_MOVEMENT_NUM_DIRECTIONS) < 5;
+            if (!facingCamera) {
+                below = (usedBoxFlags & 0x80) != 0 || usedBoxCount != 0;
             } else {
-                g_FieldTextBoxes[textBoxIndex].flags = 1;
+                below = (usedBoxFlags & 0x80) == 0;
             }
-        } else if ((usedBoxFlags & 0x80) == 0) {
-            g_FieldTextBoxes[textBoxIndex].flags = 0x81;
         } else {
-            g_FieldTextBoxes[textBoxIndex].flags = 1;
+            below = placementType == 2;
         }
-    } else if (placementType == 1) {
-        g_FieldTextBoxes[textBoxIndex].flags = 1;
-    } else if (placementType == 2) {
-        g_FieldTextBoxes[textBoxIndex].flags = 0x81;
-    } else {
-        g_FieldTextBoxes[textBoxIndex].flags = 1;
-    }
 
-    if (mode == 0 || mode == 3) {
-        func_8007F814(actorIndex, &screenX, &screenY, -0x40);
-        if (mode == 0) {
-            y = screenY - (height * 14) - 0x24;
-        } else {
-            screenX = 0xA0;
-            y = 0x14;
-        }
-    } else {
-        width = 0x48;
-        height = 4;
-        y = 0x10;
-        screenX = 0xA0;
-    }
-
-    if (g_FieldTextBoxes[textBoxIndex].flags & 0x80) {
-        /* Retail 8009C9E4: re-reads the actor screen position, then places the
-         * box below it (mode 0) or at the fixed bottom slot (mode 3). Other
-         * modes take the fixed 4-line slot. */
+        g_FieldTextBoxes[textBoxIndex].flags = below ? 0x81 : 1;
         if (mode == 0 || mode == 3) {
             func_8007F814(actorIndex, &screenX, &screenY, -0x40);
             if (mode == 0) {
-                y = screenY + 0x30;
+                y = below ? (s32)((u32)screenY + 0x30) : (s32)((u32)screenY - (u32)(height * 14) - 0x24);
             } else {
-                y = 0x94;
+                y = below ? 0x94 : 0x14;
                 screenX = 0xA0;
+            }
+            if (g_FieldScriptVMCurActor->faceId != 0xFF && !(dialogFlags & 2)) {
+                if (width < 0x18) {
+                    width = 0x18;
+                }
+                width += 0x11;
+                height = 4;
+                y = below ? 0x94 : 0x10;
             }
         } else {
             width = 0x48;
             height = 4;
-            y = 0x94;
+            y = below ? 0x94 : 0x10;
             screenX = 0xA0;
         }
     }
 
-    if (mode == 0 || mode == 3) {
-        if (g_FieldScriptVMCurActor->faceId != 0xFF && !(dialogFlags & 2)) {
-            if (width < 0x18) {
-                width = 0x18;
-            }
-            width += 0x11;
-            height = 4;
-            y = (g_FieldTextBoxes[textBoxIndex].flags & 0x80) ? 0x94 : 0x10;
-        }
-    }
-
-    x = screenX - 8 - width * 2;
+    /* 8009CA64..8009CAD4: addiu/subu wrap, then signed slt -- u32
+     * arithmetic (no host signed-overflow UB for any screen position). */
+    x = (s32)((u32)screenX - 8u - ((u32)width << 1));
     if (x < 0xC) {
         x = 0xC;
     }
-    if (x + 0x10 + width * 4 >= 0x135) {
-        x = 0x124 - width * 4;
+    if ((s32)((u32)x + 0x10u + ((u32)width << 2)) >= 0x135) {
+        x = (s32)(0x124u - ((u32)width << 2));
     }
 
     if (y < 0x10) {
         y = 0x10;
     }
-    if (y + 8 + height * 14 >= 0xD5) {
-        y = 0xCC - height * 14;
+    if ((s32)((u32)y + 8u + (u32)height * 14u) >= 0xD5) {
+        y = (s32)(0xCCu - (u32)height * 14u);
     }
 
     if (mode == 0 || mode == 3) {
@@ -521,7 +503,7 @@ s32 func_8009C5A8(s32 actorIndex, s32 mode) {
         orientationFlags = 0x400;
     }
 
-    func_8007F8DC(x, y, stringIndex, textBoxIndex, width, height, D_800AFD1C, actorIndex, mode,
+    func_8007F8DC((s16)x, (s16)y, stringIndex, textBoxIndex, width, height, D_800AFD1C, actorIndex, mode,
                   orientationFlags, dialogFlags);
     func_8009CCF8(textBoxIndex);
     g_FieldScriptVMCurActor->rotation.vx |= 0x8000;

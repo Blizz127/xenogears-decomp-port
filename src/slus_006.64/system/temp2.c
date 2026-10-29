@@ -926,26 +926,6 @@ extern u32 D_80059568;
 extern s32 D_80059578;
 extern s32 func_8003101C(const u8* bounds, s32 mode);
 
-static u32 ModelPrimVertexIndex1(u32 word) {
-    return (word >> 16) & 0xFFFF;
-}
-
-/* Retail screen cull (asm 8002E7CC-8002E818): keep a prim only when at least
- * one vertex has packed SXY <u D_800500FC (y within [0, screenH-1]; negative
- * or below-screen y fails the unsigned compare) AND at least one vertex has
- * x <u D_800500F8. An earlier port transcription inverted the first
- * comparison, culling exactly the on-screen prims. */
-static int ModelPrimPackedOverlapsScreen(u32 xy0, u32 xy1, u32 xy2, u32 xy3) {
-    u32 yMaxPacked = (u32)D_800500FC;
-    u32 xMax = (u32)D_800500F8;
-
-    if (!(xy0 < yMaxPacked || xy1 < yMaxPacked || xy2 < yMaxPacked || xy3 < yMaxPacked)) {
-        return 0;
-    }
-    return (((xy0 & 0xFFFF) < xMax) || ((xy1 & 0xFFFF) < xMax) ||
-            ((xy2 & 0xFFFF) < xMax) || ((xy3 & 0xFFFF) < xMax));
-}
-
 /* PSX GPU hardware rule (see game_overrides.c ModelPrimTriOversized):
  * polygons wider than 1023 or taller than 511 in projected screen space are
  * silently rejected by the rasterizer; PsyX does not implement this. */
@@ -969,90 +949,110 @@ static int __attribute__((unused)) ModelPrimPackedOversized(u32 xy0, u32 xy1, u3
     return (xmax - xmin) > 1023 || (ymax - ymin) > 511;
 }
 
+/* Retail entry 0x8002E688 of the hand-written func_8002E64C quad max-SZ
+ * body (shared .L8002E694, tail 0x8002E1F4): t9 0x8, tag 0x09000000,
+ * packet 0x28 -- rows 0x09/0x0D variant 2.  Translated instruction by
+ * instruction from asm/.../func_8002E64C.s:
+ *   - only v1/v2 are preloaded; each iteration loads v0 and issues RTPT in
+ *     the count test's delay slot (also for count == 0, on the lookahead);
+ *   - v1 decode (cmd >> 13) & 0xFFF8; the fourth vertex is the CURRENT
+ *     command's +6 (lhu -0x2($a0) after the advance);
+ *   - LZCR gate, NCLIP, MAC0 backface test, RTPS of v3, second LZCR gate,
+ *     y then x overlap over all four SXY (no oversize cull);
+ *   - xy0..xy2 stored, then SZ0 == 0 rejects BEFORE xy3 is stored; each of
+ *     SZ1/SZ2/SZ3 == 0 rejects after it; emitted counts only prims whose
+ *     four SZ are all nonzero (delay slot 0x8002E884);
+ *   - signed slt maximum of SZ0..SZ3 shifted by D_80050100 + 2;
+ *   - $v0 is D_800500FC.
+ * The 24-bit packet mask is left to PcPort_LinkModelPrim. */
 s32 func_8002E688(u8* pCmd, s32 count) {
-    const s32 packetStep = 0x28;
+    const u32 packetStep = 0x28;
     const u32 tagLen = 0x09000000;
     u8* vertexBase = (u8*)(uintptr_t)D_8005953C;
-    u8* out = D_80059424 - packetStep;
+    u8* out = D_80059424;
     u32* ot = (u32*)(uintptr_t)D_80059568;
     s32 emitted = D_80059578;
+    u32 yBound = (u32)D_800500FC;
+    u32 xBound = (u32)D_800500F8;
+    u32 shift = (u32)(D_80050100 + 2) & 31u;
+    u32 cmd = *(u32*)pCmd;
+    u8* nextV0 = vertexBase + ((cmd & 0xFFFFu) << 3);
+    u8* v;
 
-    while (count != 0) {
-        u32 cmd = *(u32*)pCmd;
-        SVECTOR* v0 = (SVECTOR*)(vertexBase + ((cmd & 0xFFFF) << 3));
-        SVECTOR* v1 = (SVECTOR*)(vertexBase + (ModelPrimVertexIndex1(cmd) << 3));
-        SVECTOR* v2 = (SVECTOR*)(vertexBase + (*(u16*)(pCmd + 0x04) << 3));
-        SVECTOR* v3 = (SVECTOR*)(vertexBase + (*(u16*)(pCmd + 0x06) << 3));
-        long xy0 = 0;
-        long xy1 = 0;
-        long xy2 = 0;
-        long xy3 = 0;
-        long otz = 0;
-        long p = 0;
-        long flag = 0;
+    v = vertexBase + ((cmd >> 13) & 0xFFF8u);
+    MTC2(*(u32*)v, 2);
+    MTC2(*(u32*)(v + 4), 3);
+    v = vertexBase + ((u32)*(u16*)(pCmd + 4) << 3);
+    MTC2(*(u32*)v, 4);
+    MTC2(*(u32*)(v + 4), 5);
+    out -= packetStep;
 
+    for (;;) {
+        u32 xy0, xy1, xy2, xy3;
+        s32 maxSz, sz;
+
+        MTC2(*(u32*)nextV0, 0);
+        MTC2(*(u32*)(nextV0 + 4), 1);
+        gte_rtpt(); /* count test's delay slot */
+        if (count == 0) break;
         count--;
         pCmd += 8;
+        cmd = *(u32*)pCmd;
         out += packetStep;
+        nextV0 = vertexBase + ((cmd & 0xFFFFu) << 3);
+        v = vertexBase + ((cmd >> 13) & 0xFFF8u);
+        MTC2(*(u32*)v, 2);
+        MTC2(*(u32*)(v + 4), 3);
+        v = vertexBase + ((u32)*(u16*)(pCmd + 4) << 3);
+        MTC2(*(u32*)v, 4);
+        MTC2(*(u32*)(v + 4), 5);
 
-        otz = RotTransPers4(v0, v1, v2, v3, &xy0, &xy1, &xy2, &xy3, &p, &flag);
-        /* No FLAG rejection (inert-LZCR sweep): retail's apparent flag gates
-         * at 8002E788/8002E7C0 are `mfc2 $t0, $31` -- MFC2 reads DATA reg 31
-         * (LZCR, always 1..32), not the FLAG control reg (CFC2) -- so the
-         * bltz never takes on hardware; overflowed divides saturate and the
-         * quad draws.  (The former XENO_E688_IGNORE_FLAG diagnostic toggle
-         * modeled a gate that does not exist; deleted.)  The zero/negative
-         * depth check is kept. */
-        if (otz <= 0) {
+        /* MFC2 $31 reads LZCR (never negative on hardware), not FLAG. */
+        if ((s32)MFC2(31) < 0) continue;
+        xy0 = MFC2(12);
+        xy1 = MFC2(13);
+        xy2 = MFC2(14);
+        gte_nclip();
+        v = vertexBase + ((u32)*(u16*)(pCmd - 2) << 3);
+        if ((s32)MFC2(24) <= 0) continue;
+        MTC2(*(u32*)v, 0);
+        MTC2(*(u32*)(v + 4), 1);
+        gte_rtps();
+        if ((s32)MFC2(31) < 0) continue;
+        xy3 = MFC2(14);
+        if (!(xy0 < yBound || xy1 < yBound || xy2 < yBound || xy3 < yBound)) {
             continue;
         }
-        /* asm 8002E7AC: blez MAC0 after NCLIP — reject backface/degenerate. */
-        if (NormalClip(xy0, xy1, xy2) <= 0) {
-            continue;
-        }
-        if (!ModelPrimPackedOverlapsScreen((u32)xy0, (u32)xy1, (u32)xy2, (u32)xy3)) {
-            continue;
-        }
-        /* No oversize cull in retail 8002E688 (asm 8002E7CC-8002E894 is only the
-         * screen-overlap + max-SZ OT path). A port-only 1023x511 reject would
-         * delete extreme close-up FT4s (Map014 painting hold). */
-
         {
-            /* Retail 0x8002E82C-0x8002E894 rejects any zero SZ, selects
-             * max(SZ0,SZ1,SZ2,SZ3), and shifts it by D_80050100 + 2.
-             * RotTransPers4's return is SZ3 >> 2 and is correct for the PsyQ
-             * helper contract, but is not this walker's OT-depth source. */
-#ifdef XENO_PC_PORT
-            u16 sz0 = (u16)C2_SZ0;
-            u16 sz1 = (u16)C2_SZ1;
-            u16 sz2 = (u16)C2_SZ2;
-            u16 sz3 = (u16)C2_SZ3;
-            u16 maxSz;
-            s32 otIndex;
-
-            if (sz0 == 0 || sz1 == 0 || sz2 == 0 || sz3 == 0) {
-                continue;
-            }
-            maxSz = sz0;
-            if (sz1 > maxSz) maxSz = sz1;
-            if (sz2 > maxSz) maxSz = sz2;
-            if (sz3 > maxSz) maxSz = sz3;
-            otIndex = (s32)maxSz >> (D_80050100 + 2);
-#else
-            s32 otIndex = (s32)otz >> D_80050100;
-#endif
-            PcPort_LinkModelPrim(ot, otIndex, out, tagLen);
+            int xPass = (xy0 & 0xFFFFu) < xBound || (xy1 & 0xFFFFu) < xBound ||
+                        (xy2 & 0xFFFFu) < xBound || (xy3 & 0xFFFFu) < xBound;
+            /* xy0 is stored in the last x compare's beqz delay slot
+             * (0x8002E81C), so a prim that fails the x test still writes it. */
             *(u32*)(out + 0x08) = (u32)xy0;
-            *(u32*)(out + 0x10) = (u32)xy1;
-            *(u32*)(out + 0x18) = (u32)xy2;
-            *(u32*)(out + 0x20) = (u32)xy3;
-            emitted++;
+            if (!xPass) continue;
         }
+        *(u32*)(out + 0x10) = (u32)xy1;
+        *(u32*)(out + 0x18) = (u32)xy2;
+        maxSz = (s32)MFC2(16);
+        if (maxSz == 0) continue;
+        sz = (s32)MFC2(17);
+        *(u32*)(out + 0x20) = (u32)xy3;
+        if (sz == 0) continue;
+        if (!(sz < maxSz)) maxSz = sz;
+        sz = (s32)MFC2(18);
+        if (sz == 0) continue;
+        if (!(sz < maxSz)) maxSz = sz;
+        sz = (s32)MFC2(19);
+        if (sz == 0) continue;
+        emitted++;
+        if (!(sz < maxSz)) maxSz = sz;
+        if (maxSz == 0) continue;
+        PcPort_LinkModelPrim(ot, maxSz >> shift, out, tagLen);
     }
 
     D_80059578 = emitted;
     D_80059424 = out + packetStep;
-    return 1;
+    return (s32)yBound;
 }
 
 s32 func_8002C700(u8* a0, u8* a1, u32* a2, s32 a3) {
@@ -1394,15 +1394,13 @@ void func_8002CD24(u8* pSrc) {
     }
 }
 
-#ifndef XENO_PC_PORT
-INCLUDE_ASM("asm/slus_006.64/nonmatchings/system/temp2", func_8002CD64);
-#else
 /* Gate shared by the textured model buildProcs (func_8002D984/func_8002D0E4):
  * packet-source records whose code byte (+0x3) is a 0xC0-class inline state
  * command dispatch to a state handler and emit no primitive (return 0);
  * anything else emits (return 1). The handlers receive the record pointer
  * (retail keeps pSrc in $a0 across the call) and latch tpage/CLUT state. */
 s32 func_8002CD64(u8* pSrc) {
+#ifdef XENO_PC_PORT
     u8 code = pSrc[0x3];
 
     if ((code & 0xF0) != 0xC0) {
@@ -1417,8 +1415,32 @@ s32 func_8002CD64(u8* pSrc) {
         return 0;
     }
     return 1;
-}
+#else
+    s32 temp_v1;
+    s32 var_v0;
+    u8 temp_a1;
+
+    temp_a1 = *(u8 *)((s8*)(pSrc) + 3);
+    var_v0 = 1;
+    if ((temp_a1 & 0xF0) == 0xC0) {
+        temp_v1 = temp_a1 & 0xFF;
+        switch (temp_v1) {                          /* irregular */
+        case 0xC4:
+            func_8002CCC8(pSrc);
+            return 0;
+        case 0xC8:
+            func_8002CD24(pSrc);
+            var_v0 = 0;
+            /* Duplicate return node #6. Try simplifying control flow for better match */
+            return var_v0;
+        default:
+            return 1;
+        }
+    } else {
+        return var_v0;
+    }
 #endif
+}
 
 /* buildProc for prim 0x00 (lit flat tri template, tag len 4). Byte-identical
  * retail clone of prim 0x08's builder func_8002CF58 below -- only the three
@@ -1813,13 +1835,11 @@ s32 func_8002D814(u8* pColor, s16* pIndices, s32 flags) {
     if (flags & 1) {
         if (flags & 2) {
             func_8002DB84(n0, n1, n2, (SVECTOR*)(uintptr_t)D_80059498);
-#ifdef XENO_PC_PORT
-            /* Retail shade 3 (C8CC mode 2 first pass) stores the face
-             * normal at D_80059498; the matching C body never lit the
-             * packet, so POLY_FT3 rgb stayed 0 and overlay meshes drew
-             * black. Mirror func_8002CDCC: light from that normal. */
-            NormalLightCol((void*)(uintptr_t)D_80059498, pColor, pPoly + 4);
-#endif
+            /* retail 0x8002D8E0 -> .L8002D930: the face normal just stored at
+             * D_80059498 is lit with NormalColor into the packet rgb (+4).
+             * (An earlier port edit lit it with NormalLightCol from pColor and
+             * patched an all-zero result to 0x80 gray: neither is retail.) */
+            NormalColor((SVECTOR*)(uintptr_t)D_80059498, (CVECTOR*)(pPoly + 4));
         } else {
             SVECTOR tmpNormal;
             func_8002DB84(n0, n1, n2, &tmpNormal);
@@ -1831,11 +1851,6 @@ s32 func_8002D814(u8* pColor, s16* pIndices, s32 flags) {
 
     D_80059498 += 8;
     pPoly[7] = pColor[3];
-#ifdef XENO_PC_PORT
-    if ((pPoly[4] | pPoly[5] | pPoly[6]) == 0) {
-        pPoly[4] = pPoly[5] = pPoly[6] = 0x80;
-    }
-#endif
     return 1;
 }
 #endif
@@ -1901,7 +1916,9 @@ s32 func_8002DAFC(void) {
     return 1;
 }
 #else
-void func_8002DAFC(void) {
+/* Returns 1 like retail (ori $v0, 1 at 0x8002DB64): it is row 0x10's
+ * buildProc and the build dispatcher advances the cursors on nonzero. */
+s32 func_8002DAFC(void) {
     u8* pPoly = D_80059424;
     SetPolyFT3((POLY_FT3*)pPoly);
     SetShadeTex(pPoly, 1);
@@ -1913,6 +1930,7 @@ void func_8002DAFC(void) {
         s32 clut = GetClut(0, 0x1E0);
         *(u16*)(pPoly + 0x0E) = (clut & 0xF) | D_80059314;
     }
+    return 1;
 }
 #endif
 
@@ -1931,6 +1949,15 @@ s32 func_8002DC9C(s32 x, s32 y, s32 z);
 #ifndef XENO_PC_PORT
 INCLUDE_ASM("asm/slus_006.64/nonmatchings/system/temp2", func_8002DB84);
 #else
+static s32 func_8002DB84_div(s32 n, s32 d) {
+    if (d == 0) {
+        return n >= 0 ? -1 : 1;
+    }
+    if (n == (s32)0x80000000 && d == -1) {
+        return n;
+    }
+    return n / d;
+}
 void func_8002DB84(SVECTOR* v0, SVECTOR* v1, SVECTOR* v2, SVECTOR* outNormal) {
     VECTOR d1;
     VECTOR d2;
@@ -1945,30 +1972,30 @@ void func_8002DB84(SVECTOR* v0, SVECTOR* v1, SVECTOR* v2, SVECTOR* outNormal) {
     d2.vy = v2->vy - v0->vy;
     d2.vz = v2->vz - v0->vz;
 
-    OuterProduct0(&d1, &d2, &cross);
+    /* retail 0x8002DBBC: OuterProduct0(&d2, &d1, &cross) -- a0 is the
+     * second edge (sp+0x20), a1 the first (sp+0x10). */
+    OuterProduct0(&d2, &d1, &cross);
 
     dom = func_8002DC9C(cross.vx, cross.vy, cross.vz);
     if (dom < 0) {
-        dom = -dom;
+        dom = (s32)(0u - (u32)dom); /* retail negu wraps */
     }
     len = SquareRoot0(dom);
-    if (len != 0) {
-        cross.vx /= len;
-        cross.vy /= len;
-        cross.vz /= len;
-    }
+    /* retail divides unconditionally (R3000 div: x/0 -> x >= 0 ? -1 : 1,
+     * INT_MIN / -1 -> INT_MIN) and never traps. */
+    cross.vx = func_8002DB84_div(cross.vx, len);
+    cross.vy = func_8002DB84_div(cross.vy, len);
+    cross.vz = func_8002DB84_div(cross.vz, len);
     VectorNormalS(&cross, outNormal);
 }
 #endif
 
-#ifndef XENO_PC_PORT
-INCLUDE_ASM("asm/slus_006.64/nonmatchings/system/temp2", func_8002DC9C);
-#else
 /* Returns the signed component with the largest absolute value (ties favor
  * x, then y). Used by func_8002DB84 as the range-reduction pivot before
  * normalizing a face normal. asm: abs-compare branch tree in func_8002DC9C.s
  * (the "return 1" edges in the tree are unreachable for real inputs). */
 s32 func_8002DC9C(s32 x, s32 y, s32 z) {
+#ifdef XENO_PC_PORT
     s32 ax = (x < 0) ? -x : x;
     s32 ay = (y < 0) ? -y : y;
     s32 az = (z < 0) ? -z : z;
@@ -1980,8 +2007,22 @@ s32 func_8002DC9C(s32 x, s32 y, s32 z) {
         return y;
     }
     return z;
-}
+#else
+    s32 ax = x, ay = y, az = z;
+    s32 result;
+    if (ax < 0) ax = (s32)(0u - (u32)ax);
+    if (ay < 0) ay = (s32)(0u - (u32)ay);
+    if (az < 0) az = (s32)(0u - (u32)az);
+    if (ax >= ay && ax >= az) return x;
+    if (ay >= ax && ay >= az) return y;
+    result = az < ax;
+    if (!result) {
+        result = az < ay;
+        if (!result) return z;
+    }
+    return result;
 #endif
+}
 
 #ifdef XENO_PC_PORT
 /* TIM resource loader: pList[0] = entry count + 1; pList[1..count] is an offset
@@ -2400,10 +2441,8 @@ INCLUDE_ASM("asm/slus_006.64/nonmatchings/system/temp2", func_8002FCFC);
 INCLUDE_ASM("asm/slus_006.64/nonmatchings/system/temp2", func_8002FF0C);
 #endif
 
-#ifndef XENO_PC_PORT
-INCLUDE_ASM("asm/slus_006.64/nonmatchings/system/temp2", func_8003014C);
-#else
 s32 func_8003014C(s32* pData) {
+#ifdef XENO_PC_PORT
     s32 cur = pData[2];
     s32 target = pData[1];
     s32 step = pData[3];
@@ -2417,18 +2456,28 @@ s32 func_8003014C(s32* pData) {
         pData[2] = cur;
     }
     return pData[2];
-}
-#endif
-
-/* Closest C so far (3 words off, only where the -1 loop constant is
- * scheduled): `volatile u8 unused[1];` for retail's 8-byte frame,
- * `i = count - 1;` before `if (count != 0)`, a separate
- * `s16* pIndex = (s16*)(i * 2 + (uintptr_t)pIndices);`, offsets added as
- * `idx + (uintptr_t)pSrc/pDst`, and `do { ... } while (--i != -1);`. */
-#ifndef XENO_PC_PORT
-INCLUDE_ASM("asm/slus_006.64/nonmatchings/system/temp2", func_800301C8);
 #else
+    if (pData[2] > pData[1]) {
+        pData[2] = pData[2] - pData[3];
+        if (pData[2] < pData[1]) {
+            pData[2] = pData[1];
+        }
+    }
+    if (pData[2] < pData[1]) {
+        pData[2] = pData[2] + pData[3];
+        if (pData[2] > pData[1]) {
+            pData[2] = pData[1];
+        }
+    }
+    return pData[2];
+#endif
+}
+
+/* Retail arm matches (2026-10-03): pIndices[i] inside the loop is the
+ * strength-reduced giv whose init lands after the hoisted -1, so its pointer
+ * form must not be pre-computed; integer adds keep retail's addu order. */
 void func_800301C8(u8* pDst, u8* pSrc, s32 count, s16* pIndices) {
+#ifdef XENO_PC_PORT
     s32 i;
     if (count == 0) return;
     pIndices += count - 1;
@@ -2441,25 +2490,46 @@ void func_800301C8(u8* pDst, u8* pSrc, s32 count, s16* pIndices) {
         *(u16*)(d + 4) = *(u16*)(s + 4);
         pIndices--;
     }
-}
+#else
+    u8 unused[8]; /* retail frame has 8 bytes of locals no code touches */
+    s32 i;
+    s32 s;
+    s32 d;
+
+    i = count - 1;
+    if (count != 0) {
+        do {
+            /* integer adds: pointer + int would swap the addu operands */
+            s32 idx = pIndices[i] * 8;
+            s = idx + (s32)pSrc;
+            d = idx + (s32)pDst;
+            *(u16*)d = *(u16*)s;
+            *(u16*)(d + 2) = *(u16*)(s + 2);
+            *(u16*)(d + 4) = *(u16*)(s + 4);
+            i--;
+        } while (i != -1);
+    }
 #endif
+}
 
 #ifndef XENO_PC_PORT
 INCLUDE_ASM("asm/slus_006.64/nonmatchings/system/temp2", func_80030228);
 #else
 void func_80030228(u8* pVertices, s16* pDeltas, s32 count, s32 scale) {
-    s32 i;
-    if (scale == 0 || count == 0) return;
-    for (i = 0; i < count; i++) {
-        s32 idx = pDeltas[i * 4 + 1] * 8;
-        u16* pVert = (u16*)(pVertices + idx);
+    u32 n;
+    if (scale == 0) return;
+    /* retail 0x80030228: 8-byte delta records {dx, dy, dz, vertex index}; the
+     * index is the record's LAST halfword.  mult/mflo keeps the low 32 bits;
+     * count is an unsigned down-counter (count 0 exits at once). */
+    for (n = (u32)count; n != 0; n--, pDeltas += 4) {
+        u16* pVert = (u16*)(pVertices + (s32)((u32)(s32)pDeltas[3] << 3));
         s32 d;
-        d = (pDeltas[i * 4 + 0] * scale) >> 12;
-        pVert[0] += d;
-        d = (pDeltas[i * 4 + 3] * scale) >> 12;
-        pVert[1] += d;
-        d = (pDeltas[i * 4 + 2] * scale) >> 12;
-        pVert[2] += d;
+        d = (s32)((u32)(s32)pDeltas[0] * (u32)scale) >> 12;
+        pVert[0] = (u16)(pVert[0] + d);
+        d = (s32)((u32)(s32)pDeltas[1] * (u32)scale) >> 12;
+        pVert[1] = (u16)(pVert[1] + d);
+        d = (s32)((u32)(s32)pDeltas[2] * (u32)scale) >> 12;
+        pVert[2] = (u16)(pVert[2] + d);
     }
 }
 #endif
@@ -2468,18 +2538,19 @@ void func_80030228(u8* pVertices, s16* pDeltas, s32 count, s32 scale) {
 INCLUDE_ASM("asm/slus_006.64/nonmatchings/system/temp2", func_800302D4);
 #else
 void func_800302D4(u8* pNormals, s16* pDeltas, s32 count, s32 scale) {
-    s32 i;
-    if (scale == 0 || count == 0) return;
-    for (i = count - 1; i >= 0; i--) {
-        s32 idx = pDeltas[i * 4 + 1] * 8;
-        SVECTOR* pNorm = (SVECTOR*)(pNormals + idx);
+    u32 n;
+    if (scale == 0) return;
+    /* retail 0x800302D4: same record layout as func_80030228, walked
+     * FORWARD; each updated normal is renormalised in place. */
+    for (n = (u32)count; n != 0; n--, pDeltas += 4) {
+        SVECTOR* pNorm = (SVECTOR*)(pNormals + (s32)((u32)(s32)pDeltas[3] << 3));
         s32 d;
-        d = (pDeltas[i * 4 + 0] * scale) >> 12;
-        pNorm->vx += d;
-        d = (pDeltas[i * 4 + 3] * scale) >> 12;
-        pNorm->vy += d;
-        d = (pDeltas[i * 4 + 2] * scale) >> 12;
-        pNorm->vz += d;
+        d = (s32)((u32)(s32)pDeltas[0] * (u32)scale) >> 12;
+        pNorm->vx = (s16)(pNorm->vx + d);
+        d = (s32)((u32)(s32)pDeltas[1] * (u32)scale) >> 12;
+        pNorm->vy = (s16)(pNorm->vy + d);
+        d = (s32)((u32)(s32)pDeltas[2] * (u32)scale) >> 12;
+        pNorm->vz = (s16)(pNorm->vz + d);
         VectorNormalSS(pNorm, pNorm);
     }
 }
@@ -2500,10 +2571,13 @@ INCLUDE_ASM("asm/slus_006.64/nonmatchings/system/temp2", func_800303C8);
  * modelData+0xC from the block's +0x8 array. Finally it initializes desc[0]
  * per-item 0x20-byte slots (starting at block+0x14) with the func_8003014C
  * callback and three zeroed words. Returns the control block. */
+/* Guest structures hold 32-bit address words: every pointer field is read/written as ONE u32
+ * (retail lw/sw), never as an 8-byte host pointer (which reads/clobbers the adjacent field). */
+#define T2_P(a) ((u8*)(uintptr_t)(u32)(a))
 void* func_800303C8(u8* a0, s32 a1) {
     u8* s0 = a0;
     s32 s4 = a1;
-    u8* s2 = (u8*)*(s32*)(s0 + 0x1C);
+    u8* s2 = T2_P(*(u32*)(s0 + 0x1C));
     u8* s1;
     u8* s3;
     s32 a5;
@@ -2514,21 +2588,21 @@ void* func_800303C8(u8* a0, s32 a1) {
 
     HeapSetCurrentContentType(0x2B);
     s1 = HeapAlloc((*(s32*)(s2 + 0x0) << 5) | 0x14, s4);
-    *(s32*)(s1 + 0x0) = (s32)s0;
-    *(s32*)(s1 + 0x4) = *(s32*)(s0 + 0x8);
+    *(u32*)(s1 + 0x0) = (u32)(uintptr_t)s0;
+    *(u32*)(s1 + 0x4) = *(u32*)(s0 + 0x8);
     s3 = s1 + 0x14;
-    *(s32*)(s1 + 0x10) = (s32)s3;
-    *(s32*)(s1 + 0x8) = *(s32*)(s0 + 0xC);
+    *(u32*)(s1 + 0x10) = (u32)(uintptr_t)s3;
+    *(u32*)(s1 + 0x8) = *(u32*)(s0 + 0xC);
     *(s32*)(s1 + 0xC) = *(s32*)(s2 + 0x0);
 
     HeapSetCurrentContentType(0x2C);
-    *(s32*)(s0 + 0x8) = (s32)HeapAlloc(*(u16*)(s0 + 0x2) << 3, s4);
+    *(u32*)(s0 + 0x8) = (u32)(uintptr_t)HeapAlloc(*(u16*)(s0 + 0x2) << 3, s4);
     {
         s32 i = (s32)*(u16*)(s0 + 0x2) - 1;
         for (; i != -1; i--) {
-            s32 off = i << 3;
-            u8* src = (u8*)*(s32*)(s1 + 0x4) + off;
-            u8* dst = (u8*)*(s32*)(s0 + 0x8) + off;
+            u32 off = (u32)i << 3;
+            u8* src = T2_P(*(u32*)(s1 + 0x4) + off);
+            u8* dst = T2_P(*(u32*)(s0 + 0x8) + off);
             *(u16*)(dst + 0x0) = *(u16*)(src + 0x0);
             *(u16*)(dst + 0x2) = *(u16*)(src + 0x2);
             *(u16*)(dst + 0x4) = *(u16*)(src + 0x4);
@@ -2537,13 +2611,13 @@ void* func_800303C8(u8* a0, s32 a1) {
 
     if (*(u16*)(s0 + 0x0) & 0x10) {
         HeapSetCurrentContentType(0x2D);
-        *(s32*)(s0 + 0xC) = (s32)HeapAlloc(*(u16*)(s0 + 0x2) << 3, s4);
+        *(u32*)(s0 + 0xC) = (u32)(uintptr_t)HeapAlloc(*(u16*)(s0 + 0x2) << 3, s4);
         {
             s32 i = (s32)*(u16*)(s0 + 0x2) - 1;
             for (; i != -1; i--) {
-                s32 off = i << 3;
-                u8* src = (u8*)*(s32*)(s1 + 0x8) + off;
-                u8* dst = (u8*)*(s32*)(s0 + 0xC) + off;
+                u32 off = (u32)i << 3;
+                u8* src = T2_P(*(u32*)(s1 + 0x8) + off);
+                u8* dst = T2_P(*(u32*)(s0 + 0xC) + off);
                 *(u16*)(dst + 0x0) = *(u16*)(src + 0x0);
                 *(u16*)(dst + 0x2) = *(u16*)(src + 0x2);
                 *(u16*)(dst + 0x4) = *(u16*)(src + 0x4);
@@ -2553,7 +2627,7 @@ void* func_800303C8(u8* a0, s32 a1) {
 
     if (*(s32*)(s1 + 0xC) > 0) {
         for (a5 = 0; a5 < *(s32*)(s1 + 0xC); a5++) {
-            *(void**)(s3 + 0x0) = (void*)func_8003014C;
+            *(u32*)(s3 + 0x0) = (u32)(uintptr_t)func_8003014C; /* host code address, low 32 bits */
             *(s32*)(s3 + 0x4) = 0;
             *(s32*)(s3 + 0x8) = 0;
             *(s32*)(s3 + 0xC) = 0;
@@ -2568,44 +2642,47 @@ void* func_800303C8(u8* a0, s32 a1) {
 #ifndef XENO_PC_PORT
 INCLUDE_ASM("asm/slus_006.64/nonmatchings/system/temp2", func_800305D8);
 #else
+/* Retail 0x800305D8, re-translated from the asm (the earlier port arm passed the wrong
+ * func_800301C8 operands: it used pJoint/count/joint[count].+0 instead of *(anim+4),
+ * joint[count].+0 (count), joint[count].+4 (index table)) and walked a u32 counter. */
 void func_800305D8(u8* pAnimData) {
     u8* pModel;
-    u8* pDeltas;
-    u32 count;
+    s32 count;
     u8* pChannels;
     u8* pJoint;
-    u32 i;
+    s32 i;
     s32 scale;
-    u32 hasNormals;
+    u8* pTail;
 
     if (pAnimData == NULL) return;
-    pModel = *(u8**)(pAnimData + 0x00);
-    pDeltas = *(u8**)(pAnimData + 0x04);
-    count = *(u32*)(pAnimData + 0x0C);
-    pChannels = *(u8**)(pAnimData + 0x10);
-    pJoint = *(u8**)(pModel + 0x1C) + 4;
-    hasNormals = *(u16*)(pModel) & 0x10;
+    pModel = T2_P(*(u32*)(pAnimData + 0x00));
+    count = *(s32*)(pAnimData + 0x0C);
+    pChannels = T2_P(*(u32*)(pAnimData + 0x10));
+    pJoint = T2_P(*(u32*)(pModel + 0x1C) + 4u);
+    pTail = T2_P((u32)(uintptr_t)pJoint + (u32)count * 12u);
 
     func_800301C8(
-        *(u8**)(pModel + 0x08),
-        pJoint,
-        count,
-        *(s16**)((u32)(pJoint + count * 12))
+        T2_P(*(u32*)(pModel + 0x08)),
+        T2_P(*(u32*)(pAnimData + 0x04)),
+        *(s32*)(pTail + 0),
+        (s16*)T2_P(*(u32*)(pTail + 4))
     );
 
     for (i = 0; i < count; i++) {
-        s32 (*cb)(u8*) = *(s32 (**)(u8*))(pChannels);
-        scale = cb(pChannels);
+        {
+            s32 (*cb)(u8*) = (s32 (*)(u8*))T2_P(*(u32*)pChannels);
+            scale = cb(pChannels);
+        }
         func_80030228(
-            *(u8**)(pModel + 0x08),
-            *(s16**)(pJoint + 4),
+            T2_P(*(u32*)(pModel + 0x08)),
+            (s16*)T2_P(*(u32*)(pJoint + 4)),
             *(s32*)(pJoint),
             scale
         );
-        if (hasNormals) {
+        if (*(u16*)(pModel) & 0x10) {
             func_800302D4(
-                *(u8**)(pModel + 0x0C),
-                *(s16**)(pJoint + 8),
+                T2_P(*(u32*)(pModel + 0x0C)),
+                (s16*)T2_P(*(u32*)(pJoint + 8)),
                 *(s32*)(pJoint),
                 scale
             );
@@ -2642,9 +2719,143 @@ void func_800306D0(u8* pAnimInfo) {
 
 #ifndef XENO_PC_PORT
 INCLUDE_ASM("asm/slus_006.64/nonmatchings/system/temp2", func_80030750);
-#endif
-
 extern s16 D_800308D0[];
+#else
+/* Retail D_800308D0 is CODE: func_80030750's instruction stream from
+ * 0x800308D0, which func_80030988 patches at run time (self-modifying
+ * code).  The patched halfwords are the shamt field (bits 6..10) of the
+ * four `srl tN, tN, 6` UV scale shifts and the immediates of the
+ * `addiu tN, tN, 0x40` UV offsets, at halfword indices
+ *   U: shift 0x18/0x2E/0x3E, offset 0x1A/0x30/0x40
+ *   V: shift 0x1E/0x34/0x44, offset 0x20/0x36/0x46.
+ * The port keeps those fields as data (retail defaults: shift 6, offset
+ * 0x40); func_80030988 writes them with the retail masks and the native
+ * func_80030750 below decodes them.  Only the two operand fields are
+ * modelled -- not the instruction bytes. */
+s16 D_800308D0[0x48] = {
+    [0x18] = 6 << 6, [0x1A] = 0x40, [0x1E] = 6 << 6, [0x20] = 0x40,
+    [0x2E] = 6 << 6, [0x30] = 0x40, [0x34] = 6 << 6, [0x36] = 0x40,
+    [0x3E] = 6 << 6, [0x40] = 0x40, [0x44] = 6 << 6, [0x46] = 0x40,
+};
+
+/* srl shamt field / addiu immediate of a patched D_800308D0 site. */
+static u32 ModelPrimEnvUvShift(s32 index) {
+    return ((u32)(u16)D_800308D0[index] >> 6) & 31u;
+}
+
+static u8 ModelPrimEnvUv(u32 mac, s32 shiftIndex) {
+    /* srl (logical, on the 32-bit MAC word) then addiu, then sb. */
+    return (u8)((mac >> ModelPrimEnvUvShift(shiftIndex)) +
+                (u32)(s32)D_800308D0[shiftIndex + 2]);
+}
+
+/* Retail 0x80030750..0x80030984 with the shared walker tail at 0x8002E1F4:
+ * D_8004FE50 row 0x10 (all six variants), the environment-mapped POLY_FT3
+ * walker (packet 0x20, tag 0x07000000).  Hand-written MIPS translated
+ * instruction by instruction:
+ *   - per-vertex normals at D_8005952C + index*8 (a3 = D_8005952C - base);
+ *   - v1/v2 preloaded; each iteration loads v0 and issues RTPT in the count
+ *     test's delay slot (also for count == 0) on the lookahead command;
+ *   - LZCR gate (inert), y then x overlap, MAC0 read with xy0 stored before
+ *     the backface test and xy1 in its delay slot, then AVSZ3 and xy2;
+ *   - zero-OTZ reject with lwc2 V0 <- normal0 in its delay slot; emitted
+ *     counts only linked prims;
+ *   - three MVMVA (sf=1, RT * V0, no translation): u/v bytes at +0xC/+0xD,
+ *     +0x14/+0x15, +0x1C/+0x1D = (MAC1|MAC2 >> shift) + offset with the
+ *     shift/offset fields patched by func_80030988;
+ *   - OT index OTZ >> D_80050100; $v0 = D_800500FC. */
+s32 func_80030750(u8* pCmd, s32 count) {
+    u8* vertexBase = (u8*)(uintptr_t)D_8005953C;
+    u8* normalBase = (u8*)(uintptr_t)D_8005952C;
+    u8* out = D_80059424;
+    u32* ot = (u32*)(uintptr_t)D_80059568;
+    s32 emitted = D_80059578;
+    u32 yBound = (u32)D_800500FC;
+    u32 xBound = (u32)D_800500F8;
+    u32 shift = (u32)D_80050100 & 31u;
+    u32 cmd = *(u32*)pCmd;
+    u32 off0 = (cmd & 0xFFFFu) << 3;
+    u32 off1 = (cmd >> 13) & 0xFFF8u;
+    u32 off2 = (u32)*(u16*)(pCmd + 4) << 3;
+
+    MTC2(*(u32*)(vertexBase + off1), 2);
+    MTC2(*(u32*)(vertexBase + off1 + 4), 3);
+    MTC2(*(u32*)(vertexBase + off2), 4);
+    MTC2(*(u32*)(vertexBase + off2 + 4), 5);
+    out -= 0x20;
+
+    for (;;) {
+        u8 *n0, *n1, *n2;
+        u32 xy0, xy1, xy2, otz, mac1, mac2;
+        s32 mac0;
+
+        MTC2(*(u32*)(vertexBase + off0), 0);
+        MTC2(*(u32*)(vertexBase + off0 + 4), 1);
+        gte_rtpt(); /* count test's delay slot */
+        if (count == 0) break;
+        n0 = normalBase + off0;
+        n1 = normalBase + off1;
+        n2 = normalBase + off2;
+        count--;
+        pCmd += 8;
+        cmd = *(u32*)pCmd;
+        out += 0x20;
+        off0 = (cmd & 0xFFFFu) << 3;
+        off1 = (cmd >> 13) & 0xFFF8u;
+        off2 = (u32)*(u16*)(pCmd + 4) << 3;
+        MTC2(*(u32*)(vertexBase + off1), 2);
+        MTC2(*(u32*)(vertexBase + off1 + 4), 3);
+        MTC2(*(u32*)(vertexBase + off2), 4);
+        MTC2(*(u32*)(vertexBase + off2 + 4), 5);
+
+        if ((s32)MFC2(31) < 0) continue; /* LZCR, inert on hardware */
+        xy0 = MFC2(12);
+        xy1 = MFC2(13);
+        xy2 = MFC2(14);
+        gte_nclip();
+        if (!(xy0 < yBound || xy1 < yBound || xy2 < yBound)) continue;
+        if (!((xy0 & 0xFFFFu) < xBound || (xy1 & 0xFFFFu) < xBound ||
+              (xy2 & 0xFFFFu) < xBound)) continue;
+        mac0 = (s32)MFC2(24);
+        *(u32*)(out + 0x08) = xy0;
+        *(u32*)(out + 0x10) = xy1; /* backface test's delay slot */
+        if (mac0 <= 0) continue;
+        gte_avsz3();
+        *(u32*)(out + 0x18) = xy2;
+        otz = MFC2(7);
+        /* Retail masks the packet pointer to 24 bits here; host pointers
+         * stay host pointers until the link adapter. */
+        MTC2(*(u32*)n0, 0); /* zero-OTZ branch delay slot */
+        if (otz == 0) continue;
+        MTC2(*(u32*)(n0 + 4), 1);
+        doCOP2(0x0486012); /* MVMVA sf=1, RT, V0, no translation */
+        emitted++;
+        mac1 = MFC2(25);
+        mac2 = MFC2(26);
+        MTC2(*(u32*)n1, 0);
+        MTC2(*(u32*)(n1 + 4), 1);
+        doCOP2(0x0486012);
+        out[0x0C] = ModelPrimEnvUv(mac1, 0x18);
+        out[0x0D] = ModelPrimEnvUv(mac2, 0x1E);
+        mac1 = MFC2(25);
+        mac2 = MFC2(26);
+        MTC2(*(u32*)n2, 0);
+        MTC2(*(u32*)(n2 + 4), 1);
+        doCOP2(0x0486012);
+        out[0x14] = ModelPrimEnvUv(mac1, 0x2E);
+        out[0x15] = ModelPrimEnvUv(mac2, 0x34);
+        mac1 = MFC2(25);
+        mac2 = MFC2(26);
+        out[0x1C] = ModelPrimEnvUv(mac1, 0x3E);
+        out[0x1D] = ModelPrimEnvUv(mac2, 0x44);
+        PcPort_LinkModelPrim(ot, (s32)otz >> shift, out, 0x07000000u);
+    }
+
+    D_80059578 = emitted;
+    D_80059424 = out + 0x20;
+    return (s32)yBound;
+}
+#endif
 
 #ifndef XENO_PC_PORT
 INCLUDE_ASM("asm/slus_006.64/nonmatchings/system/temp2", func_80030988);
@@ -2670,18 +2881,6 @@ void func_80030988(u16 u, u16 v, s16 texX, s16 texY) {
 MATRIX D_80059F64;
 MATRIX D_80059F84;
 
-#ifdef XENO_PC_PORT
-static s16 func_80030A18(s64 value) {
-    value >>= 12;
-    if (value > 0x7FFF) {
-        return 0x7FFF;
-    }
-    if (value < -0x8000) {
-        return -0x8000;
-    }
-    return value;
-}
-#endif
 
 #ifndef XENO_PC_PORT
 INCLUDE_ASM("asm/slus_006.64/nonmatchings/system/temp2", func_80030A30);
@@ -2692,9 +2891,9 @@ void func_80030A30(s32 lightId, void* pLight) {
     s16* pLightMatrix = (s16*)&D_80059F64;
     s16* pColorMatrix = (s16*)&D_80059F84;
 
-    lightDirection.vx = -*(s32*)((u8*)pLight + 0x0);
-    lightDirection.vy = -*(s32*)((u8*)pLight + 0x4);
-    lightDirection.vz = -*(s32*)((u8*)pLight + 0x8);
+    lightDirection.vx = (s32)(0u - *(u32*)((u8*)pLight + 0x0)); /* retail negu wraps */
+    lightDirection.vy = (s32)(0u - *(u32*)((u8*)pLight + 0x4));
+    lightDirection.vz = (s32)(0u - *(u32*)((u8*)pLight + 0x8));
     VectorNormalS(&lightDirection, (SVECTOR*)(pLightMatrix + (id * 3)));
 
     pColorMatrix[id] = *(u16*)((u8*)pLight + 0xC);
@@ -2708,19 +2907,37 @@ void func_80030A30(s32 lightId, void* pLight) {
 INCLUDE_ASM("asm/slus_006.64/nonmatchings/system/temp2", func_80030B14);
 #else
 void func_80030B14(MATRIX* pMatrix) {
-    MATRIX matrix;
-    s32 row;
+    /* retail 0x80030B14 (hand-written GTE): load D_80059F64 as the GTE
+     * rotation matrix (control 0-4, i.e. it REPLACES the caller's RT), run
+     * MVMVA 1,0,3,3,0 on each column of pMatrix (IR1..3 = column, saturating
+     * to s16 with lm 0), keep the three result columns in a stack matrix and
+     * load that as the light matrix (control 8-12).  The GTE register file,
+     * not only the light matrix, is the observable result. */
+    u16 stk[16];
+    const u32* pLight = (const u32*)&D_80059F64;
+    const u16* pSrc = (const u16*)pMatrix;
     s32 col;
 
-    for (row = 0; row < 3; row++) {
-        for (col = 0; col < 3; col++) {
-            matrix.m[row][col] = func_80030A18(
-                (s64)D_80059F64.m[row][0] * pMatrix->m[0][col] +
-                (s64)D_80059F64.m[row][1] * pMatrix->m[1][col] +
-                (s64)D_80059F64.m[row][2] * pMatrix->m[2][col]);
-        }
+    memset(stk, 0, sizeof(stk));
+    CTC2(pLight[0], 0);
+    CTC2(pLight[1], 1);
+    CTC2(pLight[2], 2);
+    CTC2(pLight[3], 3);
+    CTC2(pLight[4], 4);
+    for (col = 0; col < 3; col++) {
+        MTC2(pSrc[col + 0], 9);
+        MTC2(pSrc[col + 3], 10);
+        MTC2(pSrc[col + 6], 11);
+        gte_mvmva(1, 0, 3, 3, 0);
+        stk[col + 0] = (u16)MFC2(9);
+        stk[col + 3] = (u16)MFC2(10);
+        stk[col + 6] = (u16)MFC2(11);
     }
-    SetLightMatrix(&matrix);
+    CTC2(*(u32*)&stk[0], 8);
+    CTC2(*(u32*)&stk[2], 9);
+    CTC2(*(u32*)&stk[4], 10);
+    CTC2(*(u32*)&stk[6], 11);
+    CTC2(*(u32*)&stk[8], 12);
 }
 #endif
 
@@ -2810,16 +3027,7 @@ GPU_LINK_FUNC(func_80031774, 0x09000000)
 INCLUDE_ASM("asm/slus_006.64/nonmatchings/system/temp2", func_80031798);
 #else
 void func_80031798(void* ot, void* prim) {
-#ifdef XENO_PC_PORT
-    *(u32*)prim = (*(u32*)prim & 0x00FFFFFFu) | 0x04000000u;
-    PcPort_AddPrimDomainAware(ot, prim);
-#else
-    u32 primAddr = (u32)(uintptr_t)prim & 0x00FFFFFF;
-    u32 old = *(u32*)ot;
-
-    *(u32*)ot = primAddr;
-    *(u32*)(uintptr_t)primAddr = old | 0x04000000;
-#endif
+    PcPort_LinkTaggedPrimDomainAware(ot, prim, 0x04000000u);
 }
 #endif
 

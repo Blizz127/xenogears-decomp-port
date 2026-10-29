@@ -1,0 +1,61 @@
+--- a/src/psx/LIBAPI.C
++++ b/src/psx/LIBAPI.C
+@@ -381,0 +382,3 @@
++/* _xeno_sound_reservation_cleanup: only this API owns this bracket. */
++static __thread int s_soundReservationBracket = 0;
++static __thread int s_soundReservationPending = 0;
+@@ -414 +417 @@
+-    if (!s_soundReservation || !g_SoundTickMutex)
++    if (!s_soundReservation || !g_SoundTickMutex || s_soundReservationBracket)
+@@ -418,0 +422,51 @@
++}
++
++/* Experimental bracket helpers, not wired to the battle path. They refuse
++ * ambiguous nested holds. A failed finish/abort keeps the reservation held so
++ * callers cannot mistake an unbalanced bracket for a successful cleanup. */
++extern "C" int PsyX_Sys_BeginReservedSoundBracket(unsigned int event)
++{
++    if (s_soundReservationBracket || s_soundTickHold != 0 ||
++        !PsyX_Sys_ValidateSoundEventReservation(event, 1))
++        return 0;
++    s_soundReservationPending = s_psyxEvents[event - 1].pending;
++    DisableEvent(event);
++    s_soundReservationBracket = 1;
++    return 1;
++}
++
++extern "C" int PsyX_Sys_FinishReservedSoundBracket(void)
++{
++    unsigned int event = s_soundReservation;
++    if (!s_soundReservationBracket || s_soundTickHold != 1 ||
++        !PsyX_Sys_ValidateSoundEventReservation(event, 0))
++        return 0;
++    EnableEvent(event);
++    s_soundReservationBracket = 0;
++    return PsyX_Sys_ReleaseSoundEventReservation();
++}
++
++extern "C" int PsyX_Sys_AbortReservedSoundBracket(void)
++{
++    unsigned int event = s_soundReservation;
++    if (!s_soundReservationBracket || !event)
++        return 0;
++    if (!PsyX_Sys_ValidateSoundEventReservation(event, 0)) {
++        /* CloseEvent consumes every held bracket. Never touch a replacement. */
++        if (event <= PSYX_EVENT_MAX &&
++            s_eventGeneration[event - 1] != s_soundReservationGeneration &&
++            s_soundTickHold == 0) {
++            s_soundReservationBracket = 0;
++            return PsyX_Sys_ReleaseSoundEventReservation();
++        }
++        return 0;
++    }
++    if (s_soundTickHold != 1)
++        return 0;
++    PsyXEventSlot* slot = &s_psyxEvents[event - 1];
++    slot->enabled = 1;
++    slot->pending = s_soundReservationPending;
++    s_soundTickHold--;
++    SDL_UnlockMutex(g_SoundTickMutex);
++    s_soundReservationBracket = 0;
++    return PsyX_Sys_ReleaseSoundEventReservation();

@@ -1,0 +1,25 @@
+--- a/src/gpu/PsyX_GPU.cpp
++++ b/src/gpu/PsyX_GPU.cpp
+@@ -949,9 +949,10 @@
+ 
+ /* _xeno_rendered_clip_track: bounding box of the VRAM draw clips rendered
+  * into the GL backbuffer since the last present (PsyX_EndScene clears it).
+- * PsyX_XenoRenderedClipMisses answers whether that backbuffer can hold the
+- * pixels of a VRAM rect at all: a scene was drawn, and none of its clips
+- * touch the rect. */
++ * PsyX_XenoRenderedClipMisses is true when no new geometry can supply
++ * the requested rect. With no pending draw, CPU VRAM already owns the
++ * last completed capture; do not recapture retained presentation pixels.
++ * _xeno_rendered_clip_pending_capture */
+ static int g_xenoRenderedPending = 0;
+ static int g_xenoRenderedX0, g_xenoRenderedY0, g_xenoRenderedX1, g_xenoRenderedY1;
+ 
+@@ -980,7 +981,7 @@
+ extern "C" int PsyX_XenoRenderedClipMisses(int x, int y, int w, int h)
+ {
+ 	if (!g_xenoRenderedPending)
+-		return 0;
++		return 1;
+ 	return !(x < g_xenoRenderedX1 && x + w > g_xenoRenderedX0 &&
+ 		y < g_xenoRenderedY1 && y + h > g_xenoRenderedY0);
+ }

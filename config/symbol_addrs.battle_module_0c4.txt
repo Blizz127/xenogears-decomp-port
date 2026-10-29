@@ -1,0 +1,16 @@
+// Battle startup module (archive 0x0C file 4, linked at 0x801E4000).
+// Names carry the module prefix: other modules reuse these addresses.
+// Roles are those the port's module hosts and NATIVE_CONVERSION.md record.
+battle_module_0c4_state_reset = 0x801E4048; // type:func
+battle_module_0c4_slot_setup = 0x801E4160; // type:func
+battle_module_0c4_enemy_records = 0x801E4870; // type:func
+battle_module_0c4_actor_modes = 0x801E4AC0; // type:func
+battle_module_0c4_stage_setup = 0x801E5384; // type:func
+battle_module_0c4_dispatch = 0x801E5840; // type:func
+battle_module_0c4_startup_resources = 0x801E6314; // type:func
+battle_module_0c4_startup_actor_slots = 0x801E6710; // type:func
+battle_module_0c4_startup_actor_bind = 0x801E67A4; // type:func
+battle_module_0c4_startup_queue = 0x801E693C; // type:func
+battle_module_0c4_timer_load = 0x801E6F00; // type:func
+battle_module_0c4_timer_callback = 0x801E6FEC; // type:func
+battle_module_0c4_timer_register = 0x801E7098; // type:func

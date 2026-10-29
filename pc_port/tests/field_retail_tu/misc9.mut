@@ -1,0 +1,4 @@
+[
+ ("func_800AA9DC", "*(s16*)(pModel + 0x20) = (s16)(((u32)max << 1) + 1);", "*(s16*)(pModel + 0x20) = (s16)(((u32)max << 1) + 2);"),
+ ("func_800AAA74", "minY = (s16)screenXY;", "minY = (s16)(screenXY >> 1);"),
+]

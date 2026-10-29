@@ -9,10 +9,9 @@
 
 #include "common.h"
 #include "psx_memory.h"
+#include "world_map_retail_trig.h"
 #include "world_map_helper_90a84.h"
 
-extern int rcos(int angle);
-extern int rsin(int angle);
 
 #define WM_90A84_HEADING          0x8009CD4Cu
 #define WM_90A84_ANGLE            0x8009BD3Au
@@ -328,14 +327,14 @@ s32 wm_80090A84(u32 slot_addr)
 #if defined(WM_90A84_MUTANT_M4)
         WM_90A84_TRACE(WM_90A84_TRACE_CALL_RSIN, 0x80090B78u,
                        (u32)(s32)angle);
-        sine = rsin(angle);
+        sine = wm_retail_rsin((int)(angle));
 #endif
         WM_90A84_TRACE(WM_90A84_TRACE_CALL_RCOS, 0x80090B6Cu,
                        (u32)(s32)angle);
 #if defined(WM_90A84_MUTANT_M2)
         cosine = 0;
 #else
-        cosine = rcos(angle);
+        cosine = wm_retail_rcos((int)(angle));
 #endif
         /* 80090B7C is the jal rsin delay slot: v0 still holds rcos. */
         WM_90A84_TRACE(WM_90A84_TRACE_STORE_COS,
@@ -347,7 +346,7 @@ s32 wm_80090A84(u32 slot_addr)
 #elif !defined(WM_90A84_MUTANT_M4)
         WM_90A84_TRACE(WM_90A84_TRACE_CALL_RSIN, 0x80090B78u,
                        (u32)(s32)angle);
-        sine = rsin(angle);
+        sine = wm_retail_rsin((int)(angle));
 #endif
 #if defined(WM_90A84_MUTANT_M1)
         /* Reproduce the former post-call store bug. */

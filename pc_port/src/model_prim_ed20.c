@@ -51,7 +51,7 @@ s32 func_8002ED20(u8* pCmd, s32 count)
     MTC2(*(u32*)(nextV2 + 4), 5);
     for (;;) {
         u32 xy0, xy1, xy2, colour, rgb;
-        s32 otz;
+        s32 otz, mac0;
         u8* out;
 
         MTC2(*(u32*)nextV0, 0);
@@ -83,11 +83,15 @@ s32 func_8002ED20(u8* pCmd, s32 count)
               (xy2 & 0xffffu) < xBound)) continue;
 
         out = (u8*)packet;
+        /* 0x8002EE74: MAC0 (the NCLIP result) is read BEFORE AVSZ3
+         * overwrites it; all three xy words are stored before the
+         * backface test (xy2 in the blez delay slot). */
+        mac0 = (s32)MFC2(24);
         *(u32*)(out + 0x08) = xy0;
         gte_avsz3();
         *(u32*)(out + 0x0C) = xy1;
-        if ((s32)MFC2(24) <= 0) continue;
-        *(u32*)(out + 0x10) = xy2; /* delay slot, even for backfaces */
+        *(u32*)(out + 0x10) = xy2;
+        if (mac0 <= 0) continue;
         otz = (s32)MFC2(7);
         emitted++;
         colour = *(u32*)(records - 0xC);

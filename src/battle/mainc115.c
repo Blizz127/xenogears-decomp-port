@@ -40,6 +40,9 @@ typedef struct BattleTargets {
 extern BattleTargets D_800C3EB0;
 #endif
 
+#ifndef XENO_PC_PORT
+/* The port compiles an instruction-faithful lift of this function instead
+ * (src/battle/mainc114.c, h-hotpath block); this TU is reference-only there. */
 void func_800BC460(u32 mask) {
     VECTOR center;
     SVECTOR eye,target;
@@ -171,3 +174,4 @@ void func_800BC460(u32 mask) {
         }
     }
 }
+#endif /* !XENO_PC_PORT */

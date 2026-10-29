@@ -9,13 +9,16 @@
  */
 
 #include <stdio.h>
+#include <stdint.h>
 #include "retail_data.h"
 #include "disc_check.h"
 #include "../include/xg_plat/disc.h"
 #include "../include/xg_plat/renderer.h"
 #include "../include/xg_plat/config.h"
+#include "../include/xg_plat/input.h"
 #include "../include/xg_plat/mods.h"
 #include "cheat_console.h"
+#include "port_pad_confirm.h"
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -24,6 +27,7 @@
 #include "xeno_pc.h"
 #include "psx_memory.h"
 #include "test_input.h"
+#include "battle_mips_adapter.h"
 #include "boot_menu.h"
 #include "field_direct_boot_route.h"
 #include "boot_sound_banks.h"
@@ -149,7 +153,7 @@ static void PortRunSoundPrimProbe(void) {
  * whose func_8003B32C / SoundInitializeAudioManager fields are set. */
 extern void SoundInitialize(int mode);
 extern unsigned int D_800595D8;         /* packed audio-manager address */
-extern unsigned long g_unk_SoundEvent;  /* RCnt2 tick event handle */
+extern uint32_t g_unk_SoundEvent;  /* RCnt2 tick event handle */
 static void PortRunSoundInitProbe(void) {
     unsigned int mgrAddr = D_800595D8;
     unsigned char* mgr = (unsigned char*)(uintptr_t)mgrAddr;
@@ -1213,6 +1217,15 @@ static void PcPort_LoadSystemTextData(void) {
 }
 
 int main(int argc, char** argv) {
+    /* Soft reset, the port's crt0 restart (port_soft_reset.c): save argv and
+     * the inherited descriptors, and register the re-exec handler before
+     * anything else registers an atexit handler, so it runs after all of them. */
+    { extern void PcPort_SoftResetInit(int argc, char** argv); PcPort_SoftResetInit(argc, argv); }
+    { extern void PcPort_LogInit(void); PcPort_LogInit(); }
+    PcPortMipsExecutionStatsInit();
+    if (PcPortMipsInterpreterDisabled())
+        fprintf(stderr, "[xeno-port][native-check] CPU interpreter disabled; "
+                        "unconverted instruction paths fail closed\n");
     /* --config FILE / --set key=value / --help (xg_plat/config.h). */
     switch (xg_plat_config_cli(argc, argv)) {
     case 1: return EXIT_SUCCESS;
@@ -1282,10 +1295,12 @@ int main(int argc, char** argv) {
     }
     /* Config file / XENO_* overrides: game.speed, input.* bindings, ... */
     xg_plat_config_apply_runtime();
+    PcPort_PadConfirmInit(PortButtonLayoutJp());
     /* Cheat console first: its frame_tick subscribers (field warp, battle
      * warp, queued commands) must run before any mod hook, in the order the
      * VSync shim used to call them. */
     PcPort_CheatConsoleInit();
+    { extern void PcPort_HeartbeatInit(void); PcPort_HeartbeatInit(); }
     /* Mods: scan mods/ (manifests, plugins, asset replacements). */
     (void)xg_plat_mods_init();
     {   /* game-side event sources (room_enter, ...) */

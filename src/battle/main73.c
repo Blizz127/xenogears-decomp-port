@@ -18,9 +18,9 @@ extern u16 D_800C3E30;
 #if BATTLE_PART(1)
 /* func_800AF400.s: index of the lowest set bit in D_800C3E30
  * (13 when bits 0-12 are all clear). */
-/* Not yet byte-matching: the matching build assembles retail bytes for
- * this function from its own asm segment (see config/battle.yaml).  The
- * body below is kept for the port and the differential harnesses. */
+/* The retail build compiles this function's byte-exact C in
+ * mainasm_3F910.c.  The body below is kept for the port and the
+ * differential harnesses. */
 #ifdef XENO_PC_PORT
 s32 func_800AF400(void) {
     s32 bit = 0;
@@ -341,4 +341,87 @@ void func_800B00D0(void) {
         *(u32*)((u8*)D_800C3BCC + (i - 8) * 4) = 0;
     }
 }
+#endif /* BATTLE_PART(2) */
+#if BATTLE_PART(2)
+#ifdef XENO_PC_PORT
+/* Instruction-faithful port bodies generated from the retail listings by
+ *   tools/scripts/battle_lift_asm.py asm/battle/nonmatchings/main73_p2/<fn>.s --args N
+ * (one statement per MIPS instruction; include/battle_lift.h has the
+ * register, memory, COP2, frame and call contract), committed as reviewed
+ * source. */
+#define BL_NO_GTE /* no GTE callee; main73 declares its own GTE API */
+#include "battle_lift.h"
+
+/* func_800AFF9C.s (49 instructions; INCLUDE_ASM in main73_p2.c): walk-mesh
+ * floor query for object a0 (model a0+4 position +0x5C/+0x60/+0x64, cached
+ * triangle +0x1E): func_800A5914, else func_800A579C, then func_800A5870
+ * into a frame local; writes the height back unless +0x36 is set.  The
+ * three callees are typed native guest-ABI leaves reached through
+ * bl_call_guest, so nothing here is interpreted. */
+void func_800AFF9C(u32 arg0) {
+    static const char FN[] = "func_800AFF9C";
+    u32 r_at = 0, r_v0 = 0, r_v1 = 0, r_a0 = 0, r_a1 = 0, r_a2 = 0, r_a3 = 0, r_t0 = 0, r_t1 = 0, r_t2 = 0, r_t3 = 0, r_t4 = 0, r_t5 = 0, r_t6 = 0, r_t7 = 0, r_s0 = 0, r_s1 = 0, r_s2 = 0, r_s3 = 0, r_s4 = 0, r_s5 = 0, r_s6 = 0, r_s7 = 0, r_t8 = 0, r_t9 = 0, r_k0 = 0, r_k1 = 0, r_gp = 0, r_sp = 0, r_fp = 0, r_ra = 0;
+    u32 hi = 0, lo = 0, bl_saved;
+    r_sp = bl_enter(FN, 0x38u, &bl_saved);
+    r_a0 = arg0;
+    r_sp = r_sp + 0xFFFFFFC8u; /* 800AFF9C addiu $sp, $sp, -0x38 */
+    bl_sw(r_sp + 0x28u, r_s0); /* 800AFFA0 sw $s0, 0x28($sp) */
+    r_s0 = r_a0 + 0u; /* 800AFFA4 addu $s0, $a0, $zero */
+    bl_sw(r_sp + 0x30u, r_ra); /* 800AFFA8 sw $ra, 0x30($sp) */
+    bl_sw(r_sp + 0x2Cu, r_s1); /* 800AFFAC sw $s1, 0x2C($sp) */
+    r_v0 = bl_lw(r_s0 + 0x4u); /* 800AFFB0 lw $v0, 0x4($s0) */
+    ; /* 800AFFB4 nop  */
+    r_v0 = bl_lhu(r_v0 + 0x5Cu); /* 800AFFB8 lhu $v0, 0x5C($v0) */
+    ; /* 800AFFBC nop  */
+    bl_sh(r_sp + 0x20u, r_v0); /* 800AFFC0 sh $v0, 0x20($sp) */
+    r_v0 = bl_lw(r_s0 + 0x4u); /* 800AFFC4 lw $v0, 0x4($s0) */
+    ; /* 800AFFC8 nop  */
+    r_v0 = bl_lhu(r_v0 + 0x60u); /* 800AFFCC lhu $v0, 0x60($v0) */
+    ; /* 800AFFD0 nop  */
+    bl_sh(r_sp + 0x22u, r_v0); /* 800AFFD4 sh $v0, 0x22($sp) */
+    r_v0 = bl_lw(r_s0 + 0x4u); /* 800AFFD8 lw $v0, 0x4($s0) */
+    r_s1 = r_sp + 0x20u; /* 800AFFDC addiu $s1, $sp, 0x20 */
+    r_v0 = bl_lhu(r_v0 + 0x64u); /* 800AFFE0 lhu $v0, 0x64($v0) */
+    r_a0 = r_s1 + 0u; /* 800AFFE4 addu $a0, $s1, $zero */
+    bl_sh(r_sp + 0x24u, r_v0); /* 800AFFE8 sh $v0, 0x24($sp) */
+    r_a1 = bl_lh(r_s0 + 0x1Eu); /* 800AFFEC lh $a1, 0x1E($s0) */
+    /* 800AFFF0 jal func_800A5914 */
+    r_a2 = 0u | 0x4u;
+    r_v0 = bl_call_guest(FN, 0x800A5914u, r_a0, r_a1, r_a2, r_a3, r_sp); /* func_800A5914 */
+    bl_sh(r_s0 + 0x1Eu, r_v0); /* 800AFFF8 sh $v0, 0x1E($s0) */
+    r_v0 = r_v0 << 16; /* 800AFFFC sll $v0, $v0, 16 */
+    /* 800B0000 bgez $v0, .L800B0018 */
+    { int c_ = ((s32)r_v0 >= 0); r_a0 = r_s1 + 0u; if (c_) goto L_800B0018; }
+    /* 800B0008 jal func_800A579C */
+    r_a0 = r_s1 + 0u;
+    r_v0 = bl_call_guest(FN, 0x800A579Cu, r_a0, r_a1, r_a2, r_a3, r_sp); /* func_800A579C */
+    bl_sh(r_s0 + 0x1Eu, r_v0); /* 800B0010 sh $v0, 0x1E($s0) */
+    r_a0 = r_s1 + 0u; /* 800B0014 addu $a0, $s1, $zero */
+L_800B0018:
+    r_a1 = bl_lh(r_s0 + 0x1Eu); /* 800B0018 lh $a1, 0x1E($s0) */
+    /* 800B001C jal func_800A5870 */
+    r_a2 = r_sp + 0x10u;
+    r_v0 = bl_call_guest(FN, 0x800A5870u, r_a0, r_a1, r_a2, r_a3, r_sp); /* func_800A5870 */
+    r_v0 = bl_lhu(r_sp + 0x22u); /* 800B0024 lhu $v0, 0x22($sp) */
+    r_v1 = bl_lbu(r_s0 + 0x36u); /* 800B0028 lbu $v1, 0x36($s0) */
+    ; /* 800B002C nop  */
+    /* 800B0030 bnez $v1, .L800B0048 */
+    { int c_ = (r_v1 != 0); bl_sh(r_s0 + 0x60u, r_v0); if (c_) goto L_800B0048; }
+    r_v1 = bl_lw(r_s0 + 0x4u); /* 800B0038 lw $v1, 0x4($s0) */
+    r_v0 = bl_lh(r_sp + 0x22u); /* 800B003C lh $v0, 0x22($sp) */
+    ; /* 800B0040 nop  */
+    bl_sw(r_v1 + 0x60u, r_v0); /* 800B0044 sw $v0, 0x60($v1) */
+L_800B0048:
+    r_ra = bl_lw(r_sp + 0x30u); /* 800B0048 lw $ra, 0x30($sp) */
+    r_s1 = bl_lw(r_sp + 0x2Cu); /* 800B004C lw $s1, 0x2C($sp) */
+    r_s0 = bl_lw(r_sp + 0x28u); /* 800B0050 lw $s0, 0x28($sp) */
+    r_sp = r_sp + 0x38u; /* 800B0054 addiu $sp, $sp, 0x38 */
+    /* 800B0058 jr $ra */
+    ; goto bl_exit;
+bl_exit:
+    bl_leave(bl_saved);
+    (void)hi; (void)lo; (void)r_at; (void)r_v1; (void)r_k0; (void)r_k1; (void)r_gp; (void)r_ra;
+    (void)r_v0;
+}
+#endif /* XENO_PC_PORT */
 #endif /* BATTLE_PART(2) */

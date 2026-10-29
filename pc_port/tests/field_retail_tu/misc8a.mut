@@ -1,0 +1,10 @@
+[
+ ("func_8008492C", "*(s16*)(actorData + 0x10) == 1", "*(s16*)(actorData + 0x10) == 3"),
+ ("func_80086078", "inv >>= 6;", "inv >>= 5;"),
+ ("func_800860F0", "slot2 = i * 2;", "slot2 = i * 2 + 1;"),
+ ("func_800863E8", "D_800AFE8A[i * 3] = 0xFFFF;", "D_800AFE8A[i * 3] = 0xFFFE;"),
+ ("func_80086590", "candidate = (dist[1] < dist[2]) ? 2 : 1;", "candidate = (dist[1] <= dist[2]) ? 2 : 1;"),
+ ("func_80086C34", "*(u16*)(g_FieldDefaultParticleBanks + 0x00) = 1;", "*(u16*)(g_FieldDefaultParticleBanks + 0x02) = 1;"),
+ ("func_800859DC", "func_8003BDFC(0x10);", "func_8003BDFC(0x11);"),
+ ("func_80085B20", "D_8004F354 = 1;", "D_8004F354 = 2;"),
+]

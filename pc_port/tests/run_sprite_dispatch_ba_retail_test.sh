@@ -103,7 +103,7 @@ build_case() {
         -c pc_port/src/psyq_compat.c -o "$TEST_OUT/$name.compat.o" \
         >> "$TEST_OUT/$name.build.log" 2>&1
     gcc -std=gnu17 -fpermissive "${common[@]}" -Ipc_port/include_shim -Iinclude \
-        -Ipc_port/src -c "$helper_source" -o "$TEST_OUT/$name.helper.o" \
+        -Ipc_port/src -DXENO_PC_PORT -c "$helper_source" -o "$TEST_OUT/$name.helper.o" \
         >> "$TEST_OUT/$name.build.log" 2>&1
     gcc -std=gnu17 -fpermissive "${common[@]}" -Ipc_port/include_shim -Iinclude \
         -Ipc_port/src -c "$TEST_OUT/ba_leaf.c" -o "$TEST_OUT/$name.leaf.o" \

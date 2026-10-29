@@ -519,7 +519,11 @@ extern SoundSpuMemoryBlock g_SoundSpuMemoryBlocks[MAX_SPU_MEMORY_BLOCKS];
 extern s32 g_SoundUploadDestBuffer;
 extern s32 g_SoundUploadSourceAddr;
 extern s32 g_SoundUploadBytesRemaining;
+#ifdef XENO_PC_PORT
+extern u32 g_unk_SoundEvent; // Host event API uses a 32-bit handle.
+#else
 extern u_long g_unk_SoundEvent; // Event Descriptor
+#endif
 
 extern SoundFile* g_SoundSedsLinkedList;
 extern SoundWDSEntry* g_SoundWdsLinkedList;
@@ -528,7 +532,12 @@ extern int g_SoundWdsCurSpuAddress;
 extern int g_SoundWdsRemainingBytes;
 
 extern short g_SoundSpuErrorId;
+#ifdef XENO_PC_PORT
+/* This is one retail 32-bit mask; host long is 64 bits on LP64. */
+extern s32 g_unk_VoicesNeedingProcessing;
+#else
 extern long g_unk_VoicesNeedingProcessing;
+#endif
 extern AudioManager* g_SoundAudioManagerListHead;
 extern short g_SoundControlFlags;
 extern SpuIRQCallbackProc g_SoundSpuIrqCallbackFn;

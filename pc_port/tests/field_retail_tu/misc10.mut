@@ -1,0 +1,4 @@
+[
+ ("func_80096214", "value = pTable[idx];", "value = pTable[idx + 1];"),
+ ("func_8009635C", "if (quantities[slot] < MAX_ITEM_QUANTITY) {", "if (quantities[slot] <= MAX_ITEM_QUANTITY) {"),
+]

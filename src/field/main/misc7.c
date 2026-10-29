@@ -529,10 +529,8 @@ void func_800985BC(void) {
     g_FieldScriptVMCurActor->scriptInstructionPointer += 3;
 }
 
-#ifndef XENO_PC_PORT
-INCLUDE_ASM("asm/field/nonmatchings/main/misc7", func_8009861C);
-#else
 void func_8009861C(void) {
+#ifdef XENO_PC_PORT
     u8 mask;
     s32 arg2, arg3, arg4, arg5, addr;
     s32 dx, dz, dist;
@@ -550,13 +548,19 @@ void func_8009861C(void) {
     dist = FieldGetVec2Magnitude(dx, dz);
     FieldScriptMemoryWriteU16((u16)addr, (u16)dist);
     g_FieldScriptVMCurActor->scriptInstructionPointer += 0xC;
-}
-#endif /* XENO_PC_PORT */
-
-#ifndef XENO_PC_PORT
-INCLUDE_ASM("asm/field/nonmatchings/main/misc7", func_80098738);
 #else
+    s32 x1 = FieldScriptArgument2(3, SCRIPT_READ_U8_REL_RAW(0xB));
+    s32 z1 = FieldScriptArgument3(5, SCRIPT_READ_U8_REL_RAW(0xB));
+    s32 x2 = FieldScriptArgument4(7, SCRIPT_READ_U8_REL_RAW(0xB));
+    s32 z2 = FieldScriptArgument5(9, SCRIPT_READ_U8_REL_RAW(0xB));
+    s32 addr = SCRIPT_IMM_ARG(1);
+    FieldScriptMemoryWriteU16(addr, FieldGetVec2Magnitude(x2 - x1, z2 - z1));
+    g_FieldScriptVMCurActor->scriptInstructionPointer += 0xC;
+#endif
+}
+
 void func_80098738(void) {
+#ifdef XENO_PC_PORT
     u8 mask;
     s32 a2, a3, a4, a5, a6, a7, addr, dist;
     mask = SCRIPT_READ_U8_REL(0xF);
@@ -575,8 +579,18 @@ void func_80098738(void) {
     dist = FieldGetVec3Magnitude(a6 - a2, a7 - a3, a5 - a4);
     FieldScriptMemoryWriteU16((u16)addr, (u16)dist);
     g_FieldScriptVMCurActor->scriptInstructionPointer += 0x10;
+#else
+    s32 x1 = FieldScriptArgument2(3, SCRIPT_READ_U8_REL_RAW(0xF));
+    s32 y1 = FieldScriptArgument3(5, SCRIPT_READ_U8_REL_RAW(0xF));
+    s32 z1 = FieldScriptArgument3(7, SCRIPT_READ_U8_REL_RAW(0xF));
+    s32 x2 = FieldScriptArgument4(9, SCRIPT_READ_U8_REL_RAW(0xF));
+    s32 y2 = FieldScriptArgument5(0xB, SCRIPT_READ_U8_REL_RAW(0xF));
+    s32 z2 = FieldScriptArgument5(0xD, SCRIPT_READ_U8_REL_RAW(0xF));
+    s32 addr = SCRIPT_IMM_ARG(1);
+    FieldScriptMemoryWriteU16(addr, FieldGetVec3Magnitude(x2 - x1, z2 - z1, y2 - y1));
+    g_FieldScriptVMCurActor->scriptInstructionPointer += 0x10;
+#endif
 }
-#endif /* XENO_PC_PORT */
 
 extern s32 FieldMathInterpolateAngle(s32, s32, s32);
 
@@ -614,34 +628,36 @@ void func_800989F0(void) {
 INCLUDE_ASM("asm/field/nonmatchings/main/misc7", func_80098A7C);
 #else
 void func_80098A7C(void) {
+    /* Instruction-faithful to retail 80098A7C-80098BFC: the sprite pointer is
+     * latched before the three argument calls, the field-actor slot is
+     * re-derived from D_800AFD1C afterwards, the arg mask byte is re-read
+     * per call, and `x << 16` wraps as u32 (retail sll). */
+    ActorData* actor;
     FieldActor* pFieldActor;
     SpriteData* pSpriteData;
-    u8 argMask;
+    s32 value;
 
+    actor = g_FieldScriptVMCurActor;
+    pSpriteData = (SpriteData*)(uintptr_t)g_FieldActors[D_800AFD1C].pSpriteData;
+    actor->scriptFlags.flags |= 0x10000;
+    actor->flags |= 0x200000;
+
+    value = FieldScriptArgument1(1, SCRIPT_READ_U8_REL(7));
+    g_FieldScriptVMCurActor->position.vx = (s32)((u32)value << 16);
+    value = FieldScriptArgument2(3, SCRIPT_READ_U8_REL(7));
+    g_FieldScriptVMCurActor->position.vz = (s32)((u32)value << 16);
+    value = FieldScriptArgument3(5, SCRIPT_READ_U8_REL(7));
+
+    actor = g_FieldScriptVMCurActor;
+    actor->position.vy = (s32)((u32)value << 16);
     pFieldActor = &g_FieldActors[D_800AFD1C];
-    pSpriteData = (SpriteData*)(uintptr_t)pFieldActor->pSpriteData;
-
-    g_FieldScriptVMCurActor->scriptFlags.flags |= 0x10000;
-    g_FieldScriptVMCurActor->flags |= 0x200000;
-
-    argMask = ((u8*)g_FieldScriptVMCurScriptData)[g_FieldScriptVMCurActor->scriptInstructionPointer + 7];
-    g_FieldScriptVMCurActor->position.vx = FieldScriptArgument1(1, argMask) << 16;
-
-    argMask = ((u8*)g_FieldScriptVMCurScriptData)[g_FieldScriptVMCurActor->scriptInstructionPointer + 7];
-    g_FieldScriptVMCurActor->position.vz = FieldScriptArgument2(3, argMask) << 16;
-
-    argMask = ((u8*)g_FieldScriptVMCurScriptData)[g_FieldScriptVMCurActor->scriptInstructionPointer + 7];
-    g_FieldScriptVMCurActor->position.vy = FieldScriptArgument3(5, argMask) << 16;
-
-    pFieldActor->transformMatrix.t[0] = g_FieldScriptVMCurActor->position.vx >> 16;
-    pFieldActor->transformMatrix.t[1] = g_FieldScriptVMCurActor->position.vy >> 16;
-    pFieldActor->transformMatrix.t[2] = g_FieldScriptVMCurActor->position.vz >> 16;
-
-    pSpriteData->position.x = g_FieldScriptVMCurActor->position.vx;
-    pSpriteData->position.y = g_FieldScriptVMCurActor->position.vy;
-    pSpriteData->position.z = g_FieldScriptVMCurActor->position.vz;
-
-    g_FieldScriptVMCurActor->scriptInstructionPointer += 8;
+    pFieldActor->transformMatrix.t[0] = (s16)(actor->position.vx >> 16);
+    pFieldActor->transformMatrix.t[1] = (s16)(actor->position.vy >> 16);
+    pFieldActor->transformMatrix.t[2] = (s16)(actor->position.vz >> 16);
+    pSpriteData->position.x = actor->position.vx;
+    pSpriteData->position.y = actor->position.vy;
+    pSpriteData->position.z = actor->position.vz;
+    actor->scriptInstructionPointer += 8;
 }
 #endif /* XENO_PC_PORT */
 
@@ -663,109 +679,128 @@ extern s32 D_800B00C0;
 #ifndef XENO_PC_PORT
 INCLUDE_ASM("asm/field/nonmatchings/main/misc7", func_80098CAC);
 #else
-void func_80098CAC(s32 arg0) {
-    IVEC3 prevPosition;
-    s16 rotation;
-    s32 animationId;
-    s32 scriptArg2;
-    s32 scriptArg1;
-    s32 scriptArg3;
-    s32 speed;
-    SpriteData* pSprite;
-    FieldActor* pFieldActor;
-    ActorData *pActorData;
+extern void func_800821F4(void* pSpriteData, s16 animIndex, void* pFieldActor);
+extern void func_80081F80(void* pSpriteData, s16 angle, void* pFieldActor);
 
-    pFieldActor = g_FieldActors;
-    pActorData = (ActorData*)(uintptr_t)pFieldActor[D_800AFD1C].pActorData;
-    pSprite = (SpriteData*)(uintptr_t)pFieldActor[D_800AFD1C].pSpriteData;
-    if (pActorData->flags & 0x2000) {
-        speed = CONV_TO_GTE(0x8000000 / g_FieldScriptVMCurActor->moveSpeed);
+void func_80098CAC(s32 arg0) {
+    /* Instruction-faithful to retail 80098CAC-80099210.  Retail `div` has no
+     * break guard: moveSpeed == 0 and the INT_MIN / -1 cases use the R3000
+     * results (MIPS_DIV); position/step arithmetic wraps as u32. */
+    FieldActor* pFieldActor;
+    SpriteData* pSprite;
+    ActorData* actor;
+    u8* script;
+    u16 ip;
+    s32 speed;
+    s32 animationId;
+    s32 x, y, z;
+    s32 quotient;
+    s32 dvx, dvy, dvz;
+    s32 prevX, prevY, prevZ;
+    s32 value;
+
+    pFieldActor = &g_FieldActors[D_800AFD1C];
+    pSprite = (SpriteData*)(uintptr_t)pFieldActor->pSpriteData;
+    if (((ActorData*)(uintptr_t)pFieldActor->pActorData)->flags & 0x2000) {
+        speed = MIPS_DIV(0x8000000, g_FieldScriptVMCurActor->moveSpeed) >> 16;
     } else {
-        speed = CONV_TO_GTE(0x4000000 / g_FieldScriptVMCurActor->moveSpeed);
+        speed = MIPS_DIV(0x4000000, g_FieldScriptVMCurActor->moveSpeed) >> 16;
     }
     if (speed == 0) {
         speed = 1;
     }
-    
-    animationId = 1;
-    g_FieldScriptVMCurActor->scriptFlags.fields.scriptFlags_0xX = 1;
-    if (SCRIPT_READ_U8_REL(1) == 0) {
-        scriptArg1 = CONV_FROM_GTE(FieldScriptArgument1(2, SCRIPT_READ_U8_REL(0x8)));
-        scriptArg2 = CONV_FROM_GTE(FieldScriptArgument2(4, SCRIPT_READ_U8_REL(0x8)));
-        scriptArg3 = CONV_FROM_GTE(FieldScriptArgument3(6, SCRIPT_READ_U8_REL(0x8)));
-        g_FieldScriptVMCurActor->unk102 = FieldGetVec3Magnitude(
-            CONV_TO_GTE(scriptArg1 - g_FieldScriptVMCurActor->position.vx), 
-            CONV_TO_GTE(scriptArg3 - g_FieldScriptVMCurActor->position.vy), 
-            CONV_TO_GTE(scriptArg2 - g_FieldScriptVMCurActor->position.vz)
-        ) / speed;
 
-        if (CONV_FROM_GTE(g_FieldScriptVMCurActor->unk102) == 0) {
-            g_FieldScriptVMCurActor->unk102++;
+    actor = g_FieldScriptVMCurActor;
+    script = (u8*)g_FieldScriptVMCurScriptData;
+    ip = actor->scriptInstructionPointer;
+    actor->scriptFlags.flags |= 0x10000;
+    animationId = 1;
+    if (script[ip + 1] == 0) {
+        x = (s32)((u32)FieldScriptArgument1(2, script[ip + 8]) << 16);
+        z = (s32)((u32)FieldScriptArgument2(4, SCRIPT_READ_U8_REL(8)) << 16);
+        y = (s32)((u32)FieldScriptArgument3(6, SCRIPT_READ_U8_REL(8)) << 16);
+        actor = g_FieldScriptVMCurActor;
+        quotient = MIPS_DIV((s32)FieldGetVec3Magnitude(
+                                (s32)((u32)x - (u32)actor->position.vx) >> 16,
+                                (s32)((u32)y - (u32)actor->position.vy) >> 16,
+                                (s32)((u32)z - (u32)actor->position.vz) >> 16),
+                            speed);
+        actor = g_FieldScriptVMCurActor;
+        actor->unk102 = (s16)quotient;
+        if ((s16)quotient == 0) {
+            actor->unk102 = (s16)((u32)quotient + 1);
         }
-        
-        g_FieldScriptVMCurActor->unkD0.vx = (scriptArg1 - g_FieldScriptVMCurActor->position.vx) / g_FieldScriptVMCurActor->unk102;
-        g_FieldScriptVMCurActor->unkD0.vy = (scriptArg3 - g_FieldScriptVMCurActor->position.vy) / g_FieldScriptVMCurActor->unk102;
-        g_FieldScriptVMCurActor->unkD0.vz = (scriptArg2 - g_FieldScriptVMCurActor->position.vz) / g_FieldScriptVMCurActor->unk102;
-        if (CONV_TO_GTE(scriptArg1) != CONV_TO_GTE(g_FieldScriptVMCurActor->position.vx) || 
-            CONV_TO_GTE(scriptArg2) != CONV_TO_GTE(g_FieldScriptVMCurActor->position.vz)
-        ) {
-            rotation = -ratan2(
-                CONV_TO_GTE(g_FieldScriptVMCurActor->unkD0.vz), 
-                CONV_TO_GTE(g_FieldScriptVMCurActor->unkD0.vx)
-            );
-            g_FieldScriptVMCurActor->rotation.vx = rotation;
-            g_FieldScriptVMCurActor->rotation.vy = rotation;
+
+        actor = g_FieldScriptVMCurActor;
+        dvx = MIPS_DIV((s32)((u32)x - (u32)actor->position.vx), actor->unk102);
+        dvy = MIPS_DIV((s32)((u32)y - (u32)actor->position.vy), actor->unk102);
+        dvz = MIPS_DIV((s32)((u32)z - (u32)actor->position.vz), actor->unk102);
+        actor->unkD0.vy = dvy;
+        actor->unkD0.vx = dvx;
+        actor->unkD0.vz = dvz;
+        if ((x >> 16) != (s16)(actor->position.vx >> 16) ||
+            (z >> 16) != (s16)(actor->position.vz >> 16)) {
+            value = ratan2(dvz >> 16, (s16)(actor->unkD0.vx >> 16));
+            g_FieldScriptVMCurActor->rotation.vx = (s16)(0u - (u32)value);
+            g_FieldScriptVMCurActor->rotation.vy = (s16)(0u - (u32)value);
         }
         g_FieldScriptVMCurActor->scriptInstructionPointer += 9;
     } else {
-        if (g_FieldScriptVMCurActor->unk102 <= 0 || g_FieldScriptVMCurActor->scripts[g_FieldScriptVMCurActor->curScriptIndex].flags_0 == 0) {
-            g_FieldScriptVMCurActor->scriptInstructionPointer -= 9;
-            if (g_FieldScriptVMCurActor->scripts[g_FieldScriptVMCurActor->curScriptIndex].flags_0 != 0) {
-                prevPosition.x = g_FieldScriptVMCurActor->position.vx;
-                prevPosition.y = g_FieldScriptVMCurActor->position.vy;
-                prevPosition.z = g_FieldScriptVMCurActor->position.vz;
-                g_FieldScriptVMCurActor->position.vx = CONV_FROM_GTE(FieldScriptArgument1(2, SCRIPT_READ_U8_REL(0x8)));
-                g_FieldScriptVMCurActor->position.vz = CONV_FROM_GTE(FieldScriptArgument2(4, SCRIPT_READ_U8_REL(0x8)));
-                g_FieldScriptVMCurActor->position.vy = CONV_FROM_GTE(FieldScriptArgument3(6, SCRIPT_READ_U8_REL(0x8)));
-                g_FieldScriptVMCurActor->moveModified.vx = g_FieldScriptVMCurActor->position.vx - prevPosition.x;
-                g_FieldScriptVMCurActor->moveModified.vy = g_FieldScriptVMCurActor->position.vy - prevPosition.y;
-                g_FieldScriptVMCurActor->moveModified.vz = g_FieldScriptVMCurActor->position.vz - prevPosition.z;
+        if (actor->unk102 <= 0 || actor->scripts[actor->curScriptIndex].flags_0 == 0) {
+            actor->scriptInstructionPointer = (u16)(ip - 9);
+            if (actor->scripts[actor->curScriptIndex].flags_0 != 0) {
+                prevX = actor->position.vx;
+                prevY = actor->position.vy;
+                prevZ = actor->position.vz;
+                value = FieldScriptArgument1(2, SCRIPT_READ_U8_REL(8));
+                g_FieldScriptVMCurActor->position.vx = (s32)((u32)value << 16);
+                value = FieldScriptArgument2(4, SCRIPT_READ_U8_REL(8));
+                g_FieldScriptVMCurActor->position.vz = (s32)((u32)value << 16);
+                value = FieldScriptArgument3(6, SCRIPT_READ_U8_REL(8));
+                actor = g_FieldScriptVMCurActor;
+                actor->position.vy = (s32)((u32)value << 16);
+                actor->moveModified.vx = (s32)((u32)actor->position.vx - (u32)prevX);
+                actor->moveModified.vy = (s32)((u32)actor->position.vy - (u32)prevY);
+                actor->moveModified.vz = (s32)((u32)actor->position.vz - (u32)prevZ);
             }
-            animationId = g_FieldScriptVMCurActor->defaultAnimationId;
+            actor = g_FieldScriptVMCurActor;
+            animationId = actor->defaultAnimationId;
             if (arg0 == 0) {
-                g_FieldScriptVMCurActor->scriptInstructionPointer += 0xB;
+                actor->scriptInstructionPointer += 0xB;
             } else {
-                g_FieldScriptVMCurActor->scriptInstructionPointer += 0xD;
+                actor->scriptInstructionPointer += 0xD;
             }
-            g_FieldScriptVMCurActor->scripts[g_FieldScriptVMCurActor->curScriptIndex].flags_0 = 0xFFFF;
+            actor = g_FieldScriptVMCurActor;
+            actor->scripts[actor->curScriptIndex].flags_0 = 0xFFFF;
         } else {
-            g_FieldScriptVMCurActor->position.vx += g_FieldScriptVMCurActor->unkD0.vx;
-            g_FieldScriptVMCurActor->position.vz += g_FieldScriptVMCurActor->unkD0.vz;
-            g_FieldScriptVMCurActor->position.vy +=  g_FieldScriptVMCurActor->unkD0.vy;
-            g_FieldScriptVMCurActor->moveModified.vx = g_FieldScriptVMCurActor->unkD0.vx;
-            g_FieldScriptVMCurActor->moveModified.vy = g_FieldScriptVMCurActor->unkD0.vy;
-            g_FieldScriptVMCurActor->moveModified.vz = g_FieldScriptVMCurActor->unkD0.vz;
-            g_FieldScriptVMCurActor->scripts[g_FieldScriptVMCurActor->curScriptIndex].flags_0--;
+            actor->position.vx = (s32)((u32)actor->position.vx + (u32)actor->unkD0.vx);
+            actor->position.vz = (s32)((u32)actor->position.vz + (u32)actor->unkD0.vz);
+            actor->position.vy = (s32)((u32)actor->position.vy + (u32)actor->unkD0.vy);
+            actor->moveModified.vy = actor->unkD0.vy;
+            actor->moveModified.vz = actor->unkD0.vz;
+            actor->moveModified.vx = actor->unkD0.vx;
             D_800B00C0 = 1;
+            actor->scripts[actor->curScriptIndex].flags_0--;
         }
-        g_FieldScriptVMCurActor->unk102--;
-        g_FieldActors[D_800AFD1C].transformMatrix.t[0] = CONV_TO_GTE(g_FieldScriptVMCurActor->position.vx);
-        g_FieldActors[D_800AFD1C].transformMatrix.t[1] = CONV_TO_GTE(g_FieldScriptVMCurActor->position.vy);
-        g_FieldActors[D_800AFD1C].transformMatrix.t[2] = CONV_TO_GTE(g_FieldScriptVMCurActor->position.vz);
-        pSprite->position.x = g_FieldScriptVMCurActor->position.vx;
-        pSprite->position.y = g_FieldScriptVMCurActor->position.vy;
-        pSprite->position.z = g_FieldScriptVMCurActor->position.vz;
+
+        actor = g_FieldScriptVMCurActor;
+        actor->unk102 = (s16)((u16)actor->unk102 - 1);
+        pFieldActor = &g_FieldActors[D_800AFD1C];
+        pFieldActor->transformMatrix.t[0] = (s16)(actor->position.vx >> 16);
+        pFieldActor->transformMatrix.t[1] = (s16)(actor->position.vy >> 16);
+        pFieldActor->transformMatrix.t[2] = (s16)(actor->position.vz >> 16);
+        pSprite->position.x = actor->position.vx;
+        pSprite->position.y = actor->position.vy;
+        pSprite->position.z = actor->position.vz;
     }
-    
-    if (g_FieldScriptVMCurActor->unkAnimationId != 0xFF) {
-        animationId = g_FieldScriptVMCurActor->unkAnimationId;
+
+    actor = g_FieldScriptVMCurActor;
+    if (actor->unkAnimationId != 0xFF) {
+        animationId = actor->unkAnimationId;
     }
-    
-    if (g_FieldScriptVMCurActor->curAnimationId != animationId &&  
-        !g_FieldScriptVMCurActor->scriptFlags.fields.scriptFlags_0x18
-    ) {
-        g_FieldScriptVMCurActor->curAnimationId = animationId;
-        func_800821F4(pSprite, animationId, D_800B06B8, g_FieldScriptVMCurActor);
+    if (actor->curAnimationId != animationId && !(actor->scriptFlags.flags & 0x2000000)) {
+        actor->curAnimationId = animationId;
+        func_800821F4(pSprite, animationId, D_800B06B8);
     }
     func_80081F80(pSprite, g_FieldScriptVMCurActor->rotation.vx, D_800B06B8);
 }
@@ -787,211 +822,160 @@ void func_80098CAC(s32 arg0) {
 INCLUDE_ASM("asm/field/nonmatchings/main/misc7", func_80099214);
 #else
 void func_80099214(void) {
-    FieldActor* fieldActor;
-    SpriteData* sprite;
+    /* Instruction-faithful to retail 80099214-8009997C.  Retail `div` has no
+     * break guard (step count 0 / -1 and INT_MIN / -1 use the R3000 results
+     * via MIPS_DIV); `mult` keeps the low word; `x << 16`, position and step
+     * arithmetic wrap as u32.  out/state mirror the retail stack rows
+     * (sp+0x58 stride 8, sp+0x18 stride 16) handed to func_8007B1C4. */
     ActorData* actor;
+    FieldActor* pFieldActor;
+    u8* sprite;
+    u8* script;
+    u16 ip;
     u8 modeByte;
-    u8 mode;
-    u8 argMask;
-    s32 targetX;
-    s32 targetZ;
-    s32 targetY;
+    s32 mode;
+    s32 x, y, z;
     s32 stepCount;
     s32 walkmeshId;
-    s32 stepVy;
-    s32 dx;
-    s32 dz;
-    s32 i;
-    s32 state[4][4];
-    s16 out[4][4];
-    s16* outRow;
     s32 negDuration;
     s32 yDelta;
-    s32 tmp;
+    s32 dx, dz;
+    s32 value;
+    s32 i;
+    s16 out[4][4];
+    s32 state[4][4];
 
-    fieldActor = &g_FieldActors[D_800AFD1C];
-    sprite = (SpriteData*)(uintptr_t)fieldActor->pSpriteData;
     actor = g_FieldScriptVMCurActor;
-
+    script = (u8*)g_FieldScriptVMCurScriptData;
+    ip = actor->scriptInstructionPointer;
+    sprite = (u8*)(uintptr_t)g_FieldActors[D_800AFD1C].pSpriteData;
     actor->scriptFlags.flags |= 0x10000;
-    modeByte = SCRIPT_READ_U8_REL(1);
+    modeByte = script[ip + 1];
     mode = modeByte & 3;
 
     if (mode == 1) {
-        /* Absolute X/Z + speed → step count from XZ distance. */
-        argMask = SCRIPT_READ_U8_REL(0xA);
-        targetX = FieldScriptArgument1(2, argMask);
-        argMask = SCRIPT_READ_U8_REL(0xA);
-        targetZ = FieldScriptArgument2(4, argMask);
-        dx = (targetX << 16) - actor->position.vx;
-        dz = (targetZ << 16) - actor->position.vz;
-        argMask = SCRIPT_READ_U8_REL(0xA);
-        stepCount = FieldScriptArgument4(8, argMask);
-        stepCount = FieldGetVec2Magnitude(dx >> 16, dz >> 16) / stepCount;
-        goto shared_init;
-    }
-
-    if (mode >= 2) {
-        if (mode == 2) {
-            /* Gravity arc: step count from SquareRoot0 chain; shared_init
-             * re-reads targets and recomputes step.vy. */
-            argMask = SCRIPT_READ_U8_REL(0xA);
-            FieldScriptArgument1(2, argMask);
-            argMask = SCRIPT_READ_U8_REL(0xA);
-            FieldScriptArgument2(4, argMask);
-            argMask = SCRIPT_READ_U8_REL(0xA);
-            targetY = FieldScriptArgument3(6, argMask);
-            argMask = SCRIPT_READ_U8_REL(0xA);
-            negDuration = -FieldScriptArgument4(8, argMask);
-
-            /* asm: lh gravity@+0x1E (high half), SquareRoot0(hi * -2*arg4),
-             * stash -(sqrt<<16) into step.vy (overwritten by shared_init),
-             * discard SquareRoot0(-arg4), stepCount = SquareRoot0(|-arg4 - dy|). */
-            tmp = (s16)(sprite->gravity >> 16);
-            yDelta = (targetY << 16) - actor->position.vy;
-            tmp = SquareRoot0(tmp * (negDuration << 1));
-            sprite->step.y = -(tmp << 16);
-            SquareRoot0(negDuration);
-
-            tmp = negDuration - (yDelta >> 16);
-            if (tmp < 0) {
-                tmp = -tmp;
-            }
-            stepCount = SquareRoot0(tmp);
-            if (stepCount < 0) {
-                stepCount = -stepCount;
-            }
-            goto shared_init;
+        x = FieldScriptArgument1(2, script[ip + 0xA]);
+        z = FieldScriptArgument2(4, SCRIPT_READ_U8_REL(0xA));
+        actor = g_FieldScriptVMCurActor;
+        dx = (s32)(((u32)x << 16) - (u32)actor->position.vx);
+        dz = (s32)(((u32)z << 16) - (u32)actor->position.vz);
+        stepCount = FieldScriptArgument4(8, SCRIPT_READ_U8_REL(0xA));
+        stepCount = MIPS_DIV((s32)FieldGetVec2Magnitude(dx >> 16, dz >> 16), stepCount);
+    } else if (mode == 0) {
+        stepCount = FieldScriptArgument4(8, script[ip + 0xA]);
+    } else if (mode == 2) {
+        FieldScriptArgument1(2, script[ip + 0xA]);
+        FieldScriptArgument2(4, SCRIPT_READ_U8_REL(0xA));
+        y = FieldScriptArgument3(6, SCRIPT_READ_U8_REL(0xA));
+        negDuration = (s32)(0u - (u32)FieldScriptArgument4(8, SCRIPT_READ_U8_REL(0xA)));
+        value = *(s16*)(sprite + 0x1E);
+        yDelta = (s32)(((u32)y << 16) - (u32)g_FieldScriptVMCurActor->position.vy);
+        value = SquareRoot0((s32)((u32)value * ((u32)negDuration << 1)));
+        *(s32*)(sprite + 0x10) = (s32)(0u - ((u32)value << 16));
+        SquareRoot0(negDuration);
+        value = (s32)((u32)negDuration - (u32)(yDelta >> 16));
+        if (value < 0) {
+            value = (s32)(0u - (u32)value);
         }
-
-        if (mode == 3) {
-            if (modeByte == 0xF) {
-                /* Cleanup: refresh walkmesh triangle ids, clear jump flags. */
-                for (i = 0; i < D_800AFB54 - 1; i++) {
-                    actor->walkmeshTriIds[i] = func_8007B1C4(
-                        (s16)(actor->position.vx >> 16),
-                        (s16)(actor->position.vz >> 16),
-                        i,
-                        out[i],
-                        state[i]
-                    );
-                }
-                actor->scriptFlags.flags &= ~0x10000;
-                actor->flags &= ~0x200000;
-                actor->scriptInstructionPointer += 2;
-                D_800B00C0 = 1;
-                return;
+        stepCount = SquareRoot0(value);
+        if (stepCount < 0) {
+            stepCount = (s32)(0u - (u32)stepCount);
+        }
+    } else {
+        if (modeByte == 0xF) {
+            /* Cleanup: refresh walkmesh triangle ids (loop bound re-read). */
+            for (i = 0; i < D_800AFB54 - 1; i++) {
+                actor = g_FieldScriptVMCurActor;
+                value = func_8007B1C4((s16)(actor->position.vx >> 16), (s16)(actor->position.vz >> 16),
+                                      i, out[i], state[i]);
+                g_FieldScriptVMCurActor->walkmeshTriIds[i] = (u16)value;
             }
-
-            /* Continue / complete tick. */
-            if (actor->unk102 < (s16)actor->unkE0) {
-                actor->position.vx += actor->unkD0.vx;
-                actor->position.vz += actor->unkD0.vz;
-                actor->position.vy += sprite->step.y;
-                sprite->step.y += sprite->gravity;
-
-                if (actor->unkD0.vx != 0 || actor->unkD0.vz != 0) {
-                    if (!(actor->scriptFlags.flags & 0x8000)) {
-                        tmp = func_8007B694((s32*)&actor->unkD0) | 0x8000;
-                        actor->rotation.vx = tmp;
-                        actor->rotation.vy = tmp;
-                    }
-                }
-            } else {
-                /* Rewind to the paired init opcode to re-read snap targets. */
-                actor->scriptInstructionPointer -= 0xB;
-
-                argMask = SCRIPT_READ_U8_REL(0xA);
-                targetX = FieldScriptArgument1(2, argMask);
-                argMask = SCRIPT_READ_U8_REL(0xA);
-                targetZ = FieldScriptArgument2(4, argMask);
-
-                if (SCRIPT_READ_U8_REL(1) & 0x80) {
-                    argMask = SCRIPT_READ_U8_REL(0xA);
-                    walkmeshId = FieldScriptArgument3(6, argMask);
-                    outRow = out[walkmeshId];
-                    actor->walkmeshTriIds[walkmeshId] = func_8007B1C4(
-                        targetX,
-                        targetZ,
-                        walkmeshId,
-                        outRow,
-                        state[walkmeshId]
-                    );
-                    targetY = outRow[1];
-                } else {
-                    argMask = SCRIPT_READ_U8_REL(0xA);
-                    targetY = FieldScriptArgument3(6, argMask);
-                }
-
-                sprite->step.y = 0;
-                actor->position.vx = targetX << 16;
-                actor->position.vy = targetY << 16;
-                actor->position.vz = targetZ << 16;
-                actor->scriptFlags.flags &= ~0x10000;
-                actor->flags &= ~0x200000;
-                actor->scriptInstructionPointer += 0xD;
-            }
-
-            /* Sync field actor transform + sprite position; bump step index. */
-            fieldActor->transformMatrix.t[0] = actor->position.vx >> 16;
-            fieldActor->transformMatrix.t[1] = actor->position.vy >> 16;
-            fieldActor->transformMatrix.t[2] = actor->position.vz >> 16;
-            sprite->position.x = actor->position.vx;
-            sprite->position.y = actor->position.vy;
-            sprite->position.z = actor->position.vz;
-            actor->unk102++;
+            actor = g_FieldScriptVMCurActor;
+            actor->scriptFlags.flags &= 0xFFFEFFFF;
+            actor->flags &= 0xFFDFFFFF;
+            actor->scriptInstructionPointer += 2;
             D_800B00C0 = 1;
             return;
         }
 
+        if (actor->unk102 < (s16)actor->unkE0) {
+            actor->position.vx = (s32)((u32)actor->position.vx + (u32)actor->unkD0.vx);
+            actor->position.vz = (s32)((u32)actor->position.vz + (u32)actor->unkD0.vz);
+            actor->position.vy = (s32)((u32)actor->position.vy + *(u32*)(sprite + 0x10));
+            *(u32*)(sprite + 0x10) = *(u32*)(sprite + 0x10) + *(u32*)(sprite + 0x1C);
+            if (actor->unkD0.vx != 0 || actor->unkD0.vz != 0) {
+                if (!(actor->scriptFlags.flags & 0x8000)) {
+                    value = func_8007B694((s32*)&actor->unkD0) | 0x8000;
+                    g_FieldScriptVMCurActor->rotation.vx = (s16)value;
+                    g_FieldScriptVMCurActor->rotation.vy = (s16)value;
+                }
+            }
+        } else {
+            /* Rewind to the paired init opcode to re-read the snap target. */
+            actor->scriptInstructionPointer = (u16)(ip - 0xB);
+            x = FieldScriptArgument1(2, script[(u16)(ip - 0xB) + 0xA]);
+            z = FieldScriptArgument2(4, SCRIPT_READ_U8_REL(0xA));
+            if (SCRIPT_READ_U8_REL(1) & 0x80) {
+                walkmeshId = FieldScriptArgument3(6, SCRIPT_READ_U8_REL(0xA));
+                value = func_8007B1C4(x, z, walkmeshId, out[walkmeshId], state[walkmeshId]);
+                g_FieldScriptVMCurActor->walkmeshTriIds[walkmeshId] = (u16)value;
+                y = out[walkmeshId][1];
+            } else {
+                y = FieldScriptArgument3(6, SCRIPT_READ_U8_REL(0xA));
+            }
+            actor = g_FieldScriptVMCurActor;
+            *(s32*)(sprite + 0x10) = 0;
+            actor->position.vx = (s32)((u32)x << 16);
+            actor->position.vy = (s32)((u32)y << 16);
+            actor->position.vz = (s32)((u32)z << 16);
+            actor->scriptFlags.flags &= 0xFFFEFFFF;
+            actor->scriptInstructionPointer += 0xD;
+            actor->flags &= 0xFFDFFFFF;
+        }
+
+        actor = g_FieldScriptVMCurActor;
+        pFieldActor = &g_FieldActors[D_800AFD1C];
+        pFieldActor->transformMatrix.t[0] = (s16)(actor->position.vx >> 16);
+        pFieldActor->transformMatrix.t[1] = (s16)(actor->position.vy >> 16);
+        pFieldActor->transformMatrix.t[2] = (s16)(actor->position.vz >> 16);
+        *(s32*)(sprite + 0x0) = actor->position.vx;
+        *(s32*)(sprite + 0x4) = actor->position.vy;
+        *(s32*)(sprite + 0x8) = actor->position.vz;
+        actor->unk102 = (s16)((u16)actor->unk102 + 1);
         D_800B00C0 = 1;
         return;
     }
 
-    if (mode != 0) {
-        D_800B00C0 = 1;
-        return;
-    }
-
-    /* Mode 0: step count from arg4. */
-    argMask = SCRIPT_READ_U8_REL(0xA);
-    stepCount = FieldScriptArgument4(8, argMask);
-
-shared_init:
+    /* Shared init (retail 800992E4). */
     if (stepCount == 0) {
         stepCount = 1;
     }
-
-    argMask = SCRIPT_READ_U8_REL(0xA);
-    targetX = FieldScriptArgument1(2, argMask);
-    argMask = SCRIPT_READ_U8_REL(0xA);
-    targetZ = FieldScriptArgument2(4, argMask);
-
+    x = FieldScriptArgument1(2, SCRIPT_READ_U8_REL(0xA));
+    z = FieldScriptArgument2(4, SCRIPT_READ_U8_REL(0xA));
     if (SCRIPT_READ_U8_REL(1) & 0x80) {
-        argMask = SCRIPT_READ_U8_REL(0xA);
-        walkmeshId = FieldScriptArgument3(6, argMask);
-        outRow = out[walkmeshId];
-        func_8007B1C4(targetX, targetZ, walkmeshId, outRow, state[walkmeshId]);
-        targetY = outRow[1];
-        actor->walkmeshId = walkmeshId;
+        walkmeshId = FieldScriptArgument3(6, SCRIPT_READ_U8_REL(0xA));
+        func_8007B1C4(x, z, walkmeshId, out[walkmeshId], state[walkmeshId]);
+        y = out[walkmeshId][1];
+        g_FieldScriptVMCurActor->walkmeshId = (s16)walkmeshId;
     } else {
-        argMask = SCRIPT_READ_U8_REL(0xA);
-        targetY = FieldScriptArgument3(6, argMask);
+        y = FieldScriptArgument3(6, SCRIPT_READ_U8_REL(0xA));
     }
 
-    /* Initial vertical velocity: -gravity*steps/2, then add Y lerp term. */
-    stepVy = (s32)sprite->gravity * stepCount;
-    stepVy = (stepVy + ((u32)stepVy >> 31)) >> 1;
-    stepVy = -stepVy;
-    sprite->step.y = stepVy;
-    sprite->step.y = stepVy + ((targetY << 16) - actor->position.vy) / stepCount;
-
+    actor = g_FieldScriptVMCurActor;
+    value = (s32)(*(u32*)(sprite + 0x1C) * (u32)stepCount);
+    value = (s32)((u32)value + ((u32)value >> 31)) >> 1;
+    value = (s32)(0u - (u32)value);
+    *(s32*)(sprite + 0x10) = value;
+    *(s32*)(sprite + 0x10) = (s32)((u32)value +
+        (u32)MIPS_DIV((s32)(((u32)y << 16) - (u32)actor->position.vy), stepCount));
+    dx = MIPS_DIV((s32)(((u32)x << 16) - (u32)actor->position.vx), (s32)((u32)stepCount + 1));
+    dz = MIPS_DIV((s32)(((u32)z << 16) - (u32)actor->position.vz), (s32)((u32)stepCount + 1));
     actor->unkD0.vy = 0;
-    actor->unkE0 = stepCount;
+    actor->unkE0 = (u16)stepCount;
     actor->unk102 = 0;
     actor->scriptInstructionPointer += 0xB;
-    actor->unkD0.vx = ((targetX << 16) - actor->position.vx) / (stepCount + 1);
-    actor->unkD0.vz = ((targetZ << 16) - actor->position.vz) / (stepCount + 1);
+    actor->unkD0.vx = dx;
+    actor->unkD0.vz = dz;
     D_800B00C0 = 1;
 }
 #endif /* XENO_PC_PORT */
@@ -1283,10 +1267,8 @@ void func_8009A1AC(void) {
 
 extern s32 D_8005A444[];
 
-#ifndef XENO_PC_PORT
-INCLUDE_ASM("asm/field/nonmatchings/main/misc7", func_8009A1E4);
-#else
 void func_8009A1E4(void) {
+#ifdef XENO_PC_PORT
     void* pActor = g_FieldScriptVMCurActor;
     u8* pScriptData = (u8*)g_FieldScriptVMCurScriptData;
     u8 arg = *(u8*)(pScriptData + *(u16*)((u8*)pActor + 0xCC) + 1);
@@ -1302,8 +1284,20 @@ void func_8009A1E4(void) {
         *(u16*)((u8*)pActor + 0x106) = (u16)angle;
     }
     g_FieldScriptVMCurActor->scriptInstructionPointer += 2;
+#else
+    /* Retail reloads g_FieldScriptVMCurActor after the ratan2 call and again for
+     * the IP advance, so the global is read at each use instead of being cached. */
+    s32 targetIdx = D_8005A444[SCRIPT_READ_U8_REL(1)];
+    if (targetIdx != 0xFF) {
+        ActorData* target = (ActorData*)(uintptr_t)g_FieldActors[targetIdx].pActorData;
+        s16 angle = -ratan2(target->position.vz - g_FieldScriptVMCurActor->position.vz,
+                            target->position.vx - g_FieldScriptVMCurActor->position.vx) | 0x8000;
+        g_FieldScriptVMCurActor->rotation.vx = angle;
+        g_FieldScriptVMCurActor->rotation.vy = angle;
+    }
+    g_FieldScriptVMCurActor->scriptInstructionPointer += 2;
+#endif
 }
-#endif /* XENO_PC_PORT */
 
 /* Opcode 0x6F (OP_ROTATE_TO_ACTOR), asm 8009A2A8-8009A348 line-verified.
  * Turn the current actor to face the target actor named by script byte +1,
@@ -1334,22 +1328,27 @@ void func_8009A2A8(void) {
 INCLUDE_ASM("asm/field/nonmatchings/main/misc7", func_8009A34C);
 #else
 void func_8009A34C(void) {
+    /* Instruction-faithful to retail 8009A34C-8009A41C: the divisor is the
+     * re-read halfword at g_Scene+0x8C (1..255, never zero); the tween delta
+     * `-((scale - target) << 16)` wraps as u32 (retail subu/sll/negu). */
     s32 duration;
     s32 targetAngle;
+    s32 scale;
+    s32 delta;
 
     duration = SCRIPT_READ_U8_REL(3);
     *(s16*)((u8*)&g_Scene + 0x8C) = duration;
     if (duration == 0) {
-        duration = 1;
-        *(s16*)((u8*)&g_Scene + 0x8C) = duration;
-        D_800B21D8[0] += 2;
+        *(s16*)((u8*)&g_Scene + 0x8C) = duration + 1;
+        D_800B21D8[0] = (s32)((u32)D_800B21D8[0] + 2);
     }
 
     targetAngle = FieldScriptVMGetArgument(1);
-    *(s32*)((u8*)&g_Scene + 0x90) = *(s16*)((u8*)&g_Scene + 0x6E) << 16;
+    scale = *(s16*)((u8*)&g_Scene + 0x6E);
+    delta = MIPS_DIV((s32)(0u - (((u32)scale - (u32)targetAngle) << 16)), *(s16*)((u8*)&g_Scene + 0x8C));
+    *(s32*)((u8*)&g_Scene + 0x90) = (s32)((u32)scale << 16);
     g_Scene.unk48 |= 1;
-    *(s32*)((u8*)&g_Scene + 0x94) = -((*(s16*)((u8*)&g_Scene + 0x6E) - targetAngle) << 16) / duration;
-
+    *(s32*)((u8*)&g_Scene + 0x94) = delta;
     g_FieldScriptVMCurActor->scriptInstructionPointer += 4;
 }
 #endif /* XENO_PC_PORT */
@@ -1511,10 +1510,8 @@ void FieldScriptSetActorRotation(int angle) {
     g_FieldScriptVMCurActor->scriptInstructionPointer += 4;
 }
 
-#ifndef XENO_PC_PORT
-INCLUDE_ASM("asm/field/nonmatchings/main/misc7", func_8009AA00);
-#else
 void func_8009AA00(void) {
+#ifdef XENO_PC_PORT
     s32 idx1 = FieldScriptVMGetActorIndex(1);
     if (idx1 == 0xFF) goto advance;
     {
@@ -1540,8 +1537,23 @@ void func_8009AA00(void) {
     }
 advance:
     g_FieldScriptVMCurActor->scriptInstructionPointer += 3;
+#else
+    if (FieldScriptVMGetActorIndex(1) != 0xFF && FieldScriptVMGetActorIndex(2) != 0xFF) {
+        ActorData* target = (ActorData*)(uintptr_t)g_FieldActors[FieldScriptVMGetActorIndex(2)].pActorData;
+        ActorData* self = (ActorData*)(uintptr_t)g_FieldActors[FieldScriptVMGetActorIndex(1)].pActorData;
+        s16 angle = -ratan2(target->position.vz - self->position.vz,
+                            target->position.vx - self->position.vx) | 0x8000;
+        if (D_800ADB1C == 0) {
+            self->rotation.vx = angle;
+            self->rotation.vy = angle;
+            self->rotation.vz = angle;
+        }
+        self->rotation.vx = angle;
+        self->rotation.vy = angle;
+    }
+    g_FieldScriptVMCurActor->scriptInstructionPointer += 3;
+#endif
 }
-#endif /* XENO_PC_PORT */
 
 void func_8009AB08(int rotation) {
     short rotationValue;
@@ -1650,10 +1662,9 @@ void func_8009AE0C(void) {
 }
 
 /* Start SCRZ (scene+0x68) lerp to target over `duration` frames. */
-#ifndef XENO_PC_PORT
-INCLUDE_ASM("asm/field/nonmatchings/main/misc7", func_8009AE3C);
-#else
+
 void func_8009AE3C(s32 targetScrZ, s32 duration) {
+#ifdef XENO_PC_PORT
     s32 curScrZ;
     s32 delta;
     s32* pFlags;
@@ -1674,12 +1685,29 @@ void func_8009AE3C(s32 targetScrZ, s32 duration) {
 
     pFlags = (s32*)((u8*)&g_Scene + 0x48);
     *pFlags &= ~0x2000;
+#else
+    if (duration != 0) {
+        g_Scene_s16[0x80 / 2] = duration;
+        g_Scene_s32[0x48 / 4] = (s32) (g_Scene_s32[0x48 / 4] | 0x10);
+        g_Scene_s32[0x84 / 4] = (s32) (g_Scene_s32[0x68 / 4] << 0x10);
+        g_Scene_s32[0x88 / 4] = (s32) ((s32) -((g_Scene_s32[0x68 / 4] - targetScrZ) << 0x10) / duration);
+    } else {
+        g_Scene_s32[0x68 / 4] = targetScrZ;
+        g_Scene_s16[0x80 / 2] = 0;
+        D_800B21D8[0] += 2;
+    }
+    g_Scene_s32[0x48 / 4] = (s32) (g_Scene_s32[0x48 / 4] & 0xDFFF);
+#endif
 }
-#endif /* XENO_PC_PORT */
 
 extern s32 D_8005A444[];
 extern s16 D_800B2348;
+#ifdef XENO_PC_PORT
+/* Retail passes the full target words (a0=$s3, a1=$s4 at 8009B0E0). */
+extern void func_8009E574(s32 x, s32 z);
+#else
 extern void func_8009E574(s16 x, s16 z);
+#endif
 
 /* Retail 0x8009AEE0-0x8009B15C. Move one of the three field-party actors
  * toward an integer X/Z target. The return value is the retail poll contract:
@@ -1692,6 +1720,13 @@ s32 func_8009AEE0(s32 partySlot, s32 targetX, s32 targetZ, s32 direction) {
 #ifdef FIELD_VM_AUDIT_MUTANT_PARTY_MOVE_ALWAYS_DONE
     return 0;
 #else
+    /* Instruction-faithful to retail 0x8009AEE0-0x8009B15C.  Move one of the
+     * three field-party actors toward an integer X/Z target; returns -1 while
+     * ordinary movement is still in progress, 0 once the member is absent,
+     * hidden, arrived, or placed through the stuck fallback.  Retail `div`
+     * has no break guard (moveSpeed == 0 -> MIPS_DIV); deltas wrap as u32;
+     * the stuck counter compare is the signed `lh 0x6E; slti 0x41`; and
+     * func_8009E574 receives the full target words (retail a0=$s3, a1=$s4). */
     s32 actorIndex;
     FieldActor* fieldActor;
     ActorData* actor;
@@ -1699,7 +1734,9 @@ s32 func_8009AEE0(s32 partySlot, s32 targetX, s32 targetZ, s32 direction) {
     s32 stepMagnitude;
     s32 distance;
     s32 delta[3];
-    s16 facing;
+    s32 facing;
+    ActorData* savedActor;
+    s32 savedActorIndex;
 
     actorIndex = D_8005A444[partySlot];
     if (actorIndex == ACTOR_ID_INVALID) {
@@ -1714,64 +1751,57 @@ s32 func_8009AEE0(s32 partySlot, s32 targetX, s32 targetZ, s32 direction) {
     sprite = (u8*)(uintptr_t)fieldActor->pSpriteData;
     actor = (ActorData*)(uintptr_t)fieldActor->pActorData;
     if (*(s32*)(sprite + 0x18) == 0) {
-        *(s32*)(sprite + 0x18) = 0x04000000 / actor->moveSpeed;
+        *(s32*)(sprite + 0x18) = MIPS_DIV(0x04000000, actor->moveSpeed);
     }
 
-    stepMagnitude = FieldGetVec1Magnitude(*(s32*)(sprite + 0x18) >> 15) + 1;
-    delta[0] = targetX - CONV_TO_GTE(actor->position.vx);
+    stepMagnitude = (s32)((u32)FieldGetVec1Magnitude(*(s32*)(sprite + 0x18) >> 15) + 1);
+    delta[0] = (s32)((u32)targetX - (u32)(s16)(actor->position.vx >> 16));
     delta[1] = 0;
-    delta[2] = targetZ - CONV_TO_GTE(actor->position.vz);
+    delta[2] = (s32)((u32)targetZ - (u32)(s16)(actor->position.vz >> 16));
     distance = FieldGetVec2Magnitude(delta[0], delta[2]);
     actor->scriptFlags.flags |= 0x400000;
 
     if (stepMagnitude < distance) {
-        if (actor->prevPosition.x == CONV_TO_GTE(actor->position.vx) &&
-            actor->prevPosition.y == CONV_TO_GTE(actor->position.vy) &&
-            actor->prevPosition.z == CONV_TO_GTE(actor->position.vz)) {
+        if (actor->prevPosition.x == (s16)(actor->position.vx >> 16) &&
+            actor->prevPosition.y == (s16)(actor->position.vy >> 16) &&
+            actor->prevPosition.z == (s16)(actor->position.vz >> 16)) {
             actor->unk6E++;
         } else {
             actor->unk6E = 0;
         }
 
-        facing = (s16)func_8007B694(delta);
-        actor->rotation.vx = facing;
-        actor->rotation.vy = facing;
-        if (actor->unk6E < 0x41 && D_800B2348 == 0) {
+        facing = func_8007B694(delta);
+        actor->rotation.vx = (s16)facing;
+        actor->rotation.vy = (s16)facing;
+        if ((s16)actor->unk6E < 0x41 && D_800B2348 == 0) {
             return -1;
         }
 
         /* The placement helper consumes the global current-actor context.
-         * Retail temporarily lends it the party actor, then restores both
-         * publications before completing the arrival epilogue. */
-        {
-            ActorData* savedActor = g_FieldScriptVMCurActor;
-            s32 savedActorIndex = D_800AFD1C;
-            g_FieldScriptVMCurActor = actor;
-            D_800AFD1C = actorIndex;
-            func_8009E574((s16)targetX, (s16)targetZ);
-            g_FieldScriptVMCurActor = savedActor;
-            D_800AFD1C = savedActorIndex;
-        }
+         * Retail temporarily lends it the party actor (index re-read from
+         * D_8005A444), then restores both publications. */
+        savedActor = g_FieldScriptVMCurActor;
+        savedActorIndex = D_800AFD1C;
+        g_FieldScriptVMCurActor = actor;
+        D_800AFD1C = D_8005A444[partySlot];
+        func_8009E574(targetX, targetZ);
+        g_FieldScriptVMCurActor = savedActor;
+        D_800AFD1C = savedActorIndex;
     }
 
     if ((actor->scriptFlags.flags & 0x8000) == 0) {
         if (direction == 0xFF) {
-            facing = actor->rotation.vy | 0x8000;
+            facing = (u16)actor->rotation.vy | 0x8000;
         } else {
             facing = g_FieldAngleToDirectionLUT[direction] | 0x8000;
         }
     } else {
-        facing = actor->unk11C | 0x8000;
+        facing = (u16)actor->unk11C | 0x8000;
     }
-    actor->rotation.vx = facing;
-    actor->rotation.vy = facing;
-#ifdef XENO_PC_PORT
+    actor->rotation.vx = (s16)facing;
+    actor->rotation.vy = (s16)facing;
     actor->position.vx = (s32)((u32)targetX << 16);
     actor->position.vz = (s32)((u32)targetZ << 16);
-#else
-    actor->position.vx = targetX << 16;
-    actor->position.vz = targetZ << 16;
-#endif
     actor->unk6E = 0;
     actor->scriptFlags.flags &= 0xFDDFF7FF;
     return 0;
@@ -1816,10 +1846,8 @@ extern u8 D_800B21CC;
 extern s16 D_800B2348;
 extern void func_8009B338(void);
 
-#ifndef XENO_PC_PORT
-INCLUDE_ASM("asm/field/nonmatchings/main/misc7", func_8009B210);
-#else
 void func_8009B210(void) {
+#ifdef XENO_PC_PORT
     ActorData* pModel =
         (ActorData*)(uintptr_t)g_FieldActors[D_8005A444[0]].pActorData;
     s16 posX = *(s16*)((u8*)pModel + 0x22);
@@ -1843,8 +1871,31 @@ void func_8009B210(void) {
         D_800B21CC = 1;
         g_FieldScriptVMCurActor->scriptInstructionPointer -= 1;
     }
+#else
+    /* Plain-pointer IP updates: as struct fields they are reordered across the
+     * D_800B21CC/D_800B2348 stores (gcc 2.7.2 struct/non-struct alias rule). */
+    ActorData* actor = (ActorData*)(uintptr_t)g_FieldActors[D_8005A444[0]].pActorData;
+    s16 x = *(s16*)((u8*)actor + 0x22);
+    s16 z = *(s16*)((u8*)actor + 0x2A);
+    s32 blocked = func_8009AEE0(0, x, z, 0xFF) == 0;
+    if (func_8009AEE0(1, x, z, 0xFF) == 0) {
+        blocked |= 2;
+    }
+    if (func_8009AEE0(2, x, z, 0xFF) == 0) {
+        blocked |= 4;
+    }
+    D_800B00C0 = 1;
+    if (blocked == 7) {
+        *(u16*)((u8*)g_FieldScriptVMCurActor + 0xCC) += 1;
+        D_800B21CC = 0;
+        D_800B2348 = 0;
+        func_8009B338();
+        return;
+    }
+    D_800B21CC = 1;
+    *(u16*)((u8*)g_FieldScriptVMCurActor + 0xCC) -= 1;
+#endif
 }
-#endif /* XENO_PC_PORT */
 
 extern s32 D_800B2360;
 extern s32 D_800B2364;
@@ -1868,12 +1919,17 @@ void func_8009B338(void) {
 INCLUDE_ASM("asm/field/nonmatchings/main/misc7", func_8009B398);
 #else
 void func_8009B398(void) {
-    u8 argumentMask = SCRIPT_READ_U8_REL(0xD);
+    /* Instruction-faithful to retail 8009B398-8009B660: the argument mask
+     * byte is re-read before every FieldScriptArgumentN call and the three
+     * arguments of each func_8009AEE0 call are evaluated into temporaries in
+     * retail call order (ArgumentN, ArgumentN+1, GetArgument). */
     s32 completeMask;
-    s32 result;
+    s32 targetX;
+    s32 targetZ;
+    s32 direction;
+    s32 i;
 
-    if (FieldScriptArgument1(1, argumentMask) == 0x7FFF) {
-        s32 i;
+    if (FieldScriptArgument1(1, SCRIPT_READ_U8_REL(0xD)) == 0x7FFF) {
 #ifdef FIELD_VM_AUDIT_MUTANT_PARTY_GROUP_IP_1
         g_FieldScriptVMCurActor->scriptInstructionPointer += 1;
 #else
@@ -1885,7 +1941,7 @@ void func_8009B398(void) {
             if (actorIndex != ACTOR_ID_INVALID) {
                 ActorData* actor =
                     (ActorData*)(uintptr_t)g_FieldActors[actorIndex].pActorData;
-                s16 facing = actor->rotation.vy | 0x8000;
+                s16 facing = (s16)((u16)actor->rotation.vy | 0x8000);
                 actor->rotation.vx = facing;
                 actor->rotation.vy = facing;
             }
@@ -1893,31 +1949,22 @@ void func_8009B398(void) {
         return;
     }
 
-    completeMask = 0;
-    result = func_8009AEE0(
-        0,
-        FieldScriptArgument1(1, argumentMask),
-        FieldScriptArgument2(3, argumentMask),
-        FieldScriptVMGetArgument(0xE));
-    if (result == 0) {
-        completeMask |= 1;
-    }
+    targetX = FieldScriptArgument1(1, SCRIPT_READ_U8_REL(0xD));
+    targetZ = FieldScriptArgument2(3, SCRIPT_READ_U8_REL(0xD));
+    direction = FieldScriptVMGetArgument(0xE);
+    completeMask = func_8009AEE0(0, targetX, targetZ, direction) == 0;
 
-    result = func_8009AEE0(
-        1,
-        FieldScriptArgument3(5, argumentMask),
-        FieldScriptArgument4(7, argumentMask),
-        FieldScriptVMGetArgument(0x10));
-    if (result == 0) {
+    targetX = FieldScriptArgument3(5, SCRIPT_READ_U8_REL(0xD));
+    targetZ = FieldScriptArgument4(7, SCRIPT_READ_U8_REL(0xD));
+    direction = FieldScriptVMGetArgument(0x10);
+    if (func_8009AEE0(1, targetX, targetZ, direction) == 0) {
         completeMask |= 2;
     }
 
-    result = func_8009AEE0(
-        2,
-        FieldScriptArgument5(9, argumentMask),
-        FieldScriptArgument6(0xB, argumentMask),
-        FieldScriptVMGetArgument(0x12));
-    if (result == 0) {
+    targetX = FieldScriptArgument5(9, SCRIPT_READ_U8_REL(0xD));
+    targetZ = FieldScriptArgument6(0xB, SCRIPT_READ_U8_REL(0xD));
+    direction = FieldScriptVMGetArgument(0x12);
+    if (func_8009AEE0(2, targetX, targetZ, direction) == 0) {
         completeMask |= 4;
     }
 
@@ -1972,20 +2019,23 @@ void func_8009B708(s32 facingOffset, s32 duration) {
 INCLUDE_ASM("asm/field/nonmatchings/main/misc7", func_8009B7A8);
 #else
 void func_8009B7A8(s32 negative, s32 duration) {
+    /* Retail 8009B7A8-8009B820.  duration is never zero at the div (retail
+     * substitutes 1) and the dividends are +-0x2000000, so the quotient is
+     * defined; the g_Scene+0x7C target wraps as u32 (retail addiu). */
     s32 delta;
     s32 target;
 
     if (duration == 0) {
-        D_800B21D8[0] += 2;
+        D_800B21D8[0] = (s32)((u32)D_800B21D8[0] + 2);
         duration = 1;
     }
 
     if (negative == 0) {
         delta = 0x2000000 / duration;
-        target = *(s32*)((u8*)&g_Scene + 0x7C) + 0x200;
+        target = (s32)(*(u32*)((u8*)&g_Scene + 0x7C) + 0x200);
     } else {
         delta = (s32)0xFE000000 / duration;
-        target = *(s32*)((u8*)&g_Scene + 0x7C) - 0x200;
+        target = (s32)(*(u32*)((u8*)&g_Scene + 0x7C) - 0x200);
     }
 
     *(s32*)((u8*)&g_Scene + 0x7C) = target;
@@ -2011,10 +2061,9 @@ void func_8009B884(void) {
 }
 
 /* Opcode 0xB6 — scripted camera yaw to 8-way facing (instant if D_800ADB1C==0). */
-#ifndef XENO_PC_PORT
-INCLUDE_ASM("asm/field/nonmatchings/main/misc7", func_8009B8E4);
-#else
+
 void func_8009B8E4(void) {
+#ifdef XENO_PC_PORT
     s32 facing = FieldScriptVMGetArgument(1);
     s32 duration = FieldScriptVMGetArgument(3);
 
@@ -2031,8 +2080,25 @@ void func_8009B8E4(void) {
     } else {
         D_800B00C0 = 1;
     }
+#else
+    s32 temp_a1;
+    s32 temp_s0;
+    s16 temp_v0;
+
+    temp_s0 = FieldScriptVMGetArgument(1);
+    temp_a1 = FieldScriptVMGetArgument(3);
+    if (D_800ADB1C == 0) {
+        temp_v0 = (temp_s0 + 4) & 7;
+        g_Scene_s16[0x56 / 2] = (s16) (temp_v0 << 9);
+        g_Scene_s32[0x7C / 4] = (s32) (temp_v0 << 9);
+        g_FieldScriptVMCurActor->scriptInstructionPointer += 5;
+    } else if (g_Scene_s16[0x66 / 2] == 0) {
+        func_8009B708(temp_s0, temp_a1);
+        *(u16 *)((s8*)(g_FieldScriptVMCurActor) + 0xCC) = (u16) (*(u16 *)((s8*)(g_FieldScriptVMCurActor) + 0xCC) + 5);
+    }
+    D_800B00C0 = 1;
+#endif
 }
-#endif /* XENO_PC_PORT */
 
 void func_8009B9A0(void) {
     if (g_Scene_s16[0x66 / 2] == 0) {
@@ -2053,10 +2119,8 @@ void func_8009BA0C(void) {
     }
 }
 
-#ifndef XENO_PC_PORT
-INCLUDE_ASM("asm/field/nonmatchings/main/misc7", func_8009BA7C);
-#else
 void func_8009BA7C(void) {
+#ifdef XENO_PC_PORT
     s32 angle;
     s32 scrZ;
 
@@ -2072,5 +2136,23 @@ void func_8009BA7C(void) {
     SetGeomScreen(scrZ);
 
     g_FieldScriptVMCurActor->scriptInstructionPointer += 7;
+#else
+    s32 t;
+    s16 angle;
+    s32 scrZ;
+
+    *(s16*)((u8*)&g_Scene + 0x6C) = FieldScriptVMGetArgument(3);
+
+    t = (FieldScriptVMGetArgument(1) + 4) & 7;
+    angle = t << 9;
+    *(s32*)((u8*)&g_Scene + 0x7C) = angle;
+    *(s16*)((u8*)&g_Scene + 0x56) = t << 9;
+    *(s32*)((u8*)&g_Scene + 0x60) = angle << 16;
+
+    scrZ = FieldScriptVMGetArgument(5);
+    *(s32*)((u8*)&g_Scene + 0x68) = scrZ;
+    SetGeomScreen(scrZ);
+
+    g_FieldScriptVMCurActor->scriptInstructionPointer += 7;
+#endif
 }
-#endif /* XENO_PC_PORT */

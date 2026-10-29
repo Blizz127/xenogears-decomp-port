@@ -27,8 +27,21 @@ static void t8_sh(u32 a, u16 v) { memcpy(PSX_ADDR(a), &v, 2); }
 
 static s32 t8_sra(s32 value, unsigned shift)
 {
-    /* MIPS sra: arithmetic shift of the two's-complement value. */
-    return value < 0 ? -(((-value) - 1) >> shift) - 1 : value >> shift;
+    /* MIPS sra: arithmetic shift of the two's-complement value, computed in
+     * u32 so INT_MIN input cannot trap (retail sll/sra wrap, never trap). */
+    u32 u = (u32)value;
+    unsigned s = shift & 31u;
+    u32 r = u >> s;
+    if (s != 0u && value < 0)
+        r |= ~((u32)0xFFFFFFFFu >> s);
+    return (s32)r;
+}
+
+/* MIPS sll by 8: logical shift, wraps mod 2^32 (C `<<` on a negative s32
+ * is UB; retail never traps). */
+static s32 t8_sll8(s32 value)
+{
+    return (s32)((u32)value << 8);
 }
 
 void wm_800981C8(u32 pos_vec)
@@ -49,22 +62,24 @@ void wm_800981C8(u32 pos_vec)
         z_tile += 7;
     z_tile = t8_sra(z_tile, 3);
 
-    /* 0x80098210 / 0x80098230: relative to (map + 2) << 8. */
-    tx0 = x_tile - (((s32)t8_lh(D_8009C838) + 2) << 8);
-    tz = z_tile - (((s32)t8_lh(D_8009C83C) + 2) << 8);
+    /* 0x80098210 / 0x80098230: relative to (map + 2) << 8.
+     * Retail subu/addu wrap mod 2^32; the u32 casts below are that wrap
+     * (C signed overflow would trap under UBSan). */
+    tx0 = (s32)((u32)x_tile - (u32)t8_sll8((s32)t8_lh(D_8009C838) + 2));
+    tz = (s32)((u32)z_tile - (u32)t8_sll8((s32)t8_lh(D_8009C83C) + 2));
 
     /* 0x8009822C-0x80098250: wrap x; negative adds, strictly-greater subtracts. */
     if (tx0 < 0)
-        tx0 += width << 8;
-    else if ((width << 8) < tx0)
-        tx0 -= width << 8;
+        tx0 = (s32)((u32)tx0 + (u32)t8_sll8(width));
+    else if (t8_sll8(width) < tx0)
+        tx0 = (s32)((u32)tx0 - (u32)t8_sll8(width));
     /* 0x80098254-0x80098274: wrap z the same way. */
     if (tz < 0)
-        tz += height << 8;
-    else if ((height << 8) < tz)
-        tz -= height << 8;
+        tz = (s32)((u32)tz + (u32)t8_sll8(height));
+    else if (t8_sll8(height) < tz)
+        tz = (s32)((u32)tz - (u32)t8_sll8(height));
 #if defined(WM_981C8_MUTANT_M7)             /* non-strict wrap compare */
-    if (tx0 == (width << 8))
+    if (tx0 == t8_sll8(width))
         tx0 = 0;
 #endif
 
@@ -91,12 +106,12 @@ void wm_800981C8(u32 pos_vec)
             if (!(tz < height))
                 tz = 0;
 #endif
-            row_base = tz * width;                /* 0x8009835C mult */
+            row_base = (s32)((u32)tz * (u32)width); /* 0x8009835C mult: wraps */
             tx = tx0;                             /* 0x8009834C move a3,t3 */
             for (col = 0; col < cols; col++) {
                 if (!(tx < width))                /* 0x80098364-0x80098370 */
                     tx = 0;
-                t8_sh(out, (u16)(row_base + tx)); /* 0x80098378 */
+                t8_sh(out, (u16)((u32)row_base + (u32)tx)); /* 0x80098378 addu */
                 out += 2u;
                 tx++;                             /* 0x80098388 */
             }

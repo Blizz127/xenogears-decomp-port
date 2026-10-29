@@ -11,6 +11,7 @@
 static int s_speed, s_volume_calls, s_binds;
 static char s_bound[64];
 void xg_plat_timing_set_speed(int m) { s_speed = m; }
+void xg_plat_timing_set_speed_from(int m, const char* src) { (void)src; s_speed = m; }
 static int s_ff;
 void xg_plat_timing_set_fast_forward_speed(int m) { s_ff = m; }
 int xg_plat_audio_set_user_volume(int p) { (void)p; s_volume_calls++; return 0; }

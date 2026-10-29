@@ -71,9 +71,9 @@ overlays:
 #  - name: dir_0x10_file_0x7.bin
 #    file_id: 0x07
 #    directory_id: 0x10
-#  - name: dir_0x10_file_0x8.bin
-#    file_id: 0x08
-#    directory_id: 0x10
+  - name: name_entry_menu.bin
+    file_id: 0x08
+    directory_id: 0x10
   - name: shop_menu.bin
     directory_id: 0x10
     file_id: 0x09

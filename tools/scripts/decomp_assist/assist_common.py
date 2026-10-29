@@ -78,9 +78,11 @@ def load_gears_toml():
 def toolchain(ov, seg):
     """cc1, cc1 flags and maspsx flags for src/<ov>/<seg>.c, resolved from
     gears.toml the way gears does: the Default preset's build_variables,
-    overridden by the preset whose path key ({binary} expanded) is a
-    substring of the TU path (the longest key wins, so the result does not
-    depend on table order).  XENO_CC1 / XENO_GP_FLAG still override."""
+    overridden by the first preset (table order) whose path key ({binary}
+    expanded) is a substring of the TU path.  Verified against build.ninja
+    2026-10-03: a "battle/mainl" prefix listed before a "src/battle/mainl110."
+    key won for mainl110, so keep keys unambiguous rather than relying on
+    length.  XENO_CC1 / XENO_GP_FLAG still override."""
     cfg = load_gears_toml()
     binary = cfg['compilation']['binary']
     presets = cfg.get('build_preset', [])
@@ -90,7 +92,7 @@ def toolchain(ov, seg):
     for p in presets:
         for key in p.get('paths', []):
             k = key.replace('{binary}', binary)
-            if k in tu and (best is None or len(k) > len(best[0])):
+            if k in tu and best is None:
                 best = (k, p)
     name = 'Default'
     if best:
@@ -151,10 +153,12 @@ def func_words(obj, name):
     if not sym:
         return None
     off, size = int(sym[0][0], 16), int(sym[0][1], 16)
-    tmp = os.path.join(CACHE, '_text.bin')
-    os.makedirs(CACHE, exist_ok=True)
+    # Per-object temp name: a shared `_text.bin` raced when several m2c_try
+    # runs shared one cache (one worker read another's .text and mis-scored).
+    tmp = obj + '.text.bin'
     subprocess.run(['mips-linux-gnu-objcopy', '-O', 'binary', '-j', '.text', obj, tmp])
     data = open(tmp, 'rb').read()
+    os.unlink(tmp)
     return size, [int.from_bytes(data[off + 4 * i:off + 4 * i + 4], 'little') for i in range(size // 4)]
 
 

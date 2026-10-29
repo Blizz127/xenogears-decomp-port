@@ -1,0 +1,6 @@
+[
+ ("func_8009A34C", "g_Scene.unk48 |= 1;", "g_Scene.unk48 |= 3;"),
+ ("func_8009AEE0", "if ((s16)actor->unk6E < 0x41 && D_800B2348 == 0) {", "if (actor->unk6E < 0x41 && D_800B2348 == 0) {"),
+ ("func_8009B398", "completeMask |= 4;", "completeMask |= 1;"),
+ ("func_8009B7A8", "+ 0x200);", "+ 0x100);"),
+]

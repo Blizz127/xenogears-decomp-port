@@ -19,6 +19,9 @@ static SystemMenu menu;
 static MenuManager manager;
 static u8 work[0x400];
 static u8 listBuf[0xA1C];
+/* Retail image of the guest SystemMenu (retail layout, 0x1E98 bytes).  The
+ * host object has another layout, so guest reads must not overlay it. */
+static u8 retailMenu[0x1E98];
 static u8 renderGuest[0x800];
 static u8 descBundles[4][0x800];
 static u8 ram[0x200000];
@@ -118,7 +121,13 @@ static void init_case(unsigned seed, unsigned ch, unsigned gear, unsigned slot,
     memset(&manager, 0, sizeof manager);
     g_Menu = &menu;
     menu.pManager = &manager;
-    ((u8*)&menu)[0x308] = (u8)(seed & 3);
+    memset(retailMenu, 0, sizeof retailMenu);
+    /* renderContext: the host field for the C body, retail offset 0x308 in
+     * the retail image.  The host object's raw byte 0x308 belongs to another
+     * field; the sentinel there catches a body that reads raw retail offsets. */
+    menu.renderContext = (s32)(seed & 3);
+    ((u8*)&menu)[0x308] = 0xEE;
+    retailMenu[0x308] = (u8)(seed & 3);
     menu.unk42C[2] = (u32)(uintptr_t)listBuf;
     *(u32*)&menu.unk358[8] = (u32)(uintptr_t)work;
     store_ptr((u8*)&menu + 0x360, work);
@@ -169,11 +178,10 @@ static int memory(u32 a, unsigned w, u32* v, int write) {
     }
     if (a >= 0x8006d634 && (uint64_t)a + w <= 0x8006d634 + sizeof stateStorage)
         p = stateStorage + a - 0x8006d634;
-    /* Manager must win over inflated native SystemMenu (0x2318 bytes). */
     else if (a >= 0x80102000 && (uint64_t)a + w <= 0x80102000 + sizeof manager)
         p = (u8*)&manager + a - 0x80102000;
-    else if (a >= 0x80100000 && (uint64_t)a + w <= 0x80100000 + 0x1E98)
-        p = (u8*)&menu + a - 0x80100000;
+    else if (a >= 0x80100000 && (uint64_t)a + w <= 0x80100000 + sizeof retailMenu)
+        p = retailMenu + (a - 0x80100000);
     else if (a >= 0x80104000 && (uint64_t)a + w <= 0x80104000 + sizeof listBuf)
         p = listBuf + a - 0x80104000;
     else if (a >= 0x80105000 && (uint64_t)a + w <= 0x80105000 + sizeof work)

@@ -36,13 +36,15 @@ static void reset(int choice) {
     inputs[0]=4; inputs[1]=5;
 }
 int main(void) {
-    reset(1); inputs[1]=4; inputs[2]=5;
-    func_801C55A0();
-    assert(notices==2 && frames==3 && !teardown && !dispatches);
-    assert(selection.unk1192==0 && menu.menu1Choice==1);
+    /* Retail func_801C55A0: File (entry 1) is dispatched like any entry --
+     * nav teardown, then func_801C531C(0) opens the card screen.  The port
+     * once refused it with a host notice (never reached now). */
+    reset(1); func_801C55A0();
+    assert(notices==0 && teardown==1 && dispatches==1 && frames==2);
+    assert(selection.unk1192==1);
     reset(4); func_801C55A0();
     assert(notices==0 && teardown==1 && dispatches==1 && frames==2);
     reset(2); menu.unk33B=0; func_801C55A0();
     assert(errors==1 && !notices && !teardown && !dispatches);
-    puts("File-menu guard: repeated rejection, untouched ownership, cancel and supported dispatch PASS");
+    puts("File-menu entry: File dispatches the card screen like retail, entry-2 rejection, cancel PASS");
 }

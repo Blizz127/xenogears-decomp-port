@@ -21,6 +21,11 @@ const char* xg_plat_input_button_name(XgPlatButton button);
  * Returns 1 when the key name is known. */
 int xg_plat_input_bind_key(XgPlatButton button, const char* key_name);
 
+/* Game controllers: exchange the physical Cross (south, SDL A) and Circle
+ * (east, SDL B) positions when `swapped` is nonzero, so that the other one
+ * carries the game's confirm (config input.pad_confirm).  Idempotent. */
+void xg_plat_input_set_pad_face_swap(int swapped);
+
 /* SDL key name currently bound to `button` ("Z", "Return", ...), or NULL. */
 const char* xg_plat_input_key_name(XgPlatButton button);
 

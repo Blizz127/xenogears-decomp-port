@@ -55,6 +55,8 @@ extern void func_80077698(void);
 extern void func_8008AA74(u32);
 
 #if BATTLE_PART(1)
+/* Adopted host TUs use the port body in main35_port.c. */
+#ifndef XENO_BATTLE_OVERLAY_HOST_BODIES
 /* Retail 8008115C..80081314: state-1 (Attack) command ring. Event5 is
  * deliberately a no-op; 4/6/7 share acceptance. Reload the context after
  * calls, as retail does, rather than retaining a possibly replaced owner. */
@@ -87,7 +89,13 @@ void func_8008115C(u32 arg0) {
         ((u8 *)D_800C3EAC)[0x2DD] = 3;
         return;
     case 3:
-        row = (u8 *)D_800C3EAC + (arg0 & 0xFF) * 64;
+        {
+            /* base first: gcc 2.6.3 (main35_p1's preset) keeps retail's
+             * base-first addu only with the base in its own once-set temp. */
+            u8* base = (u8 *)D_800C3EAC;
+
+            row = base + (arg0 & 0xFF) * 64;
+        }
         if (!*(u16 *)(row + 0x30)) {
             ((u8 *)D_800C3EAC)[0x2DD] = 4;
             return;
@@ -114,6 +122,7 @@ void func_8008115C(u32 arg0) {
 reject:
     func_8008AA74(arg0);
 }
+#endif /* !XENO_BATTLE_OVERLAY_HOST_BODIES */
 #endif /* BATTLE_PART(1) */
 #if BATTLE_PART(2)
 #endif /* BATTLE_PART(2) */
@@ -129,7 +138,10 @@ extern u16 D_800CCD64[][184], D_800CCE08[][184];
 #if BATTLE_PART(2)
 /* func_80083FF4.s: alternate status bypasses the group matrix entirely.
  * Keep the early exits so no irrelevant matrix pointer is dereferenced. */
+/* Adopted host TUs use the port body in main35_port.c. */
+#ifndef XENO_BATTLE_OVERLAY_HOST_BODIES
 #include "target_eligibility_impl.inc"
+#endif /* XENO_BATTLE_OVERLAY_HOST_BODIES */
 /* Retail 84108: flag low byte bypasses status only, not presence/block. */
 u32 func_80084108(u32 arg0, u32 arg1) {
     u8 result = 0;
@@ -160,11 +172,14 @@ extern u32 func_80083FF4(u32, u32);
 #if BATTLE_PART(2)
 /* func_800841E0.s: stable group partition followed by slot-zero swaps,
  * not a full sort. Rank is an unsigned halfword at stride0x170. */
-/* Not yet byte-matching: the matching build assembles retail bytes for
- * this function from its own asm segment (see config/battle.yaml).  The
- * body below is kept for the port and the differential harnesses. */
+/* The byte-matching C is in src/battle/mainasm_146F0.c (its own asm
+ * segment, see config/battle.yaml).  The body below is the port arm, kept
+ * for the port and the differential harnesses. */
 #ifdef XENO_PC_PORT
+/* Adopted host TUs use the port body in main35_port.c. */
+#ifndef XENO_BATTLE_OVERLAY_HOST_BODIES
 #include "target_list_impl.inc"
+#endif /* XENO_BATTLE_OVERLAY_HOST_BODIES */
 #endif /* XENO_PC_PORT */
 #endif /* BATTLE_PART(2) */
 #if BATTLE_PART(3)
@@ -175,9 +190,9 @@ extern u16 D_800C3D64;
 extern u16 func_80089C08(u8);
 #if BATTLE_PART(3)
 /* Retail 84750: actor-filtered range, table mask, no group/rank sorting. */
-/* Not yet byte-matching: the matching build assembles retail bytes for
- * this function from its own asm segment (see config/battle.yaml).  The
- * body below is kept for the port and the differential harnesses. */
+/* The byte-matching C is in src/battle/mainasm_14C60.c (its own asm
+ * segment, see config/battle.yaml).  The body below is the port arm, kept
+ * for the port and the differential harnesses. */
 #ifdef XENO_PC_PORT
 u32 func_80084750(u32 arg0) {
     s32 remaining = 8;
@@ -226,9 +241,9 @@ extern long ratan2(long, long);
 #endif
 #if BATTLE_PART(3)
 /* Retail84854: eleven slots, angular sector, then signed wrapped distance. */
-/* Not yet byte-matching: the matching build assembles retail bytes for
- * this function from its own asm segment (see config/battle.yaml).  The
- * body below is kept for the port and the differential harnesses. */
+/* The byte-matching C is in src/battle/mainasm_14C60.c (its own asm
+ * segment, see config/battle.yaml).  The body below is the port arm, kept
+ * for the port and the differential harnesses. */
 #ifdef XENO_PC_PORT
 u32 func_80084854(u32 arg0, u32 arg1) {
     s32 best = 0xFFFFFF;
@@ -300,16 +315,19 @@ extern u32 func_800841E0(u32 arg0);
  * A successful search preserves the pre-call selection; even an empty
  * list falls back to entry zero when there is no match. */
 #if BATTLE_SUB(2)
+/* Adopted host TUs use the port body in main35_port.c. */
+#ifndef XENO_BATTLE_OVERLAY_HOST_BODIES
 #include "target_selection_impl.inc"
+#endif /* XENO_BATTLE_OVERLAY_HOST_BODIES */
 #endif /* BATTLE_SUB(2) */
 #endif /* BATTLE_PART(3) */
 extern void func_800BC404(u32);
 extern void func_800BCD98(u32);
 extern void func_800716D8(void);
 #if BATTLE_PART(3)
-/* Not yet byte-matching: the matching build assembles retail bytes for
- * this function from its own asm segment (see config/battle.yaml).  The
- * body below is kept for the port and the differential harnesses. */
+/* Port body of func_80084B40.  The retail build compiles its byte-exact C
+ * in src/battle/mainasm_15050.c; this body is kept for the port and the
+ * differential harnesses. */
 #ifdef XENO_PC_PORT
 #include "target_ui_impl.inc"
 #endif /* XENO_PC_PORT */
@@ -329,6 +347,7 @@ extern u16 D_800D2D70[];
 s32 func_80085310(u32 a0, u32 a1) {
     return (u32)D_800C3EBE[a0 & 0xFF].v > (u32)D_800C3EBE[a1 & 0xFF].v;
 }
+#ifndef XENO_PC_PORT
 /* func_80085350.s */
 void func_80085350(void) {
     s32 i = 0;
@@ -341,4 +360,5 @@ void func_80085350(void) {
         p++;
     }
 }
+#endif /* !XENO_PC_PORT */
 #endif /* BATTLE_PART(4) */

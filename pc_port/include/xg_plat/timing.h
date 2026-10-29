@@ -14,6 +14,7 @@ extern "C" {
 
 int  xg_plat_timing_speed(void);              /* current multiplier, 1..5 */
 void xg_plat_timing_set_speed(int multiplier); /* clamped to 1..5 */
+void xg_plat_timing_set_speed_from(int multiplier, const char* source); /* logged */
 void xg_plat_timing_fast_forward(int held);    /* held: run at the fast-forward speed */
 void xg_plat_timing_set_fast_forward_speed(int multiplier); /* 1..5, default 5 */
 int  xg_plat_timing_vblank_count(void);        /* host vblanks since start */

@@ -2,9 +2,7 @@
 
 
 extern int rand(void);
-#ifdef XENO_PC_PORT
-/* Coexistence: decompiled and logic-faithful, but not byte-exact yet, so the
- * matching build assembles retail bytes below and the port uses this body. */
+/* Byte-exact under gcc 2.6.3 (BattleGcc263); the port compiles the same body. */
 /* func_80089B50.s: a random value in [lo, hi]: 0xFFFF for a lo of 0xFFFF
  * (retail returns the register holding the compare constant), 0 when hi is 0,
  * lo when the bounds are equal, and a raw rand() when the span exceeds 0xFFFE.
@@ -27,9 +25,6 @@ u16 func_80089B50(u16 lo, u16 hi) {
     }
     return (lo + (rand() & 0xFFFF) % (span + 1)) & 0xFFFF;
 }
-#else
-INCLUDE_ASM("asm/battle/nonmatchings/main41", func_80089B50);
-#endif
 #ifndef XENO_PC_PORT
 extern u16 D_800C3468[];
 #endif

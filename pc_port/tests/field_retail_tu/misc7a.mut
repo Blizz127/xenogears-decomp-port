@@ -1,0 +1,5 @@
+[
+ ("func_80098A7C", "actor->scriptInstructionPointer += 8;", "actor->scriptInstructionPointer += 7;"),
+ ("func_80098CAC", "speed = 1;", "speed = 2;"),
+ ("func_80099214", "actor->unk102 = (s16)((u16)actor->unk102 + 1);", "actor->unk102 = (s16)((u16)actor->unk102 + 2);"),
+]

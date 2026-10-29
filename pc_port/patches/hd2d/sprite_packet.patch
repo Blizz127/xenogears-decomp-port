@@ -1,0 +1,128 @@
+--- a/src/gpu/PsyX_GPU.cpp
++++ b/src/gpu/PsyX_GPU.cpp
+@@ -741,6 +741,10 @@
+ extern "C" int PcPort_Hd2dTextureOverride(int tpage, int clut, int u0, int v0, int u1, int v1,
+ 	unsigned int* out_gl_texture, float out_uv[4]) __attribute__((weak));
+ 
++/* _hd2d_sprite_packet */
++extern "C" int PcPort_Hd2dSpriteTextureOverride(const void* packet, int tpage, int clut, int u0, int v0, int u1, int v1,
++	unsigned int* out_gl_texture, float out_uv[4]) __attribute__((weak));
++
+ static int g_hd2dPendingOn = 0;
+ static float g_hd2dPendingUv[4];
+ 
+@@ -754,11 +758,14 @@
+ static void AddSplit(bool semiTrans, bool textured, ClutSemiMode clutSemiMode);
+ 
+ /* Ask the hook; on 1 open the override split for this primitive. */
+-static bool Hd2dBeginPrim(int tpage, int clut, int u0, int v0, int u1, int v1, bool semiTrans)
++static bool Hd2dBeginPrim(const void* packet, int tpage, int clut, int u0, int v0, int u1, int v1, bool semiTrans)
+ {
+ 	unsigned int texture = 0;
+ 	float uv[4] = { 0.0f, 0.0f, 1.0f, 1.0f };
+-	if (!PcPort_Hd2dTextureOverride(tpage, clut, u0, v0, u1, v1, &texture, uv) || texture == 0)
++	const bool sprite = PcPort_Hd2dSpriteTextureOverride &&
++		PcPort_Hd2dSpriteTextureOverride(packet, tpage, clut, u0, v0, u1, v1, &texture, uv);
++	if ((!sprite && (!PcPort_Hd2dTextureOverride ||
++		!PcPort_Hd2dTextureOverride(tpage, clut, u0, v0, u1, v1, &texture, uv))) || texture == 0)
+ 		return false;
+ 	memcpy(g_hd2dPendingUv, uv, sizeof(uv));
+ 	g_hd2dPendingOn = 1;
+@@ -771,9 +778,9 @@
+ 	return true;
+ }
+ 
+-static inline bool Hd2dPrim(int tpage, int clut, unsigned char* const* uv, int n, bool semiTrans)
+-{
+-	if (!PcPort_Hd2dTextureOverride || overrideTexture != 0)
++static inline bool Hd2dPrim(const void* packet, int tpage, int clut, unsigned char* const* uv, int n, bool semiTrans)
++{
++	if ((!PcPort_Hd2dTextureOverride && !PcPort_Hd2dSpriteTextureOverride) || overrideTexture != 0)
+ 		return false;
+ 	int u0 = 255, v0 = 255, u1 = 0, v1 = 0;
+ 	for (int i = 0; i < n; i++) {
+@@ -782,14 +789,14 @@
+ 		if (uv[i][1] < v0) v0 = uv[i][1];
+ 		if (uv[i][1] > v1) v1 = uv[i][1];
+ 	}
+-	return Hd2dBeginPrim(tpage, clut, u0, v0, u1, v1, semiTrans);
+-}
+-
+-static inline bool Hd2dRect(int tpage, int clut, const unsigned char* uv, int w, int h, bool semiTrans)
+-{
+-	if (!PcPort_Hd2dTextureOverride || overrideTexture != 0)
++	return Hd2dBeginPrim(packet, tpage, clut, u0, v0, u1, v1, semiTrans);
++}
++
++static inline bool Hd2dRect(const void* packet, int tpage, int clut, const unsigned char* uv, int w, int h, bool semiTrans)
++{
++	if ((!PcPort_Hd2dTextureOverride && !PcPort_Hd2dSpriteTextureOverride) || overrideTexture != 0)
+ 		return false;
+-	return Hd2dBeginPrim(tpage, clut, uv[0], uv[1], uv[0] + (w > 0 ? w - 1 : 0), uv[1] + (h > 0 ? h - 1 : 0), semiTrans);
++	return Hd2dBeginPrim(packet, tpage, clut, uv[0], uv[1], uv[0] + (w > 0 ? w - 1 : 0), uv[1] + (h > 0 ? h - 1 : 0), semiTrans);
+ }
+ 
+ /* Re-express the emitted retail texcoords as 0..255 across the primitive's
+@@ -1431,7 +1438,7 @@
+ 		if (!IsNull(poly))
+ 		{
+ 			unsigned char* const hd2dUv[3] = { &poly->u0, &poly->u1, &poly->u2 }; /* _xeno_hd2d_hooks */
+-			const bool hd2d = Hd2dPrim(poly->tpage, poly->clut, hd2dUv, 3, semiTrans);
++			const bool hd2d = Hd2dPrim(poly, poly->tpage, poly->clut, hd2dUv, 3, semiTrans);
+ 			const bool splitClutSemi = hd2d ? false : BeginTexturedSplit(semiTrans);
+ 
+ 			GrVertex* firstVertex = &g_vertexBuffer[g_vertexIndex];
+@@ -1476,7 +1483,7 @@
+ 		activeDrawEnv.tpage = poly->tpage;
+ 
+ 		unsigned char* const hd2dUv[4] = { &poly->u0, &poly->u1, &poly->u2, &poly->u3 }; /* _xeno_hd2d_hooks */
+-		const bool hd2d = Hd2dPrim(poly->tpage, poly->clut, hd2dUv, 4, semiTrans);
++		const bool hd2d = Hd2dPrim(poly, poly->tpage, poly->clut, hd2dUv, 4, semiTrans);
+ 		const bool splitClutSemi = hd2d ? false : BeginTexturedSplit(semiTrans);
+ 
+ 		GrVertex* firstVertex = &g_vertexBuffer[g_vertexIndex];
+@@ -1539,7 +1546,7 @@
+ 		activeDrawEnv.tpage = poly->tpage;
+ 
+ 		unsigned char* const hd2dUv[3] = { &poly->u0, &poly->u1, &poly->u2 }; /* _xeno_hd2d_hooks */
+-		const bool hd2d = Hd2dPrim(poly->tpage, poly->clut, hd2dUv, 3, semiTrans);
++		const bool hd2d = Hd2dPrim(poly, poly->tpage, poly->clut, hd2dUv, 3, semiTrans);
+ 		const bool splitClutSemi = hd2d ? false : BeginTexturedSplit(semiTrans);
+ 
+ 		GrVertex* firstVertex = &g_vertexBuffer[g_vertexIndex];
+@@ -1582,7 +1589,7 @@
+ 		activeDrawEnv.tpage = poly->tpage;
+ 
+ 		unsigned char* const hd2dUv[4] = { &poly->u0, &poly->u1, &poly->u2, &poly->u3 }; /* _xeno_hd2d_hooks */
+-		const bool hd2d = Hd2dPrim(poly->tpage, poly->clut, hd2dUv, 4, semiTrans);
++		const bool hd2d = Hd2dPrim(poly, poly->tpage, poly->clut, hd2dUv, 4, semiTrans);
+ 		const bool splitClutSemi = hd2d ? false : BeginTexturedSplit(semiTrans);
+ 
+ 		GrVertex* firstVertex = &g_vertexBuffer[g_vertexIndex];
+@@ -1643,7 +1650,7 @@
+ 	{
+ 		SPRT* poly = (SPRT*)polyTag;
+ 
+-		const bool hd2d = Hd2dRect(activeDrawEnv.tpage, poly->clut, &poly->u0, poly->w, poly->h, semiTrans); /* _xeno_hd2d_hooks */
++		const bool hd2d = Hd2dRect(poly, activeDrawEnv.tpage, poly->clut, &poly->u0, poly->w, poly->h, semiTrans); /* _xeno_hd2d_hooks */
+ 		const bool splitClutSemi = hd2d ? false : BeginTexturedSplit(semiTrans);
+ 
+ 		GrVertex* firstVertex = &g_vertexBuffer[g_vertexIndex];
+@@ -1706,7 +1713,7 @@
+ 	{
+ 		SPRT_8* poly = (SPRT_8*)polyTag;
+ 
+-		const bool hd2d = Hd2dRect(activeDrawEnv.tpage, poly->clut, &poly->u0, 8, 8, semiTrans); /* _xeno_hd2d_hooks */
++		const bool hd2d = Hd2dRect(poly, activeDrawEnv.tpage, poly->clut, &poly->u0, 8, 8, semiTrans); /* _xeno_hd2d_hooks */
+ 		const bool splitClutSemi = hd2d ? false : BeginTexturedSplit(semiTrans);
+ 
+ 		GrVertex* firstVertex = &g_vertexBuffer[g_vertexIndex];
+@@ -1749,7 +1756,7 @@
+ 	{
+ 		SPRT_16* poly = (SPRT_16*)polyTag;
+ 
+-		const bool hd2d = Hd2dRect(activeDrawEnv.tpage, poly->clut, &poly->u0, 16, 16, semiTrans); /* _xeno_hd2d_hooks */
++		const bool hd2d = Hd2dRect(poly, activeDrawEnv.tpage, poly->clut, &poly->u0, 16, 16, semiTrans); /* _xeno_hd2d_hooks */
+ 		const bool splitClutSemi = hd2d ? false : BeginTexturedSplit(semiTrans);
+ 
+ 		GrVertex* firstVertex = &g_vertexBuffer[g_vertexIndex];

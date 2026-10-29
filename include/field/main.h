@@ -74,6 +74,25 @@ typedef struct {
     u_long ot3[0x8];
 } RenderContext;
 
+/* The field's third ordering table (8 tags; DrawOTag starts at tag 7).
+ * Retail code reaches it both as ctx->ot3 and as the raw byte offset
+ * ctx+0x80D4 (fade tiles, text boxes, FieldAddPrimitives' link into tag 7,
+ * the field frame's DrawOTag(ctx+0x80F0)) -- one list on the PSX.  On the
+ * LP64 port u_long is 8 bytes, so the struct member moves away from +0x80D4
+ * and the two spellings would name two different lists: prims linked through
+ * ctx->ot3 (zoom-fade crossfade overlay, starfield dissolve, map sprites)
+ * would never reach the frame the retail-offset DrawOTag walks, and the
+ * FieldDisplay-drawn frames would lose the fade tile.  Every ot3 user goes
+ * through these so both builds address the single retail list (4-byte tags
+ * at +0x80D4 on the port, FieldClearOTagR4). */
+#ifdef XENO_PC_PORT
+#define FIELD_CTX_OT3(ctx) ((u_long*)((u8*)(ctx) + 0x80D4))
+#define FIELD_CTX_OT3_HEAD(ctx) ((u_long*)((u8*)(ctx) + 0x80F0))
+#else
+#define FIELD_CTX_OT3(ctx) ((ctx)->ot3)
+#define FIELD_CTX_OT3_HEAD(ctx) ((ctx)->ot3 + 7)
+#endif
+
 typedef struct {
     SVECTOR vertices[4];
     POLY_FT4 polys[2];

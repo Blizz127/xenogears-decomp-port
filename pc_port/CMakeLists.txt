@@ -60,6 +60,8 @@ target_include_directories(psycross PUBLIC
     "${PSYCROSS_DIR}/include/psx"
 )
 target_include_directories(psycross PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}/include_shim"
     "${PSYCROSS_DIR}/src"
     ${SDL2_INCLUDE_DIRS}
     ${OPENAL_INCLUDE_DIR}

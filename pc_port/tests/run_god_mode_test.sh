@@ -17,4 +17,3 @@ for opt in '-O0' '-O2' '-O2 -fsanitize=undefined -fno-sanitize-recover=all'; do
     gcc -std=c11 -Wall -Wextra -Werror $opt -Ipc_port/src pc_port/tests/god_mode_retail_test.c pc_port/src/god_mode.c pc_port/src/battle_mips_adapter.c -o "$build/test"
     "$build/test"
 done
-bash pc_port/tests/run_host_toolbar_logic_test.sh

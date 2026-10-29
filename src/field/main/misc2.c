@@ -9,7 +9,11 @@
 #ifdef XENO_PC_PORT
 #include <assert.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include "test_input.h"
+#include "hd2d_world_packets.h"
+#pragma weak PcPort_Hd2dWorldBegin
+#pragma weak PcPort_Hd2dWorldEnd
 
 #ifdef XENO_PC_PORT
 /* PsyX GTE register/intrinsic access for the func_80075B44 sprite-fog branch
@@ -1197,8 +1201,8 @@ void FieldClearAndSwapOTagInternal(void) {
     g_FieldCurRenderContextIndex = (g_FieldCurRenderContextIndex + 1) % 2;
     g_FieldCurRenderContext = &g_FieldRenderContexts[g_FieldCurRenderContextIndex];
 #ifdef XENO_PC_PORT
-    FieldClearOTagR4((u8*)g_FieldCurRenderContext + 0x80D4, 0x8);
-    ClearOTagR(g_FieldCurRenderContext->ot3, 0x8);
+    /* The single retail ot3 (FIELD_CTX_OT3): 4-byte tags at +0x80D4. */
+    FieldClearOTagR4(FIELD_CTX_OT3(g_FieldCurRenderContext), 0x8);
 #else
     ClearOTagR(g_FieldCurRenderContext->ot3, 0x8);
 #endif
@@ -1563,6 +1567,38 @@ void FieldPollControllers(void) {
             }
         }
     }
+    /* DIAGNOSTIC (logging only): XENO_FIELD_TEXTBOX_LOG=1 logs each field
+     * text box's show/hide (visibility 0 = shown, -1 = hidden) and its
+     * waiting-for-confirm flag (window +0x10 bit 0x8) on change, with the
+     * XENO_FIELD_STEP_PAD_INPUT step clock, so dialogue slices can be
+     * scheduled and verified headlessly. */
+    {
+        static int log_boxes = -1;
+        static short prev_vis[4] = {-2, -2, -2, -2};
+        static u16 prev_wait[4] = {0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF};
+
+        if (log_boxes < 0) {
+            const char* e = getenv("XENO_FIELD_TEXTBOX_LOG");
+            log_boxes = (e && e[0] && !(e[0] == '0' && e[1] == 0)) ? 1 : 0;
+        }
+        if (log_boxes) {
+            extern int PcPort_FieldStepPadArmedStep(unsigned* step);
+            s32 i;
+            for (i = 0; i < 4; i++) {
+                u8* pWin = (u8*)&g_FieldTextBoxes[i] + 0x18;
+                short vis = g_FieldTextBoxes[i].visibility;
+                u16 wait = (u16)(*(u16*)(pWin + 0x10) & 0x8);
+                if (vis != prev_vis[i] || wait != prev_wait[i]) {
+                    unsigned step = 0;
+                    PcPort_FieldStepPadArmedStep(&step);
+                    fprintf(stderr, "[textbox] box=%d %s wait=%d step=%u\n", (int)i,
+                            vis == 0 ? "shown" : "hidden", wait ? 1 : 0, step);
+                    prev_vis[i] = vis;
+                    prev_wait[i] = wait;
+                }
+            }
+        }
+    }
 #endif
 
     ControllerResetState();
@@ -1915,7 +1951,14 @@ void func_800748E8(void) {
                 void* modelPacket = (void*)(uintptr_t)*(u32*)(modelData + 0x04);
                 void* modelWork = (void*)(uintptr_t)*(u32*)(modelData + 0x08 + renderIndex * 4);
                 void* ot = renderContext + ((status & 0x8000) ? 0x40D0 : 0xCC);
+                /* Positive scenery provenance is restricted to this real
+                 * field-model draw. Scripted actors remain protected; the
+                 * helper also checks the verified opening-map scope. */
+                int worldScope = PcPort_Hd2dWorldBegin && PcPort_Hd2dWorldEnd;
+                if (worldScope)
+                    PcPort_Hd2dWorldBegin(actorIndex, D_800ADBFC);
                 func_8002C700(modelPacket, modelWork, ot, *(s16*)(modelData + 0x12));
+                if (worldScope) PcPort_Hd2dWorldEnd();
 #ifdef XENO_PC_PORT
                 modelEmitted++;
 #endif
@@ -1970,9 +2013,14 @@ extern void func_80086BA8(void);
 extern void func_801E7D14(void* sceneData, void* arg1, void* prim, s32 renderContextIndex, s32 arg4);
 
 #ifndef XENO_PC_PORT
-INCLUDE_ASM("asm/field/nonmatchings/main/misc2", func_8007520C);
-#else
+/* func_8007520C: D_800B2264 is not gp-small (its address stays in s0 across the
+ * calls) and the second func_801E7D14 argument is that base minus 0x48
+ * (= &D_800B221C, computed from the same register). */
+extern s32 D_800B2264__a[] asm("D_800B2264");
+
+#endif
 void func_8007520C(void) {
+#ifdef XENO_PC_PORT
     if (D_8004F380 != 0) {
         return;
     }
@@ -1990,8 +2038,26 @@ void func_8007520C(void) {
     if (g_FieldSystemMode == 0) {
         func_80281B00(&D_8006FB1C);
     }
+#else
+    if (D_8004F380 != 0) {
+        return;
+    }
+
+    if (D_800B2264__a[0] != 0) {
+        func_80086BA8();
+        SetBackColor(D_800B225C, D_800B225D, D_800B225E);
+        func_801E7D14((u8*)&g_Scene + 0xD4,
+                      (u8*)D_800B2264__a - 0x48,
+                      (u8*)g_FieldCurRenderContext + 0xCC,
+                      g_FieldCurRenderContextIndex,
+                      1);
+    }
+
+    if (g_FieldSystemMode == 0) {
+        func_80281B00(&D_8006FB1C);
+    }
+#endif
 }
-#endif /* XENO_PC_PORT */
 
 extern u8 D_800ADB05;
 extern void func_800250E0(s32 context);
@@ -2386,7 +2452,7 @@ void func_80075910(void) {
     MoveImage(&rect, g_FieldCurRenderContextIndex << 8, 0);
     PutDispEnv((DISPENV*)((u8*)g_FieldCurRenderContext + 0xB8));
     PutDrawEnv((DRAWENV*)g_FieldCurRenderContext);
-    DrawOTag(g_FieldCurRenderContext->ot3 + 7);
+    DrawOTag(FIELD_CTX_OT3_HEAD(g_FieldCurRenderContext));
 }
 #endif /* XENO_PC_PORT */
 

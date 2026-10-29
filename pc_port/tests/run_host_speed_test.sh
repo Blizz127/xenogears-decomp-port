@@ -40,8 +40,7 @@ for name, text in mutants.items():
     assert text != code, name
     (out/name).mkdir()
     (out/name/'production.inc').write_text(text)
-files += ['pc_port/tests/host_speed_test.cpp','pc_port/tests/run_host_speed_test.sh',
-          'pc_port/src/psycross_host_toolbar_logic.h']
+files += ['pc_port/tests/host_speed_test.cpp','pc_port/tests/run_host_speed_test.sh']
 (out/'provenance.json').write_text(json.dumps({p:hashlib.sha256(Path(p).read_bytes()).hexdigest() for p in files},indent=2)+'\n')
 PY
 for mode in O0 O2 UBSan; do

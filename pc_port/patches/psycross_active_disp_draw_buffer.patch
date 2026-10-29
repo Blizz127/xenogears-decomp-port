@@ -1,0 +1,56 @@
+--- a/src/psx/LIBGPU.C
++++ b/src/psx/LIBGPU.C
+@@ -462,6 +462,35 @@
+ 	DrawOTag(p);
+ }
+ 
++/* _xeno_active_disp_draw_buffer: PsyCross renders every draw buffer into the
++ * one window and places it through activeDispEnv (DrawEnvOffset, the scissor
++ * in GR_SetupClipMode, and the EndScene VRAM store), which PutDispEnv guesses
++ * from the double-buffer flip: a PutDispEnv with a new y makes the previous
++ * DISPENV the active one.  That guess fails when frames presented from VRAM
++ * already left currentDispEnv on the buffer the game now re-puts -- the field
++ * zoom-fade's first frame draws (0,256) under PutDispEnv(0,0) after three
++ * VRAM-path frames of (0,0) -- and then the whole frame is offset and
++ * scissored off screen (a black frame retail never shows).  When the draw
++ * clip is a display-sized buffer that does not overlap activeDispEnv at all,
++ * name the buffer being drawn instead.  Any clip that overlaps, or is not
++ * display-sized (offscreen VRAM targets), keeps the stock behaviour. */
++static void XenoSyncActiveDispToDrawBuffer(void)
++{
++	const RECT16* c = &activeDrawEnv.clip;
++	RECT16* d = &activeDispEnv.disp;
++
++	if (c->w <= 0 || c->h <= 0 || d->w <= 0 || d->h <= 0)
++		return;
++	if (c->w != d->w || c->h != d->h)
++		return;
++	if (c->x < d->x + d->w && c->x + c->w > d->x &&
++		c->y < d->y + d->h && c->y + c->h > d->y)
++		return;
++
++	d->x = c->x;
++	d->y = c->y;
++}
++
+ void DrawOTag(u_long* p)
+ {
+ 	if (PsyX_GpuTraceOn())
+@@ -496,6 +525,8 @@
+ 			return;
+ 		}
+ 
++		XenoSyncActiveDispToDrawBuffer(); /* _xeno_active_disp_draw_buffer */
++
+ 		if (PsyX_BeginScene())
+ 		{
+ 			ClearSplits();
+@@ -518,6 +549,8 @@
+ 		return;
+ 	}
+ 
++	XenoSyncActiveDispToDrawBuffer(); /* _xeno_active_disp_draw_buffer */
++
+ 	if (PsyX_BeginScene())
+ 	{
+ 		ClearSplits();

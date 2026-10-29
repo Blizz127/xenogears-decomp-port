@@ -1,0 +1,3 @@
+[
+ ("func_800A5924", "color = (s32)((u32)color + (u32)MIPS_DIV(0x800000, D_800ADB3C));", "color = (s32)((u32)color + (u32)MIPS_DIV(0x900000, D_800ADB3C));"),
+]

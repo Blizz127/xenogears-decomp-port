@@ -15,13 +15,15 @@ grep -q 'PsyX_HostToolbarHandleEvent(&event)' "$main"
 grep -q 'PsyX_HostToolbarDraw();' "$main"
 grep -q 'PsyX_HostToolbarShutdown();' "$main"
 grep -q 'psycross_host_toolbar.patch' "$build"
-grep -q 'PC_PORT_TOOLBAR_QUICK_SAVE' "$toolbar"
-grep -q 'PC_PORT_TOOLBAR_QUICK_LOAD' "$toolbar"
-grep -q 'PC_PORT_TOOLBAR_RECORD' "$toolbar"
-grep -q 'PcPort_QuickCheckpointGetUiState' "$toolbar"
-grep -q 'PC_PORT_QUICK_UI_SAVE_PENDING' "$toolbar"
-grep -q 'PC_PORT_QUICK_UI_LOAD_PENDING' "$toolbar"
-grep -q 'event->motion.y -= PC_PORT_HOST_TOOLBAR_HEIGHT' "$toolbar"
+# r6.3: the clickable strip is retired. No reserved pixels, no mouse
+# handling; the hooks only carry the dev-menu overlay.
+grep -q 'extern "C" int PsyX_HostToolbarReservedHeight(void) { return 0; }' "$toolbar"
+grep -q 'static int PsyX_HostToolbarContentHeight(int windowHeight) { return windowHeight; }' "$toolbar"
+grep -q 'PsyX_PortDevMenuDraw();' "$toolbar"
+if grep -Eq 'PC_PORT_HOST_TOOLBAR_HEIGHT|PC_PORT_TOOLBAR_|SDL_MOUSEBUTTON|SDL_SetWindowMinimumSize' "$toolbar"; then
+    echo 'host toolbar strip remnants in psycross_host_toolbar.inl' >&2
+    exit 1
+fi
 
 # Host chrome is drawn after framebuffer recording and before presentation, so
 # recordings remain retail-clean while the controls remain visible on screen.
@@ -38,4 +40,4 @@ for signature in ("PsyX_PresentDisplayFromVRAM(void)", "PsyX_EndScene()"):
     assert body.index("PsyX_HostToolbarDraw();") < body.index("GR_SwapWindow();")
 PY
 
-echo 'PsyCross host toolbar regression: PASS'
+echo 'PsyCross host overlay (toolbar strip retired) regression: PASS'
