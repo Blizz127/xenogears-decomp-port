@@ -197,7 +197,9 @@ void func_800A5924(void) {
                 func_8007554C();
                 func_80078B5C();
                 func_800A5600(color >> 16);
-                color += 0x800000 / D_800ADB3C;
+                /* D_800ADB3C is re-read after the callees; retail div never
+                 * traps (a callee may zero it): MIPS_DIV, u32 accumulate. */
+                color = (s32)((u32)color + (u32)MIPS_DIV(0x800000, D_800ADB3C));
             }
 
             while (D_800ADB38 == 3) {
@@ -221,7 +223,7 @@ void func_800A5924(void) {
                 func_800A6C40();
                 func_8007554C();
                 func_80078B5C();
-                D_800C3A40 += 6;
+                D_800C3A40 = (s32)((u32)D_800C3A40 + 6);   /* addiu wraps */
             }
 
             DrawSync(0);
@@ -238,7 +240,7 @@ void func_800A5924(void) {
                 func_8007554C();
                 func_80078B5C();
                 func_800A5600(color >> 16);
-                color -= 0x800000 / D_800ADB3C;
+                color = (s32)((u32)color - (u32)MIPS_DIV(0x800000, D_800ADB3C));
                 if (color < 0) {
                     color = 0;
                 }
@@ -421,7 +423,8 @@ void func_800A5C40(void) {
                     func_8007554C();
                     func_80078B5C();
                     func_800A5600(color >> 16);
-                    color -= 0x800000 / D_800AFD14;
+                    /* retail 800A617C div never traps (lo = -1 for a zero divisor) */
+                    color = (s32)((u32)color - (u32)MIPS_DIV(0x800000, D_800AFD14));
                     if (color < 0) {
                         color = 0;
                     }
@@ -542,6 +545,16 @@ void FieldZoomFadeEffectUpdate(void) {
     int i;
 
     RotMatrix(&D_800B00B8, &matrix);
+    /* Retail zeroes the translation (sw $zero to sp+0x3C/0x40/0x44 =
+     * matrix.t[0..2], 800A6480-800A6488) before SetTransMatrix.  The quads
+     * sit at vz=0, so with TR=0 RotAverage4's divide overflows and maps them
+     * at exactly 2x onto the 320x224 screen.  Left uninitialised, TRY was
+     * stack garbage on the port and every zoom frame projected the crossfade
+     * overlay to y=1023 (off screen), so the title/attract crossfades showed
+     * black instead of the previous picture. */
+    matrix.t[0] = 0;
+    matrix.t[1] = 0;
+    matrix.t[2] = 0;
     scale.vx = D_800C2684;
     scale.vy = D_800C2684;
     scale.vz = D_800C2684;
@@ -562,8 +575,8 @@ void FieldZoomFadeEffectUpdate(void) {
             );
         }
 
-        addPrim(g_FieldCurRenderContext->ot3, poly);
-        addPrim(g_FieldCurRenderContext->ot3, drMode);
+        addPrim(FIELD_CTX_OT3(g_FieldCurRenderContext), poly);
+        addPrim(FIELD_CTX_OT3(g_FieldCurRenderContext), drMode);
     }
 }
 #endif /* XENO_PC_PORT */
@@ -647,7 +660,7 @@ void FieldDisplay(void) {
     ClearImage(&g_FieldCurRenderContext->drawEnvs[0].clip, 0x0, 0x0, 0x0);
     PutDrawEnv(&g_FieldCurRenderContext->drawEnvs[0]);
     PutDispEnv(&g_FieldCurRenderContext->dispEnv);
-    DrawOTag(g_FieldCurRenderContext->ot3 + 7);
+    DrawOTag(FIELD_CTX_OT3_HEAD(g_FieldCurRenderContext));
 }
 
 /* Fade one corner of a starfield quad by its distance from screen centre.
@@ -766,11 +779,11 @@ void func_800A6C40(void) {
             func_800A6998(poly, 1, D_800C3A40, STAR_FADE(0x73F0, row, col));
             func_800A6998(poly, 2, D_800C3A40, STAR_FADE(0x7620, row, col));
             func_800A6998(poly, 3, D_800C3A40, STAR_FADE(0x7850, row, col));
-            addPrim(g_FieldCurRenderContext->ot3, STAR_POLY(row, col));
+            addPrim(FIELD_CTX_OT3(g_FieldCurRenderContext), STAR_POLY(row, col));
         }
     }
 
-    addPrim(g_FieldCurRenderContext->ot3, &D_800B1E24[g_FieldCurRenderContextIndex * 0xC0]);
+    addPrim(FIELD_CTX_OT3(g_FieldCurRenderContext), &D_800B1E24[g_FieldCurRenderContextIndex * 0xC0]);
 }
 
 extern void* D_800B00C4;
@@ -791,6 +804,13 @@ void func_800A6E70(void) {
             s16 vOfs = row * 0x10;
             s32 tpageX;
             s32 i;
+
+            /* Retail 800A6F00..800A6F10: the four s16 corner-fade tables
+             * (read by func_800A6C40/func_800A6998) start at 0x80 per cell. */
+            *(s16*)(pBuf + (row * 0x14 + col) * 2 + 0x71C0) = 0x80;
+            *(s16*)(pBuf + (row * 0x14 + col) * 2 + 0x73F0) = 0x80;
+            *(s16*)(pBuf + (row * 0x14 + col) * 2 + 0x7620) = 0x80;
+            *(s16*)(pBuf + (row * 0x14 + col) * 2 + 0x7850) = 0x80;
 
             /* Set vertex positions */
             *(s16*)(pPrim + 0x08) = uOfs;
@@ -879,10 +899,8 @@ extern s32 D_800ADB74;
 extern s32 D_800AFE74;
 extern s16 D_800C3A36;
 
-#ifndef XENO_PC_PORT
-INCLUDE_ASM("asm/field/nonmatchings/main/misc5", func_800A7120);
-#else
 void func_800A7120(u16 arg0, s32 arg1, u16 arg2) {
+#ifdef XENO_PC_PORT
     D_800B06A0 = arg0;
     D_800B00E4 = 0;
     if (arg2 == 0) {
@@ -897,13 +915,28 @@ void func_800A7120(u16 arg0, s32 arg1, u16 arg2) {
             g_FieldCurRenderContext->dispEnv.isrgb24 = 1;
         }
     }
-}
-#endif /* XENO_PC_PORT */
-
-#ifndef XENO_PC_PORT
-INCLUDE_ASM("asm/field/nonmatchings/main/misc5", func_800A7218);
 #else
+    D_800B06A0 = arg0;
+    D_800B00E4 = 0;
+    if (arg2 == 0) {
+        D_800ADB78 = 1;
+    } else {
+        D_800ADB78 = 0;
+    }
+    if (D_800ADB74 == 0 && D_800AFE74 == 0) {
+        DrawSync(0);
+        g_FieldCurRenderContext = &g_FieldRenderContexts[D_800ADB78];
+        if (D_800C3A36 == 1) {
+            g_FieldRenderContexts[D_800ADB78 & 1].dispEnv.isrgb24 = 1;
+        }
+    }
+#endif
+}
+
+void func_800A7120(u16 arg0, s32 arg1, u16 arg2);
+
 void func_800A7218(void) {
+#ifdef XENO_PC_PORT
     D_800B06A0 = 0;
     HeapChangeCurrentUser(4, NULL);
     if (D_800ADB6C == 0) {
@@ -926,8 +959,27 @@ void func_800A7218(void) {
         ArchiveSetIndex(4, 0);
     }
     HeapChangeCurrentUser(8, NULL);
+#else
+    /* Retail reads D_800C3A22..2E and D_800C3A3A unsigned (lhu); the TU declares
+     * the block s16, so this arm reads them through u16 casts. */
+    s32 fadeType;
+
+    D_800B06A0 = 0;
+    HeapChangeCurrentUser(4, 0);
+    if (D_800ADB6C == 0) {
+        ArchiveSetIndex(0x18, 1);
+        fadeType = 1;
+        if (D_800C3A38 != 0xFF || (D_800ADB80 & 0x40)) {
+            fadeType = 3;
+        }
+        func_801D37CC(D_800C3A20 + 2, (*(u16*)&D_800C3A2A), (*(u16*)&D_800C3A2C), (*(u16*)&D_800C3A2E), 1, fadeType,
+                      (*(u16*)&D_800C3A3A), (*(u16*)&D_800C3A22), (*(u16*)&D_800C3A24), (*(u16*)&D_800C3A26),
+                      (*(u16*)&D_800C3A28), 0xE0, func_800A7120);
+        ArchiveSetIndex(4, 0);
+    }
+    HeapChangeCurrentUser(8, 0);
+#endif
 }
-#endif /* XENO_PC_PORT */
 
 extern s32 D_800ADB6C;
 
@@ -1212,7 +1264,7 @@ void func_800A7948(void) {
         ClearImage((RECT*)g_FieldCurRenderContext, 0, 0, 0);
         PutDispEnv(&g_FieldCurRenderContext->dispEnv);
         PutDrawEnv(&g_FieldCurRenderContext->drawEnvs[0]);
-        DrawOTag(&g_FieldCurRenderContext->ot3[7]);
+        DrawOTag(FIELD_CTX_OT3_HEAD(g_FieldCurRenderContext));
         func_800ACCF4();
         func_800A732C(5);
     }
@@ -1828,10 +1880,9 @@ extern u32 D_800AFC70;
 // Re-pin the 0x8000-byte persistent buffer under a new heap user (only while
 // D_800ADB34 marks it active, e.g. a pause-menu background snapshot): alloc
 // a fresh block under HEAP_USER_YOSI, copy the old contents over, free the old.
-#ifndef XENO_PC_PORT
-INCLUDE_ASM("asm/field/nonmatchings/main/misc5", func_800A90B4);
-#else
+
 void func_800A90B4(s32 pinFlag) {
+#ifdef XENO_PC_PORT
     void* pNew;
 
     if (D_800ADB34 == 1) {
@@ -1855,8 +1906,29 @@ void func_800A90B4(s32 pinFlag) {
         HeapFree((void*)(uintptr_t)D_800AFC70);
         D_800AFC70 = (u32)(uintptr_t)pNew;
     }
+#else
+    register u32 temp_a3 asm("$7");
+    void *temp_v0;
+    void *var_a2;
+    register void *var_t0 asm("$8");
+
+    if (D_800ADB34 == 1) {
+        HeapChangeCurrentUser(8, 0);
+        temp_v0 = HeapAlloc(0x8000, pinFlag);
+        var_t0 = temp_v0;
+        var_a2 = D_800AFC70;
+        temp_a3 = 0x8000;
+        temp_a3 = (u32)var_a2 + temp_a3;
+        do {
+            *(VECTOR *)var_t0 = *(VECTOR *)var_a2;
+            var_a2 += 0x10;
+            var_t0 += 0x10;
+        } while ((u32)var_a2 != temp_a3);
+        HeapFree(D_800AFC70);
+        D_800AFC70 = temp_v0;
+    }
+#endif
 }
-#endif /* XENO_PC_PORT */
 
 /* Matches, but g_FieldStoredImageDest seems to be part of some struct which
  * needs recovery first. */

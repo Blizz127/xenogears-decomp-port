@@ -1,0 +1,7 @@
+[
+ ("func_800A0EE8", "*(u8*)(pEntry + 0x34) = 0;", "*(u8*)(pEntry + 0x34) = 1;"),
+ ("func_800A0FD8", "ArchiveDecodeAlignedSize((u32)((s16)D_800B21DC[slot] + 0x6BA))", "ArchiveDecodeAlignedSize((u32)((u16)D_800B21DC[slot] + 0x6BA))"),
+ ("func_800A14F0", "*(u16*)(actorData + 0xCC) += 5;", "*(u16*)(actorData + 0xCC) += 4;"),
+ ("func_800A1624", "skinIndex | 0x80, 0);", "skinIndex | 0x80, 1);"),
+ ("func_8009E574", "*(s32*)(pFieldActor + 0x28) = z;", "*(s32*)(pFieldActor + 0x28) = (s16)z;"),
+]

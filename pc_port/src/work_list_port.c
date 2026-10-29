@@ -108,7 +108,7 @@ void TimerWorkListUpdate(void) {
     u8* pEntry;
 
     if (g_WorkListCurTimer) {
-        g_WorkListCurTimer--;
+        g_WorkListCurTimer = (s32)((u32)g_WorkListCurTimer - 1u);
         if (g_WorkListCurTimer == 0) {
             D_80059494 = 0;
         }
@@ -333,14 +333,14 @@ void WorkListAddTask(WorkListEntry* pOwner, WorkListEntry* pEntry) {
     pEntry->pNext = WL_U32(g_WorkList);
     g_WorkList = pEntry;
     pEntry->unk10 = D_80059184;
-    D_80059184++;
+    D_80059184 = (s32)((u32)D_80059184 + 1u); /* retail ADDIU wrap */
     pEntry->onTriggerCallback = 0;
     pEntry->onFreeCallback = WL_U32(WorkListRemoveTask);
     pEntry->unk14 = WorkListOwnerId(pOwner);
     pEntry->unk14_1 = 0;
     pEntry->unk14_2 = 0;
     pEntry->unk14_3 = 0;
-    g_NumWorkListEntries++;
+    g_NumWorkListEntries = (s32)((u32)g_NumWorkListEntries + 1u);
 }
 
 /* asm 8001CC18: timer-list variant. Same id wiring; additionally flags the
@@ -358,10 +358,10 @@ void TimerWorkListAddTask(WorkListEntry* pOwner, WorkListEntry* pEntry) {
     pEntry->unk14_2 = 0;
     pEntry->unk14_3 = 0;
     if (D_800591AC) {
-        D_80059464++;
+        D_80059464 = (s32)((u32)D_80059464 + 1u);
         pEntry->unk14_3 = 1;
     }
-    g_NumTimerWorkListEntries++;
+    g_NumTimerWorkListEntries = (s32)((u32)g_NumTimerWorkListEntries + 1u);
 }
 
 /* Matched C from work_list.c (asm 8001CB48). The trailing ++/-- pair keeps
@@ -389,9 +389,9 @@ void WorkListRemoveTask(WorkListEntry* pTargetEntry) {
     }
 
     if (pCurEntry == NULL) {
-        g_NumWorkListEntries++;
+        g_NumWorkListEntries = (s32)((u32)g_NumWorkListEntries + 1u);
     }
-    g_NumWorkListEntries--;
+    g_NumWorkListEntries = (s32)((u32)g_NumWorkListEntries - 1u);
 }
 
 /* Matched C from work_list.c (asm 8001CD94). */
@@ -417,9 +417,9 @@ void TimerWorkListRemoveTask(WorkListEntry* pTargetEntry) {
     }
 
     if (pTargetEntry->unk14_3) {
-        D_80059464--;
+        D_80059464 = (s32)((u32)D_80059464 - 1u);
     }
-    g_NumTimerWorkListEntries--;
+    g_NumTimerWorkListEntries = (s32)((u32)g_NumTimerWorkListEntries - 1u);
 }
 
 /* Retail 8001CE44..8001CE74: unlink before releasing the same allocation. */

@@ -134,9 +134,50 @@ void func_801CCE1C(void* output, u8 characterId);
  * regions with C runs; cc1 emits every file-scope __asm__ block before every
  * compiled body, so each part below is (one retail asm run) + (the C run that
  * follows it) - the layout the compiler produces inside a single TU. */
-#ifndef XENO_PC_PORT
-INCLUDE_ASM("asm/shop_menu/nonmatchings/main/misc5", func_801CC720);
-#endif
+/* Retail 801CC720..801CC97C (matched). Rebuilds the MenuUnk5 strip of the
+ * second-level shop menu: row (arg0 + menu1Choice) of D_801D1F6C holds four
+ * {cursor, label} texture-ID pairs; the cursor of the current menu2Choice
+ * uses the active texture (+0xD). Then moves the pointer cursor onto it. */
+extern s32 D_801D1F6C[];
+
+void func_801CC720(u_char arg0) {
+    int textureID;
+    int i;
+
+    g_Menu->unk354->unk1400 = 0;
+    g_Menu->unk354->unk1404 = 0;
+
+    for (i = 0; i < g_Menu->unk33A; i++) {
+        if (i == g_Menu->menu2Choice) {
+            textureID = D_801D1F6C[(arg0 + g_Menu->menu1Choice) * 8 + i * 2] + 0xD;
+        } else {
+            textureID = D_801D1F6C[(arg0 + g_Menu->menu1Choice) * 8 + i * 2];
+        }
+
+        g_Menu->unk354->unk1400 += func_8002675C(
+            g_Menu->unk2DC, textureID,
+            &g_Menu->unk354->polys0[g_Menu->unk354->unk1400 * 2],
+            g_Menu->renderContext,
+            160, 150,
+            0x1000
+        );
+
+        g_Menu->unk354->unk1404 += func_8002675C(
+            g_Menu->unk2DC, D_801D1F6C[(arg0 + g_Menu->menu1Choice) * 8 + i * 2 + 1],
+            &g_Menu->unk354->polys500[g_Menu->unk354->unk1404 * 2],
+            g_Menu->renderContext,
+            160, 150,
+            0x1000
+        );
+    }
+
+    g_Menu->unk354->unk1408 = g_Menu->renderContext;
+    g_Menu->unk354->unk1409 = g_Menu->renderContext;
+
+    ShopMenuMovePointerCursor(g_Menu->menu2Choice + 3, 1);
+
+    g_Menu->pManager->unk4 = TRUE;
+}
 
 u_char ShopMenuShopModeMenuHandleSelectedOption() {
     u_char isRunning;

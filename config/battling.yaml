@@ -66,6 +66,9 @@ segments:
       # `addiu $sp,$sp,-0x18` there instead).  movie.bin and world_map.yaml
       # use `rodata` here for the same reason.
       - [0x0, rodata]
+      - [0x4BC, .rodata, misc]     # jtbl_8006FFAC + jtbl_8007001C (func_80080570)
+      - [0x59C, rodata]
+      - [0xBF8, .rodata, main]     # jtbl_800706E8/700 (func_8008B13C), jtbl_80070718/748 (func_8008F280), jtbl_80070780 (func_8009031C)
       - [0xCB8, c, misc]
       # Both text segments are C TUs (src/battling/misc.c, main.c) whose
       # functions are INCLUDE_ASM until they have byte-exact C.  (An older note

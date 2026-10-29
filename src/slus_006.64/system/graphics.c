@@ -8,8 +8,14 @@ u_long* D_800592F4;
 #ifndef XENO_PC_PORT
 INCLUDE_ASM("asm/slus_006.64/nonmatchings/system/graphics", GfxLoadImageAccelerated);
 #else
+/* Retail 0x80022A0C: HeapAlloc(0x2000, 1) scratch block, LoadImage, HeapFree, in that order.
+ * Port-only (DIVERGES): retail also runs LoadImage on a guest stack inside the block (it stores
+ * the caller's guest $sp at block+0x1F00 and LoadImage's frames below it); the native LoadImage
+ * uses the host stack, so those scratch-block bytes are not written. */
 void GfxLoadImageAccelerated(void) {
+    void* pBuffer = HeapAlloc(0x2000, 1);
     LoadImage(D_800592F0, D_800592F4);
+    HeapFree(pBuffer);
 }
 #endif
 #ifndef XENO_PC_PORT
@@ -55,7 +61,7 @@ void GfxLoadClutsAccelerated(void* pClutData, s32 x, s32 y) {
     pData += 4;
     for (i = 0; i < count; i++) {
         u8* pClut = (u8*)pClutData + ((s32*)pData)[i];
-        rect.x = x + (i * 0x40);
+        rect.x = (s16)((u32)x + ((u32)i << 6)); /* retail addu: 32-bit wrap */
         rect.y = y;
         rect.w = *(u16*)(pClut + 0x0);
         rect.h = *(u16*)(pClut + 0x2);

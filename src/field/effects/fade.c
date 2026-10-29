@@ -65,9 +65,9 @@ void FieldFadeSetParameters(int index, int duration, int red, int green, int blu
     g_FieldEffects.fades[index].duration = duration;
     g_FieldEffects.fades[index].isVisible = 1;
     g_FieldEffects.fades[index].semitransparency = semitransparency;
-    g_FieldEffects.fades[index].redDelta = (red * 0x100 - g_FieldEffects.fades[index].r0) / duration;
-    g_FieldEffects.fades[index].greenDelta = (green * 0x100 - g_FieldEffects.fades[index].g0) / duration;
-    g_FieldEffects.fades[index].blueDelta = (blue * 0x100 - g_FieldEffects.fades[index].b0) / duration;
+    g_FieldEffects.fades[index].redDelta = MIPS_DIV(red * 0x100 - g_FieldEffects.fades[index].r0, duration);
+    g_FieldEffects.fades[index].greenDelta = MIPS_DIV(green * 0x100 - g_FieldEffects.fades[index].g0, duration);
+    g_FieldEffects.fades[index].blueDelta = MIPS_DIV(blue * 0x100 - g_FieldEffects.fades[index].b0, duration);
 }
 
 void FieldFadeToWhite(int duration) {
@@ -80,9 +80,9 @@ void FieldFadeToWhite(int duration) {
             g_FieldEffects.fades[0].duration = duration;
             g_FieldEffects.fades[0].isVisible = 1;
             g_FieldEffects.fades[0].semitransparency = 2;
-            g_FieldEffects.fades[0].blueDelta = 0xFF00 / duration;
-            g_FieldEffects.fades[0].greenDelta = 0xFF00 / duration;
-            g_FieldEffects.fades[0].redDelta = 0xFF00 / duration;
+            g_FieldEffects.fades[0].blueDelta = MIPS_DIV(0xFF00, duration);
+            g_FieldEffects.fades[0].greenDelta = MIPS_DIV(0xFF00, duration);
+            g_FieldEffects.fades[0].redDelta = MIPS_DIV(0xFF00, duration);
         }
     }
 }
@@ -97,9 +97,9 @@ void FieldFadeToBlack(int duration) {
             g_FieldEffects.fades[0].duration = duration;
             g_FieldEffects.fades[0].isVisible = 1;
             g_FieldEffects.fades[0].semitransparency = 2;
-            g_FieldEffects.fades[0].blueDelta = -0x10000 / duration;
-            g_FieldEffects.fades[0].greenDelta = -0x10000 / duration;
-            g_FieldEffects.fades[0].redDelta = -0x10000 / duration;
+            g_FieldEffects.fades[0].blueDelta = MIPS_DIV(-0x10000, duration);
+            g_FieldEffects.fades[0].greenDelta = MIPS_DIV(-0x10000, duration);
+            g_FieldEffects.fades[0].redDelta = MIPS_DIV(-0x10000, duration);
         }
     }
 }

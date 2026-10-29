@@ -30,9 +30,9 @@ extern u32 func_80089C08(u8 idx);
  * func_80089C08(list[func_8001BD40(0, count-1)]) back to the slot.
  * (The dead `slti` in the collect path is a compiler artifact: its value
  * is discarded and recomputed for the loop test.) */
-/* Not yet byte-matching: the matching build assembles retail bytes for
- * this function from its own asm segment (see config/battle.yaml).  The
- * body below is kept for the port and the differential harnesses. */
+/* Port body: the retail build compiles the byte-exact C in
+ * mainasm_D854.c (gcc 2.6.x).  This body is kept for the port and the
+ * differential harnesses. */
 #ifdef XENO_PC_PORT
 void func_8007D344(u8** ppBoard, u8 index) {
     u8* p = *ppBoard;
@@ -73,9 +73,9 @@ void func_8007D344(u8** ppBoard, u8 index) {
  * The flags are a three-byte stack array indexed by r, which is why retail
  * reads off the end of the frame for the unreachable r > 2 case
  * (func_8001BD40(0, 2) returns min + x % 3, so r is always 0..2). */
-/* Not yet byte-matching: the matching build assembles retail bytes for
- * this function from its own asm segment (see config/battle.yaml).  The
- * body below is kept for the port and the differential harnesses. */
+/* Port body: the retail build compiles the byte-exact C in
+ * mainasm_D854.c (gcc 2.6.x).  This body is kept for the port and the
+ * differential harnesses. */
 #ifdef XENO_PC_PORT
 void func_8007D478(u8** ppBoard, u8 index) {
     u8* p = *ppBoard;
@@ -114,9 +114,9 @@ void func_8007D478(u8** ppBoard, u8 index) {
 
 /* func_8007D5B0.s: count i in 0..2 with (D_800CCD64[i * 0x170] & 0xC000) == 0,
  * store the count to D_800D3430[((index & 0xFF) << 6) + p[1]] (p = *ppBoard). */
-/* Not yet byte-matching: the matching build assembles retail bytes for
- * this function from its own asm segment (see config/battle.yaml).  The
- * body below is kept for the port and the differential harnesses. */
+/* The retail build compiles this function's byte-exact C in
+ * mainasm_D854.c.  The body below is kept for the port and the
+ * differential harnesses. */
 #ifdef XENO_PC_PORT
 void func_8007D5B0(u8** ppBoard, u8 index) {
     s32 count = 0;
@@ -138,9 +138,9 @@ void func_8007D5B0(u8** ppBoard, u8 index) {
  * D_800D3430[((index & 0xFF) << 6) + p[1]] (p = *ppBoard).
  * Retail loads p only after the loop and materialises the table base as a
  * pointer value rather than using a %lo store offset. */
-/* Not yet byte-matching: the matching build assembles retail bytes for
- * this function from its own asm segment (see config/battle.yaml).  The
- * body below is kept for the port and the differential harnesses. */
+/* The retail build compiles this function's byte-exact C in
+ * mainasm_D854.c.  The body below is kept for the port and the
+ * differential harnesses. */
 #ifdef XENO_PC_PORT
 void func_8007D610(u8** ppBoard, u8 index) {
     s32 count = 0;

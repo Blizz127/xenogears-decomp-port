@@ -39,6 +39,7 @@ extern void PcPort_FieldWarpDiag(void);
 extern void PcPort_FieldWarpArm(int map, int x, int z);
 extern void PcPort_DebugBattleWarp(void);
 extern void PcPort_DebugBattleWarpQueue(int id);
+extern void PcPort_FieldTestInputHold(unsigned value, unsigned frames);
 
 #define QUEUE_MAX 16
 static char s_queue[QUEUE_MAX][128];
@@ -70,7 +71,10 @@ int PcPort_CheatExec(const char* line)
                "warp <map> <x> <z>, battle <id>, speed <1..5>, bind [<button> <key>], mods\n");
     } else if (!strcmp(argv[0], "dev") && argc >= 2) {
         char command[80];
-        snprintf(command, sizeof command, "%s%s%s", argv[1], argc > 2 ? " " : "", argc > 2 ? argv[2] : "");
+        int k;
+        command[0] = '\0';
+        for (k = 1; k < argc; k++)
+            snprintf(command + strlen(command), sizeof command - strlen(command), "%s%s", k > 1 ? " " : "", argv[k]);
         return PcPort_DevMenuAction(command);
     } else if (!strcmp(argv[0], "god")) {
         if (parse_onoff(argc > 1 ? argv[1] : NULL, PcPort_GodModeEnabled()) != PcPort_GodModeEnabled())
@@ -87,8 +91,27 @@ int PcPort_CheatExec(const char* line)
         PcPort_FieldWarpArm(atoi(argv[1]), atoi(argv[2]), atoi(argv[3]));
     } else if (!strcmp(argv[0], "battle") && argc == 2) {
         PcPort_DebugBattleWarpQueue(atoi(argv[1]));
+    } else if (!strcmp(argv[0], "pad") && (argc == 2 || argc == 3)) {
+        /* TEST TOOLING for headless drivers: hold game buttons (CTRL_BTN_*
+         * mask, e.g. 0x20 Circle) for N frames (default 4). */
+        extern void PcPort_PadConsoleHold(unsigned short gameMask, int frames);
+        PcPort_PadConsoleHold((unsigned short)strtoul(argv[1], NULL, 0),
+                              argc == 3 ? atoi(argv[2]) : 4);
+    } else if (!strcmp(argv[0], "saveflag") && argc == 2) {
+        /* TEST TOOLING for headless drivers (pc_port/tests/
+         * card_save_load_test.py): set the field save-point flag D_800B236C
+         * as opcode FE99 (func_8008848C) does inside a save point's area, so
+         * a driver reaches the retail menu Save entry without walking there.
+         * The game only reads it; nothing else changes. */
+        extern short D_800B236C;
+        D_800B236C = (short)atoi(argv[1]);
+        printf("[cheat] saveflag %d\n", (int)D_800B236C);
+    } else if (!strcmp(argv[0], "hold") && argc == 3) {
+        /* harness only: hold a CTRL_BTN_* mask for N field frames */
+        PcPort_FieldTestInputHold((unsigned)strtoul(argv[1], NULL, 0), (unsigned)strtoul(argv[2], NULL, 0));
+        printf("[cheat] hold mask=%s frames=%s\n", argv[1], argv[2]);
     } else if (!strcmp(argv[0], "speed") && argc == 2) {
-        xg_plat_timing_set_speed(atoi(argv[1]));
+        xg_plat_timing_set_speed_from(atoi(argv[1]), "console");
     } else if (!strcmp(argv[0], "bind") && (argc == 1 || argc == 3)) {
         int b;
         if (argc == 3) {
@@ -153,12 +176,22 @@ static void* stdin_reader(void* arg)
     return NULL;
 }
 
+extern void PcPort_RouteLogInit(void);
+
 void PcPort_CheatConsoleInit(void)
 {
     static int done;
+    const char* cheats = getenv("XENO_CHEATS");
     if (done)
         return;
     done = 1;
+    PcPort_RouteLogInit(); /* harness only: inert unless XENO_ROUTE_LOG is set */
+    /* XENO_CHEATS=0 hard-disables the dev menu and every cheat: the frame
+     * hooks are not even subscribed (DEV_MENU_SPEC.md §2). */
+    if (cheats && strcmp(cheats, "0") == 0) {
+        fprintf(stderr, "[CHEATS] XENO_CHEATS=0: cheat console and frame hooks disabled\n");
+        return;
+    }
     xg_plat_mods_subscribe(XG_PLAT_EVENT_FRAME_TICK, tick_field_warp, NULL);
     xg_plat_mods_subscribe(XG_PLAT_EVENT_FRAME_TICK, tick_battle_warp, NULL);
     xg_plat_mods_subscribe(XG_PLAT_EVENT_FRAME_TICK, tick_console, NULL);

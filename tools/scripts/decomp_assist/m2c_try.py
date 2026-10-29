@@ -4,8 +4,10 @@
 Draft each INCLUDE_ASM function of segment SEG (asm/OV/nonmatchings/SEG/*.s)
 with m2c (-t mips-gcc-c --valid-syntax), compile it standalone with the
 repo's cc1 + maspsx on the host, and compare against the retail words.
-Writes CACHE/m2c/OV/SEG/<name>.{c,i,s,o} and results.json; prints one line
-per function (MATCH / diff n/m / size a vs b / *-fail).
+Writes CACHE/m2c/OV/SEG/<name>.{c,i,s,o} and results.json (rewritten after
+every function; RESUME=1 keeps an interrupted run's verdicts and tries only
+the remaining names); prints one line per function (MATCH / diff n/m /
+size a vs b / *-fail).
 
 Draft fix-ups (each learned from a real mismatch):
   * m2c drops unused leading parameters; they are added back, because the
@@ -112,6 +114,12 @@ if os.environ.get('VARIANTS', '1') == '1':
     for extra in ({'ARRAYIFY': 'all'}, {'KR_PROTOS': '1'}, {'ARRAYIFY': 'all', 'KR_PROTOS': '1'}):
         e = dict(os.environ); e.update(extra); VARIANTS.append(e)
 res = {}
+RES = os.path.join(D, 'results.json')
+if os.environ.get('RESUME') == '1' and os.path.exists(RES):
+    # keep verdicts from an interrupted run and only try the remaining names
+    res = json.load(open(RES))
+    names = [n for n in names if n not in res]
+    print(f"# resume: {len(res)} verdicts kept, {len(names)} to try", flush=True)
 for n in names:
     first = None
     for vi, env in enumerate(VARIANTS):
@@ -126,6 +134,6 @@ for n in names:
         # leave the base variant's files for inspection
         try_one(n, VARIANTS[0])
     res.setdefault(n, first)
-for n, v in res.items():
-    print(n, v)
-json.dump(res, open(os.path.join(D, 'results.json'), 'w'), indent=1)
+    print(n, res[n], flush=True)
+    # write after every function so an interrupted sweep keeps its verdicts
+    json.dump(res, open(RES, 'w'), indent=1)

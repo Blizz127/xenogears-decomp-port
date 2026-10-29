@@ -1,0 +1,31 @@
+--- a/src/gpu/PsyX_GPU.cpp
++++ b/src/gpu/PsyX_GPU.cpp
+@@ -63,6 +63,10 @@
+ };
+ 
+ #define MAX_DRAW_SPLITS	 4096
++
++/* _hd2d_batch_stats */
++extern "C" void PcPort_Hd2dGpuBatchObserve(int splits, int array_limit, int vertices,
++	int capacity_rejected) __attribute__((weak));
+ 
+ GrVertex g_vertexBuffer[MAX_VERTEX_BUFFER_SIZE];
+ GPUDrawSplit g_splits[MAX_DRAW_SPLITS];
+@@ -871,6 +875,8 @@
+ 
+ 	if (g_splitIndex + 1 >= MAX_DRAW_SPLITS)
+ 	{
++		if (PcPort_Hd2dGpuBatchObserve)
++			PcPort_Hd2dGpuBatchObserve(g_splitIndex, MAX_DRAW_SPLITS, g_vertexIndex, 1);
+ 		eprinterr("MAX_DRAW_SPLITS reached (too many blend modes, texture formats, drawEnv clip rects, dfe switches), expect rendering errors\n");
+ 		return;
+ 	}
+@@ -1108,6 +1114,8 @@
+ 		}
+ 	}
+ 
++	if (PcPort_Hd2dGpuBatchObserve)
++		PcPort_Hd2dGpuBatchObserve(g_splitIndex, MAX_DRAW_SPLITS, g_vertexIndex, 0);
+ 	ClearSplits();
+ }
+ 

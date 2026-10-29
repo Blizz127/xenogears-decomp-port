@@ -1,0 +1,219 @@
+diff --git a/src/psx/LIBGPU.C b/src/psx/LIBGPU.C
+--- a/src/psx/LIBGPU.C
++++ b/src/psx/LIBGPU.C
+@@ -23,8 +23,29 @@
+ 
+ void(*drawsync_callback)(void) = NULL;
+ 
++/* _xeno_gpu_trace: XENO_GPU_TRACE=a-b logs every display/VRAM call made while
++ * the presented-frame index is in [a,b] ("1" = all).  Diagnostic only; off by
++ * default and silent when unset. */
++extern int g_xeno_swap_index;
++extern "C" int PsyX_GpuTraceOn(void)
++{
++	static int init = 0, lo = 0, hi = -1;
++	if (!init)
++	{
++		const char* e = getenv("XENO_GPU_TRACE");
++		init = 1;
++		if (e && *e)
++		{
++			if (sscanf(e, "%d-%d", &lo, &hi) != 2) { lo = 0; hi = 0x7FFFFFFF; }
++		}
++	}
++	return g_xeno_swap_index >= lo && g_xeno_swap_index <= hi;
++}
++#define XENO_GPU_TRACE(...) do { if (PsyX_GpuTraceOn()) { printf("[gputrace] s=%d ", g_xeno_swap_index); printf(__VA_ARGS__); printf("\n"); fflush(stdout); } } while (0)
++
+ int ClearImage(RECT16* rect, u_char r, u_char g, u_char b)
+ {
++	XENO_GPU_TRACE("ClearImage %d,%d %dx%d rgb=%d,%d,%d", rect->x, rect->y, rect->w, rect->h, r, g, b);
+ 	GR_ClearVRAM(rect->x, rect->y, rect->w, rect->h, r, g, b);
+ 
+ 	// TODO: clear all affected backbuffers
+@@ -65,6 +86,7 @@
+ 
+ int LoadImage(RECT16* rect, u_long* p)
+ {
++	XENO_GPU_TRACE("LoadImage %d,%d %dx%d", rect->x, rect->y, rect->w, rect->h);
+ 	GR_CopyVRAM((unsigned short*)p, 0, 0, rect->w, rect->h, rect->x, rect->y);
+ 	return 0;
+ }
+@@ -132,6 +154,7 @@
+ 
+ int MoveImage(RECT16* rect, int x, int y)
+ {
++	XENO_GPU_TRACE("MoveImage %d,%d %dx%d -> %d,%d", rect->x, rect->y, rect->w, rect->h, x, y);
+ 	GR_CopyVRAM(NULL, rect->x, rect->y, rect->w, rect->h, x, y);
+ 	/* _xeno_fb_materialize: a MoveImage restoring the ACTIVE draw
+ 	 * framebuffer is the game's per-frame backdrop (the menu); composite it
+@@ -181,6 +204,7 @@
+ 
+ int StoreImage(RECT16* rect, u_long* p)
+ {
++	XENO_GPU_TRACE("StoreImage %d,%d %dx%d", rect->x, rect->y, rect->w, rect->h);
+ 	GR_ReadVRAM((unsigned short*)p, rect->x, rect->y, rect->w, rect->h);
+ 	return 0;
+ }
+@@ -240,6 +264,7 @@
+ 
+ void SetDispMask(int mask)
+ {
++	XENO_GPU_TRACE("SetDispMask %d", mask);
+ 	g_GPUDisabledState = (mask == 0);
+ }
+ 
+@@ -280,6 +305,7 @@
+ 
+ DISPENV* PutDispEnv(DISPENV* env)//To Finish
+ {
++	XENO_GPU_TRACE("PutDispEnv %d,%d %dx%d rgb24=%d inter=%d", env->disp.x, env->disp.y, env->disp.w, env->disp.h, env->isrgb24, env->isinter);
+ 	if (env->isinter != currentDispEnv.isinter ||
+ 		env->disp.y == currentDispEnv.disp.y)
+ 	{
+@@ -324,6 +350,7 @@
+ 
+ DRAWENV* PutDrawEnv(DRAWENV* env)//Guessed
+ {
++	XENO_GPU_TRACE("PutDrawEnv clip=%d,%d %dx%d isbg=%d", env->clip.x, env->clip.y, env->clip.w, env->clip.h, env->isbg);
+ 	memcpy((char*)&activeDrawEnv, env, sizeof(DRAWENV));
+ 	/* _xeno_isbg: honor the DRAWENV background-clear flag (upstream TODO).
+ 	 * Real libgpu fills the clip rect on env-apply when isbg is set; the
+@@ -437,6 +464,30 @@
+ 
+ void DrawOTag(u_long* p)
+ {
++	if (PsyX_GpuTraceOn())
++	{
++		/* _xeno_gpu_trace: summarize the packets this walk will draw. */
++		char buf[640];
++		int n = 0, steps = 0, prims = 0;
++		u_int link = (u_int)(uintptr_t)p;
++		n += snprintf(buf + n, sizeof(buf) - n, "DrawOTag draw=%d,%d", activeDrawEnv.clip.x, activeDrawEnv.clip.y);
++		while ((link & 0xFFFFFF) != 0xFFFFFF && (link & 0xFFFFFF) != 0 && steps < 100000)
++		{
++			u_int* pkt = (u_int*)(uintptr_t)(link & 0xFFFFFF);
++			u_int len = pkt[0] >> 24;
++			if (len != 0)
++			{
++				u_char code = ((u_char*)pkt)[7];
++				prims++;
++				if (n < (int)sizeof(buf) - 48 && ((code & 0xE0) == 0x20 || (code & 0xE0) == 0x60 || code == 0xE1))
++					n += snprintf(buf + n, sizeof(buf) - n, " %02x/%x", code,
++						(code & 0xE0) == 0x20 && (code & 4) ? (u_int)((u_short*)pkt)[(code & 0x10) ? 13 : 11] : (code == 0xE1 ? pkt[1] & 0x1FF : ((u_char*)pkt)[4]));
++			}
++			link = pkt[0];
++			steps++;
++		}
++		XENO_GPU_TRACE("%s prims=%d", buf, prims);
++	}
+ 	do
+ 	{
+ 		if (g_GPUDisabledState)
+diff --git a/src/render/PsyX_render.cpp b/src/render/PsyX_render.cpp
+--- a/src/render/PsyX_render.cpp
++++ b/src/render/PsyX_render.cpp
+@@ -2245,11 +2245,15 @@
+ #endif
+ }
+ 
++/* _xeno_gpu_trace: presented-frame index for the XENO_GPU_TRACE log. */
++int g_xeno_swap_index = 0;
++
+ void GR_SwapWindow()
+ {
+ #if defined(RENDERER_OGL) || defined(RENDERER_OGLES)
+ 	SDL_GL_SwapWindow(g_window);
+ #endif
++	g_xeno_swap_index++; /* _xeno_gpu_trace */
+ 
+ 	//glFinish();
+ }
+diff --git a/src/PsyX_main.cpp b/src/PsyX_main.cpp
+--- a/src/PsyX_main.cpp
++++ b/src/PsyX_main.cpp
+@@ -926,6 +926,28 @@
+ #include "../../../src/psycross_host_toolbar.inl"
+ #include "../../../src/psycross_input_trace.inl"
+ 
++/* _xeno_gpu_trace */
++extern "C" int PsyX_GpuTraceOn(void);
++extern int g_xeno_swap_index;
++extern unsigned short vram[];
++
++/* _xeno_gpu_trace: with XENO_GPU_TRACE_VRAM=dir also write the CPU VRAM
++ * mirror (1024x512 u16) at each traced present, before the present runs. */
++static void PsyX_GpuTraceDumpVRAM(const char* path)
++{
++	const char* dir = getenv("XENO_GPU_TRACE_VRAM");
++	char name[512];
++	FILE* f;
++	if (!dir || !*dir || !PsyX_GpuTraceOn())
++		return;
++	snprintf(name, sizeof(name), "%s/vram_%06d_%s.bin", dir, g_xeno_swap_index, path);
++	f = fopen(name, "wb");
++	if (!f)
++		return;
++	fwrite(vram, sizeof(unsigned short), VRAM_WIDTH * VRAM_HEIGHT, f);
++	fclose(f);
++}
++
+ /* _xeno_display_present */
+ int PsyX_IsSceneOpen(void)
+ {
+@@ -939,6 +961,10 @@
+ 		return 0;
+ 
+ 	PsyX_Sys_DoPollEvent();
++	{ /* _xeno_gpu_trace */
++		if (PsyX_GpuTraceOn()) { printf("[gputrace] s=%d PRESENT vram %d,%d %dx%d rgb24=%d mask=%d\n", g_xeno_swap_index, currentDispEnv.disp.x, currentDispEnv.disp.y, currentDispEnv.disp.w, currentDispEnv.disp.h, currentDispEnv.isrgb24, g_GPUDisabledState); fflush(stdout); }
++		PsyX_GpuTraceDumpVRAM("V");
++	}
+ 	GR_PresentVRAMDisplay(currentDispEnv.disp.x, currentDispEnv.disp.y,
+ 		currentDispEnv.disp.w, currentDispEnv.disp.h,
+ 		currentDispEnv.isrgb24, !g_GPUDisabledState);
+@@ -961,6 +987,10 @@
+ #endif
+ 
+ 	GR_EndScene();
++	{ /* _xeno_gpu_trace */
++		if (PsyX_GpuTraceOn()) { printf("[gputrace] s=%d PRESENT scene store=%d,%d %dx%d cur=%d,%d rgb24=%d mask=%d\n", g_xeno_swap_index, activeDispEnv.disp.x, activeDispEnv.disp.y, activeDispEnv.disp.w, activeDispEnv.disp.h, currentDispEnv.disp.x, currentDispEnv.disp.y, currentDispEnv.isrgb24, g_GPUDisabledState); fflush(stdout); }
++		PsyX_GpuTraceDumpVRAM("E");
++	}
+ 	
+ 	GR_StoreFrameBuffer(activeDispEnv.disp.x, activeDispEnv.disp.y, activeDispEnv.disp.w, activeDispEnv.disp.h);
+ 
+diff --git a/src/gpu/PsyX_GPU.cpp b/src/gpu/PsyX_GPU.cpp
+--- a/src/gpu/PsyX_GPU.cpp
++++ b/src/gpu/PsyX_GPU.cpp
+@@ -819,6 +819,10 @@
+ 	g_vertexIndex += vertexCount;
+ }
+ 
++/* _xeno_gpu_trace */
++extern "C" int PsyX_GpuTraceOn(void);
++extern int g_xeno_swap_index;
++
+ void DrawSplit(const GPUDrawSplit& split)
+ {
+ 	if(split.debugText)
+@@ -840,6 +844,19 @@
+ 
+ 	GR_SetBlendMode(split.blendMode);
+ 
++	{ /* _xeno_gpu_trace: per-split summary */
++		if (PsyX_GpuTraceOn() && split.numVerts > 0)
++		{
++			const GrVertex& v = g_vertexBuffer[split.startVertex];
++			printf("[gputrace] s=%d split blend=%d fmt=%d tex=%d verts=%d clip=%d,%d %dx%d tw=%d,%d,%d,%d v0=(%d,%d) page=%d uv=%d,%d rgb=%d,%d,%d,%d\n",
++				g_xeno_swap_index, (int)split.blendMode, (int)split.texFormat, (int)split.textureId, split.numVerts,
++				split.drawenv.clip.x, split.drawenv.clip.y, split.drawenv.clip.w, split.drawenv.clip.h,
++				split.drawenv.tw.x, split.drawenv.tw.y, split.drawenv.tw.w, split.drawenv.tw.h,
++				(int)v.x, (int)v.y, (int)v.page, v.u, v.v, v.r, v.g, v.b, v.a);
++			fflush(stdout);
++		}
++	}
++
+ 	GR_DrawTriangles(split.startVertex, split.numVerts / 3);
+ 
+ 	if (split.debugText)

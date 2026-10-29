@@ -1,0 +1,54 @@
+--- a/src/psx/LIBGTE.C
++++ b/src/psx/LIBGTE.C
+@@ -4,6 +4,8 @@
+ #include "psx/gtereg.h"
+ 
+ #include <stdio.h>
++#include <stdint.h>
++#include <string.h>
+ #include "PsyX/PsyX_render.h"
+ 
+ #include <assert.h>
+@@ -167,6 +169,14 @@
+ 	return sz;
+ }
+ 
++/* _xeno_gte_flag_word_store: the retail GTE flag output is one 32-bit word. */
++static void xeno_gte_flag_word_store(long* flag, uint32_t bits)
++{
++	int32_t signed_bits;
++	memcpy(&signed_bits, &bits, sizeof(signed_bits));
++	memcpy(flag, &signed_bits, sizeof(signed_bits));
++}
++
+ int RotTransPers4(SVECTOR* v0, SVECTOR* v1, SVECTOR* v2, SVECTOR* v3, long* sxy0, long* sxy1, long* sxy2, long* sxy3, long* p, long* flag)
+ {
+ 	int _flag;
+@@ -186,8 +196,12 @@
+ 	gte_stflg(flag);
+ 	gte_stdp(p);
+ 
+-	*flag |= _flag;
+-	*flag = (long)(int)(unsigned int)*flag; /* _xeno_gte_flag_sx4 */
++	{
++		uint32_t flag_bits;
++		memcpy(&flag_bits, flag, sizeof(flag_bits));
++		flag_bits |= (uint32_t)_flag;
++		xeno_gte_flag_word_store(flag, flag_bits);
++	}
+ 	gte_stszotz(&sz);
+ 
+ 	return sz;
+@@ -321,6 +335,12 @@
+ 	m2->m[2][0] = r0.vz;
+ 	m2->m[2][1] = r1.vz;
+ 	m2->m[2][2] = r2.vz;
++	/* _xeno_mulmatrix_word_store: retail 0x80049308 uses SWC2 at +0x10,
++	 * storing the complete GTE register 11 word through the pad halfword. */
++	{
++		uint32_t tail = MFC2(11);
++		memcpy((unsigned char*)m2 + 0x10, &tail, sizeof(tail));
++	}
+ 
+ #else
+ 	/* ‚±‚ê‚Å‚àm0==m2‚ÌŽžƒ„ƒoƒC */

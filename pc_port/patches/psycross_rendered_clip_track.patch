@@ -1,0 +1,81 @@
+diff --git a/src/gpu/PsyX_GPU.cpp b/src/gpu/PsyX_GPU.cpp
+--- a/src/gpu/PsyX_GPU.cpp
++++ b/src/gpu/PsyX_GPU.cpp
+@@ -819,6 +819,44 @@
+ 	g_vertexIndex += vertexCount;
+ }
+ 
++/* _xeno_rendered_clip_track: bounding box of the VRAM draw clips rendered
++ * into the GL backbuffer since the last present (PsyX_EndScene clears it).
++ * PsyX_XenoRenderedClipMisses answers whether that backbuffer can hold the
++ * pixels of a VRAM rect at all: a scene was drawn, and none of its clips
++ * touch the rect. */
++static int g_xenoRenderedPending = 0;
++static int g_xenoRenderedX0, g_xenoRenderedY0, g_xenoRenderedX1, g_xenoRenderedY1;
++
++static void XenoTrackRenderedClip(const RECT16* c)
++{
++	if (c->w <= 0 || c->h <= 0)
++		return;
++	if (!g_xenoRenderedPending)
++	{
++		g_xenoRenderedX0 = c->x; g_xenoRenderedY0 = c->y;
++		g_xenoRenderedX1 = c->x + c->w; g_xenoRenderedY1 = c->y + c->h;
++		g_xenoRenderedPending = 1;
++		return;
++	}
++	if (c->x < g_xenoRenderedX0) g_xenoRenderedX0 = c->x;
++	if (c->y < g_xenoRenderedY0) g_xenoRenderedY0 = c->y;
++	if (c->x + c->w > g_xenoRenderedX1) g_xenoRenderedX1 = c->x + c->w;
++	if (c->y + c->h > g_xenoRenderedY1) g_xenoRenderedY1 = c->y + c->h;
++}
++
++extern "C" void PsyX_XenoRenderedClipReset(void)
++{
++	g_xenoRenderedPending = 0;
++}
++
++extern "C" int PsyX_XenoRenderedClipMisses(int x, int y, int w, int h)
++{
++	if (!g_xenoRenderedPending)
++		return 0;
++	return !(x < g_xenoRenderedX1 && x + w > g_xenoRenderedX0 &&
++		y < g_xenoRenderedY1 && y + h > g_xenoRenderedY0);
++}
++
+ /* _xeno_gpu_trace */
+ extern "C" int PsyX_GpuTraceOn(void);
+ extern int g_xeno_swap_index;
+@@ -906,7 +944,11 @@
+ 	GR_UpdateVertexBuffer(g_vertexBuffer, g_vertexIndex);
+ 
+ 	for (int i = 1; i <= g_splitIndex; i++)
++	{
+ 		DrawSplit(g_splits[i]);
++		if (g_splits[i].numVerts > 0) /* _xeno_rendered_clip_track */
++			XenoTrackRenderedClip(&g_splits[i].drawenv.clip);
++	}
+ 
+ 	if (g_vertexIndex != 0)
+ 		g_xeno_vram_snapshot_dirty = 1;
+diff --git a/src/PsyX_main.cpp b/src/PsyX_main.cpp
+--- a/src/PsyX_main.cpp
++++ b/src/PsyX_main.cpp
+@@ -926,6 +926,9 @@
+ #include "../../../src/psycross_host_toolbar.inl"
+ #include "../../../src/psycross_input_trace.inl"
+ 
++/* _xeno_rendered_clip_track */
++extern "C" void PsyX_XenoRenderedClipReset(void);
++
+ /* _xeno_gpu_trace */
+ extern "C" int PsyX_GpuTraceOn(void);
+ extern int g_xeno_swap_index;
+@@ -997,6 +1000,7 @@
+ 	PsyX_RecordPresentedFrame();
+ 	PsyX_HostToolbarDraw();
+ 	GR_SwapWindow();
++	PsyX_XenoRenderedClipReset(); /* _xeno_rendered_clip_track */
+ 	
+ #if defined(__GNUC__)
+ 	if (PcPort_WorldCaptureFulfillAtPresent != NULL)

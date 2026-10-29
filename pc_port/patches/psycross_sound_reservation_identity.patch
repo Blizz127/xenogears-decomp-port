@@ -1,0 +1,26 @@
+--- a/src/psx/LIBAPI.C
++++ b/src/psx/LIBAPI.C
+@@ -113,0 +114,2 @@
++/* _xeno_sound_reservation_identity: lifecycle generation per slot. */
++static unsigned long long s_eventGeneration[PSYX_EVENT_MAX];
+@@ -259,0 +262 @@
++			s_eventGeneration[i]++;
+@@ -284,0 +288 @@
++		s_eventGeneration[idx]++;
+@@ -376,0 +381 @@
++static __thread unsigned long long s_soundReservationGeneration = 0;
+@@ -390,0 +396 @@
++    s_soundReservationGeneration = s_eventGeneration[event - 1];
+@@ -391,0 +398,12 @@
++}
++
++/* The caller must already own a reservation on this thread. */
++extern "C" int PsyX_Sys_ValidateSoundEventReservation(unsigned int event, int enabled)
++{
++    if (!s_soundReservation || event != s_soundReservation ||
++        event < 1 || event > PSYX_EVENT_MAX)
++        return 0;
++    PsyXEventSlot* slot = &s_psyxEvents[event - 1];
++    return slot->in_use && PsyX_EventSlotIsSoundTick(slot) &&
++           s_eventGeneration[event - 1] == s_soundReservationGeneration &&
++           !!slot->enabled == !!enabled;

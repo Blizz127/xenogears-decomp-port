@@ -22,9 +22,9 @@ extern u8 D_800C3FE8[];
 /* func_80085388.s: 11 passes (i = 0..10) clearing two u16 slots and
  * setting two byte slots to 0xFF around D_800C3FE8, strided by
  * *(D_800C3EAC + 0x2DA) * 72. Incoming args are all clobbered. */
-/* Not yet byte-matching: the matching build assembles retail bytes for
- * this function from its own asm segment (see config/battle.yaml).  The
- * body below is kept for the port and the differential harnesses. */
+/* The retail build compiles this function's byte-exact C in
+ * mainasm_15898.c.  The body below is kept for the port and the
+ * differential harnesses. */
 #ifdef XENO_PC_PORT
 void func_80085388(void) {
     s32 i = 0;
@@ -88,7 +88,9 @@ void func_80085454(s32 arg0) {
     s32 k = 0;
     do {
         u16 T = *(u16*)(D_800D2C54 + (s32)(k * 4));
-        u16* a2k = (u16*)(D_800D2D70 + (s32)(k * 2));
+        /* Byte offset: the port's guest-RAM alias for D_800D2D70 is a u16
+         * pointer, the retail-build declaration above a byte array. */
+        u16* a2k = (u16*)((u8*)D_800D2D70 + (s32)(k * 2));
         u8* a3k = D_800D2D5C + k;
         u8 v1;
         d0[k] = T;
@@ -205,9 +207,9 @@ extern void func_800883AC(u8 a0);
  * func_800883AC(s2) (for s2 >= 3). The s4 stores address absolute
  * retail scratch (s4+0x8F3C etc., resolved in the test). Retail leaves
  * residue in v0, ignored by the only caller. */
-/* Not yet byte-matching: the matching build assembles retail bytes for
- * this function from its own asm segment (see config/battle.yaml).  The
- * body below is kept for the port and the differential harnesses. */
+/* The retail build compiles this function's byte-exact C in
+ * mainasm_15898.c.  The body below is kept for the port and the
+ * differential harnesses. */
 #ifdef XENO_PC_PORT
 void func_80085618(s32 a0) {
     u32 A = (u32)a0 & 0xFFu;
@@ -380,9 +382,9 @@ extern u8 D_800CCD74[];
  * genuinely writes there, so the C does too. Retail recomputes the 368-byte
  * stride for the second loop rather than reusing the first offset.
  * void: retail leaves residue in v0, ignored by callers. */
-/* Not yet byte-matching: the matching build assembles retail bytes for
- * this function from its own asm segment (see config/battle.yaml).  The
- * body below is kept for the port and the differential harnesses. */
+/* The retail build compiles this function's byte-exact C in
+ * mainasm_15898.c.  The body below is kept for the port and the
+ * differential harnesses. */
 #ifdef XENO_PC_PORT
 void func_80085AC4(u8 a0) {
     u32 t;

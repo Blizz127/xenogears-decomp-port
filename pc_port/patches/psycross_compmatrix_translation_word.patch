@@ -1,0 +1,28 @@
+--- a/src/psx/LIBGTE.C
++++ b/src/psx/LIBGTE.C
+@@ -806,7 +806,6 @@
+ MATRIX* CompMatrix(MATRIX* m0, MATRIX* m1, MATRIX* m2)
+ {
+ 	// UNTESTED
+-	SVECTOR tmp;
+ 	VECTOR transformedTranslation;
+ 	int originalTranslation[3];
+ 	gte_MulMatrix0(m0, m1, m2);
+@@ -815,11 +814,12 @@
+ 	short matrixTail = m2->m[2][2] < 0 ? -1 : 0;
+ 	((unsigned char*)m2)[0x12] = ((unsigned char*)m2)[0x13] = (unsigned char)matrixTail;
+ 
+-	tmp.vx = m1->t[0];
+-	tmp.vy = m1->t[1];
+-	tmp.vz = m1->t[2];
+-
+-	gte_ldv0(&tmp);
++	/* _xeno_compmatrix_translation_word: retail 800493FC-80049414 packs the low X/Y halfwords but loads
++	 * the complete Z word. An SVECTOR leaves that word's upper half
++	 * uninitialized, losing observable graphics-register state. */
++	MTC2(((unsigned int)m1->t[0] & 0xffffu) |
++	     ((unsigned int)m1->t[1] << 16), 0);
++	MTC2((unsigned int)m1->t[2], 1);
+ 	gte_rtv0();
+ 	gte_stlvnl(&transformedTranslation); /* _xeno_compmatrix_alias */
+ 

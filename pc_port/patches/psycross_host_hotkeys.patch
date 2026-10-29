@@ -1,0 +1,153 @@
+diff --git a/src/PsyX_main.cpp b/src/PsyX_main.cpp
+--- a/src/PsyX_main.cpp
++++ b/src/PsyX_main.cpp
+@@ -623,6 +623,31 @@
+ static int PsyX_HostToolbarHandleEvent(SDL_Event* event);
+ static void PsyX_HostToolbarDraw();
+ static void PsyX_HostToolbarShutdown();
++/* _xeno_input_trace (pc_port/src/psycross_input_trace.inl). */
++static void PsyX_InputTrace(const SDL_Event* event);
++extern "C" int PcPort_DevMenuEnabled(void);
++/* _xeno_host_hotkeys: F6 toggle + Backspace hold share one fast-forward. */
++static int g_xenoFastForwardToggle = 0;
++static int g_xenoFastForwardKeyHeld = 0;
++static int g_xenoFastForwardPadHeld = 0;
++static void PsyX_HostFastForwardUpdate()
++{
++	PsyX_SetFastForwardHeld(g_xenoFastForwardToggle || g_xenoFastForwardKeyHeld ||
++		g_xenoFastForwardPadHeld);
++}
++/* F6 / L3 (pad), dev menu Options; R3 hold (pad). */
++extern "C" int PsyX_HostFastForwardEnabled(void) { return g_xenoFastForwardToggle; }
++extern "C" void PsyX_HostFastForwardToggle(void)
++{
++	g_xenoFastForwardToggle ^= 1;
++	eprintinfo("Fast-forward: %s\n", g_xenoFastForwardToggle ? "on" : "off");
++	PsyX_HostFastForwardUpdate();
++}
++extern "C" void PsyX_HostFastForwardPadHold(int held)
++{
++	g_xenoFastForwardPadHeld = held ? 1 : 0;
++	PsyX_HostFastForwardUpdate();
++}
+ 
+ void PsyX_Initialise(char* appName, int width, int height, int fullscreen)
+ {
+@@ -652,6 +677,10 @@
+ 	SDL_SetHint(SDL_HINT_EMSCRIPTEN_ASYNCIFY, "0");
+ #endif
+ 	
++	/* gamescope/Steam: keep controller events flowing when the window does
++	 * not report focus. */
++	SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, "1");
++
+ 	if (SDL_Init(SDL_INIT_VIDEO) != 0)
+ 	{
+ 		eprinterr("Failed to initialise SDL\n");
+@@ -719,6 +748,7 @@
+ 	SDL_Event event;
+ 	while (SDL_PollEvent(&event))
+ 	{
++		PsyX_InputTrace(&event);
+ 		if (PsyX_HostToolbarHandleEvent(&event))
+ 			continue;
+ 		switch (event.type)
+@@ -736,6 +766,7 @@
+ 				switch (event.window.event)
+ 				{
+ 				case SDL_WINDOWEVENT_FOCUS_LOST:
++					g_xenoFastForwardToggle = g_xenoFastForwardKeyHeld = g_xenoFastForwardPadHeld = 0;
+ 					PsyX_SetFastForwardHeld(0);
+ 					break;
+ 				case SDL_WINDOWEVENT_RESIZED:
+@@ -756,8 +787,10 @@
+ 			case SDL_KEYUP:
+ 			{
+ 				int nKey = event.key.keysym.scancode;
+-				if (nKey == SDL_SCANCODE_F11) {
+-					if (event.type == SDL_KEYUP)
++				/* F7 speed cycle only with the dev-menu opt-in
++				 * (cheats.dev_menu); otherwise F7 does nothing. */
++				if (nKey == SDL_SCANCODE_F7) {
++					if (event.type == SDL_KEYUP && PcPort_DevMenuEnabled())
+ 						PsyX_SetSpeedMultiplier((event.key.keysym.mod & KMOD_SHIFT)
+ 							? 1 : PsyX_GetSpeedMultiplier() % 5 + 1);
+ 					break;
+@@ -891,6 +924,7 @@
+ 
+ /* _xeno_host_toolbar */
+ #include "../../../src/psycross_host_toolbar.inl"
++#include "../../../src/psycross_input_trace.inl"
+ 
+ /* _xeno_display_present */
+ int PsyX_IsSceneOpen(void)
+@@ -1028,12 +1062,11 @@
+ 	if (g_dbg_gameDebugKeys)
+ 		g_dbg_gameDebugKeys(nKey, down);
+ 
+-#if 1 //def _DEBUG
+ 	if (nKey == SDL_SCANCODE_BACKSPACE)
+ 	{
+-		PsyX_SetFastForwardHeld(down);
++		g_xenoFastForwardKeyHeld = down ? 1 : 0;
++		PsyX_HostFastForwardUpdate();
+ 	}
+-#endif
+ 
+ 	if (!down)
+ 	{
+@@ -1056,44 +1089,27 @@
+ 				g_dbg_polygonSelected += (nKey == SDL_SCANCODE_UP) ? 3 : -3;
+ 			}
+ 			break;
+-		case SDL_SCANCODE_F10:
+-			eprintwarn("saving VRAM.TGA\n");
+-			GR_SaveVRAM("VRAM.TGA", 0, 0, VRAM_WIDTH, VRAM_HEIGHT, 1);
+-			break;
+ #endif
++		/* _xeno_host_hotkeys: the only host keys in default builds.
++		 * F6 fast-forward toggle, F9 record, F10 screenshot, F11 quick
++		 * save, F12 quick load (Backspace hold and F7 are handled above).
++		 * PsyCross's F3-F5 debug toggles are not bound. */
++		case SDL_SCANCODE_F6:
++			PsyX_HostFastForwardToggle();
++			break;
+ #if !defined(__EMSCRIPTEN__) && !defined(__ANDROID__)
+-		case SDL_SCANCODE_F12:
++		case SDL_SCANCODE_F10:
+ 			eprintwarn("Saving screenshot...\n");
+ 			PsyX_TakeScreenshot();
+ 			break;
+ #endif
+-		case SDL_SCANCODE_F3:
+-			g_cfg_bilinearFiltering ^= 1;
+-			eprintwarn("filtering mode: %d\n", g_cfg_bilinearFiltering);
+-			break;
+-		case SDL_SCANCODE_F4:
+-
+-			g_activeKeyboardControllers++;
+-			g_activeKeyboardControllers = g_activeKeyboardControllers % 4;
+-
+-			if (g_activeKeyboardControllers == 0)
+-				g_activeKeyboardControllers++;
+-
+-			eprintwarn("Active keyboard controller: %d\n", g_activeKeyboardControllers);
+-			break;
+-		case SDL_SCANCODE_F5:
+-			g_cfg_pgxpTextureCorrection ^= 1;
+-			break;
+-		case SDL_SCANCODE_F6:
+-			g_cfg_pgxpZBuffer ^= 1;
+-			break;
+-		case SDL_SCANCODE_F7:
++		case SDL_SCANCODE_F11:
+ #if defined(__GNUC__)
+ 			if (PcPort_QuickCheckpointRequestSave != NULL)
+ 				PcPort_QuickCheckpointRequestSave();
+ #endif
+ 			break;
+-		case SDL_SCANCODE_F8:
++		case SDL_SCANCODE_F12:
+ #if defined(__GNUC__)
+ 			if (PcPort_QuickCheckpointRequestLoad != NULL)
+ 				PcPort_QuickCheckpointRequestLoad();

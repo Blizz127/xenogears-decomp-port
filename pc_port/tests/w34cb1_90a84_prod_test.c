@@ -44,6 +44,11 @@ void wm_90a84_test_trace(u32 kind, u32 address, u32 value)
     g_trace_count++;
 }
 
+/* Host PsyCross trig mocks: rcos is the conventional COSINE, rsin the
+ * conventional SINE.  Retail 0x8003F8B0 (decomp `rcos`) reads the SINE
+ * halfword and 0x8003F8CC (decomp `rsin`) the COSINE halfword
+ * (world_map_retail_trig.h), so slot +0x38 receives the sine mock and +0x40
+ * the negated cosine mock. */
 int rcos(int angle)
 {
     (void)angle;
@@ -177,10 +182,10 @@ static int test_heading_table(void)
         } else {
             failures += expect_u32("heading rcos calls", g_rcos_calls, 1u);
             failures += expect_u32("heading rsin calls", g_rsin_calls, 1u);
-            failures += expect_u32("heading rcos delay-slot store", load_u32(SLOT_ADDR + 0x38u),
-                                   0x11223344u);
-            failures += expect_u32("heading negated rsin slot", load_u32(SLOT_ADDR + 0x40u),
-                                   0x0DCBA988u);
+            failures += expect_u32("heading retail-rcos (sine) delay-slot store",
+                                   load_u32(SLOT_ADDR + 0x38u), 0xF2345678u);
+            failures += expect_u32("heading negated retail-rsin (cosine) slot",
+                                   load_u32(SLOT_ADDR + 0x40u), 0xEEDDCCBCu);
         }
     }
     return failures;
@@ -247,9 +252,9 @@ static int test_ordered_event_oracle(void)
         { WM_90A84_TRACE_STORE_ANGLE, SLOT_ADDR + 0x48u, 0x0034u },
         { WM_90A84_TRACE_CALL_RCOS, 0x80090B6Cu, 0x0034u },
         /* jal rsin delay slot executes before rsin replaces v0. */
-        { WM_90A84_TRACE_STORE_COS, SLOT_ADDR + 0x38u, 0x11223344u },
+        { WM_90A84_TRACE_STORE_COS, SLOT_ADDR + 0x38u, 0xF2345678u },
         { WM_90A84_TRACE_CALL_RSIN, 0x80090B78u, 0x0034u },
-        { WM_90A84_TRACE_STORE_SIN, SLOT_ADDR + 0x40u, 0x0DCBA988u },
+        { WM_90A84_TRACE_STORE_SIN, SLOT_ADDR + 0x40u, 0xEEDDCCBCu },
         { WM_90A84_TRACE_LOAD_FLAGS, FLAGS, 0u },
         { WM_90A84_TRACE_LOAD_SELECTION, SELECTION, 0xFFFFu },
         { WM_90A84_TRACE_CALL_90A18, 0x80090C48u, 0u },
@@ -296,11 +301,12 @@ static int retail_write(void* opaque, uint32_t address, unsigned width, uint32_t
 static int retail_trig(void* opaque, PcPortMipsCpu* cpu, uint32_t target)
 {
     (void)opaque;
-    if (target == 0x8003F8B0u) cpu->gpr[2] = (u32)rcos((int)cpu->gpr[4]);
+    /* Retail 0x8003F8B0 is the sine-table entry, 0x8003F8CC the cosine one. */
+    if (target == 0x8003F8B0u) cpu->gpr[2] = (u32)rsin((int)cpu->gpr[4]);
     else if (target == 0x8003F8CCu) {
         /* The delay-slot store must already have committed before entry. */
-        if (load_u32(SLOT_ADDR + 0x38u) != 0x11223344u) return -1;
-        cpu->gpr[2] = (u32)rsin((int)cpu->gpr[4]);
+        if (load_u32(SLOT_ADDR + 0x38u) != 0xF2345678u) return -1;
+        cpu->gpr[2] = (u32)rcos((int)cpu->gpr[4]);
     } else return 0;
     return 1;
 }

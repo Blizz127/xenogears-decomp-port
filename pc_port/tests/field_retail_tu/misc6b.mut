@@ -1,0 +1,4 @@
+[
+ ("func_800A0228", "| 0x400) & ~0x300;", "| 0x400) & ~0x301;"),
+ ("func_800A08B8", "actor->scriptFlags.flags = (actor->scriptFlags.flags | 0x400) & ~0x300;", "actor->scriptFlags.flags = (actor->scriptFlags.flags | 0x400) & ~0x500;"),
+]

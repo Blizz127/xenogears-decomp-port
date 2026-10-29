@@ -783,7 +783,13 @@ extern void* memmove(u_char* pDst, u_char* pSrc, int size);
 void func_8001B970(void) {
     void* buf;
     REG_PIN(u8*, base, "$17");
+#ifdef XENO_PC_PORT
+    /* Keep name tails deterministic without clearing the shared decode buffer
+     * between records; retail's initial guest-stack history has no host value. */
+    u8 tmp[48] = {0};
+#else
     u8 tmp[48];
+#endif
     REG_PIN(u8*, q1, "$19");
     REG_PIN(u8*, q2, "$18");
     REG_PIN(s32, n, "$16");
@@ -1002,7 +1008,9 @@ u8 func_8001BD40(u8 min, u8 max) {
 #ifdef XENO_PC_PORT
         int rr = rand();
         int d = range + 1;
-        return (u8)(((rr & 0xFF) % d + min) & 0xFF);
+        /* Original signed DIV keeps its numerator in HI when d is zero. */
+        int remainder = d != 0 ? (rr & 0xFF) % d : (rr & 0xFF);
+        return (u8)((remainder + min) & 0xFF);
 #else
         /* cc1 otherwise schedules addiu $v1,$s0,1 ahead of andi $v0,$v0,0xFF.
          * One asm block locks that order. Do not pin $2/$3: local register

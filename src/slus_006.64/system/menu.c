@@ -152,6 +152,34 @@ extern void func_801CCD28(void);
 extern void func_801CBDBC(void);
 extern void func_801CE024(void);
 
+#ifdef XENO_PC_PORT
+/* Menu mode 3, "Enter Name" (retail debug label, D_8004F69C): archive
+ * directory 0x10 file 8, loaded at 0x801C5000, entry 0x801CBDBC.  Field
+ * opcode FE58 requests it with a name-table id in D_80059171 (characters
+ * 0-10, Gears 11-30; e.g. 7 = Chu-Chu's mandatory naming on the Yggdrasil).
+ *
+ * The port runs file 8 natively: src/name_entry_menu/main/misc.c, entry
+ * NameEntryMenuMain (0x801CBDBC); the letter grid is the game's own
+ * on-screen keyboard.  Its .rodata save id and .data tables are refilled
+ * from the same file, read from the user's disc archive, on every entry
+ * (PcPort_NameEntryMenuLoadData, pc_port/src/data_name_entry_menu.c):
+ * retail's field opener reloads the overlay for each request, and the name
+ * entry writes into its own letter-code table.
+ *
+ * Routed by name, the same way the member-change and shop entries are, so
+ * that splat's C-definition scan, which ignores #ifdef, does not count a
+ * port-only definition of func_801CBDBC as a SLUS function.  That would drop
+ * it from linker/undefined_funcs_auto.slus_006.64.txt and break the
+ * matching link. */
+extern void NameEntryMenuMain(void);
+extern void PcPort_NameEntryMenuLoadData(void);
+static void PcPort_EnterNameMenu(void) {
+    PcPort_NameEntryMenuLoadData();
+    NameEntryMenuMain();
+}
+#define func_801CBDBC PcPort_EnterNameMenu
+#endif
+
 void MenuExecute(void) {
     int i = 0;
     int j = 0;

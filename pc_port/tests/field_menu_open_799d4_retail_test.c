@@ -142,11 +142,22 @@ void SetDrawMode(DR_MODE* p, int dfe, int dtd, int tpage, RECT* tw)
     (void)tw;
 }
 
+/* MoveImage log after MenuMain returns (the close copies). */
+static int s_move_count;
+static int s_move_log[8][6];
+
 int MoveImage(RECT* rect, int x, int y)
 {
-    (void)rect;
-    (void)x;
-    (void)y;
+    if (s_menu_main && s_move_count < 8) {
+        s_move_log[s_move_count][0] = rect->x;
+        s_move_log[s_move_count][1] = rect->y;
+        s_move_log[s_move_count][2] = rect->w;
+        s_move_log[s_move_count][3] = rect->h;
+        s_move_log[s_move_count][4] = x;
+        s_move_log[s_move_count][5] = y;
+    }
+    if (s_menu_main)
+        s_move_count++;
     return 0;
 }
 
@@ -275,6 +286,8 @@ static void reset_common(void)
     memset(g_FieldRenderContexts, 0, sizeof(g_FieldRenderContexts));
     s_heap_off = 0;
     s_menu_main = 0;
+    s_move_count = 0;
+    memset(s_move_log, 0, sizeof(s_move_log));
     s_tpage_count = 0;
     s_free_skin = 0;
     s_alloc_skin = 0;
@@ -328,6 +341,16 @@ int main(void)
     expect_eq_s32("open.wait", D_8004F350, 0);
     expect_eq_s32("open.done", D_800ADB64, 0xFF);
     expect_eq_s32("open.sync", D_80050100, 2);
+
+    /* Close copies, retail 80079FCC/80079FF0/8007A000: the menu's last frame
+     * (0,0xE0) goes to (0x140,0) and from there into both frame buffers. */
+    expect_eq_s32("close.copy0.src.y", s_move_log[0][1], 0xE0);
+    expect_eq_s32("close.copy0.dst.x", s_move_log[0][4], 0x140);
+    expect_eq_s32("close.copy0.dst.y", s_move_log[0][5], 0);
+    expect_eq_s32("close.copy1.src.x", s_move_log[1][0], 0x140);
+    expect_eq_s32("close.copy1.dst.y", s_move_log[1][5], 0);
+    expect_eq_s32("close.copy2.src.x", s_move_log[2][0], 0x140);
+    expect_eq_s32("close.copy2.dst.y", s_move_log[2][5], 0x100);
 
     printf("FIELD MENU OPEN 799D4 certificate PASS checks=%u\n", s_checks);
     return 0;

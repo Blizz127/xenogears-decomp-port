@@ -109,6 +109,19 @@ int xg_plat_input_bind_key(XgPlatButton button, const char* key_name)
     return 1;
 }
 
+void xg_plat_input_set_pad_face_swap(int swapped)
+{
+    static int s_swapped = 0;
+    PsyXControllerMapping* m = &g_cfg_controllerMapping;
+    swapped = swapped ? 1 : 0;
+    if (swapped != s_swapped) {
+        int cross = m->gc_cross;
+        m->gc_cross = m->gc_circle;
+        m->gc_circle = cross;
+        s_swapped = swapped;
+    }
+}
+
 /* --- timing -------------------------------------------------------------- */
 int xg_plat_timing_speed(void)
 {
@@ -117,16 +130,21 @@ int xg_plat_timing_speed(void)
 
 void xg_plat_timing_set_speed(int multiplier)
 {
+    xg_plat_timing_set_speed_from(multiplier, "api");
+}
+
+void xg_plat_timing_set_speed_from(int multiplier, const char* source)
+{
     if (multiplier < XG_PLAT_SPEED_MIN)
         multiplier = XG_PLAT_SPEED_MIN;
     if (multiplier > XG_PLAT_SPEED_MAX)
         multiplier = XG_PLAT_SPEED_MAX;
-    PsyX_SetSpeedMultiplier(multiplier);
+    PsyX_SetSpeedMultiplierFrom(multiplier, source);
 }
 
 void xg_plat_timing_fast_forward(int held)
 {
-    PsyX_SetFastForwardHeld(held);
+    PsyX_SetFastForwardHeldFrom(held, "api");
 }
 
 void xg_plat_timing_set_fast_forward_speed(int multiplier)
@@ -321,3 +339,50 @@ int xg_plat_timing_counter_set(int spec, unsigned short target, int mode)
 }
 int xg_plat_timing_counter_get(int spec) { return __real_GetRCnt(spec); }
 int xg_plat_timing_counter_start(int spec) { return __real_StartRCnt(spec); }
+
+/* --- sound tick clock ------------------------------------------------------
+ * Retail's 240Hz sound tick is the RCnt2 interrupt (SoundInitialize:
+ * SetRCnt(RCntCNT2, 0x44E8, ...)); on hardware RCnt2 and the 60Hz vblank
+ * both derive from the system clock, so there are 4 ticks per vblank in
+ * fixed phase.  PsyCross's interrupt thread instead calls
+ * PsyX_Sys_DispatchCounter2 at 240Hz of host wall time, asynchronous to the
+ * game's main thread, so the sound driver's state relative to game events
+ * varies run to run.  XENO_SOUND_TICK_LOCKSTEP=1 moves the tick onto the
+ * game's own clock: the interrupt thread's dispatches become no-ops and the
+ * main thread's vblank service (controller_vblank_service.c) runs 4
+ * dispatches per serviced vblank.  The dispatch still try-locks the sound
+ * gate and fires only enabled events, so a tick that lands inside a
+ * DisableEvent bracket is lost exactly as on retail.  Unset => unchanged. */
+extern void __real_PsyX_Sys_DispatchCounter2(void);
+
+static int xg_plat_sound_tick_lockstep(void)
+{
+    static int lockstep = -1;
+    if (lockstep < 0) {
+        const char* e = getenv("XENO_SOUND_TICK_LOCKSTEP");
+        lockstep = (e != NULL && e[0] != '\0' && strcmp(e, "0") != 0) ? 1 : 0;
+    }
+    return lockstep;
+}
+
+/* Read-only test tooling must observe the cached clock mode, not merely the
+ * environment variable, which could have changed after initialization. */
+int PcPort_SoundLockstepActive(void)
+{
+    return xg_plat_sound_tick_lockstep();
+}
+
+void __wrap_PsyX_Sys_DispatchCounter2(void)
+{
+    if (!xg_plat_sound_tick_lockstep())
+        __real_PsyX_Sys_DispatchCounter2();
+}
+
+void PcPort_SoundLockstepVblank(void)
+{
+    int i;
+    if (!xg_plat_sound_tick_lockstep())
+        return;
+    for (i = 0; i < 4; i++)
+        __real_PsyX_Sys_DispatchCounter2();
+}

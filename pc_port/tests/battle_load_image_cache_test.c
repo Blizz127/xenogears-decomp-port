@@ -48,6 +48,7 @@ void ControllerPushState(void) {}
 void ControllerPoll(void) {}
 void PsyX_UpdateInput(void) {}
 int PsyX_Sys_GetVBlankCount(void) { return 0; }
+int PcPort_QuickCheckpointFieldIsActive(void) { return 0; }
 char PsyX_BeginScene(void) { return 1; }
 void ClearSplits(void) { abort(); }
 void DrawAllSplits(void) { abort(); }
@@ -89,7 +90,7 @@ static uintptr_t fake_hot_host(uintptr_t a0, uintptr_t a1, uintptr_t a2,
 }
 static void *a_rect, *a_data;
 
-static int fake_load_image_a(void *rect, void *data)
+static int fake_load_image_a(RECT16 *rect, u_long *data)
 {
     a_calls++;
     a_rect = rect;
@@ -97,7 +98,7 @@ static int fake_load_image_a(void *rect, void *data)
     return 0;
 }
 
-static int fake_load_image_b(void *rect, void *data)
+static int fake_load_image_b(RECT16 *rect, u_long *data)
 {
     (void)rect;
     (void)data;

@@ -1,4 +1,5 @@
 #include "common.h"
+#include "battle_guest_abi.h"
 #ifndef BATTLE_TU_SUB
 #define BATTLE_TU_SUB 0
 #endif
@@ -38,8 +39,8 @@ static __inline__ u32* BattleCopyRow32(s32 idx) {
 
 /* func_8007B98C.s: row copy u16: T[p[2]] = T[p[1]] in D_800D3420 row. */
 #if BATTLE_SUB(1)
-void func_8007B98C(u8 **pp, s32 idx) {
-    u8 *p = *pp;
+void func_8007B98C(GSLOT(u8) pp, s32 idx) {
+    u8 *p = GLOAD(u8, pp);
     u16 *t = BattleCopyRow16(idx);
 
     t[p[2]] = t[p[1]];
@@ -48,8 +49,8 @@ void func_8007B98C(u8 **pp, s32 idx) {
 
 /* func_8007B9C8.s: row copy u32: T[p[2]] = T[p[1]] in D_800D3410 row. */
 #if BATTLE_SUB(1)
-void func_8007B9C8(u8 **pp, s32 idx) {
-    u8 *p = *pp;
+void func_8007B9C8(GSLOT(u8) pp, s32 idx) {
+    u8 *p = GLOAD(u8, pp);
     u32 *t = BattleCopyRow32(idx);
 
     t[p[2]] = t[p[1]];
@@ -74,7 +75,7 @@ extern u8 D_800D342E;
 #if BATTLE_SUB(2)
 void func_8007BA88(u8 index) {
     s32 i = 0xF;
-    u8* p = (u8*)((u32)&D_800D343F + ((u32)index << 6));
+    u8* p = GPTR(u8, GADDR(&D_800D343F) + ((u32)index << 6));
 
     for (; i >= 0; i--) {
         *p-- = 0;
@@ -85,7 +86,7 @@ void func_8007BA88(u8 index) {
 #if BATTLE_SUB(2)
 void func_8007BAB8(u8 index) {
     s32 i = 7;
-    u16* p = (u16*)((u32)&D_800D342E + ((u32)index << 6));
+    u16* p = GPTR(u16, GADDR(&D_800D342E) + ((u32)index << 6));
 
     for (; i >= 0; i--) {
         *p-- = 0;

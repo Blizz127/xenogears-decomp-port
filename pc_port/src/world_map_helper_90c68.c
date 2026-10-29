@@ -9,11 +9,10 @@
 
 #include "common.h"
 #include "psx_memory.h"
+#include "world_map_retail_trig.h"
 #include "world_map_helper_90c68.h"
 #include "world_map_common_tail.h"
 
-extern long rcos(long a);
-extern long rsin(long a);
 extern void wm_80090A18(void);
 
 /* Guest addresses. */
@@ -87,9 +86,9 @@ s32 wm_80090C68(u32 slot_record)
     if (flags & 0xF000) {
         /* Compute velocity from heading */
         s16 heading = g90c_lh(slot_record + 0x48);
-        long cos_val = rcos((long)heading);
+        long cos_val = wm_retail_rcos((int)((long)heading));
         g90c_sw(slot_record + 0x38, (u32)cos_val);
-        long sin_val = rsin((long)heading);
+        long sin_val = wm_retail_rsin((int)((long)heading));
         g90c_sw(slot_record + 0x40, (u32)(-(s32)sin_val));
     }
 

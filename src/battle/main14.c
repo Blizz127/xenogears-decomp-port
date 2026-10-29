@@ -1,4 +1,5 @@
 #include "common.h"
+#include "battle_guest_abi.h"
 
 
 #ifndef XENO_PC_PORT
@@ -111,6 +112,13 @@ u8 func_80079ED8(u8 a0, u8 a1, u8 a2, u8 a3) {
     }
     if (a3 == 0) {
         *p = a2;
+#ifdef XENO_PC_PORT
+        /* Retail returns the caller's t0 unchanged here (jr ra; addu v0, t0,
+         * zero), which C cannot express; no retail or native caller reads v0
+         * after a store (native-audit/battle-decomp/callerscan).  A defined
+         * value keeps the host body free of an uninitialised read. */
+        ret = 0;
+#endif
     } else {
         ret = *p;
     }
@@ -221,6 +229,13 @@ u16 func_8007A280(u8 a0, u8 a1, u16 a2, u8 a3) {
     }
     if (a3 == 0) {
         *(u16*)p = a2;
+#ifdef XENO_PC_PORT
+        /* Retail returns the caller's t0 unchanged here (jr ra; addu v0, t0,
+         * zero), which C cannot express; no retail or native caller reads v0
+         * after a store (native-audit/battle-decomp/callerscan).  A defined
+         * value keeps the host body free of an uninitialised read. */
+        ret = 0;
+#endif
     } else {
         ret = *(u16*)p;
     }
@@ -283,24 +298,24 @@ u32 func_8007A744(u8 a0) {
 /* func_8007A7BC.s: dst = a1 + 8*a3; dst[0] = 0x80, dst[1..4] = (*a0)[0..3]
  * (retail reloads *a0 for every byte: the dst stores may alias it);
  * returns a3 + 1. a2 unused. */
-u8 func_8007A7BC(u8** a0, u8* a1, u8 a2, u8 a3) {
+u8 func_8007A7BC(GSLOT(u8) a0, u8* a1, u8 a2, u8 a3) {
     /* a1 + a3*8 is respelled per store (retail CSEs it and keeps a1 live). */
     a1[a3 * 8] = 0x80;
-    a1[a3 * 8 + 1] = (*a0)[0];
-    a1[a3 * 8 + 2] = (*a0)[1];
-    a1[a3 * 8 + 3] = (*a0)[2];
-    a1[a3 * 8 + 4] = (*a0)[3];
+    a1[a3 * 8 + 1] = (GLOAD(u8, a0))[0];
+    a1[a3 * 8 + 2] = (GLOAD(u8, a0))[1];
+    a1[a3 * 8 + 3] = (GLOAD(u8, a0))[2];
+    a1[a3 * 8 + 4] = (GLOAD(u8, a0))[3];
     return a3 + 1;
 }
 
 
 /* func_8007A828.s */
-u32 func_8007A828(u8** ppBoard, u8* dst, u8 a2) {
-    u8* p = *ppBoard;
+u32 func_8007A828(GSLOT(u8) ppBoard, u8* dst, u8 a2) {
+    u8* p = GLOAD(u8, ppBoard);
     u8 v = a2;
 
     dst[((a2 & 0xFF) << 3) + p[1]] = p[2];
-    if ((*ppBoard)[1] == 0) {
+    if ((GLOAD(u8, ppBoard))[1] == 0) {
         v = a2 + 1;
     }
     return v & 0xFF;

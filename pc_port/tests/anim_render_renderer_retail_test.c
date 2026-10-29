@@ -302,6 +302,21 @@ static void setup(const RCase* t)
         w16v(NORMALS + i * 8u + 6, 0);
     }
 
+    if(getenv("XENO_POPUP_MIXED_ONLY")) {
+    uint32_t cursor=RECORDS;
+    for(unsigned r=0;r<8;r++) {
+        uint32_t rec=cursor;unsigned shape=r<2?0u:0x10u;
+        unsigned record_bytes=r<2?16u:24u;unsigned packet_bytes=r<2?20u:28u;
+        memset(gaddr(rec),0,record_bytes);
+        gaddr(rec)[0]=(uint8_t)(packet_bytes/4u-1u);gaddr(rec)[1]=(uint8_t)(record_bytes/4u-1u);
+        gaddr(rec)[2]=1u;gaddr(rec)[3]=(uint8_t)(shape|0x21u);
+        unsigned off[3];tri_offsets(shape,off);
+        for(unsigned k=0;k<3;k++)w16v(rec+off[k],(uint16_t)k);
+        cursor+=record_bytes;
+    }
+    assert(cursor==RECORDS+176u);w32v(cursor,0xDEADBEEFu);
+
+    } else {
     unsigned key = t->shape | (t->key_hi ? 0x100u : 0u);
     int is_quad = (t->shape == 0x08 || t->shape == 0x0C ||
                    t->shape == 0x18 || t->shape == 0x1C);
@@ -337,6 +352,8 @@ static void setup(const RCase* t)
     }
     /* Guard word past the descriptor stream. */
     w32v(RECORDS + t->count * REC_SZ, 0xDEADBEEFu);
+
+    }
 
     /* Output packet arena. */
     for (unsigned i = 0; i < PACKET_SZ; i += 4)
@@ -410,8 +427,21 @@ static int rfail(const RCase* t, const char* what, unsigned i)
     return 0;
 }
 
-static int rcompare(const RCase* t, const RSnap* n, const RSnap* o)
+static uint32_t normalize_popup_link(uint32_t word)
 {
+ uint32_t host=(uint32_t)(uintptr_t)PSX_ADDR(PACKET)&0x00ffffffu;
+ uint32_t link=word&0x00ffffffu;assert(host+208u<0x01000000u);
+ if(link>=host && link<host+208u)link=(PACKET&0x1fffffu)+(link-host);
+ return (word&0xff000000u)|link;
+}
+static int rcompare(const RCase* t, const RSnap* n, const RSnap* raw)
+{
+ RSnap normalized=*raw;const RSnap *o=&normalized;
+ if(getenv("XENO_POPUP_MIXED_ONLY") && t->domain==2){
+  const unsigned offsets[]={0,20,40,68,96,124,152,180};
+  for(unsigned i=0;i<8;i++){uint32_t v;memcpy(&v,normalized.packet+offsets[i],4);v=normalize_popup_link(v);memcpy(normalized.packet+offsets[i],&v,4);}
+  for(unsigned i=0;i<OT_SZ;i+=4){uint32_t v;memcpy(&v,normalized.ot+i,4);v=normalize_popup_link(v);memcpy(normalized.ot+i,&v,4);}
+ }
 #define RCMP(f) \
     if (memcmp(&n->f, &o->f, sizeof(n->f)) != 0) { \
         unsigned i = 0; \
@@ -544,9 +574,14 @@ int main(void)
 
     signal(SIGSEGV, pointer_fault);
 
-    unsigned cases_run = 0;
-    for (unsigned i = 0; i < sizeof(cases) / sizeof(cases[0]); ++i) {
-        const RCase* t = &cases[i];
+    static const RCase popup_cases[] = {
+        {"popup-mixed-guest",0x00,0,8,0,2,0,16,0,0,0,0},
+        {"popup-mixed-host", 0x00,0,8,2,2,0,16,0,0,0,0},
+    };
+    int popup=getenv("XENO_POPUP_MIXED_ONLY")!=NULL;
+    unsigned cases_run = 0,case_count=popup?2u:(unsigned)(sizeof(cases)/sizeof(cases[0]));
+    for (unsigned i = 0; i < case_count; ++i) {
+        const RCase* t = popup?&popup_cases[i]:&cases[i];
         RSnap retail, native;
         run_retail(t);
         rsnapshot(&retail, 0);
@@ -563,6 +598,7 @@ int main(void)
               stderr);
         return 1;
     }
+    if(popup){printf("POPUP MIXED RENDER PASS %u fixed cases (%u emitted), host links normalized, shared GTE\n",cases_run,emitted);return 0;}
     printf("ANIMRENDER PASS %u cases (%u emitted): all 16 keys, 8 shapes, "
            "counts, tpage, depth clamp/reject, shift mask, domains, work-buffer "
            "capacity and full GTE state\n", cases_run, emitted);

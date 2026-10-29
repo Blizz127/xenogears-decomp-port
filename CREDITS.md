@@ -66,6 +66,7 @@ The hex conversion we use comes from [Unifoundry](https://unifoundry.com/japanes
 | [OpenAL Soft](https://github.com/kcat/openal-soft) | Audio | LGPL-2.0-or-later |
 | [libsamplerate](https://github.com/libsndfile/libsamplerate) | Audio resampling | BSD-2-Clause |
 | [OpenSSL](https://www.openssl.org/) (libcrypto) | SHA hashing of the user's files | Apache-2.0 |
+| OpenGL (system library and Khronos headers, not vendored) | Optional HD-2D enhancement renderer (`pc_port/src/hd2d/`) | system / Khronos |
 
 Full license text for PsyCross is in [pc_port/THIRD_PARTY.md](pc_port/THIRD_PARTY.md).
 

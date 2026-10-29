@@ -1,0 +1,65 @@
+--- a/src/psx/LIBAPI.C
++++ b/src/psx/LIBAPI.C
+@@ -120,0 +121,2 @@
++/* _xeno_sound_reservation_owned: the reserved bracket is the first hold. */
++static __thread int s_reservedOwnHold = 0;
+@@ -168,0 +171 @@
++		if (s_reservedOwnHold && s_soundTickHold == 1) s_reservedOwnHold = 0;
+@@ -302 +305,2 @@
+-				s_soundTickHold--;
++				if (s_reservedOwnHold && s_soundTickHold == 1) s_reservedOwnHold = 0;
++				s_soundTickHold--;
+@@ -337 +341,2 @@
+-				s_soundTickHold--;
++				if (s_reservedOwnHold && s_soundTickHold == 1) s_reservedOwnHold = 0;
++				s_soundTickHold--;
+@@ -432,2 +437,2 @@
+- * ambiguous nested holds. A failed finish/abort keeps the reservation held so
+- * callers cannot mistake an unbalanced bracket for a successful cleanup. */
++ * ambiguous nested holds on finish. Abort distinguishes clean restoration
++ * from callback-mutated event state while releasing its own lock levels. */
+@@ -441,0 +447 @@
++    s_reservedOwnHold = 1;
+@@ -449 +455 @@
+-    if (!s_soundReservationBracket || s_soundTickHold != 1 ||
++    if (!s_soundReservationBracket || !s_reservedOwnHold || s_soundTickHold != 1 ||
+@@ -457,0 +464,3 @@
++/* Return 1 if event state was restored, 2 if callbacks changed it. Both
++ * results release the reservation and this helper's own bracket level; 0
++ * means there was no active bracket. Other callers' holds are preserved. */
+@@ -463,9 +472,6 @@
+-    if (!PsyX_Sys_ValidateSoundEventReservation(event, 0)) {
+-        /* CloseEvent consumes every held bracket. Never touch a replacement. */
+-        if (event <= PSYX_EVENT_MAX &&
+-            s_eventGeneration[event - 1] != s_soundReservationGeneration &&
+-            s_soundTickHold == 0) {
+-            s_soundReservationBracket = 0;
+-            return PsyX_Sys_ReleaseSoundEventReservation();
+-        }
+-        return 0;
++    int restore = PsyX_Sys_ValidateSoundEventReservation(event, 0) &&
++        s_eventMutation[event - 1] == s_soundReservationMutation;
++    if (restore) {
++        PsyXEventSlot* slot = &s_psyxEvents[event - 1];
++        slot->enabled = 1;
++        slot->pending = s_soundReservationPending;
+@@ -473,8 +479,7 @@
+-    if (s_soundTickHold != 1 ||
+-        s_eventMutation[event - 1] != s_soundReservationMutation)
+-        return 0;
+-    PsyXEventSlot* slot = &s_psyxEvents[event - 1];
+-    slot->enabled = 1;
+-    slot->pending = s_soundReservationPending;
+-    s_soundTickHold--;
+-    SDL_UnlockMutex(g_SoundTickMutex);
++    if (s_reservedOwnHold) {
++        /* Recursive mutex levels are interchangeable. Remove exactly one;
++         * preserve any holds opened by callbacks above this one. */
++        s_reservedOwnHold = 0;
++        s_soundTickHold--;
++        SDL_UnlockMutex(g_SoundTickMutex);
++    }
+@@ -482 +487,2 @@
+-    return PsyX_Sys_ReleaseSoundEventReservation();
++    PsyX_Sys_ReleaseSoundEventReservation();
++    return restore ? 1 : 2;

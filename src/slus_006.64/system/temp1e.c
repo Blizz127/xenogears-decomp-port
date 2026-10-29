@@ -178,12 +178,10 @@ static u8* SpriteRenderAddress(uintptr_t address) {
 }
 #endif
 
-#ifndef XENO_PC_PORT
-INCLUDE_ASM(TEMP1E_ASM, func_80025258);
-#else
 /* Retail 80025258..80025418: shared render callback for types 0/5/6/14.
  * Task fields and OT entries remain four bytes on the native host. */
 void func_80025258(u8* pEntry) {
+#ifdef XENO_PC_PORT
     u8* pSprite = SpriteRenderAddress(*(u32*)(pEntry + 0x04));
     u32 flagsB0 = *(u32*)(pSprite + 0xB0);
     s32 depth;
@@ -239,17 +237,56 @@ void func_80025258(u8* pEntry) {
                 SpriteRenderAddress((uintptr_t)g_GfxCurOT) + ((u32)depth << 2));
         }
     }
-}
+#else
+    extern s32 D_80050100;
+    SVECTOR pos;
+    VECTOR trans;
+    long shared, flag;
+    s32 depth,depth2;
+    register u32 flags asm("$3");
+    register u32 range asm("$2");
+    register s32 value asm("$2");
+    u8* sprite;
+    sprite=*(u8**)(pEntry+4);
+    if (!((*(u32*)(sprite+0xB0)>>8)&1) || D_800C3664==0) {
+        value=*(s16*)(sprite+2); pos.vx=value;
+        value=*(s16*)(sprite+6); pos.vy=value;
+        value=*(s16*)(sprite+10); pos.vz=value;
+        SetRotMatrix(&D_8004FBB8);
+        SetTransMatrix(&D_8004FBB8);
+        depth=(RotTransPers(&pos,&shared,&shared,&flag)>>D_80050100)+*(s16*)(sprite+0x30);
+        if(flag&0x8000) depth=0;
+        flags=*(u32*)(sprite+0x3C);
+        *(s16*)(sprite+0x2E)=depth;
+        if((flags>>24)&1) {
+            func_80022038(sprite);
+            trans.vx=*(s16*)(sprite+2);
+            trans.vy=*(s16*)(sprite+6);
+            trans.vz=*(s16*)(sprite+10);
+            TransMatrix((MATRIX*)(*(u8**)(sprite+0x20)+12),&trans);
+            SetRotMatrix((MATRIX*)(*(u8**)(sprite+0x20)+12));
+            SetTransMatrix((MATRIX*)(*(u8**)(sprite+0x20)+12));
+            depth2=0xFFF;
+            if(!((*(u32*)(sprite+0x3C)>>25)&1)) depth2=*(s16*)(sprite+0x30);
+            if((u32)(depth2-1)<0xFFFU) func_8001E3D8(sprite,(u8*)g_GfxCurOT+depth2*4);
+        } else {
+            value=(flags>>29)&1;
+            if(value) {
+                depth=*(s16*)(*(u8**)(sprite+0x70)+0x2E);
+            }
+            range=depth-1;
+            if(range<0xFFFU) func_8001E298(sprite,(u8*)g_GfxCurOT+depth*4);
+        }
+    }
 #endif
+}
 
 extern s32 D_80050100;
 
-#ifndef XENO_PC_PORT
-INCLUDE_ASM(TEMP1E_ASM, func_8002541C);
-#else
 /* Retail 8002541C..80025540: projected TILE_1 (12-byte packet, tag len 2)
  * followed by an 8-byte draw-mode prim. Sibling of func_80025544. */
 void func_8002541C(u8* pEntry) {
+#ifdef XENO_PC_PORT
     u8* pSprite = SpriteRenderAddress(*(u32*)(pEntry + 0x04));
     u32 cursor, next, otOffset, otAddress, color;
     u8* pTile;
@@ -294,14 +331,54 @@ void func_8002541C(u8* pEntry) {
     pMode[3] = 1;
     *(u32*)(pMode + 4) = 0xE1000000u | (*(u32*)(pSprite + 0x3C) & 0x60u);
     PcPort_AddPrimDomainAware(SpriteRenderAddress(otAddress + otOffset), pMode);
-}
-#endif
-
-#ifndef XENO_PC_PORT
-INCLUDE_ASM(TEMP1E_ASM, func_80025544);
 #else
+    SVECTOR v;
+    long flag;
+    s32 offset,depth;
+    register s32 value asm("$2");
+    register u32 mask asm("$3");
+    register u8* ot asm("$4");
+    u8 *sprite,*tile,*mode,*next;
+    sprite=*(u8**)(pEntry+4);
+    if (*(u16*)(sprite+0x34)==0) {
+        tile=g_GfxCurWorkBuffer;
+        next=tile+12;
+        if ((u32)next<(u32)g_GfxCurWorkBufferEnd) {
+            value=*(s16*)(sprite+2); v.vx=value;
+            value=*(s16*)(sprite+6); v.vy=value;
+            value=*(s16*)(sprite+10);
+            g_GfxCurWorkBuffer=next;
+            v.vz=value;
+            SetRotMatrix(&D_8004FBB8);
+            SetTransMatrix(&D_8004FBB8);
+            depth=RotTransPers(&v,(long*)(tile+8),&flag,&flag)>>D_80050100;
+            *(s16*)(sprite+0x2E)=depth;
+            tile[3]=2;
+            *(u32*)(tile+4)=*(u32*)(sprite+0x28);
+            offset=depth*4;
+            AddPrim((u8*)g_GfxCurOT+offset,tile);
+            mode=g_GfxCurWorkBuffer;
+            next=mode+8;
+            if ((u32)next<(u32)g_GfxCurWorkBufferEnd) {
+                g_GfxCurWorkBuffer=next;
+                mask=0xE1000000;
+                mode[3]=1;
+                ot=(u8*)g_GfxCurOT;
+                value=*(u32*)(sprite+0x3C);
+                ot+=offset;
+                value &= 0x60;
+                value |= mask;
+                *(u32*)(mode+4)=value;
+                AddPrim(ot,mode);
+            }
+        }
+    }
+#endif
+}
+
 /* Retail 80025544..80025710: projected square TILE followed by draw mode. */
 void func_80025544(u8* pEntry) {
+#ifdef XENO_PC_PORT
     u8* pSprite = SpriteRenderAddress(*(u32*)(pEntry + 0x04));
     u16 size;
     u32 cursor, next, otOffset, otAddress, color;
@@ -368,22 +445,85 @@ void func_80025544(u8* pEntry) {
 #else
     AddPrim(SpriteRenderAddress(otAddress + otOffset), pMode);
 #endif
-}
+#else
+    int abs(int);
+    SVECTOR pos,copy;
+    SVECTOR screen;
+    long other,flag;
+    register s32 dimension asm("$17");
+    s32 depth;
+    s32 offset;
+    register u32 originX asm("$4");
+    register s32 value asm("$2");
+    register u32 mask asm("$3");
+    register u8* ot asm("$4");
+    register u8* sprite asm("$18");
+    register u8* tile asm("$19");
+    u8* mode;
+    register u8* next asm("$3");
+    sprite=*(u8**)(pEntry+4);
+    if (*(u16*)(sprite+0x34)==0) {
+        dimension=*(u16*)(sprite+0x36);
+        tile=g_GfxCurWorkBuffer;
+        next=tile+16;
+        if ((u32)next<(u32)g_GfxCurWorkBufferEnd) {
+            value=*(s16*)(sprite+2);pos.vx=value;
+            value=*(s16*)(sprite+6);pos.vy=value;
+            value=*(s16*)(sprite+10);
+            g_GfxCurWorkBuffer=next;pos.vz=value;
+            SetRotMatrix(&D_8004FBB8);SetTransMatrix(&D_8004FBB8);
+            copy=pos;
+            copy.vx+=dimension;
+            value=RotTransPers3(&pos,&copy,&pos,(long*)(tile+8),(long*)&screen,&other,&flag,&flag);
+            depth=value>>D_80050100;
+            *(s16*)(sprite+0x2E)=depth;
+            mask=(s32)screen.vx;
+            value=*(s16*)(tile+8);
+            originX=*(u16*)(tile+8);
+            dimension=mask-value;
+            if(dimension==0)dimension=1;
+            dimension=abs(dimension);
+            mode=tile;
+            value=dimension/2;
+            mask=*(u16*)(mode+10);
+            originX-=value;
+            *(u16*)(mode+8)=originX;
+            mask-=value;
+            *(u16*)(mode+10)=mask;
+            mask=*(u32*)(sprite+0x28);
+            value=3;mode[3]=value;
+            *(u32*)(mode+4)=mask;
+            ot=(u8*)g_GfxCurOT;
+            offset=depth*4;
+            *(u16*)(mode+14)=dimension;
+            *(u16*)(mode+12)=dimension;
+            AddPrim(ot+offset,mode);
+            mode=g_GfxCurWorkBuffer;next=mode+8;
+            if((u32)next<(u32)g_GfxCurWorkBufferEnd) {
+                g_GfxCurWorkBuffer=next;
+                mask=0xE1000000;mode[3]=1;
+                ot=(u8*)g_GfxCurOT;
+                value=*(u32*)(sprite+0x3C);ot+=offset;
+                value&=0x60;value|=mask;
+                *(u32*)(mode+4)=value;
+                AddPrim(ot,mode);
+            }
+        }
+    }
 #endif
+}
 
 void func_80025710(void) {}
 
 extern MATRIX D_8004FBB8;
 extern void func_8002C700(void* a, void* b, u_long* ot, s32 flags);
 
-#ifndef XENO_PC_PORT
-INCLUDE_ASM(TEMP1E_ASM, func_80025718);
-#else
 void func_80025718(u8* pEntry) {
+#ifdef XENO_PC_PORT
     u8* pSprite = *(u8**)(pEntry + 0x04);
     u8* pSub;
     u8* pMatrix;
-    SVECTOR trans;
+    VECTOR trans;
 
     func_80022038(pSprite);
     pSub = *(u8**)(pSprite + 0x20);
@@ -415,8 +555,28 @@ void func_80025718(u8* pEntry) {
             flags
         );
     }
-}
+#else
+    MATRIX result;
+    VECTOR trans;
+    u8* sprite;
+    u8* sub;
+    sprite = *(u8**)(pEntry + 4);
+    func_80022038(sprite);
+    if (*(s32*)(*(u8**)(sprite + 0x20) + 0x34) != 0) {
+        trans.vx = *(s16*)(sprite + 2);
+        trans.vy = *(s16*)(sprite + 6);
+        trans.vz = *(s16*)(sprite + 10);
+        TransMatrix((MATRIX*)(*(u8**)(sprite + 0x20) + 12), &trans);
+        if (!(sprite[0x3F] & 1)) {
+            CompMatrix(&D_8004FBB8, (MATRIX*)(*(u8**)(sprite + 0x20) + 12), &result);
+        }
+        SetRotMatrix(&result);
+        SetTransMatrix(&result);
+        sub = *(u8**)(sprite + 0x20);
+        func_8002C700(*(void**)(sub + 0x34), *(void**)(sub + g_GfxCurContext * 4 + 0x2C), g_GfxCurOT, *(u16*)(sprite + 0x42) & 4);
+    }
 #endif
+}
 
 /* Transcribed from asm/slus_006.64/nonmatchings/system/temp1/func_800257F0.s
  * (0x800257F0-0x800258A0 ... 0x80025A6C). Sprite transform/render setup:
@@ -434,10 +594,8 @@ extern u16 D_8004FD80[];
 extern void func_800B1F6C();
 extern MATRIX D_8004FDA0;
 
-#ifndef XENO_PC_PORT
-INCLUDE_ASM(TEMP1E_ASM, func_800257F0);
-#else
 void func_800257F0(u8* pArg) {
+#ifdef XENO_PC_PORT
     u8* pSprite = *(u8**)(pArg + 4);
     u8* pData;
     MATRIX matA;
@@ -508,8 +666,71 @@ void func_800257F0(u8* pArg) {
     if (*(s32*)(pSprite + 0x3C) < 0) {
         SetGeomOffset(geomX, geomY);
     }
-}
+#else
+    MATRIX comp;
+    VECTOR trans;
+    MATRIX lightRotation;
+    MATRIX lightMatrix;
+    s32 geomX;
+    s32 geomY;
+    register void *matrix asm("$4");
+    s32 savedShift;
+    s32 flags;
+    void *sprite;
+    void *data;
+    void *normalData;
+
+    sprite = *(void **)((s8*)(pArg) + 4);
+    func_80022038(sprite);
+    if (*(s32 *)((s8*)(*(void **)((s8*)(sprite) + 0x20)) + 0x34) != 0) {
+        if (((u32) *(u32 *)((s8*)(sprite) + 0x40) >> 1) & 1) {
+            PushMatrix();
+            *(u16 *)((s8*)(D_8004FD80) + 0) = (u16) *(u16 *)((s8*)(*(void **)((s8*)(sprite) + 0x20)) + 0x4C);
+            *(u16 *)((s8*)(D_8004FD80) + 6) = (u16) *(u16 *)((s8*)(*(void **)((s8*)(sprite) + 0x20)) + 0x4E);
+            *(u16 *)((s8*)(D_8004FD80) + 0xC) = (u16) *(u16 *)((s8*)(*(void **)((s8*)(sprite) + 0x20)) + 0x50);
+            RotMatrix(*(void **)((s8*)(sprite) + 0x20) + 0x44, &lightRotation);
+            MulMatrix0(&lightRotation, *(void **)((s8*)(sprite) + 0x20) + 0xC, &lightRotation);
+            MulMatrix0(&D_8004FDA0, &lightRotation, &lightMatrix);
+            SetBackColor(0x20, 0x20, 0x20);
+            SetColorMatrix(D_8004FD80);
+            SetLightMatrix(&lightMatrix);
+            PopMatrix();
+        }
+        trans.vx = (s32) *(s16 *)((s8*)(sprite) + 2);
+        trans.vy = (s32) *(s16 *)((s8*)(sprite) + 6);
+        trans.vz = (s32) *(s16 *)((s8*)(sprite) + 0xA);
+        TransMatrix(*(void **)((s8*)(sprite) + 0x20) + 0xC, &trans);
+        if (!(*(u8 *)((s8*)(sprite) + 0x3F) & 1)) {
+            CompMatrix(&D_8004FBB8, *(void **)((s8*)(sprite) + 0x20) + 0xC, &comp);
+            SetRotMatrix(&comp);
+            matrix = &comp;
+        } else {
+            SetRotMatrix(*(void **)((s8*)(sprite) + 0x20) + 0xC);
+            matrix = *(void **)((s8*)(sprite) + 0x20) + 0xC;
+        }
+        SetTransMatrix(matrix);
+        flags = *(s32 *)((s8*)(sprite) + 0x3C);
+        if (flags < 0) {
+            ReadGeomOffset(&geomX, &geomY);
+            SetGeomOffset(0xA0, 0x70);
+            flags = *(s32 *)((s8*)(sprite) + 0x3C);
+        }
+        if (((u32)flags >> 25) & 1) {
+            savedShift = D_80050100;
+            data = *(void **)((s8*)(sprite) + 0x20);
+            D_80050100 = 0x10;
+            ((void (*)())func_800B1F6C)(*(s32 *)((s8*)(data) + 0x34), *(s32 *)((s8*)(((g_GfxCurContext * 4) + data)) + 0x2C), g_GfxCurOT, 0, 0xFEC, (u8) *(s32 *)((s8*)(sprite) + 0x3C) >> 5);
+            D_80050100 = savedShift;
+        } else {
+            normalData = *(void **)((s8*)(sprite) + 0x20);
+            ((void (*)())func_800B1F6C)(*(s32 *)((s8*)(normalData) + 0x34), *(s32 *)((s8*)(((g_GfxCurContext * 4) + normalData)) + 0x2C), g_GfxCurOT, 0, (s32) *(s16 *)((s8*)(sprite) + 0x30), (u8) *(s32 *)((s8*)(sprite) + 0x3C) >> 5);
+        }
+        if (*(s32 *)((s8*)(sprite) + 0x3C) < 0) {
+            SetGeomOffset(geomX, geomY);
+        }
+    }
 #endif
+}
 
 extern s32 D_80050100;
 extern void func_800B1F6C(void* a, void* b, u_long* ot, s32 c, s32 d, s32 e, s32 f);

@@ -1,20 +1,20 @@
 #include "common.h"
-#ifndef XENO_PC_PORT
 #include "psyq/libgte.h"
-#endif
+#include "battle_guest_abi.h"
 
 
-#ifndef XENO_PC_PORT
 void func_800A5BE8(s32 a0, s32 a1, s32 a2, s32 a3, VECTOR* normal);
+#ifndef XENO_PC_PORT
 extern s32 D_800D3344;
 extern s32 D_800D39CC;
-s32 func_800A5870(s32 arg0, s32 arg1, s32 arg2);
 #endif
+s32 func_800A5870(s32 arg0, s32 arg1, s32 arg2);
 
 #ifndef XENO_PC_PORT
 #endif
 #ifndef XENO_PC_PORT
 extern s32 D_800D3348; /* triangle count of the D_800D39CC table */
+#endif
 extern s32 func_800A5A48(s32 v0, s32 v1, s32 v2, s32 arg);
 
 /* First triangle of the D_800D39CC table (14-byte records of three vertex
@@ -27,7 +27,7 @@ s32 func_800A579C(s32 arg0) {
         return -1;
     }
     for (i = 0; i < D_800D3348; i++) {
-        s16* tri = (s16*)(i * 14 + D_800D39CC);
+        s16* tri = GPTR(s16, i * 14 + D_800D39CC);
 
         if (func_800A5A48(tri[0] * 8 + D_800D3344, tri[1] * 8 + D_800D3344,
                           tri[2] * 8 + D_800D3344, arg0) == -1) {
@@ -36,10 +36,6 @@ s32 func_800A579C(s32 arg0) {
     }
     return -1;
 }
-#endif
-#ifndef XENO_PC_PORT
-
-#ifndef XENO_PC_PORT
 s32 func_800A5870(s32 arg0, s32 arg1, s32 arg2) {
     s32 temp_s0;
     void *temp_v0;
@@ -48,15 +44,13 @@ s32 func_800A5870(s32 arg0, s32 arg1, s32 arg2) {
         return -1;
     }
     temp_s0 = arg1 * 0xE;
-    temp_v0 = temp_s0 + D_800D39CC;
-    func_800A5BE8((*(s16 *)((s8*)(temp_v0) + 0) * 8) + D_800D3344, (*(s16 *)((s8*)(temp_v0) + 2) * 8) + D_800D3344, (*(s16 *)((s8*)(temp_v0) + 4) * 8) + D_800D3344, arg0, arg2);
-    return *(u8 *)((s8*)((temp_s0 + D_800D39CC)) + 0xC);
+    temp_v0 = GPTR(void, temp_s0 + D_800D39CC);
+    func_800A5BE8((*(s16 *)((s8*)(temp_v0) + 0) * 8) + D_800D3344, (*(s16 *)((s8*)(temp_v0) + 2) * 8) + D_800D3344, (*(s16 *)((s8*)(temp_v0) + 4) * 8) + D_800D3344, arg0, GPTR(VECTOR, arg2));
+    return *(u8 *)((s8*)(GPTR(void, temp_s0 + D_800D39CC)) + 0xC);
 }
-#endif
-
-#endif
 #ifndef XENO_PC_PORT
 extern u8 D_800D2F64; /* pass counter; its wrap clears every triangle's +0xD flag */
+#endif
 extern s32 func_800A5D54(s32 arg0, s32 tri, s32 depth);
 
 /* Up to `tries` attempts of func_800A5D54 on triangle `tri`, stopping at the
@@ -84,24 +78,30 @@ s32 func_800A5914(s32 arg0, s32 tri, s32 tries, s32 result) {
     if (D_800D2F64 == 0) {
         D_800D2F64 = 1;
         for (i = 0; i < D_800D3348; i++) {
-            *(u8*)(i * 14 + D_800D39CC + 0xD) = 0;
+            *GPTR(u8, i * 14 + D_800D39CC + 0xD) = 0;
         }
     }
     return result;
 }
-#endif
 #ifndef XENO_PC_PORT
 #endif
-#ifndef XENO_PC_PORT
 extern void OuterProduct0(VECTOR* v0, VECTOR* v1, VECTOR* v2);
+#ifdef XENO_PC_PORT
+/* Native GTE helpers (pc_port/src/psyq_compat.c). */
+extern long VectorNormal(VECTOR* v0, VECTOR* v1);
+extern void OuterProduct12(VECTOR* v0, VECTOR* v1, VECTOR* v2);
+#endif
 
 /* Point-in-triangle test on the XZ plane: -1 when point a3 lies on the inner
- * side of all three edges of (a0, a1, a2) (SVECTOR addresses), else 0. */
+ * side of all three edges of (a0, a1, a2) (SVECTOR addresses), else 0.
+ * Native under the port (battle guest ABI): the four words are guest
+ * addresses, or host pointers when the bridge translated them; GPTR resolves
+ * both through the interpreter's resolver. */
 s32 func_800A5A48(s32 a0, s32 a1, s32 a2, s32 a3) {
-    SVECTOR* v0 = (SVECTOR*)a0;
-    SVECTOR* v1 = (SVECTOR*)a1;
-    SVECTOR* v2 = (SVECTOR*)a2;
-    SVECTOR* p = (SVECTOR*)a3;
+    SVECTOR* v0 = GPTR(SVECTOR, a0);
+    SVECTOR* v1 = GPTR(SVECTOR, a1);
+    SVECTOR* v2 = GPTR(SVECTOR, a2);
+    SVECTOR* p = GPTR(SVECTOR, a3);
     VECTOR edge;
     VECTOR toP;
     VECTOR cross;
@@ -135,18 +135,16 @@ s32 func_800A5A48(s32 a0, s32 a1, s32 a2, s32 a3) {
     }
     return 0;
 }
-#endif
 #ifndef XENO_PC_PORT
 #endif
-#ifndef XENO_PC_PORT
 /* Height of triangle (a0, a1, a2) (SVECTOR addresses) at point a3's x/z:
  * the plane normal goes to *normal and the height into the point's vy
  * (0 for a vertical plane). */
 void func_800A5BE8(s32 a0, s32 a1, s32 a2, s32 a3, VECTOR* normal) {
-    SVECTOR* v0 = (SVECTOR*)a0;
-    SVECTOR* v1 = (SVECTOR*)a1;
-    SVECTOR* v2 = (SVECTOR*)a2;
-    SVECTOR* p = (SVECTOR*)a3;
+    SVECTOR* v0 = GPTR(SVECTOR, a0);
+    SVECTOR* v1 = GPTR(SVECTOR, a1);
+    SVECTOR* v2 = GPTR(SVECTOR, a2);
+    SVECTOR* p = GPTR(SVECTOR, a3);
     VECTOR n1;
     VECTOR n2;
     VECTOR d;
@@ -159,17 +157,15 @@ void func_800A5BE8(s32 a0, s32 a1, s32 a2, s32 a3, VECTOR* normal) {
     d.vy = v2->vy - v0->vy;
     d.vz = v2->vz - v0->vz;
     VectorNormal(&d, &n2);
-    OuterProduct12(&n1, &n2, normal);
-    if (normal->vy == 0) {
+    OuterProduct12(&n1, &n2, GPTR(VECTOR, normal));
+    if (GPTR(VECTOR, normal)->vy == 0) {
         p->vy = 0;
         return;
     }
-    p->vy = v0->vy + (-((p->vx - v0->vx) * normal->vx) - (p->vz - v0->vz) * normal->vz) / normal->vy;
+    p->vy = v0->vy + (-((p->vx - v0->vx) * GPTR(VECTOR, normal)->vx) - (p->vz - v0->vz) * GPTR(VECTOR, normal)->vz) / GPTR(VECTOR, normal)->vy;
 }
-#endif
 #ifndef XENO_PC_PORT
 #endif
-#ifndef XENO_PC_PORT
 /* Depth-limited search from triangle `tri` through its three neighbours
  * (+6/+8/+A): the first triangle not yet visited this pass (+0xD != the pass
  * counter) for which func_800A5A48 returns -1; -1 when none is found. */
@@ -179,11 +175,11 @@ s32 func_800A5D54(s32 arg0, s32 tri, s32 depth) {
     if (tri < 0) {
         return -1;
     }
-    if (*(u8*)(tri * 14 + D_800D39CC + 0xD) != D_800D2F64) {
+    if (*GPTR(u8, tri * 14 + D_800D39CC + 0xD) != D_800D2F64) {
         s16* t;
 
-        *(u8*)(tri * 14 + D_800D39CC + 0xD) = D_800D2F64;
-        t = (s16*)(tri * 14 + D_800D39CC);
+        *GPTR(u8, tri * 14 + D_800D39CC + 0xD) = D_800D2F64;
+        t = GPTR(s16, tri * 14 + D_800D39CC);
         if (func_800A5A48(t[0] * 8 + D_800D3344, t[1] * 8 + D_800D3344, t[2] * 8 + D_800D3344, arg0) == -1) {
             return tri;
         }
@@ -191,14 +187,13 @@ s32 func_800A5D54(s32 arg0, s32 tri, s32 depth) {
     if (depth <= 0) {
         return -1;
     }
-    if ((r = func_800A5D54(arg0, ((s16*)(tri * 14 + D_800D39CC))[3], depth - 1)) < 0
-        && (r = func_800A5D54(arg0, ((s16*)(tri * 14 + D_800D39CC))[4], depth - 1)) < 0
-        && (r = func_800A5D54(arg0, ((s16*)(tri * 14 + D_800D39CC))[5], depth - 1)) < 0) {
+    if ((r = func_800A5D54(arg0, GPTR(s16, tri * 14 + D_800D39CC)[3], depth - 1)) < 0
+        && (r = func_800A5D54(arg0, GPTR(s16, tri * 14 + D_800D39CC)[4], depth - 1)) < 0
+        && (r = func_800A5D54(arg0, GPTR(s16, tri * 14 + D_800D39CC)[5], depth - 1)) < 0) {
         r = -1;
     }
     return r;
 }
-#endif
 #ifndef XENO_PC_PORT
 #endif
 

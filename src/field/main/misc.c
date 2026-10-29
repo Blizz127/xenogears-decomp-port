@@ -110,15 +110,22 @@ void func_80086FD0(void) {
 }
 
 #ifndef XENO_PC_PORT
-INCLUDE_ASM("asm/field/nonmatchings/main/misc", func_80087148);
-#else
+/* func_80087148: in-struct store (pointer indexing) so the actor load hoists
+ * above the sh; the second argument call stays inline in the |= so it is
+ * evaluated before g_pGameState is loaded. */
+#endif
 void func_80087148(void) {
+#ifdef XENO_PC_PORT
     s32 a = FieldScriptVMGetArgument(1);
     s32 b = FieldScriptVMGetArgument(3);
     *(u16*)((u8*)g_pGameState + a * 0x20 + 0x16DA) |= b;
     g_FieldScriptVMCurActor->scriptInstructionPointer += 5;
+#else
+    s32 a = FieldScriptVMGetArgument(1);
+    ((u16*)((u8*)g_pGameState + (a << 5)))[0x16DA / 2] |= FieldScriptVMGetArgument(3);
+    g_FieldScriptVMCurActor->scriptInstructionPointer += 5;
+#endif
 }
-#endif /* XENO_PC_PORT */
 
 extern s32 D_800C3A48;
 extern s32 D_800AF87C;
@@ -131,15 +138,20 @@ extern s32 D_800ADBB4;
 #ifndef XENO_PC_PORT
 INCLUDE_ASM("asm/field/nonmatchings/main/misc", func_800871B0);
 #else
+/* Retail 800871B0: the 0x20 instruction-budget bump happens only in
+ * sub-ops 0/1, sub-op 1 offsets by arg2 << 9, and sub-op 3 advances IP by 2. */
 void func_800871B0(void) {
     u8 subOp = SCRIPT_READ_U8_REL(1);
-    g_FieldScriptMaxInstructionCount += 0x20;
 
     switch (subOp) {
         case 0: {
-            s32 arg2 = FieldScriptVMGetArgument(2);
-            s32 arg4 = FieldScriptVMGetArgument(4);
-            s32 size = arg4 << 9;
+            s32 arg2;
+            s32 arg4;
+            s32 size;
+            g_FieldScriptMaxInstructionCount += 0x20;
+            arg2 = FieldScriptVMGetArgument(2);
+            arg4 = FieldScriptVMGetArgument(4);
+            size = (s32)((u32)arg4 << 9);
             D_800C3A48 = (s32)HeapAlloc(size, 0);
             D_800AF87C = (s32)HeapAlloc(size, 0);
             D_800AFC58 = 0;
@@ -152,12 +164,16 @@ void func_800871B0(void) {
             break;
         }
         case 1: {
-            s32 arg2 = FieldScriptVMGetArgument(2);
-            s32 arg4 = FieldScriptVMGetArgument(4);
-            s32 ofs = arg4 << 9;
+            s32 arg2;
+            s32 arg4;
+            u32 ofs;
+            g_FieldScriptMaxInstructionCount += 0x20;
+            arg2 = FieldScriptVMGetArgument(2);
+            arg4 = FieldScriptVMGetArgument(4);
+            ofs = (u32)arg2 << 9;
             func_80026F44(0x100, arg4,
-                (void*)(uintptr_t)(D_800AF87C + ofs),
-                (void*)(uintptr_t)(D_800C3A48 + ofs));
+                (void*)(uintptr_t)((u32)D_800AF87C + ofs),
+                (void*)(uintptr_t)((u32)D_800C3A48 + ofs));
             D_800ADBB4 = 1;
             g_FieldScriptVMCurActor->scriptInstructionPointer += 6;
             break;
@@ -169,7 +185,7 @@ void func_800871B0(void) {
             g_FieldScriptVMCurActor->scriptInstructionPointer += 2;
             break;
         case 3:
-            g_FieldScriptVMCurActor->scriptInstructionPointer = *(u16*)((u8*)g_FieldScriptVMCurActor + 0xCC);
+            g_FieldScriptVMCurActor->scriptInstructionPointer += 2;
             D_800B00C0 = 1;
             break;
     }
@@ -252,11 +268,12 @@ void func_8008764C(void) {
     for (i = 0; i < 32; i += 4) {
         *(s32*)(pDst + i) = *(s32*)(pSrc + i);
     }
-    /* Set party flags */
-    if (srcIdx == 9) {
+    /* Set party flags.  Retail (differential-tested) tests the DESTINATION
+     * slot index (the second operand, kept in $t1), not the source. */
+    if (dstIdx == 9) {
         *(u16*)(pGS + 0x22B6) |= 0x2000;
     }
-    if (srcIdx == 10) {
+    if (dstIdx == 10) {
         *(u16*)(pGS + 0x22B6) |= 0x1000;
     }
     g_FieldScriptVMCurActor->scriptInstructionPointer += 5;
@@ -325,10 +342,8 @@ void func_80087A7C(void) {
     g_FieldScriptVMCurActor->scriptInstructionPointer += 2;
 }
 
-#ifndef XENO_PC_PORT
-INCLUDE_ASM("asm/field/nonmatchings/main/misc", func_80087AB8);
-#else
 void func_80087AB8(void) {
+#ifdef XENO_PC_PORT
     ActorData* pActor = g_FieldScriptVMCurActor;
     void* pScript = g_FieldScriptVMCurScriptData;
     u8 scriptByte = *(u8*)(pScript + pActor->scriptInstructionPointer + 9);
@@ -343,8 +358,19 @@ void func_80087AB8(void) {
     *(s16*)(pGS + 0x1850) = 0;
     *(s16*)(pGS + 0x1856) = 1;
     g_FieldScriptVMCurActor->scriptInstructionPointer += 6;
+#else
+    s32 result;
+    ActorData *actor;
+    g_pGameState->unk184E = FieldScriptArgument1(1, SCRIPT_READ_U8_REL(9));
+    result = FieldScriptArgument2(3, SCRIPT_READ_U8_REL(9));
+    actor = g_FieldScriptVMCurActor;
+    *(s16*)((u8*)g_pGameState + 0x1852) = result;
+    *(s16*)((u8*)g_pGameState + 0x1854) = 0;
+    *(s16*)((u8*)g_pGameState + 0x1850) = 0;
+    *(s16*)((u8*)g_pGameState + 0x1856) = 1;
+    actor->scriptInstructionPointer += 6;
+#endif
 }
-#endif /* XENO_PC_PORT */
 
 void func_80087B5C(void) {
 #ifdef XENO_PC_PORT
@@ -398,13 +424,20 @@ void func_80087D30(void) {
 }
 
 #ifndef XENO_PC_PORT
-INCLUDE_ASM("asm/field/nonmatchings/main/misc", func_80087D80);
-#else
+/* func_80087D80: the 0x1834 store must be MEM_IN_STRUCT (pointer indexing =
+ * INDIRECT_REF(PLUS_EXPR)) so the scheduler may hoist the g_FieldScriptVMCurActor
+ * load above it; the TU idiom *(u16*)((u8*)g_pGameState + 0x1834) is a non-struct
+ * store and pins that load below the sh (size 104 vs 96). */
+#endif
 void func_80087D80(void) {
+#ifdef XENO_PC_PORT
     *(u16*)((u8*)g_pGameState + 0x1834) = FieldScriptArgument1(1, SCRIPT_READ_U8_REL(3));
     g_FieldScriptVMCurActor->scriptInstructionPointer += 4;
+#else
+    ((u16*)g_pGameState)[0x1834 / 2] = FieldScriptArgument1(1, SCRIPT_READ_U8_REL(3));
+    g_FieldScriptVMCurActor->scriptInstructionPointer += 4;
+#endif
 }
-#endif /* XENO_PC_PORT */
 
 extern u8 D_800B2355;
 extern u8 D_800B2356;
@@ -477,46 +510,34 @@ void func_80087FD4(void) {
 #ifndef XENO_PC_PORT
 INCLUDE_ASM("asm/field/nonmatchings/main/misc", func_8008800C);
 #else
+/* Retail 8008800C: mtx.t is zeroed before func_801E72CC(&mtx, &scratch,
+ * arg1, arg2) (scratch = retail sp+0x30); args 3..5 are read only after
+ * SetRotMatrix/SetTransMatrix and form the vector RotTransSV transforms
+ * (flag is its own word, retail sp+0x60). */
 void func_8008800C(void) {
     MATRIX mtx;
-    SVECTOR rot;
+    MATRIX scratch;
     SVECTOR vec;
     SVECTOR out;
-    u8 mask;
-    s32 arg1, arg2, arg3, arg4, arg5;
+    long flag;
+    s32 arg1;
+    s32 arg2;
 
-    mask = SCRIPT_READ_U8_REL(0xB);
-    arg1 = FieldScriptArgument1(1, mask);
-    mask = SCRIPT_READ_U8_REL(0xB);
-    arg2 = FieldScriptArgument2(3, mask);
-    mask = SCRIPT_READ_U8_REL(0xB);
-    arg3 = FieldScriptArgument3(5, mask);
-    mask = SCRIPT_READ_U8_REL(0xB);
-    arg4 = FieldScriptArgument4(7, mask);
-    mask = SCRIPT_READ_U8_REL(0xB);
-    arg5 = FieldScriptArgument5(9, mask);
-
-    rot.vx = (s16)arg3;
-    rot.vy = (s16)arg4;
-    rot.vz = (s16)arg5;
-    vec.vx = 0;
-    vec.vy = 0;
-    vec.vz = 0;
-
-    func_801E72CC(&mtx, NULL, arg2, arg1);
+    mtx.t[2] = 0;
+    mtx.t[1] = 0;
+    mtx.t[0] = 0;
+    arg1 = FieldScriptArgument1(1, SCRIPT_READ_U8_REL(0xB));
+    arg2 = FieldScriptArgument2(3, SCRIPT_READ_U8_REL(0xB));
+    func_801E72CC(&mtx, &scratch, arg1, arg2);
     SetRotMatrix(&mtx);
     SetTransMatrix(&mtx);
-    RotTransSV(&vec, &out, (long*)&out);
-
-    {
-        u16 addr;
-        addr = (u16)FieldScriptVMGetInstructionArgument(0xC);
-        FieldScriptMemoryWriteU16(addr, out.vx);
-        addr = (u16)FieldScriptVMGetInstructionArgument(0xE);
-        FieldScriptMemoryWriteU16(addr, out.vy);
-        addr = (u16)FieldScriptVMGetInstructionArgument(0x10);
-        FieldScriptMemoryWriteU16(addr, out.vz);
-    }
+    vec.vx = (s16)FieldScriptArgument3(5, SCRIPT_READ_U8_REL(0xB));
+    vec.vy = (s16)FieldScriptArgument4(7, SCRIPT_READ_U8_REL(0xB));
+    vec.vz = (s16)FieldScriptArgument5(9, SCRIPT_READ_U8_REL(0xB));
+    RotTransSV(&vec, &out, &flag);
+    FieldScriptMemoryWriteU16(FieldScriptVMGetInstructionArgument(0xC) & 0xFFFF, out.vx);
+    FieldScriptMemoryWriteU16(FieldScriptVMGetInstructionArgument(0xE) & 0xFFFF, out.vy);
+    FieldScriptMemoryWriteU16(FieldScriptVMGetInstructionArgument(0x10) & 0xFFFF, out.vz);
     g_FieldScriptVMCurActor->scriptInstructionPointer += 0x12;
 }
 #endif /* XENO_PC_PORT */
@@ -581,9 +602,12 @@ void func_8008825C(void) {
 }
 
 #ifndef XENO_PC_PORT
-INCLUDE_ASM("asm/field/nonmatchings/main/misc", func_800882B8);
-#else
+/* func_800882B8: both arms are FieldScriptMemoryWriteU16(SCRIPT_IMM_ARG(2), x)
+ * calls (cross-jumped into one); the gearId load must sit inside the call so it
+ * is evaluated after the argument call. */
+#endif
 void func_800882B8(void) {
+#ifdef XENO_PC_PORT
     s32 charId = func_8008CF3C(FieldScriptVMGetArgument(1));
     u16 dest;
     if (charId != 0xFF) {
@@ -595,8 +619,16 @@ void func_800882B8(void) {
         FieldScriptMemoryWriteU16(dest, 0xFF);
     }
     g_FieldScriptVMCurActor->scriptInstructionPointer += 5;
+#else
+    s32 charId = func_8008CF3C(FieldScriptVMGetArgument(1));
+    if (charId != 0xFF) {
+        FieldScriptMemoryWriteU16(SCRIPT_IMM_ARG(2), g_pGameState->characters[charId].gearId);
+    } else {
+        FieldScriptMemoryWriteU16(SCRIPT_IMM_ARG(2), 0xFF);
+    }
+    g_FieldScriptVMCurActor->scriptInstructionPointer += 5;
+#endif
 }
-#endif /* XENO_PC_PORT */
 
 void FieldScriptSetCharacterGear(void) {
     int characterId = FieldScriptVMGetArgument(1);
@@ -604,10 +636,8 @@ void FieldScriptSetCharacterGear(void) {
     g_FieldScriptVMCurActor->scriptInstructionPointer += 5;
 }
 
-#ifndef XENO_PC_PORT
-INCLUDE_ASM("asm/field/nonmatchings/main/misc", func_800883D4);
-#else
 void func_800883D4(void) {
+#ifdef XENO_PC_PORT
     s32 charId = func_8008CF3C(FieldScriptVMGetArgument(2));
     if (charId != 0xFF) {
         ActorData* pActor = g_FieldScriptVMCurActor;
@@ -623,8 +653,18 @@ void func_800883D4(void) {
         }
     }
     g_FieldScriptVMCurActor->scriptInstructionPointer += 4;
+#else
+    s32 bit = func_8008CF3C(FieldScriptVMGetArgument(2));
+    if (bit != 0xFF) {
+        if (SCRIPT_READ_U8_REL(1) == 0) {
+            *(u16*)((u8*)g_pGameState + 0x2318) |= 1 << bit;
+        } else {
+            *(u16*)((u8*)g_pGameState + 0x2318) &= ~(1 << bit);
+        }
+    }
+    g_FieldScriptVMCurActor->scriptInstructionPointer += 4;
+#endif
 }
-#endif /* XENO_PC_PORT */
 
 extern s16 D_800B236C;
 
@@ -642,10 +682,8 @@ void func_800884CC(void) {
 
 extern s32 D_8005A444[];
 
-#ifndef XENO_PC_PORT
-INCLUDE_ASM("asm/field/nonmatchings/main/misc", func_80088508);
-#else
 void func_80088508(void) {
+#ifdef XENO_PC_PORT
     s32 arg5 = FieldScriptVMGetArgument(5);
     s32 slot = D_8005A444[arg5];
     u16 arg1, arg3;
@@ -674,14 +712,41 @@ void func_80088508(void) {
         }
     }
     g_FieldScriptVMCurActor->scriptInstructionPointer += 7;
+#else
+    s32 slot = D_8005A444[FieldScriptVMGetArgument(5)];
+    u8* pSprite;
+    u8* pSub;
+
+    g_FieldScriptMaxInstructionCount += 4;
+    if (slot != 0xFF) {
+        pSprite = (u8*)(uintptr_t)g_FieldActors[slot].pSpriteData;
+        FieldScriptMemoryWriteU16(SCRIPT_IMM_ARG(1), *(u16*)(*(u8**)(pSprite + 0x7C) + 0xC));
+        FieldScriptMemoryWriteU16(SCRIPT_IMM_ARG(2), slot);
+        pSub = *(u8**)(pSprite + 0x7C);
+        if (*(u16*)(pSub + 0xC) != 1) {
+            *(u16*)(pSub + 0xC) = 0;
+        }
+    } else {
+        FieldScriptMemoryWriteU16(SCRIPT_IMM_ARG(1), 0);
+        FieldScriptMemoryWriteU16(SCRIPT_IMM_ARG(2), 0);
+    }
+    g_FieldScriptVMCurActor->scriptInstructionPointer += 7;
+#endif
 }
-#endif /* XENO_PC_PORT */
 
 #ifndef XENO_PC_PORT
-INCLUDE_ASM("asm/field/nonmatchings/main/misc", func_8008861C);
-#else
-void func_8008861C(void)
-{
+/* func_8008861C: the bank index is read as a plain (non-struct) s32 so the
+ * struct-field stores below do not invalidate it (one lw per iteration), and
+ * the +0x32 store goes through a computed pointer (addu off,base then 0x32(v0))
+ * while the +0x30 store folds into sym+0x30(off).  D_800B2384 is declared only
+ * after this site (as ParticleBankHandle), so this body reaches it through an
+ * asm alias with the same 16-byte (non-gp-small) shape. */
+struct func_8008861C_handle { int bankIndex; u8 unk4[0xC]; };
+extern struct func_8008861C_handle D_800B2384__8861C asm("D_800B2384");
+
+#endif
+void func_8008861C(void) {
+#ifdef XENO_PC_PORT
     s32 i;
     u8* pBanks = (u8*)g_FieldDefaultParticleBanks;
     for (i = 0; i < 8; i++) {
@@ -689,8 +754,21 @@ void func_8008861C(void)
         *(u16*)(pEntry + 0x32) = 0;
         *(u16*)(pEntry + 0x30) = 0;
     }
+#else
+    s32 i;
+    s32 off;
+    u8* p;
+
+    i = 0;
+    do {
+        off = i * 4 + *(s32*)&D_800B2384__8861C * 0x78;
+        i++;
+        p = (u8*)g_FieldDefaultParticleBanks + off;
+        *(s16*)(p + 0x32) = 0;
+        *(s16*)((u8*)g_FieldDefaultParticleBanks + 0x30 + off) = 0;
+    } while (i < 8);
+#endif
 }
-#endif /* XENO_PC_PORT */
 
 extern s32 D_800B2374;
 extern s32 D_800B2378;
@@ -743,9 +821,25 @@ void func_80088790(void) {
 #endif /* XENO_PC_PORT */
 
 #ifndef XENO_PC_PORT
-INCLUDE_ASM("asm/field/nonmatchings/main/misc", func_800888A4);
-#else
+/* func_800888A4: retail ActorData+0x12C/+0x130 bitfields differ from the header
+ * (0x12C: 2-bit mode at 16, 10-bit angle at 18; 0x130: 9-bit speed at 0), so a
+ * local overlay struct is used.  The angle word is written with an explicit
+ * mask (dir << 24, not a CSE of the sprite value dir << 6), the other two fields
+ * as bitfields, and the actor pointer is taken into a local right after the
+ * call: its longer life is what gives retail its a2/a1 register split. */
+struct func_800888A4_actor {
+    u8 pad[0x12C];
+    u32 f12C_0 : 16;
+    u32 f12C_16 : 2;
+    u32 f12C_18 : 10;
+    u32 f12C_28 : 4;
+    u32 f130_0 : 9;
+    u32 f130_9 : 23;
+};
+
+#endif
 void func_800888A4(void) {
+#ifdef XENO_PC_PORT
     u32 actorIdx = (u32)D_800AFD1C;
     u8* pFieldActor = (u8*)g_FieldActors + actorIdx * 92;
     u32 pActorData = *(u32*)(pFieldActor + 0x04);
@@ -782,13 +876,45 @@ void func_800888A4(void) {
     }
 
     *(u16*)(pActor + 0xCC) += 5;
+#else
+    u8* pSprite;
+    s32 dir;
+    s32 speed;
+    struct func_800888A4_actor* actor;
+
+    pSprite = (u8*)(uintptr_t)g_FieldActors[D_800AFD1C].pSpriteData;
+    dir = FieldScriptVMGetArgument(1) & 0xF;
+    speed = ((FieldScriptVMGetArgument(1) >> 4) << 8) + FieldScriptVMGetArgument(3);
+    func_8002303C(pSprite, 2, 0);
+    actor = (struct func_800888A4_actor*)g_FieldScriptVMCurActor;
+    ((s16*)*(u8**)(*(u8**)(pSprite + 0x7C) + 0x18))[2] = dir << 6;
+    ((u32*)actor)[0x12C / 4] = (((u32*)actor)[0x12C / 4] & 0xF003FFFF) | (dir << 24);
+    ((s16*)*(u8**)(*(u8**)(pSprite + 0x7C) + 0x18))[3] = speed;
+    actor->f130_0 = speed;
+    actor->f12C_16 = 1;
+    ((ActorData*)actor)->scriptInstructionPointer += 5;
+#endif
 }
-#endif /* XENO_PC_PORT */
 
 #ifndef XENO_PC_PORT
-INCLUDE_ASM("asm/field/nonmatchings/main/misc", func_800889BC);
-#else
+/* func_800889BC: same shape as func_800888A4 with two angle/speed pairs
+ * (0x130: speed 0..8, angle2 9..18, speed2 19..27); the angle words use explicit
+ * masks, the speeds and mode are bitfields, actor local taken after the call. */
+struct func_800889BC_actor {
+    u8 pad[0x12C];
+    u32 f12C_0 : 16;
+    u32 f12C_16 : 2;
+    u32 f12C_18 : 10;
+    u32 f12C_28 : 4;
+    u32 f130_0 : 9;
+    u32 f130_9 : 10;
+    u32 f130_19 : 9;
+    u32 f130_28 : 4;
+};
+
+#endif
 void func_800889BC(void) {
+#ifdef XENO_PC_PORT
     u32 actorIdx = (u32)D_800AFD1C;
     u8* pFieldActor = (u8*)g_FieldActors + actorIdx * 92;
     u32 pActorData = *(u32*)(pFieldActor + 0x04);
@@ -847,8 +973,33 @@ void func_800889BC(void) {
     }
 
     *(u16*)(pActor + 0xCC) += 9;
+#else
+    u8* pSprite;
+    s32 dir;
+    s32 speed;
+    s32 dir2;
+    s32 speed2;
+    struct func_800889BC_actor* actor;
+
+    pSprite = (u8*)(uintptr_t)g_FieldActors[D_800AFD1C].pSpriteData;
+    dir = FieldScriptVMGetArgument(1) & 0xF;
+    speed = ((FieldScriptVMGetArgument(1) >> 4) << 8) + FieldScriptVMGetArgument(3);
+    dir2 = FieldScriptVMGetArgument(5) & 0xF;
+    speed2 = ((FieldScriptVMGetArgument(5) >> 4) << 8) + FieldScriptVMGetArgument(7);
+    func_8002303C(pSprite, 3, 0);
+    actor = (struct func_800889BC_actor*)g_FieldScriptVMCurActor;
+    ((s16*)*(u8**)(*(u8**)(pSprite + 0x7C) + 0x18))[2] = dir << 6;
+    ((u32*)actor)[0x12C / 4] = (((u32*)actor)[0x12C / 4] & 0xF003FFFF) | (dir << 24);
+    ((s16*)*(u8**)(*(u8**)(pSprite + 0x7C) + 0x18))[3] = speed;
+    actor->f130_0 = speed;
+    ((s16*)*(u8**)(*(u8**)(pSprite + 0x7C) + 0x18))[4] = dir2 << 6;
+    ((u32*)actor)[0x130 / 4] = (((u32*)actor)[0x130 / 4] & 0xFFF801FF) | (dir2 << 15);
+    ((s16*)*(u8**)(*(u8**)(pSprite + 0x7C) + 0x18))[5] = speed2;
+    actor->f130_19 = speed2;
+    ((ActorData*)actor)->scriptInstructionPointer += 9;
+    actor->f12C_16 = 2;
+#endif
 }
-#endif /* XENO_PC_PORT */
 
 // Start of particle handlers
 extern s32 D_800ADB40;
@@ -867,9 +1018,11 @@ extern ParticleBankHandle D_800B2384;
 extern s32 g_FieldScriptMaxInstructionCount;
 
 #ifndef XENO_PC_PORT
-INCLUDE_ASM("asm/field/nonmatchings/main/misc", func_80088B68);
-#else
+/* func_80088B68: retail is a switch on the argument (beq 1 / beq 2 / j); the
+ * bank flags update is the struct form. */
+#endif
 void func_80088B68(void) {
+#ifdef XENO_PC_PORT
     s32 arg1 = FieldScriptVMGetArgument(1);
     u32 flagBit = 0;
     if (arg1 == 1) {
@@ -886,8 +1039,21 @@ void func_80088B68(void) {
     }
     g_FieldScriptMaxInstructionCount += 4;
     g_FieldScriptVMCurActor->scriptInstructionPointer += 7;
+#else
+    s32 flagBit = 0;
+    switch (FieldScriptVMGetArgument(1)) {
+    case 1:
+        flagBit = 0x80;
+        break;
+    case 2:
+        flagBit = 0x40;
+        break;
+    }
+    g_FieldDefaultParticleBanks[D_800B2384.bankIndex].flags |= flagBit;
+    g_FieldScriptMaxInstructionCount += 4;
+    g_FieldScriptVMCurActor->scriptInstructionPointer += 7;
+#endif
 }
-#endif /* XENO_PC_PORT */
 
 #ifndef XENO_PC_PORT
 INCLUDE_ASM("asm/field/nonmatchings/main/misc", func_80088C1C);
@@ -903,7 +1069,7 @@ void func_80088C1C(void) {
     arg1 = FieldScriptVMGetArgument(3);
     {
         u16 flags = *(u16*)(pBank + 0x2A);
-        *(u16*)(pBank + 0x2A) = (u16)(flags | (arg1 << 8));
+        *(u16*)(pBank + 0x2A) = (u16)(flags | (s32)((u32)arg1 << 8));
     }
 
     arg1 = FieldScriptVMGetArgument(5);
@@ -1159,10 +1325,8 @@ void func_80089FD0(void) {
 
 extern s32 D_800B0090, D_800B0094, D_800B0098;
 
-#ifndef XENO_PC_PORT
-INCLUDE_ASM("asm/field/nonmatchings/main/misc", func_8008A08C);
-#else
 void func_8008A08C(void) {
+#ifdef XENO_PC_PORT
     u8 mask = SCRIPT_READ_U8_REL(7);
     D_800B0090 = FieldScriptArgument1(1, mask);
     mask = SCRIPT_READ_U8_REL(7);
@@ -1170,8 +1334,13 @@ void func_8008A08C(void) {
     mask = SCRIPT_READ_U8_REL(7);
     D_800B0094 = FieldScriptArgument3(5, mask);
     g_FieldScriptVMCurActor->scriptInstructionPointer += 8;
+#else
+    D_800B0090 = FieldScriptArgument1(1, SCRIPT_READ_U8_REL_RAW(7));
+    D_800B0098 = FieldScriptArgument2(3, SCRIPT_READ_U8_REL_RAW(7));
+    D_800B0094 = FieldScriptArgument3(5, SCRIPT_READ_U8_REL_RAW(7));
+    *(u16*)((u8*)g_FieldScriptVMCurActor + 0xCC) += 8;
+#endif
 }
-#endif /* XENO_PC_PORT */
 
 extern u8 D_800B00A0, D_800B00A1, D_800B00A2, D_800B00A4, D_800B00A5, D_800B00A6, D_800B00A8, D_800B00A9, D_800B00AA;
 extern s16 D_800B00AC, D_800B00AE, D_800B00B0, D_800B00B2;
@@ -1239,6 +1408,9 @@ extern s32 FieldLoadTIMWithClut(void* data, s32 ofsX, s32 ofsY, s32 width, s32 h
 #ifndef XENO_PC_PORT
 INCLUDE_ASM("asm/field/nonmatchings/main/misc", func_8008A2E8);
 #else
+/* Retail 8008A2E8: sub-op 0 hands the HeapAlloc result straight to the
+ * archive read; sub-op 1 calls FieldLoadTIMWithClut(buf, x=arg2, y=arg3,
+ * clutX=0, clutY, 0, 0) (real misc3.c prototype takes shorts). */
 void func_8008A2E8(void) {
     u8 subOp;
     if (func_8008A558() == -1) {
@@ -1248,19 +1420,19 @@ void func_8008A2E8(void) {
     }
     subOp = SCRIPT_READ_U8_REL(1);
     if (subOp == 0) {
-        /* Load from archive */
         s32 fileId = FieldScriptArgument1(5, SCRIPT_READ_U8_REL(0xD));
+        void* buf;
         ArchiveSetIndex(4, 0);
         fileId += 0x7FB;
-        D_800B1F74 = (s32)HeapAlloc(ArchiveDecodeAlignedSize(fileId), 0);
-        ArchiveReadFileToBuffer(fileId, (void*)D_800B1F74, 0, 0x80);
+        buf = HeapAlloc(ArchiveDecodeAlignedSize(fileId), 0);
+        D_800B1F74 = (s32)(uintptr_t)buf;
+        ArchiveReadFileToBuffer(fileId, buf, 0, 0x80);
         g_FieldScriptVMCurActor->scriptInstructionPointer += 2;
     } else if (subOp == 1) {
-        /* Load TIM with clut */
         s32 arg4 = FieldScriptArgument4(8, SCRIPT_READ_U8_REL(0xA));
         s32 clutY;
-        s32 arg2, arg3;
-        s32 width;
+        s32 arg2;
+        s32 arg3;
         if (arg4 == 0xFF) {
             clutY = -1;
         } else {
@@ -1268,18 +1440,14 @@ void func_8008A2E8(void) {
         }
         arg2 = FieldScriptArgument2(4, SCRIPT_READ_U8_REL(0xA));
         arg3 = FieldScriptArgument3(6, SCRIPT_READ_U8_REL(0xA));
-        width = arg3;
-        if (width >= 0x100) {
-            if (arg2 >= 0x2C0) {
-                func_800A915C();
-            }
-            width = arg3;
+        if (arg3 >= 0x100 && arg2 >= 0x2C0) {
+            func_800A915C();
         }
-        FieldLoadTIMWithClut((void*)D_800B1F74, 0, 0, width, arg2, 0, clutY);
+        ((void (*)(u_long*, short, short, short, short, short, short))FieldLoadTIMWithClut)(
+            (u_long*)(uintptr_t)D_800B1F74, (short)arg2, (short)arg3, 0, (short)clutY, 0, 0);
         g_FieldScriptVMCurActor->scriptInstructionPointer += 0xB;
     } else {
-        /* Free and skip */
-        HeapFree((void*)D_800B1F74);
+        HeapFree((void*)(uintptr_t)D_800B1F74);
         g_FieldScriptVMCurActor->scriptInstructionPointer += 2;
     }
     D_800B00C0 = 1;
@@ -1401,7 +1569,7 @@ void func_8008A7DC(s32 charId, s32 slot) {
         ArchiveCdDataSync(0);
     }
     if ((g_GameSceneMapNum & 0xC000) == 0) {
-        fileId = charId + 5;
+        fileId = (s32)((u32)charId + 5);
         g_GamePartyMemberSkins[slot] = charId;
         buf = HeapAlloc(ArchiveDecodeAlignedSize(fileId), 0);
         D_800ADBC0 = buf;
@@ -1411,8 +1579,9 @@ void func_8008A7DC(s32 charId, s32 slot) {
         if (gearId == 0xFF) {
             gearId = 0;
         }
-        gearId += 0x10;
-        fileId = gearId + 5;
+        /* addiu wraps: no host signed-overflow UB for any callee value. */
+        gearId = (s32)((u32)gearId + 0x10);
+        fileId = (s32)((u32)gearId + 5);
         buf = HeapAlloc(ArchiveDecodeAlignedSize(fileId), 0);
         D_800ADBC0 = buf;
         g_GamePartyMemberSkins[slot] = gearId;
@@ -1476,48 +1645,44 @@ extern void func_8003BDFC(s32 a0);
 #ifndef XENO_PC_PORT
 INCLUDE_ASM("asm/field/nonmatchings/main/misc", func_8008AACC);
 #else
+/* Retail 8008AACC: the slot table receives SoundLoadWdsFile's return value
+ * (32-bit retail word); bit-7 file ids use directory 0x2C/1 with (id & 0x7F)
+ * + 0x1F unless D_8004F370 == 1, which loads file 4 + 2 from 0x1C/0.
+ * PC divergence kept: the slot-3 publish reads the host-width shadow
+ * D_80062524 (retail re-reads D_80062518[3] = the entry just stored). */
 void func_8008AACC(void) {
-    u8 subOp;
     if (func_8008A558() != 0) {
         D_800B00C0 = 1;
         g_FieldScriptVMCurActor->scriptInstructionPointer -= 1;
         return;
     }
-    subOp = SCRIPT_READ_U8_REL(1);
-    if (subOp == 1) {
-        /* Load WDS file */
-        SoundLoadWdsFile(D_800AFD08, 0);
-        D_80062518[D_800AFD18] = (s32)D_800AFD08;
+    if (SCRIPT_READ_U8_REL(1) == 1) {
+        void* entry = ((void* (*)(void*, s32))SoundLoadWdsFile)(D_800AFD08, 0);
+        D_80062518[D_800AFD18] = (s32)(uintptr_t)entry;
         func_8003BDFC(0x10);
         HeapFree(D_800AFD08);
         if (D_800AFD18 == 3) {
-#ifdef XENO_PC_PORT
             D_800595AC = D_80062524;
-#else
-            D_800595AC = D_80062524[0];
-#endif
         }
         D_800B00C0 = 1;
         g_FieldScriptVMCurActor->scriptInstructionPointer += 2;
     } else {
-        /* Free existing + load new */
         s32 slot = FieldScriptVMGetArgument(2);
+        s32 entry = D_80062518[slot];
+        s32 arg4;
         D_800AFD18 = slot;
-        SoundFreeWdsEntry(D_80062518[slot]);
-        {
-            s32 arg4 = FieldScriptVMGetArgument(4);
-            D_800AFD0C = arg4;
-            if (!(arg4 & 0x80)) {
-                ArchiveSetIndex(0x1C, 0);
-                D_800AFD0C += 2;
-            } else {
-                if (D_8004F370 == 1) {
-                    D_800AFD0C = 4;
-                } else {
-                    D_800AFD0C += 0x1F;
-                }
-                ArchiveSetIndex(0x2C, 1);
+        SoundFreeWdsEntry(entry);
+        arg4 = FieldScriptVMGetArgument(4);
+        D_800AFD0C = arg4;
+        if ((arg4 & 0x80) && D_8004F370 != 1) {
+            D_800AFD0C = (arg4 & 0x7F) + 0x1F;
+            ArchiveSetIndex(0x2C, 1);
+        } else {
+            if (arg4 & 0x80) {
+                D_800AFD0C = 4;
             }
+            ArchiveSetIndex(0x1C, 0);
+            D_800AFD0C += 2;
         }
         D_800AFD08 = HeapAlloc(ArchiveDecodeAlignedSize(D_800AFD0C), 0);
         ArchiveReadFileToBuffer(D_800AFD0C, D_800AFD08, 0, 0x80);
@@ -1593,8 +1758,10 @@ void func_8008AEC8(void) {
     arg2 = FieldScriptArgument2(3, mask);
 
     {
-        s32 idx = arg2 * 3; /* stride 6 = 3 halfwords */
-        D_800B221C[idx] = (s16)arg1;
+        /* Retail (differential-tested): operand 1 is the record index, operand
+         * 2 the first halfword; the old port arm had the two swapped. */
+        s32 idx = arg1 * 3; /* stride 6 = 3 halfwords */
+        D_800B221C[idx] = (s16)arg2;
         mask = SCRIPT_READ_U8_REL(9);
         D_800B221C[idx + 1] = (s16)FieldScriptArgument3(5, mask);
         mask = SCRIPT_READ_U8_REL(9);
@@ -1607,9 +1774,11 @@ void func_8008AEC8(void) {
 extern s16 D_800B223C[];
 
 #ifndef XENO_PC_PORT
-INCLUDE_ASM("asm/field/nonmatchings/main/misc", func_8008AFD8);
-#else
+/* func_8008AFD8: plain array stores; the first operand is the index, the second
+ * the value (the port body has these swapped). */
+#endif
 void func_8008AFD8(void) {
+#ifdef XENO_PC_PORT
     u8 mask;
     s32 arg1, arg2;
 
@@ -1624,8 +1793,14 @@ void func_8008AFD8(void) {
     mask = SCRIPT_READ_U8_REL(9);
     D_800B223C[arg2 + 6] = (s16)FieldScriptArgument4(7, mask);
     g_FieldScriptVMCurActor->scriptInstructionPointer += 10;
+#else
+    s32 idx = FieldScriptArgument1(1, SCRIPT_READ_U8_REL(9));
+    D_800B223C[idx] = FieldScriptArgument2(3, SCRIPT_READ_U8_REL(9));
+    D_800B223C[idx + 3] = FieldScriptArgument3(5, SCRIPT_READ_U8_REL(9));
+    D_800B223C[idx + 6] = FieldScriptArgument4(7, SCRIPT_READ_U8_REL(9));
+    g_FieldScriptVMCurActor->scriptInstructionPointer += 10;
+#endif
 }
-#endif /* XENO_PC_PORT */
 
 extern u8 D_800B225C;
 extern u8 D_800B225D;
@@ -1659,10 +1834,9 @@ extern void func_801E8330(s32 slot, s32 unused, s32 anim);
 /* Field-script opcode: when D_800ADB1C is set, drive an object's anim via the
  * field archive 0x6B9 entry func_801E8330 and record the anim into
  * D_800B21E4[arg1]. Always IP += 5. */
-#ifndef XENO_PC_PORT
-INCLUDE_ASM("asm/field/nonmatchings/main/misc", func_8008B180);
-#else
+
 void func_8008B180(void) {
+#ifdef XENO_PC_PORT
     if (D_800ADB1C != 0) {
         s32 arg1 = FieldScriptVMGetArgument(1);
         s32 arg3 = FieldScriptVMGetArgument(3);
@@ -1672,8 +1846,19 @@ void func_8008B180(void) {
         D_800B21E4[arg1] = (u16)arg3;
     }
     g_FieldScriptVMCurActor->scriptInstructionPointer += 5;
+#else
+    s32 temp_s0_2;
+    s32 temp_s0;
+
+    if (D_800ADB1C != 0) {
+        temp_s0 = FieldScriptVMGetArgument(1) & 0xFFFF;
+        func_801E8330(temp_s0, 0, FieldScriptVMGetArgument(3));
+        temp_s0_2 = FieldScriptVMGetArgument(1);
+        D_800B21E4[temp_s0_2] = FieldScriptVMGetArgument(3);
+    }
+    *(u16 *)((s8*)(g_FieldScriptVMCurActor) + 0xCC) = (u16) (*(u16 *)((s8*)(g_FieldScriptVMCurActor) + 0xCC) + 5);
+#endif
 }
-#endif /* XENO_PC_PORT */
 
 void func_8008B210(void) {
     g_FieldScriptVMCurActor->unk11E = FieldScriptVMGetArgument(1);
@@ -1753,10 +1938,8 @@ void func_8008B328(void) {
 
 extern s16 D_800B2184, D_800B2186, D_800B2188;
 
-#ifndef XENO_PC_PORT
-INCLUDE_ASM("asm/field/nonmatchings/main/misc", func_8008B45C);
-#else
 void func_8008B45C(void) {
+#ifdef XENO_PC_PORT
     u8 mask = SCRIPT_READ_U8_REL(7);
     D_800B2184 = (s16)FieldScriptArgument1(1, mask);
     mask = SCRIPT_READ_U8_REL(7);
@@ -1764,8 +1947,13 @@ void func_8008B45C(void) {
     mask = SCRIPT_READ_U8_REL(7);
     D_800B2186 = (s16)FieldScriptArgument3(5, mask);
     g_FieldScriptVMCurActor->scriptInstructionPointer += 8;
+#else
+    D_800B2184 = FieldScriptArgument1(1, SCRIPT_READ_U8_REL_RAW(7));
+    D_800B2188 = FieldScriptArgument2(3, SCRIPT_READ_U8_REL_RAW(7));
+    D_800B2186 = FieldScriptArgument3(5, SCRIPT_READ_U8_REL_RAW(7));
+    *(u16*)((u8*)g_FieldScriptVMCurActor + 0xCC) += 8;
+#endif
 }
-#endif /* XENO_PC_PORT */
 
 void func_8008B518(void) {
     u8 mask = SCRIPT_READ_U8_REL(7);
@@ -1787,56 +1975,76 @@ void func_8008B518(void) {
 INCLUDE_ASM("asm/field/nonmatchings/main/misc", func_8008B5D4);
 #else
 void func_8008B5D4(void) {
-    FieldActor* fieldActors = g_FieldActors;
-    u8* modelData =
-        (u8*)(uintptr_t)fieldActors[D_800AFD1C].pModelData;
+    u32 modelData = g_FieldActors[D_800AFD1C].pModelData;
     s32 page = g_FieldCurRenderContextIndex;
-    u8* currentPackets =
-        (u8*)(uintptr_t)*(u32*)(modelData + 0x08 + page * 4);
-    u8* alternatePackets =
-        (u8*)(uintptr_t)*(u32*)(modelData + 0x08 + ((page + 1) & 1) * 4);
-    u8* modelHeader = (u8*)(uintptr_t)*(u32*)(modelData + 0x04);
-    u8* command = (u8*)(uintptr_t)*(u32*)(modelHeader + 0x10);
+    u8* cur = (u8*)(uintptr_t)*(u32*)(uintptr_t)(modelData + ((u32)page << 2) + 8);
+    u32 modelHeader = *(u32*)(uintptr_t)(modelData + 4);
+    u8* alt = (u8*)(uintptr_t)*(u32*)(uintptr_t)(modelData + (((u32)page + 1) & 1) * 4 + 8);
+    u8* command = (u8*)(uintptr_t)*(u32*)(uintptr_t)(modelHeader + 0x10);
     s16 xOffset = FieldScriptVMGetInstructionArgumentS16(1);
     s16 yOffset = FieldScriptVMGetInstructionArgumentS16(3);
-    s32 commandCount = *(u16*)(modelHeader + 0x06);
+    s32 commandCount = *(u16*)(uintptr_t)(modelHeader + 6);
 
+    /* Retail byte order per primitive: offset the current page's X/Y bytes,
+     * then copy them to the alternate page (the copies interleave loads from
+     * cur with stores to alt, so overlapping pages behave as on retail). */
     while (commandCount > 0) {
         u32 header = *(u32*)command;
         u8 opcode = (u8)header;
-        u32 primitiveCount = header >> 16;
+        s32 primitiveCount = (s32)(header >> 16);
+        s32 i;
         command += 4;
 
         if (opcode != 0xC4 && opcode != 0xC8) {
-            s32 vertexCount = (header & 8) ? 4 : 3;
-            s32 packetStride = (header & 8) ? 0x28 : 0x20;
-#ifdef FIELD_VM_AUDIT_MUTANT_PRIM_TRIANGLE_STRIDE_28
-            if ((header & 8) == 0) {
-                packetStride = 0x28;
-            }
-#endif
-            while (primitiveCount != 0) {
-                s32 vertex;
-                for (vertex = 0; vertex < vertexCount; vertex++) {
-                    u8 xByte = (u8)(0x0C + vertex * 8);
-                    u8 yByte = (u8)(xByte + 1);
-                    currentPackets[xByte] =
-                        (u8)(currentPackets[xByte] + xOffset);
-                    currentPackets[yByte] =
-                        (u8)(currentPackets[yByte] + yOffset);
-                }
+            if (!(header & 8)) {
+                for (i = 0; i < primitiveCount; i++) {
+                    cur[0x0C] = (u8)(cur[0x0C] + xOffset);
+                    cur[0x1C] = (u8)(cur[0x1C] + xOffset);
+                    cur[0x14] = (u8)(cur[0x14] + xOffset);
+                    cur[0x15] = (u8)(cur[0x15] + yOffset);
+                    cur[0x0D] = (u8)(cur[0x0D] + yOffset);
+                    cur[0x1D] = (u8)(cur[0x1D] + yOffset);
 #ifndef FIELD_VM_AUDIT_MUTANT_PRIM_SKIP_ALT_COPY
-                for (vertex = 0; vertex < vertexCount; vertex++) {
-                    u8 xByte = (u8)(0x0C + vertex * 8);
-                    u8 yByte = (u8)(xByte + 1);
-                    alternatePackets[xByte] = currentPackets[xByte];
-                    alternatePackets[yByte] = currentPackets[yByte];
-                }
+                    alt[0x0C] = cur[0x0C];
+                    alt[0x14] = cur[0x14];
+                    alt[0x1C] = cur[0x1C];
+                    alt[0x0D] = cur[0x0D];
+                    alt[0x15] = cur[0x15];
+                    alt[0x1D] = cur[0x1D];
 #endif
-                command += 8;
-                currentPackets += packetStride;
-                alternatePackets += packetStride;
-                primitiveCount--;
+                    command += 8;
+#ifdef FIELD_VM_AUDIT_MUTANT_PRIM_TRIANGLE_STRIDE_28
+                    cur += 0x28;
+                    alt += 0x28;
+#else
+                    cur += 0x20;
+                    alt += 0x20;
+#endif
+                }
+            } else {
+                for (i = 0; i < primitiveCount; i++) {
+                    cur[0x0C] = (u8)(cur[0x0C] + xOffset);
+                    cur[0x1C] = (u8)(cur[0x1C] + xOffset);
+                    cur[0x14] = (u8)(cur[0x14] + xOffset);
+                    cur[0x0D] = (u8)(cur[0x0D] + yOffset);
+                    cur[0x24] = (u8)(cur[0x24] + xOffset);
+                    cur[0x1D] = (u8)(cur[0x1D] + yOffset);
+                    cur[0x15] = (u8)(cur[0x15] + yOffset);
+                    cur[0x25] = (u8)(cur[0x25] + yOffset);
+#ifndef FIELD_VM_AUDIT_MUTANT_PRIM_SKIP_ALT_COPY
+                    alt[0x0C] = cur[0x0C];
+                    alt[0x14] = cur[0x14];
+                    alt[0x1C] = cur[0x1C];
+                    alt[0x24] = cur[0x24];
+                    alt[0x0D] = cur[0x0D];
+                    alt[0x15] = cur[0x15];
+                    alt[0x1D] = cur[0x1D];
+                    alt[0x25] = cur[0x25];
+#endif
+                    command += 8;
+                    cur += 0x28;
+                    alt += 0x28;
+                }
             }
         }
         commandCount--;
@@ -1918,7 +2126,8 @@ void func_8008B978(s32 charId) {
     u16 savedIP;
     s32 i;
 
-    *(u16*)((u8*)g_pGameState + 0x1D30) |= 1 << D_800ADBC8;
+    /* Retail sllv: shift count is the low five bits. */
+    *(u16*)((u8*)g_pGameState + 0x1D30) |= (u16)(1u << (D_800ADBC8 & 31));
     if (D_800ADB1C == 0) {
         return;
     }
@@ -1931,44 +2140,47 @@ void func_8008B978(s32 charId) {
     for (i = 0; i < D_800ADBFC; i++) {
         u16 off0 = FieldScriptGetBytecodeOffset(i, 0);
         u8* pc = (u8*)g_FieldScriptVMCurScriptData + off0;
-        u16 off0b;
         u16 off0c;
 
         if (pc[0] != 0x16 || pc[1] != charId) {
             continue;
         }
 
-        D_800B06B8 = (u8*)g_FieldActors + i * 0x5C;
+        D_800B06B8 = &g_FieldActors[i];
         g_FieldScriptVMCurActor =
             (ActorData*)(uintptr_t)g_FieldActors[i].pActorData;
         func_80080A74(i);
         ((ActorData*)(uintptr_t)g_FieldActors[i].pActorData)
             ->scriptInstructionPointer = off0;
         D_800AFD1C = i;
-        off0b = FieldScriptGetBytecodeOffset(i, 0);
-        D_800AFFEC = 0;
-        /* Retail 8008BADC reads the offset a second time (result kept in $s1
-         * for the map-num gi path), after clearing D_800AFFEC. */
+        {
+            u16 off0b = FieldScriptGetBytecodeOffset(i, 0);
+            ActorData* cur = g_FieldScriptVMCurActor;
+            D_800AFFEC = 0;
+            cur->scriptInstructionPointer = off0b;
+        }
+        /* Retail 8008BADC reads the offset a second time (kept in $s1 for
+         * the gear-map path). */
         off0c = FieldScriptGetBytecodeOffset(i, 0);
-        g_FieldScriptVMCurActor->scriptInstructionPointer = off0b;
         FieldActorCopyPlacement(i, g_PlayerActorIndex);
         FieldScriptVMRun(0xFFFF);
         func_80077268();
-        *(u16*)((u8*)g_pGameState + 0x1D30) |= 1 << D_800ADBC8;
+        *(u16*)((u8*)g_pGameState + 0x1D30) |= (u16)(1u << (D_800ADBC8 & 31));
 
         if (g_GameSceneMapNum & 0xC000) {
             s32 gi = D_8006F990[D_800ADBCC];
+            u16 gearOff;
 
-            D_800B06B8 = (u8*)g_FieldActors + gi * 0x5C;
+            D_800B06B8 = &g_FieldActors[gi];
             g_FieldScriptVMCurActor =
                 (ActorData*)(uintptr_t)g_FieldActors[gi].pActorData;
             func_80080A74(gi);
             ((ActorData*)(uintptr_t)g_FieldActors[i].pActorData)
                 ->scriptInstructionPointer = off0c;
-            D_800AFD1C = gi;
-            g_FieldScriptVMCurActor->scriptInstructionPointer =
-                FieldScriptGetBytecodeOffset(gi, 0);
+            D_800AFD1C = D_8006F990[D_800ADBCC];
+            gearOff = FieldScriptGetBytecodeOffset(D_8006F990[D_800ADBCC], 0);
             D_800AFFEC = 0;
+            g_FieldScriptVMCurActor->scriptInstructionPointer = gearOff;
             FieldScriptVMRun(0xFFFF);
         }
         break;
@@ -2009,7 +2221,8 @@ void func_8008BC80(void) {
             func_8008A7DC(charId, slot);
             g_FieldScriptVMCurActor->scriptInstructionPointer += 3;
         } else {
-            *(u16*)((u8*)g_pGameState + 0x1D30) |= 1 << charId;
+            /* Retail sllv: shift count is the low five bits. */
+            *(u16*)((u8*)g_pGameState + 0x1D30) |= (u16)(1u << (charId & 31));
             g_FieldScriptVMCurActor->scriptInstructionPointer += 5;
         }
         return;
@@ -2022,9 +2235,12 @@ void func_8008BC80(void) {
 /* Add-party-member opcode, immediate-byte variant (asm 8008BDD8): charId is
  * the raw byte at IP+1; success IP+2, already-member IP+4, busy retry. */
 #ifndef XENO_PC_PORT
-INCLUDE_ASM("asm/field/nonmatchings/main/misc", func_8008BDD8);
-#else
+/* func_8008BDD8: one script-byte read feeds both the party-slot store and the
+ * func_8008A7DC call (the port reads it twice); gearRide/unk1D30 struct forms;
+ * busy path uses the struct IP so its load hoists above the D_800B00C0 store. */
+#endif
 void func_8008BDD8(void) {
+#ifdef XENO_PC_PORT
     s32 charId;
     s32 slot;
 
@@ -2044,8 +2260,28 @@ void func_8008BDD8(void) {
     }
     D_800B00C0 = 1;
     g_FieldScriptVMCurActor->scriptInstructionPointer -= 1;
+#else
+    s32 slot;
+    s32 charId;
+
+    if (D_800ADBC4 == 0xFF && D_800ADB2C == 0 && func_8008A558() == 0) {
+        ArchiveCdDataSync(0);
+        if (func_8008A790(SCRIPT_READ_U8_REL(1), &slot) == 0) {
+            g_pGameState->gearRide[slot] = 0;
+            charId = SCRIPT_READ_U8_REL(1);
+            g_GamePartyMembers[slot] = charId;
+            func_8008A7DC(charId, slot);
+            g_FieldScriptVMCurActor->scriptInstructionPointer += 2;
+        } else {
+            g_pGameState->unk1D30 |= 1 << SCRIPT_READ_U8_REL(1);
+            g_FieldScriptVMCurActor->scriptInstructionPointer += 4;
+        }
+        return;
+    }
+    D_800B00C0 = 1;
+    g_FieldScriptVMCurActor->scriptInstructionPointer -= 1;
+#endif
 }
-#endif /* XENO_PC_PORT */
 
 extern s32 D_8005A448[];
 extern void* D_8005A418[];
@@ -2054,60 +2290,60 @@ extern void* g_FieldSpriteData;
 #ifndef XENO_PC_PORT
 INCLUDE_ASM("asm/field/nonmatchings/main/misc", func_8008BF38);
 #else
+/* Retail 8008BF38.  D_8005A448 is &D_8005A444[1] on retail but a separate
+ * stub on PC, so every party-slot access goes through D_8005A444 + 1.
+ * Copy loop: 16-byte blocks (4 loads, then 4 stores) until src == src0 +
+ * 0x14000.  Sprite-skin branch passes act[0x127], (w130 >> 28) & 3,
+ * w134 & 0xF, the byte act[0x126] and (w134 >> 4) & 1, re-reading the
+ * actor-data pointer as retail does. */
 void func_8008BF38(s32 partyId) {
-    s32 idx = partyId * 4;
-    s32 slot = D_8005A448[partyId];
+    s32 slot = D_8005A444[partyId + 1];
 
     if (slot == 0xFF) {
-        /* Shift party arrays right */
         g_GamePartyMemberSkins[partyId] = g_GamePartyMemberSkins[partyId + 1];
         g_GamePartyMembers[partyId] = g_GamePartyMembers[partyId + 1];
-        D_8005A448[partyId] = D_8005A448[partyId + 1];
-        g_GamePartyMemberSkins[partyId + 1] = 0xFF;
-        g_GamePartyMembers[partyId + 1] = 0xFF;
-        D_8005A448[partyId + 1] = 0xFF;
+        D_8005A444[partyId] = D_8005A444[partyId + 1];
+        g_GamePartyMembers[partyId + 1] = slot;
+        g_GamePartyMemberSkins[partyId + 1] = slot;
+        D_8005A444[partyId + 1] = slot;
     } else {
-        /* Copy 0x14000 bytes from D_8005A418 to g_PartyDataBuffers */
-        u8* pSrc = (u8*)D_8005A418[partyId];
-        u8* pDst = (u8*)g_PartyDataBuffers[partyId];
-        s32 i;
-        u32 end = (u32)pSrc + 0x14000;
-        for (i = 0; pSrc + i * 16 < (u8*)end; i++) {
-            *(s32*)(pDst + i * 16) = *(s32*)(pSrc + i * 16);
-            *(s32*)(pDst + i * 16 + 4) = *(s32*)(pSrc + i * 16 + 4);
-            *(s32*)(pDst + i * 16 + 8) = *(s32*)(pSrc + i * 16 + 8);
-            *(s32*)(pDst + i * 16 + 0xC) = *(s32*)(pSrc + i * 16 + 0xC);
-        }
-        /* Shift party arrays */
+        u32* src = (u32*)D_8005A418[partyId];
+        u32* dst = (u32*)g_PartyDataBuffers[partyId];
+        u32* end = (u32*)((u8*)src + 0x14000);
+        u8* act;
+        do {
+            u32 w0 = src[0];
+            u32 w1 = src[1];
+            u32 w2 = src[2];
+            u32 w3 = src[3];
+            dst[0] = w0;
+            dst[1] = w1;
+            dst[2] = w2;
+            dst[3] = w3;
+            src += 4;
+            dst += 4;
+        } while (src != end);
+
         g_GamePartyMemberSkins[partyId] = g_GamePartyMemberSkins[partyId + 1];
         g_GamePartyMembers[partyId] = g_GamePartyMembers[partyId + 1];
-        D_8005A448[partyId] = D_8005A448[partyId + 1];
-        /* Get actor data and call func_80076AC0 */
-        {
-            u8* pFieldActor = (u8*)g_FieldActors + slot * 92;
-            u32 pActorData = *(u32*)(pFieldActor + 0x4C);
-            u8* pSub = (u8*)pActorData;
-            s32 skinId = (pSub[0x126] & 0x7F);
-            s32 motionFlags;
-            u8* pSprite;
-            u8* pPartyBuf;
-            if (!(pSub[0x126] & 0x80)) {
-                motionFlags = 1;
-                pPartyBuf = (u8*)g_PartyDataBuffers[partyId];
-                func_80076AC0(slot, partyId, pPartyBuf, 1, 0, partyId, 1);
-            } else {
-                pSprite = (u8*)g_FieldSpriteData + skinId * 4;
-                motionFlags = *(u32*)(pSub + 0x134) >> 28 & 3;
-                pPartyBuf = (u8*)*(u32*)(pSprite + 4) + (u32)g_FieldSpriteData;
-                func_80076AC0(slot, partyId, pPartyBuf, 1,
-                    *(u32*)(pSub + 0x134) & 0xF,
-                    *(u32*)((u8*)g_FieldActors + slot * 92 + 0x4C) + 0x126,
-                    motionFlags);
-            }
+        D_8005A444[partyId] = D_8005A444[partyId + 1];
+
+        act = (u8*)(uintptr_t)g_FieldActors[slot].pActorData;
+        if (!(act[0x126] & 0x80)) {
+            func_80076AC0(slot, partyId, g_PartyDataBuffers[partyId], 1, 0, partyId, 1);
+        } else {
+            u8* spriteData = (u8*)g_FieldSpriteData;
+            u32 animOffset = *(u32*)(spriteData + (act[0x126] & 0x7F) * 4 + 4);
+            u32 w130 = *(u32*)(act + 0x130);
+            s32 arg1 = act[0x127];
+            s32 arg4 = *(u32*)(act + 0x134) & 0xF;
+            s32 arg5 = ((u8*)(uintptr_t)g_FieldActors[slot].pActorData)[0x126];
+            s32 arg6 = (*(u32*)((u8*)(uintptr_t)g_FieldActors[slot].pActorData + 0x134) >> 4) & 1;
+            func_80076AC0(slot, arg1, spriteData + animOffset, (w130 >> 28) & 3, arg4, arg5, arg6);
         }
         g_GamePartyMembers[partyId + 1] = 0xFF;
         g_GamePartyMemberSkins[partyId + 1] = 0xFF;
-        D_8005A448[partyId + 1] = 0xFF;
+        D_8005A444[partyId + 1] = 0xFF;
     }
 }
 #endif /* XENO_PC_PORT */
@@ -2211,7 +2447,16 @@ void func_8008C334(void) {
             dst = g_PartyDataBuffers[0];
             end = src + (0x14000 / sizeof(*src));
             do {
-                *dst++ = *src++;
+                u32 w0 = src->words[0];
+                u32 w1 = src->words[1];
+                u32 w2 = src->words[2];
+                u32 w3 = src->words[3];
+                dst->words[0] = w0;
+                dst->words[1] = w1;
+                dst->words[2] = w2;
+                dst->words[3] = w3;
+                src++;
+                dst++;
             } while (src != end);
 
             g_GamePartyMembers[0] = g_GamePartyMembers[1];
@@ -2228,7 +2473,16 @@ void func_8008C334(void) {
             dst = g_PartyDataBuffers[1];
             end = src + (0x14000 / sizeof(*src));
             do {
-                *dst++ = *src++;
+                u32 w0 = src->words[0];
+                u32 w1 = src->words[1];
+                u32 w2 = src->words[2];
+                u32 w3 = src->words[3];
+                dst->words[0] = w0;
+                dst->words[1] = w1;
+                dst->words[2] = w2;
+                dst->words[3] = w3;
+                src++;
+                dst++;
             } while (src != end);
 
             g_GamePartyMembers[1] = g_GamePartyMembers[2];
@@ -2250,7 +2504,16 @@ void func_8008C334(void) {
             dst = g_PartyDataBuffers[1];
             end = src + (0x14000 / sizeof(*src));
             do {
-                *dst++ = *src++;
+                u32 w0 = src->words[0];
+                u32 w1 = src->words[1];
+                u32 w2 = src->words[2];
+                u32 w3 = src->words[3];
+                dst->words[0] = w0;
+                dst->words[1] = w1;
+                dst->words[2] = w2;
+                dst->words[3] = w3;
+                src++;
+                dst++;
             } while (src != end);
 
             g_GamePartyMembers[1] = g_GamePartyMembers[2];
@@ -2440,9 +2703,13 @@ extern void func_800863E8(s32 actorIdx);
 extern s32 D_800AFD1C;
 
 #ifndef XENO_PC_PORT
-INCLUDE_ASM("asm/field/nonmatchings/main/misc", func_8008CDD4);
-#else
+/* func_8008CDD4: retail offsets 0x10A (u16), 0x10C, 0x10D (u8).  ActorData
+ * names these unk10A/unk10C/unk10D but its 8-byte SVECTOR rotation at 0x104
+ * pushes them to 0x10C/0x10E/0x10F, so the body indexes the actor directly.
+ * The 0x80 store is through u8 (ori 0x80, not li -128). */
+#endif
 void func_8008CDD4(void) {
+#ifdef XENO_PC_PORT
     ActorData* pActor = g_FieldScriptVMCurActor;
     s32 arg1 = FieldScriptVMGetArgument(1);
     pActor->unk10A = (short)arg1;
@@ -2456,8 +2723,17 @@ void func_8008CDD4(void) {
     if (g_FieldScriptVMCurActor->unk10A == 0) {
         g_FieldScriptVMCurActor->unk10D = 0xFF;
     }
+#else
+    ((u16*)g_FieldScriptVMCurActor)[0x10A / 2] = FieldScriptVMGetArgument(1);
+    ((u8*)g_FieldScriptVMCurActor)[0x10D] = 0x80;
+    ((u8*)g_FieldScriptVMCurActor)[0x10C] = FieldScriptVMGetArgument(3);
+    g_FieldScriptVMCurActor->scriptInstructionPointer += 5;
+    func_800863E8(D_800AFD1C);
+    if (((u16*)g_FieldScriptVMCurActor)[0x10A / 2] == 0) {
+        ((u8*)g_FieldScriptVMCurActor)[0x10D] = 0xFF;
+    }
+#endif
 }
-#endif /* XENO_PC_PORT */
 
 void func_8008CE64(void) {
     s32 v = func_8008CF3C(FieldScriptVMGetArgument(1));
@@ -2475,10 +2751,8 @@ void func_8008CED0(void) {
     g_FieldScriptVMCurActor->scriptInstructionPointer += 3;
 }
 
-#ifndef XENO_PC_PORT
-INCLUDE_ASM("asm/field/nonmatchings/main/misc", func_8008CF3C);
-#else
 s32 func_8008CF3C(s32 a0) {
+#ifdef XENO_PC_PORT
     switch (a0) {
     case 0xFF:
         return g_GamePartyMembers[2];
@@ -2490,8 +2764,15 @@ s32 func_8008CF3C(s32 a0) {
         return 0xFF;
     }
     return a0;
+#else
+    register s32 result asm("$2");
+    if (a0 == 0xFF) result = g_GamePartyMembers[2];
+    else if (a0 == 0xFE) result = g_GamePartyMembers[1];
+    else if (a0 == 0xFD) result = g_GamePartyMembers[0];
+    else { result = 0xFF; if (a0 != 0xFC) result = a0; }
+    return result;
+#endif
 }
-#endif /* XENO_PC_PORT */
 
 void func_8008CF9C(void) {
     g_FieldScriptVMCurActor->faceId = func_8008CF3C(FieldScriptVMGetArgument(1));
@@ -2537,10 +2818,8 @@ void func_8008D078(void) {
  * the VM then re-dispatched the operand bytes as a bogus top-level dialog opcode,
  * opening a garbage text box (the Lahan-intro "garbled dialog"). The IP += 3 here
  * is the load-bearing fix. */
-#ifndef XENO_PC_PORT
-INCLUDE_ASM("asm/field/nonmatchings/main/misc", func_8008D0F4);
-#else
 void func_8008D0F4(void) {
+#ifdef XENO_PC_PORT
     s32 scale = FieldScriptVMGetArgument(1);
     *(s16*)((u8*)(uintptr_t)g_FieldActors[D_800AFD1C].pSpriteData + 0x2C) = (scale * 3) >> 2;
     g_FieldScriptVMCurActor->scaleX = scale;
@@ -2548,15 +2827,26 @@ void func_8008D0F4(void) {
     g_FieldScriptVMCurActor->scaleZ = scale;
     func_80072254(D_800AFD1C);
     g_FieldScriptVMCurActor->scriptInstructionPointer += 3;
+#else
+    s32 scale = FieldScriptVMGetArgument(1);
+    ((SpriteData *)(uintptr_t)g_FieldActors[D_800AFD1C].pSpriteData)->scale = (u32)(scale * 3) >> 2;
+    g_FieldScriptVMCurActor->scaleX = scale;
+    g_FieldScriptVMCurActor->scaleY = scale;
+    g_FieldScriptVMCurActor->scaleZ = scale;
+    func_80072254(D_800AFD1C);
+    g_FieldScriptVMCurActor->scriptInstructionPointer += 3;
+#endif
 }
-#endif /* XENO_PC_PORT */
 
 extern s32 D_800AFD1C;
 
 #ifndef XENO_PC_PORT
-INCLUDE_ASM("asm/field/nonmatchings/main/misc", func_8008D180);
-#else
+/* func_8008D180: struct-field stores (SpriteData.scale, ActorData.scaleX/Y/Z)
+ * keep D_800AFD1C live in a0 for the call; func_80072254 takes one argument
+ * (the draft passed the live a1/a2 too). */
+#endif
 void func_8008D180(void) {
+#ifdef XENO_PC_PORT
     s32 arg1 = FieldScriptVMGetArgument(1);
     s32 arg3 = FieldScriptVMGetArgument(3);
     s32 arg5 = FieldScriptVMGetArgument(5);
@@ -2571,8 +2861,18 @@ void func_8008D180(void) {
     *(s16*)(pActor + 0xF8) = (s16)arg5;
     func_80072254(actorIdx);
     *(u16*)(pActor + 0xCC) += 7;
+#else
+    s32 arg1 = FieldScriptVMGetArgument(1);
+    s32 arg3 = FieldScriptVMGetArgument(3);
+    s32 arg5 = FieldScriptVMGetArgument(5);
+    ((SpriteData*)(uintptr_t)g_FieldActors[D_800AFD1C].pSpriteData)->scale = 0xC00;
+    g_FieldScriptVMCurActor->scaleX = arg1;
+    g_FieldScriptVMCurActor->scaleY = arg3;
+    g_FieldScriptVMCurActor->scaleZ = arg5;
+    func_80072254(D_800AFD1C);
+    g_FieldScriptVMCurActor->scriptInstructionPointer += 7;
+#endif
 }
-#endif /* XENO_PC_PORT */
 
 extern s16 D_800B218C[];
 
@@ -2583,13 +2883,18 @@ void func_8008D230(void) {
 }
 
 #ifndef XENO_PC_PORT
-INCLUDE_ASM("asm/field/nonmatchings/main/misc", func_8008D26C);
-#else
+/* func_8008D26C: a struct-field store (SpriteData.field_0x82) lets the actor
+ * load hoist above the sh; the raw *(s16*)(p + 0x82) store pins it below. */
+#endif
 void func_8008D26C(void) {
+#ifdef XENO_PC_PORT
     *(s16*)((u8*)(uintptr_t)g_FieldActors[D_800AFD1C].pSpriteData + 0x82) = FieldScriptVMGetArgument(1) << 1;
     g_FieldScriptVMCurActor->scriptInstructionPointer += 3;
+#else
+    ((SpriteData*)(uintptr_t)g_FieldActors[D_800AFD1C].pSpriteData)->field_0x82 = FieldScriptVMGetArgument(1) << 1;
+    g_FieldScriptVMCurActor->scriptInstructionPointer += 3;
+#endif
 }
-#endif /* XENO_PC_PORT */
 
 void func_8008D2D8(void) {
 }
@@ -2688,9 +2993,11 @@ void func_8008D5C8(void) {
  * script stream (MAP3's boot SEGV: garbage actor index 128 fed to
  * func_8009EB78 several bogus opcodes later). */
 #ifndef XENO_PC_PORT
-INCLUDE_ASM("asm/field/nonmatchings/main/misc", func_8008D604);
-#else
+/* func_8008D604: retail is a switch (beqz / beq 1 / j default) whose two
+ * cases share one store through the cached actor pointer. */
+#endif
 void func_8008D604(void) {
+#ifdef XENO_PC_PORT
     u8 arg = SCRIPT_READ_U8_REL(1);
 
     if (arg == 0) {
@@ -2699,8 +3006,18 @@ void func_8008D604(void) {
         g_FieldScriptVMCurActor->flags |= 0x400;
     }
     g_FieldScriptVMCurActor->scriptInstructionPointer += 2;
+#else
+    switch (SCRIPT_READ_U8_REL(1)) {
+    case 0:
+        g_FieldScriptVMCurActor->flags &= ~0x400;
+        break;
+    case 1:
+        g_FieldScriptVMCurActor->flags |= 0x400;
+        break;
+    }
+    g_FieldScriptVMCurActor->scriptInstructionPointer += 2;
+#endif
 }
-#endif /* XENO_PC_PORT */
 
 void func_8008D684(void) {
     int mask;
@@ -3061,9 +3378,23 @@ extern s32 D_800B2294, D_800B2298, D_800B229C;
 extern s16 D_800B22A0[];
 
 #ifndef XENO_PC_PORT
-INCLUDE_ASM("asm/field/nonmatchings/main/misc", func_8008E718);
-#else
+/* func_8008E718: D_800B2294..D_800B22A0 is one block (the count is re-read as
+ * timers[-2] through the timers base, the clear loop runs off &D_800B2294+0x4A),
+ * so it is reached through a struct alias.  The clear loop is written ascending:
+ * gcc reverses it (check_dbra_loop) into the retail countdown, which is why the
+ * counter init lands after the hoisted 0xFFFF.  roll is an int with an explicit
+ * & 0xFFFF (sra, masked value stored). */
+typedef struct {
+    s32 unk0;
+    s32 max;
+    s32 count;
+    u16 timers[32];
+} func_8008E718_s;
+extern func_8008E718_s D_800B2294__s asm("D_800B2294");
+
+#endif
 void func_8008E718(void) {
+#ifdef XENO_PC_PORT
     u16 *timers = (u16 *)D_800B22A0;
     s32  i, j, roll;
 
@@ -3095,8 +3426,33 @@ void func_8008E718(void) {
             timers[i] = (u16)(timers[i] + 1);
         }
     }
+#else
+    s32 i, j;
+    s32 roll;
+
+    D_800B2294__s.unk0 = D_800B2294__s.max;
+    if (D_800B2294__s.count == 0) {
+        D_800B2294__s.max = 0;
+        return;
+    }
+    for (i = 0; i < 32; i++) {
+        D_800B2294__s.timers[i] = 0xFFFF;
+    }
+    for (i = 0; i < D_800B2294__s.count; i++) {
+    retry:
+        roll = ((rand() * (D_800B2294__s.max + 1)) >> 15) & 0xFFFF;
+        for (j = 0; j < 32; j++) {
+            if (D_800B2294__s.timers[j] == roll) {
+                goto retry;
+            }
+        }
+        D_800B2294__s.timers[i] = roll;
+    }
+    for (i = 0; i < D_800B2294__s.count; i++) {
+        D_800B2294__s.timers[i]++;
+    }
+#endif
 }
-#endif /* XENO_PC_PORT */
 
 void func_8008E85C(void) {
     D_800B2298 = FieldScriptVMGetArgument(1);
@@ -3272,9 +3628,14 @@ extern s16 D_800C3A30, D_800C3A32, D_800C3A34, D_800C3A36, D_800C3A38, D_800C3A3
 extern s32 D_800ADB80, D_800ADB74, D_800ADB70;
 
 #ifndef XENO_PC_PORT
-INCLUDE_ASM("asm/field/nonmatchings/main/misc", func_8008EE14);
-#else
+/* func_8008EE14: the IP read must be the plain-pointer form (it stays below the
+ * scalar-global stores) while the IP store is the struct form, and D_800ADB70 = 1
+ * comes after it in source: sched2 then lifts that sw into the lhu delay slot
+ * (an in-struct varying store never conflicts with a fixed scalar store). */
+
+#endif
 void func_8008EE14(void) {
+#ifdef XENO_PC_PORT
     u16 arg9;
     D_800C3A20 = (s16)FieldScriptVMGetArgument(1);
     D_800C3A2A = (s16)FieldScriptVMGetArgument(3);
@@ -3300,8 +3661,41 @@ void func_8008EE14(void) {
     D_800C3A30 = (s16)(arg9 & 0xF);
     D_800ADB70 = 1;
     g_FieldScriptVMCurActor->scriptInstructionPointer += 0x13;
+#else
+    s32 temp_s0;
+    u16 temp_v0;
+    u16 temp_v0_2;
+    u16 temp_v0_3;
+
+    D_800C3A20 = FieldScriptVMGetArgument(1);
+    D_800C3A2A = FieldScriptVMGetArgument(3);
+    D_800C3A2C = FieldScriptVMGetArgument(5);
+    D_800C3A2E = FieldScriptVMGetArgument(7);
+    temp_v0 = FieldScriptVMGetArgument(9);
+    temp_s0 = temp_v0 & 0xFFFF;
+    D_800C3A30 = temp_v0;
+    if (temp_s0 == 0xFE) {
+        D_800C3A3A = 1;
+    } else {
+        D_800C3A3A = 0;
+    }
+    temp_v0_2 = FieldScriptVMGetArgument(0xB);
+    D_800C3A22 = temp_v0_2;
+    D_800C3A26 = temp_v0_2;
+    temp_v0_3 = FieldScriptVMGetArgument(0xD);
+    D_800C3A24 = temp_v0_3;
+    D_800C3A28 = temp_v0_3;
+    D_800C3A32 = FieldScriptVMGetArgument(0xF);
+    D_800C3A34 = FieldScriptVMGetArgument(0x11);
+    D_800ADB80 = temp_s0 & 0x40;
+    D_800C3A38 = 0xFF;
+    D_800ADB74 = 2;
+    D_800C3A36 = 0;
+    D_800C3A30 &= 0xF;
+    g_FieldScriptVMCurActor->scriptInstructionPointer = *(u16*)((u8*)g_FieldScriptVMCurActor + 0xCC) + 0x13;
+    D_800ADB70 = 1;
+#endif
 }
-#endif /* XENO_PC_PORT */
 
 extern s32 D_800ADB3C;
 extern s32 D_800ADB38;
@@ -3345,10 +3739,8 @@ void func_8008F070(void) {
     g_FieldScriptVMCurActor->scriptInstructionPointer += 3;
 }
 
-#ifndef XENO_PC_PORT
-INCLUDE_ASM("asm/field/nonmatchings/main/misc", func_8008F0B4);
-#else
 void func_8008F0B4(void) {
+#ifdef XENO_PC_PORT
     s32 actorIdx = FieldScriptVMGetActorIndex(2);
     if (actorIdx != 0xFF) {
         u8* pFieldActor = (u8*)g_FieldActors + actorIdx * 92;
@@ -3368,8 +3760,24 @@ void func_8008F0B4(void) {
         }
     }
     g_FieldScriptVMCurActor->scriptInstructionPointer += 9;
+#else
+    s32 actorIdx = FieldScriptVMGetActorIndex(2);
+    if (actorIdx != 0xFF) {
+        u8* pSub = (u8*)(uintptr_t)g_FieldActors[actorIdx].pActorData;
+        if (SCRIPT_READ_U8_REL(1) & 1) {
+            pSub[0xFC] = FieldScriptVMGetArgument(3);
+            pSub[0xFD] = FieldScriptVMGetArgument(5);
+            pSub[0xFE] = FieldScriptVMGetArgument(7);
+        }
+        if (SCRIPT_READ_U8_REL(1) & 2) {
+            pSub[0xFF] = FieldScriptVMGetArgument(3);
+            pSub[0x100] = FieldScriptVMGetArgument(5);
+            pSub[0x101] = FieldScriptVMGetArgument(7);
+        }
+    }
+    g_FieldScriptVMCurActor->scriptInstructionPointer += 9;
+#endif
 }
-#endif /* XENO_PC_PORT */
 
 /* Field-script opcode: conditionally (per the opcode's flag byte at IP+1) copy
  * two operand triples into the actor's color fields (unkFC..FE / unkFF..101),
@@ -3558,9 +3966,25 @@ void func_8008F90C(void) {
 
     g_FieldScriptVMCurActor->scriptInstructionPointer += 9;
 
-    dx = ((arg1 << 16) - *(s32*)(pScene + 0xA0)) / steps;
-    dz = ((arg5 << 16) - *(s32*)(pScene + 0xA4)) / steps;
-    dy = ((arg3 << 16) - *(s32*)(pScene + 0xA4)) / steps;
+    /* Retail does the shift/subtract with wrapping MIPS arithmetic and a
+     * non-trapping div (INT_MIN / -1 = INT_MIN); do it on u32 so the port has
+     * no signed-overflow / shift-of-negative UB. */
+    {
+        u32 sceneA0 = *(u32*)(pScene + 0xA0);
+        u32 sceneA4 = *(u32*)(pScene + 0xA4);
+        u32 nx = ((u32)arg1 << 16) - sceneA0;
+        u32 nz = ((u32)arg5 << 16) - sceneA4;
+        u32 ny = ((u32)arg3 << 16) - sceneA4;
+        if (steps == -1) {
+            dx = (s32)(0u - nx);
+            dz = (s32)(0u - nz);
+            dy = (s32)(0u - ny);
+        } else {
+            dx = (s32)nx / steps;
+            dz = (s32)nz / steps;
+            dy = (s32)ny / steps;
+        }
+    }
 
     *(s16*)(pScene + 0x9A) = (s16)steps;
     *(s16*)(pScene + 0x98) = 1;

@@ -2,7 +2,59 @@
 
 
 #ifndef XENO_PC_PORT
-INCLUDE_ASM("asm/battle/nonmatchings/mainc124", func_800BED4C);
+extern void* HeapAlloc(u32 size, u32 flags);
+extern void func_800B9F78(u8* task);
+extern void func_800BF0B4(u32 value);
+extern u32 D_800C360C[];
+extern u32 D_80059464[];
+extern u8 D_800591AC[];
+
+/* The 0x50-byte task that D_800C3610 points to (func_800BF0B4 in main125
+ * sets +0x1C; func_800B9F78 is its callback). */
+typedef struct {
+    u32 unk0;
+    u32 unk4;
+    void* unk8;
+    u8 padC[0x1C - 0xC];
+    u32 unk1C;
+    u8 pad20[0x2C - 0x20];
+    u32 unk2C;
+    u32 unk30;
+    u32 unk34;
+    u8 pad38[0x48 - 0x38];
+    u8 unk48;
+    u8 unk49;
+    u8 unk4A;
+    u8 pad4B[0x50 - 0x4B];
+} BattleTask3610;
+
+/* func_800BEDE8 reads the same word through the TU's u32[] view below. */
+extern BattleTask3610* D_800C3610__t asm("D_800C3610");
+
+/* func_800BED4C.s: allocate the task, install func_800B9F78 as its callback,
+ * clear D_800C360C, initialise the fields, call func_800BF0B4(0), clear
+ * D_80059464, set D_800591AC and return the task.  CDK at -G0 (BattleCdkG0):
+ * the scalar view then gets a split %hi kept in $s0 while staying a
+ * non-struct reference, so only the byte stores force reloads of
+ * D_800C3610, as in retail; under -G8 every reload is a $at macro (+2
+ * insns).  The store order follows retail's reloads (0x30 before 0x48;
+ * 0x2C and 0x4 before 0x49). */
+BattleTask3610* func_800BED4C(void) {
+    D_800C3610__t = HeapAlloc(0x50, 0);
+    D_800C3610__t->unk8 = func_800B9F78;
+    D_800C360C[0] = 0;
+    D_800C3610__t->unk4A = 0;
+    D_800C3610__t->unk30 = 0;
+    D_800C3610__t->unk48 = 1;
+    D_800C3610__t->unk2C = 1;
+    D_800C3610__t->unk4 = 0;
+    D_800C3610__t->unk49 = 0;
+    D_800C3610__t->unk34 = 0;
+    func_800BF0B4(0);
+    D_80059464[0] = 0;
+    D_800591AC[0] = 1;
+    return D_800C3610__t;
+}
 #endif
 
 

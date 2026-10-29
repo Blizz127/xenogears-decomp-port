@@ -177,6 +177,7 @@ It never downloads game data.
 python3 tools/scripts/extract_overlays.py disc/disc1.bin --extract-to disc
 python3 tools/scripts/extract_exe.py disc/disc1.bin --output disc/SLUS_006.64
 python3 tools/scripts/extract_battle_command_file1.py
+python3 tools/scripts/extract_battle_module_0c4.py
 ```
 
 (Use `.venv/bin/python` if you made a venv, or run them in the container as
@@ -240,7 +241,7 @@ What that means today. This was tested from a fresh clone of this repository,
 with the fetch script, a USA Disc 1, and a container built from the included
 `Dockerfile`:
 
-- **Matching build: 9 of 10 targets build and match retail.** For each missing
+- **Matching build (checked on the 23250136 snapshot; see Status for the current state): 9 of 10 targets build and match retail.** For each missing
   file, splat writes an assembly stub from your own disc, and the fetch script
   switches `memory.c`'s small data segment to assembly as well. `make` gets
   through splat and every compile step. `SLUS_006.64`, `field.bin`,
@@ -257,7 +258,22 @@ from your disc at runtime.
 
 ## Status
 
-Boot, title screen, New Game, the opening, and Lahan play on the port. The
+This repository is a **source snapshot** of the private development tree (private
+commit `d64e54d2`, after the earlier snapshot of `23250136`). It adds the
+decompilation progress since then and the current port source. No new binary
+release goes with it: **v0.5.0-r5 remains the only public binary.**
+
+- The matching build of `field.bin` currently builds but does **not** match its
+  pinned hash (known regression, being worked on); `menu.bin` still does not
+  link without the held `misc.c`/`misc3.c`. The other targets match retail.
+- The port's runtime is **hybrid**: unconverted battle code still runs through a
+  retail MIPS interpreter that reads your own disc. A native-only build (no
+  interpreter) is experimental and not playable yet.
+- The PC port source in this tree is **known not to build as published**: a few port files are held back
+  (the battle files that use a GTE macro header whose provenance is still under review), so the ported
+  sources are out of step with the matching sources. `pc_port/build_port.sh` was not run for this snapshot.
+
+Boot, title screen, New Game, the opening, and Lahan play on the r5 port. The
 Black Moon Forest route is in progress. See
 [docs/port/RETAIL_DIVERGENCES.md](docs/port/RETAIL_DIVERGENCES.md) for every
 known difference from the PlayStation original.

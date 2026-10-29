@@ -1,0 +1,43 @@
+--- a/src/gpu/PsyX_GPU.cpp
++++ b/src/gpu/PsyX_GPU.cpp
+@@ -749,6 +749,10 @@
+ extern "C" int PcPort_Hd2dSpriteTextureOverride(const void* packet, int tpage, int clut, int u0, int v0, int u1, int v1,
+ 	unsigned int* out_gl_texture, float out_uv[4]) __attribute__((weak));
+ 
++/* _hd2d_sprite_packet_lifetime */
++extern "C" void PcPort_Hd2dSpriteGpuWalkDone(void) __attribute__((weak));
++extern "C" void PcPort_Hd2dSpritePacketSeen(const void* packet) __attribute__((weak));
++
+ static int g_hd2dPendingOn = 0;
+ static float g_hd2dPendingUv[4];
+ 
+@@ -784,6 +788,9 @@
+ 
+ static inline bool Hd2dPrim(const void* packet, int tpage, int clut, unsigned char* const* uv, int n, bool semiTrans)
+ {
++	/* Observe identity even when DR_PSYX_TEX deliberately skips replacement. */
++	if (PcPort_Hd2dSpritePacketSeen)
++		PcPort_Hd2dSpritePacketSeen(packet);
+ 	if ((!PcPort_Hd2dTextureOverride && !PcPort_Hd2dSpriteTextureOverride) || overrideTexture != 0)
+ 		return false;
+ 	int u0 = 255, v0 = 255, u1 = 0, v1 = 0;
+@@ -798,6 +805,9 @@
+ 
+ static inline bool Hd2dRect(const void* packet, int tpage, int clut, const unsigned char* uv, int w, int h, bool semiTrans)
+ {
++	/* Observe identity even when DR_PSYX_TEX deliberately skips replacement. */
++	if (PcPort_Hd2dSpritePacketSeen)
++		PcPort_Hd2dSpritePacketSeen(packet);
+ 	if ((!PcPort_Hd2dTextureOverride && !PcPort_Hd2dSpriteTextureOverride) || overrideTexture != 0)
+ 		return false;
+ 	return Hd2dBeginPrim(packet, tpage, clut, uv[0], uv[1], uv[0] + (w > 0 ? w - 1 : 0), uv[1] + (h > 0 ? h - 1 : 0), semiTrans);
+@@ -1176,6 +1186,9 @@
+ 			if (isendprim(basePacket))
+ 				break;
+ 		}
++		/* Registrations belong to the OT just parsed, not the prior present. */
++		if (PcPort_Hd2dSpriteGpuWalkDone)
++			PcPort_Hd2dSpriteGpuWalkDone();
+ 	}
+ }
+ 

@@ -30,19 +30,20 @@ from pathlib import Path
 p=Path('pc_port/build_native/menu_equip_list')
 s=Path('src/menu/main/misc.c').read_text()
 a=s.index('s32 func_801DE5CC(s32 selectedArg')
-z=s.index('\n#endif\n\n#ifndef XENO_PC_PORT\nINCLUDE_ASM("../asm/menu/nonmatchings/main/misc", func_801DF0D4)', a)
+z=s.index('\n#endif\n\n#ifndef XENO_PC_PORT\nINCLUDE_ASM(MENU_ASM, func_801DF0D4);', a)
 b=s[a:z]
 mutants={
  'weapon_id_gate':('charWeaponIds[i] < 0x32','charWeaponIds[i] < 0x31'),
  'accessory_start':('filled = isAccessory','filled = 0'),
  'gear_stride':('gearWeaponIds[i] * 20','gearWeaponIds[i] * 16'),
  'return_bias':('filled -= 8','filled -= 7'),
+ 'raw_render_context':('nameLine[0x7D] = *(u8*)&g_Menu->renderContext','nameLine[0x7D] = ((u8*)g_Menu)[0x308]'),
 }
 for n,(old,new) in mutants.items():
  assert b.count(old)==1, (n,old,b.count(old))
  (p/(n+'.c')).write_text(s[:a]+b.replace(old,new)+s[z:])
 PYGEN
-for mutant in weapon_id_gate accessory_start gear_stride return_bias; do
+for mutant in weapon_id_gate accessory_start gear_stride return_bias raw_render_context; do
   gcc "${BASE[@]}" -O2 -DXENO_EQUIP_LIST_TEST -c "$OUT/$mutant.c" -o "$OUT/$mutant.o"
   "$LINK_CC" -no-pie -Wl,--gc-sections "$OUT/$mutant.o" "$OUT/O2.test.o" "$OUT/O2.mips.o" -o "$OUT/$mutant"
   if "$OUT/$mutant" >"$OUT/$mutant.log" 2>&1; then echo "FAIL survived $mutant"; exit 1; fi
@@ -62,5 +63,7 @@ gcc "${BASE[@]}" -O2 -c "$OUT/guest_overlap.c" -o "$OUT/guest_overlap.o"
 if "$OUT/guest_overlap" >"$OUT/guest_overlap.log" 2>&1; then
   echo 'FAIL survived guest menu overlap'; exit 1
 fi
-grep -q '^FAIL guest character/Gear mapping' "$OUT/guest_overlap.log"
-echo 'EQUIP LIST negative controls PASS count=5'
+# The renderContext line check now catches the overlay (retail reads the host
+# object's raw byte 0x308) before the guest character/Gear mapping check does.
+grep -qE '^FAIL (guest character/Gear mapping|list renderContext)' "$OUT/guest_overlap.log"
+echo 'EQUIP LIST negative controls PASS count=6'

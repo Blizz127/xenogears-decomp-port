@@ -7,7 +7,7 @@ build = 'build'
 
 [compilation]
 binary = "slus_006.64"
-overlays = ["field", "member_change_menu", "shop_menu", "menu", "battle", "battling", "movie", "battle_command_file1", "world_map"]
+overlays = ["field", "member_change_menu", "shop_menu", "name_entry_menu", "menu", "battle", "battling", "movie", "battle_command_file1", "battle_module_0c4", "world_map"]
 target = 'mips-linux-gnu'
 
 [[build_preset]]
@@ -43,6 +43,7 @@ paths = [
     "{binary}/system/libarchive.",
     "{binary}/system/sound.",
     "member_change_menu/main/misc.",
+    "name_entry_menu/main/misc.",
     "shop_menu/main/misc.",
     # The shop overlay's retail code interleaves unmatched regions with C runs,
     # so its single TU is split over misc{,2..9}.c; every one of them is the
@@ -91,12 +92,17 @@ name = "BattleLiteral"
 # bodies use maspsx's lui/ori form, but a handful of retail bodies encode the
 # constant as `addiu $r,$zero,K` exactly like gas does when maspsx leaves `li`
 # alone.  Only the addiu-flavoured TUs (named `mainl*`) select this preset; it
-# changes nothing but the li expansion.
+# changes nothing but the li expansion.  Listed per TU: gears takes the first
+# preset whose key matches (table order, not longest key), so a "battle/mainl"
+# prefix here would shadow BattleCdk's mainl110 entry below.
 build_variables = {
     maspsx_flags = "--dont-expand-li --use-comm-section --run-assembler"
 }
 paths = [
-    "battle/mainl",
+    "src/battle/mainl94.",
+    "src/battle/mainl98.",
+    "src/battle/mainl109.",
+    "src/battle/mainl115.",
 ]
 
 [[build_preset]]
@@ -166,7 +172,7 @@ build_variables = {
     gcc = "gcc-2.6.3-psx",
     gp_flag = "-G0"
 }
-paths = [ "src/menu/main/misc.", "src/menu/main/misc2.", "src/menu/main/misc3." ]
+paths = [ "src/menu/main/misc.", "src/menu/main/misc1b.", "src/menu/main/misc2.", "src/menu/main/misc3." ]
 
 [[build_preset]]
 name = "XenoLiteral"
@@ -203,16 +209,146 @@ name = "BattleCdk"
 # main87, main90, mainasm_4F3C4 and main101 are CDK code too: their
 # drafts (func_800B5FBC, func_800B6518, func_800BEEB4, func_800B81BC, ...)
 # match only here.
+# mainl110 and main111 (2026-10-03): their retail has 30 compiler-split
+# %hi/%lo loads (the lui hoisted into another register away from its %lo
+# use), which only the CDK cc1 emits; func_800B9C00 matches only here and
+# the TUs' existing bodies (func_800BA59C, func_800BA8F4, func_800BAC50,
+# func_800BAF40) still match.  BattleLiteral lists its mainl TUs
+# explicitly so this entry is the only match for mainl110.
+# main135 (2026-10-12): func_800C11CC's switch tables load as lui/addiu +
+# sll/addu/lw and its constants as `addiu $r,$zero,K`, the CDK forms; it
+# matches only here (gcc-2.7.2-psx emits the `lui $at` table load).
+# main77 (2026-10-12): func_800B1F0C keeps the work-buffer %hi in a register
+# for its split %lo load/store and copies its prim template through the
+# template's address; it matches only here (2.7.2 / 2.6.3: +2 insns), and
+# main77's three matched functions stay byte-exact.
+# mainasm_B190 (2026-10-12): func_8007AC80, the mainc18 family's multiply
+# between mainc18_q1 and mainc18_q2, matches only here (the same body is
+# 11 instructions off under 2.7.2, 2.6.3 and 2.6.0).
+# main125_q1 (2026-10-12): its only function, func_800BEE2C, encodes its
+# constants as `addiu $r,$zero,K` (the literal flavour) and sits right
+# before mainasm_4F3C4 (also CDK); under Default it is 2 instructions off.
+# main75 (2026-10-12): plain C for func_800B15D8 comes within 3 of its 45
+# instructions only here (the same C is 49 instructions under 2.7.2, 2.6.3
+# and 2.6.0).  The last 3 need a do/while(0) scheduling barrier in the body
+# (see main75.c); main75's other bodies stay byte-exact.
 build_variables = {
     gcc = "gcc-2.7.2-cdk-psx",
     maspsx_flags = "--dont-expand-li --use-comm-section --run-assembler"
 }
 paths = [
-    "battle/mainc",
+    # Every battle/mainc* TU except mainc100, mainc118, mainc122, mainc124
+    # and mainc134 (BattleCdkG0 below); gears takes whichever matching key
+    # its HashMap yields first, so no TU may match keys of two presets.
+    "battle/mainc102.",
+    "battle/mainc104.",
+    "battle/mainc107.",
+    "battle/mainc108.",
+    "battle/mainc112.",
+    "battle/mainc113.",
+    "battle/mainc114.",
+    "battle/mainc114_p1.",
+    "battle/mainc114_p2.",
+    "battle/mainc115.",
+    "battle/mainc116.",
+    "battle/mainc117.",
+    "battle/mainc120.",
+    "battle/mainc123.",
+    "battle/mainc126.",
+    "battle/mainc127.",
+    "battle/mainc129.",
+    "battle/mainc130.",
+    "battle/mainc131.",
+    "battle/mainc132.",
+    "battle/mainc15.",
+    "battle/mainc18_",
+    # "battle/mainc2" minus mainc25_q1 (BattleGcc263 below, 2026-10-12).
+    "battle/mainc25.",
+    "battle/mainc25_q2.",
+    "battle/mainc29",
+    "battle/mainc7",
+    "battle/mainc8",
+    "battle/mainc9",
     "src/battle/main87.",
     "src/battle/main90.",
     "src/battle/mainasm_4F3C4.",
     "src/battle/main101.",
+    "src/battle/mainl110.",
+    "src/battle/main111.",
+    "src/battle/main96.",
+    "src/battle/main103.",
+    "src/battle/mainl133.",
+    "src/battle/mainl81.",
+    "src/battle/main135.",
+    "src/battle/main77.",
+    "src/battle/mainasm_B190.",
+    "src/battle/main125_q1.",
+    "src/battle/main75.",
+    # main106 (2026-10-13): func_800B8DA4 and func_800B8EBC encode their
+    # small constants as `addiu $r,$zero,K` and keep %hi parts in
+    # s-registers across calls (the CDK forms; found by a li-flavour scan of
+    # the remaining asm against each TU's preset).  Both match here and not
+    # under Default or BattleLiteral (2.7.2 leaving li to the assembler:
+    # 308 vs 280 and 368 vs 356 bytes); func_800B9020 compiles to the same
+    # bytes.
+    "src/battle/main106.",
+    # mainl92 (2026-10-13, moved from BattleLiteral): func_800B6A7C matches
+    # under the CDK cc1; with the same leave-li flags it is 13/71 off under
+    # 2.7.2, 2.6.3 and 2.6.0 (under 2.7.2: an actor/value s-register swap
+    # that declaration order does not move).  mainl92's func_800B6B98 and
+    # func_800B6BFC compile to the same bytes under the CDK cc1.
+    "src/battle/mainl92.",
+    "src/battle_command_file1/after_controller_cdk.",
+]
+
+[[build_preset]]
+name = "BattleCdkG0"
+# BattleCdk with cc1 at -G0 (2026-10-12).  The battle overlay never addresses
+# anything through $gp and the CDK TUs have no `$at` stores, so its CDK code
+# looks -G0-built; func_800BE790's clamp needs it: retail emits
+# %hi(D_80059494) before the Vsync call on the right-hand side (into a
+# callee-saved register), which only a VAR_DECL left-hand side with a split
+# (non-small) address gives, since MODIFY_EXPR pre-expands calls for any
+# other LHS.  Scoped to this TU because -G0 across BattleCdk breaks at
+# least mainc29_q2 (the first differing TU; others untested); mainc122's
+# other bodies match either way.
+# mainc124 (2026-10-12): func_800BED4C matches only with the CDK cc1 at -G0
+# (its scalar D_800C3610 view gets a split %hi in $s0 and keeps scalar alias
+# rules; CDK -G8: each reload is a $at macro, +2 insns; 2.7.2, 2.6.3 and
+# 2.6.0 at -G8 or -G0: 41 insns, far off); func_800BEDE8 matches either way.
+# mainc134 (2026-10-14): func_800C0D18 reloads its scalar D_800C3A68 table
+# pointer through one split %hi in $t0, and its last two reloads move
+# ahead of stores through `out` (scalar alias rules); it matches only here
+# (CDK -G8: a %hi per reload, 612 vs 600 bytes; 2.7.2, 2.6.3 and 2.6.0 at
+# -G8 or -G0: 616; an incomplete-array view gets the split %hi but keeps
+# the reloads behind the stores, 620).  The TU's other bodies stay
+# byte-exact (full relink).
+# mainc100 (2026-10-14): func_800B7C34 clears an actor's slot bit in
+# D_800C3666 and then passes the slot to func_800BB080.  The store makes
+# CSE reload the actor words for the call, and retail schedules those
+# loads above the store, which needs a scalar D_800C3666 against
+# struct-field actor loads; the scalar's %hi is split (in $a1) only at
+# -G0.  It matches only here (CDK -G8: 624 vs 608 bytes; 2.7.2, 2.6.3
+# and 2.6.0 at -G8 or -G0: 648); the TU's other bodies stay byte-exact
+# (full relink).
+# mainc118 (2026-10-14): func_800BD3AC loads the target's words and the
+# font pointer (D_800D2F5C) above stores to the new popup task and the
+# chain head (D_800C3750), which needs scalar globals against struct-field
+# accesses; the scalars split their %hi only at -G0.  It matches only
+# here (CDK -G8: 1020 vs 1012 bytes; 2.7.2, 2.6.3 and 2.6.0 at -G8 or
+# -G0: 81/253, 1024, 1024); the TU's other bodies stay byte-exact (full
+# relink).
+build_variables = {
+    gcc = "gcc-2.7.2-cdk-psx",
+    maspsx_flags = "--dont-expand-li --use-comm-section --run-assembler",
+    gp_flag = "-G0"
+}
+paths = [
+    "src/battle/mainc122.",
+    "src/battle/mainc124.",
+    "src/battle/mainc134.",
+    "src/battle/mainc100.",
+    "src/battle/mainc118.",
 ]
 
 [[build_preset]]
@@ -240,44 +376,212 @@ paths = [
     "src/battle/main53.",
     "src/battle/main51.",
     "src/battle/main2.",
+    "src/battle/main7.",
     "src/battle/main.c",
     "src/battle/mainasm_1AFB0.",
     "src/battle/main66.",
     "src/battle/main72_p2.",
+    "src/battle/main50.",
+    "src/battle/main42.",
+    "src/battle/main43.",
+    "src/battle/main49.",
+    "src/battle/main8.",
+    "src/battle/mainasm_146F0.",
     "src/battle/main61.",
     "src/battle/main62.",
+    "src/battle/main63.",
+    "src/battle/main41.",
+    "src/battle/main54.",
+    "src/battle/main55.",
+    "src/battle/mainasm_14C60.",
+    "src/battle/main58.",
     "src/battle/mainasm_16244.",
+    # main6 (2026-10-12): func_80076D58's clut store goes through a pointer
+    # copy only under 2.6.x.
+    "src/battle/main6.",
+    # mainc25_q1 (2026-10-12): func_8007CC50 and func_8007CD10 keep their
+    # 28-byte record offset as its own induction variable and index the
+    # table as `D_800C3EB4($at)` only under 2.6.x (2.6.0 and 2.6.3 both
+    # match; 2.7.2: +1 insn; the CDK cc1 loads the table address into a
+    # register).  The TU had no other C.
+    "src/battle/mainc25_q1.",
+    # main57 (2026-10-13): func_8009AFD8's `g_GameState[...] -= 1` gives
+    # retail's `addiu 0xFF` only under 2.6.x (2.6.0 and 2.6.3; 2.7.2 and
+    # the CDK cc1 give `addiu -1`).  `+= 0xFF` also matches under 2.7.2,
+    # but it only forces the immediate.  func_8009B098 compiles to the
+    # same bytes under 2.7.2 and 2.6.x.
+    "src/battle/main57.",
+    # mainasm_15238 (2026-10-13): split off the front of main35_p4.
+    # func_80084D28 matches only under 2.6.x (2.6.0 and 2.6.3): retail's
+    # loop counter increment sits in the first branch's delay slot, which
+    # no 2.7.2 spelling reproduces (main35_p4's func_80085084 onward is
+    # 2.7.2).  func_80084DE4 is still asm.
+    "src/battle/mainasm_15238.",
+    # main28 (2026-10-13): func_8007E438 and func_8007E554 keep their loop
+    # counter decrement in the first branch's delay slot only under 2.6.x
+    # (2.6.0 and 2.6.3; 2.7.2: +1 insn each).  main28's other C
+    # (func_8007E154, func_8007E1D0, func_8007E234, func_8007E334,
+    # func_8007E674) compiles to the same bytes under 2.6.3.
+    "src/battle/main28.",
+    # main26 (2026-10-13): func_8007D1DC matches only under 2.6.x (2.6.0 and
+    # 2.6.3; 2.7.2: 2 insns short with a different register allocation; the
+    # CDK cc1: 7 short); main26's func_8007D30C compiles to the same bytes
+    # under 2.6.3.
+    "src/battle/main26.",
+    # mainasm_D854 (2026-10-13): func_8007D344 (same shape as main26's
+    # func_8007D1DC) and func_8007D478 match under 2.6.3 and 2.6.0; the
+    # 2.7.2 cc1 compiles them 1 and 8 insns short, the CDK cc1 5 and 5.
+    # The TU's func_8007D5B0 and func_8007D610 compile to the same bytes
+    # under 2.6.3.
+    "src/battle/mainasm_D854.",
+    # main24 (2026-10-13): func_8007C040 and func_8007C33C match only under
+    # 2.6.x (2.6.3 and 2.6.0; 2.7.2: 2 insns short); func_8007BD5C and the
+    # TU's other C (func_8007BC84, func_8007BCE8, func_8007C4A0,
+    # func_8007C580, func_8007C678, func_8007C75C) compile to the same bytes
+    # under 2.6.3.
+    "src/battle/main24.",
+    # main56 (2026-10-14): func_8009ADA0 matches only under 2.6.x (2.7.2
+    # puts each magic-multiply quotient through a scratch register: 356 vs
+    # 348 bytes); func_8009AB38, func_8009AC48 and func_8009AEFC compile to
+    # the same bytes under 2.6.3 and 2.7.2.  Neighbours main54, main55,
+    # main57 and main58 are BattleGcc263 too.
+    "src/battle/main56.",
+    # main45 (2026-10-14): func_8008AC88 matches only under 2.6.x (2.7.2
+    # leaves the loop's first branch delay slot empty: 332 vs 328 bytes);
+    # func_8008B108 and func_8008B168 compile to the same bytes under 2.6.3
+    # and 2.7.2.  Neighbours main43 and main49 are BattleGcc263 too.
+    "src/battle/main45.",
+    # main47 (2026-10-14): func_8008BD50 matches only under 2.6.x (2.7.2:
+    # 384 vs 392 bytes); func_8008C360 and func_8008C3F0 compile to the
+    # same bytes under 2.6.3 and 2.7.2.
+    "src/battle/main47.",
+    # main48 (2026-10-14): func_8008C4A8 matches only under 2.6.x (its u8
+    # `+0x2DC - 1` is addiu 0xFF; 2.7.2: 880 vs 884 bytes); func_8008CCCC
+    # and func_8008CD28 compile to the same bytes under 2.6.3 and 2.7.2.
+    "src/battle/main48.",
+    # main59 (2026-10-14): func_8009C4B4 matches only under 2.6.x (its u8
+    # `D_800D2C34 - 1` is addiu 0xFF; 2.7.2: diff 22/324); func_8009C9C4,
+    # func_8009CA90 and func_8009CB68 compile to the same bytes under 2.6.3
+    # and 2.7.2.  Neighbours main57 and main58 are BattleGcc263 too.
+    "src/battle/main59.",
+    # main12 (2026-10-14): func_800793F0 matches only under 2.6.x (2.7.2:
+    # 636 vs 644 bytes); the other C in main12 compiles to the same bytes
+    # under 2.6.3 and 2.7.2.
+    "src/battle/main12.",
+    # main46 (2026-10-14): func_8008B908 matches only under 2.6.x (2.7.2:
+    # diff 5/206); func_8008B224, func_8008BC40 and func_8008BC98 compile
+    # to the same bytes under 2.6.3 and 2.7.2.
+    "src/battle/main46.",
+    # main38_p2 (2026-10-14): func_80086028 matches only under 2.6.x (2.7.2:
+    # diff 8/106, the base-pointer add operand order and one scheduling
+    # slot); func_80086B88 and main38.c's part-2 func_800879A8 compile to
+    # the same bytes under 2.6.3 and 2.7.2.
+    "src/battle/main38_p2.",
+    # main73_p2 (2026-10-14): func_800AFD98 matches only under 2.6.x (2.7.2:
+    # 512 vs 516 bytes, addu operand order in the add arms); main73_p2's
+    # other C compiles to the same bytes under 2.6.3 (full relink).  It has
+    # no divisions, so BattleGcc263Div (main73_p1's preset) is not needed.
+    # Neighbour main73_p1 is 2.6.3 code too (BattleGcc263Div).
+    "src/battle/main73_p2.",
+    # main35_p3_q1 (2026-10-14): func_80084548, its only C, matches only under
+    # 2.6.x (2.7.2: diff 6/130, the loop delay slots).  No divisions.
+    "src/battle/main35_p3_q1.",
+    # mainasm_18B1C (2026-10-15): func_8008860C matches only under 2.6.x
+    # (2.7.2: diff 10/156); func_8008887C and func_80088990 compile to the
+    # same bytes.  No divisions.
+    "src/battle/mainasm_18B1C.",
+    # main60 (2026-10-15): func_8009CBC4 matches only under 2.6.x (2.7.2:
+    # diff 181/484, CDK 1944 vs 1936); func_8009D354 compiles to the same
+    # bytes.  Its divides carry no aspsx checks, so no --expand-div.
+    # Neighbours main59 and main61 are BattleGcc263 too.
+    "src/battle/main60.",
+    # main72_p3 (2026-10-15): func_800AE2A4 matches only under 2.6.3 (2.7.2:
+    # 3120 vs 3144 bytes; it reads the GTE result back with halfword loads
+    # only under 2.6.x); main72.c's part-3 func_800AEEEC compiles to the same
+    # bytes.  Its one division is by a constant, so no --expand-div.
+    # Neighbours main72_p2 and main73_p2 are BattleGcc263 too.
+    "src/battle/main72_p3.",
+    # main31 (2026-10-15): func_8007F8C0 matches only under 2.6.x (2.7.2:
+    # diff 2/172, it folds the u8 OR-group store into the OR); the other C
+    # in main31 compiles to the same bytes.  No divisions.  Neighbours
+    # main30 and main32 are Default; main33 is BattleGcc263.
+    "src/battle/main31.",
+    # main52 (2026-10-15): func_80097964 matches only under 2.6.x (2.7.2:
+    # diff 6/233, CDK 944 vs 932 bytes); func_80097D08 compiles to the same
+    # bytes.  No divisions.  Neighbours main51 and main53 are BattleGcc263
+    # too.
+    "src/battle/main52.",
+    # main39 (2026-10-15): func_80087AF0 matches only under 2.6.3 (2.7.2:
+    # diff 22/251, it shares the +0x2DC and +0x2DA loads retail repeats;
+    # 2.6.0 1000 and CDK 1008 vs 1004 bytes); main39's other C (func_80087A38,
+    # func_80087EDC, func_800881B8, func_800883AC, func_80088490) compiles
+    # to the same bytes under 2.6.3 (full relink).  No divisions.
+    # Neighbour main38_p2 is BattleGcc263 too.
+    "src/battle/main39.",
+    # mainasm_15898 (2026-10-20): func_80085618 matches under 2.6.3 and
+    # 2.6.0 only (2.7.2: 1184 vs 1196 bytes, CDK 884); the TU's other C
+    # (func_80085388, func_80085454, func_80085AC4) compiles to the same
+    # bytes under 2.6.3 (full relink).  Retail-only file, no port impact.
+    "src/battle/mainasm_15898.",
+    # main35_p1 (2026-10-20): func_80080C94 matches under 2.6.3 only (2.7.2:
+    # 1216 vs 1224; three 2.7.2-only families vanish under 2.6.3).  The TU's
+    # other C, main35.c's part-1 func_8008115C, is byte-identical under 2.6.3
+    # with its case-3 base temp (full relink).
+    "src/battle/main35_p1.",
+    # mainasm_12068 (2026-10-20): func_80081B58, its only C, matches under
+    # 2.6.3 and 2.6.0 only (2.7.2: diff 7/339, the * 100 / 56 quotient region).
+    # Split out of main35_p2 with mainasm_11828; retail-only file, no port impact.
+    "src/battle/mainasm_12068.",
+    # mainasm_1FF0 (2026-10-20): main2's head (func_80071AE0, func_80071B94,
+    # func_80072270, func_80072324), moved verbatim and kept on 2.6.3 like
+    # main2 (func_80071AE0 is 2.6.x-only).  Split out of main2 with
+    # mainasm_28F0, whose func_800723E0 matches only under the Default 2.7.2.
+    # Retail-only file, no port impact.
+    "src/battle/mainasm_1FF0.",
+    # main34_q1 (2026-10-20): its only C function, func_80080160, is
+    # byte-exact under gcc 2.6.3 and 2.6.0 (2.7.2 is one instruction short).
+    # The TU holds nothing else, so the move has no collateral.  Its
+    # jtbl_8006FE7C is [0x38C, .rodata, main34_q1] in config/battle.yaml.
+    "src/battle/main34_q1.",
 ]
 
 [[build_preset]]
 name = "Bcf1Gcc263"
 # battle_command_file1 (archive 0x20 file 1) is gcc 2.6.3 (psx) code: 23 of its
 # INCLUDE_ASM bodies match only under 2.6.x, and the TUs stay byte-exact as a
-# whole under it.
+# whole under it.  Listed per TU so the CDK-compiled tail
+# (after_controller_cdk, BattleCdk above) is matched by exactly one preset.
 build_variables = {
     gcc = "gcc-2.6.3-psx"
 }
-paths = [ "src/battle_command_file1/" ]
+paths = [
+    "src/battle_command_file1/before_controller.",
+    "src/battle_command_file1/message_controller.",
+    "src/battle_command_file1/after_controller.",
+]
 
 [[build_preset]]
 name = "BattleGcc263Div"
 # gcc 2.6.3 like BattleGcc263, plus maspsx --expand-div: retail main69's
 # signed division (func_800A5BE8's plane height) and main73_p1's
 # (func_800AF2C4) carry the aspsx divide-by-zero / overflow `break` checks.
+# main74 and main68 (formerly the gcc 2.7.2 "BattleDiv" preset) are 2.6.3
+# code too: func_800B10EC's and func_800A44C0's register choices and
+# narrowed loads only come out of 2.6.3, and both TUs stay byte-exact.
+# main67 moved here from BattleGcc263: func_800A32D8's three colour-fade
+# divides carry the checks, and no other main67 function divides.
 build_variables = {
     gcc = "gcc-2.6.3-psx",
     maspsx_flags = "--expand-div --use-comm-section --run-assembler"
 }
-paths = [ "src/battle/main69.", "src/battle/main73_p1." ]
-
-[[build_preset]]
-name = "BattleDiv"
-# Default compiler plus maspsx --expand-div: these battle TUs' retail signed
-# divisions carry the aspsx divide-by-zero / overflow break checks.
-build_variables = {
-    maspsx_flags = "--expand-div --use-comm-section --run-assembler"
-}
-paths = [ "src/battle/main68." ]
+# main64 (2026-10-13, BattleGcc263 since earlier that day for func_8009E788's
+# `-= 1` decrement, which gives addiu 0xFF only under 2.6.0/2.6.3):
+# func_8009F1C4's three signed divisions carry the checks.  main64's other
+# C is the same with or without --expand-div (no divisions).
+# main70 (2026-10-15, BattleGcc263 since 10-12): func_800A7948's twelve
+# divisions (cloth springs and normal averaging) carry the checks, and so do
+# retail func_800A7064's two.
+paths = [ "src/battle/main69.", "src/battle/main73_p1.", "src/battle/main74.", "src/battle/main68.", "src/battle/main65.", "src/battle/main67.", "src/battle/main64.", "src/battle/main70." ]
 
 [[build_preset]]
 name = "WorldMapDiv"
@@ -289,3 +593,19 @@ build_variables = {
     maspsx_flags = "--dont-expand-li --expand-div --use-comm-section --run-assembler"
 }
 paths = [ "src/world_map/" ]
+
+[[build_preset]]
+name = "BattleNoSched1"
+# func_800AA898 (mainasm_3ADA8, the only C function in that TU) is byte-exact
+# only with sched1 off: the Default gcc 2.7.2 settings plus
+# -fno-schedule-insns.  This is an observed match, not proof of the original
+# build settings.  sched1-off changes 63% of the other matched battle
+# functions (draft-independent flag map, 2026-10-20), so no other TU may use
+# this preset.
+# The flag goes in cc_flags (Default's cc_flags plus -fno-schedule-insns):
+# the decomp_assist tools split cc_flags but pass optimization_flag as one
+# argument.
+build_variables = {
+    cc_flags = "-mips1 -mcpu=3000 -w -funsigned-char -fpeephole -ffunction-cse -fpcc-struct-return -fcommon -fverbose-asm -msoft-float -mgas -fgnu-linker -quiet -fno-schedule-insns"
+}
+paths = [ "src/battle/mainasm_3ADA8." ]

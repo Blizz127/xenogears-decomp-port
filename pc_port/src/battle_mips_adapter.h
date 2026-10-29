@@ -48,10 +48,27 @@ enum {
     PC_PORT_MIPS_FAULT = -1,
     PC_PORT_MIPS_BUDGET = -2,
     PC_PORT_MIPS_UNSUPPORTED = -3,
-    PC_PORT_MIPS_UNRESOLVED_CALL = -4
+    PC_PORT_MIPS_UNRESOLVED_CALL = -4,
+    PC_PORT_MIPS_INTERPRETER_DISABLED = -5
 };
 
 void PcPortMipsCpuInit(PcPortMipsCpu *cpu, const PcPortMipsBus *bus);
+/* In hybrid builds, diagnostic acceptance mode, off by default. In builds
+ * with XENO_NATIVE_ONLY the instruction engine is excluded and this always
+ * returns true. Native bridges remain allowed; missing bodies are refused
+ * before fetch/execute. Neither mode establishes complete game conversion. */
+int PcPortMipsInterpreterDisabled(void);
+/* Optional process-wide adapter counters. Counts execution attempts, not game
+ * coverage. Initialize at startup so a run without adapter calls reports zero. */
+typedef struct PcPortMipsExecutionStats {
+    uint64_t entries;
+    uint64_t native_bridges;
+    uint64_t interpreted_instructions;
+    uint64_t disabled_refusals;
+    uint64_t unresolved_bridges;
+} PcPortMipsExecutionStats;
+void PcPortMipsExecutionStatsInit(void);
+PcPortMipsExecutionStats PcPortMipsExecutionStatsGet(void);
 int PcPortMipsRun(PcPortMipsCpu *cpu, uint32_t entry, uint32_t halt_pc,
                   uint64_t max_steps);
 

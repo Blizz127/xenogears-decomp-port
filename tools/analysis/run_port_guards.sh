@@ -37,6 +37,12 @@ echo "== psyq_classify --check"
 "$PY" tools/analysis/psyq_classify.py --check || rc=1
 echo "== psyq_port_guard"
 "$PY" tools/analysis/psyq_port_guard.py -q "${psyq_args[@]}" "${bins[@]}" || rc=1
+# The source scan cannot see tables written as structured C initialisers;
+# the linked executable must not contain retail byte runs either.
+for ((i = 1; i < ${#bins[@]}; i += 2)); do
+    echo "== retail_binary_guard ${bins[$i]}"
+    "$PY" tools/analysis/retail_binary_guard.py "${bins[$i]}" || rc=1
+done
 if [ "$rc" -ne 0 ]; then
     echo "port guards: FAIL"
 else

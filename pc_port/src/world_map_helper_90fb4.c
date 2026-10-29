@@ -6,10 +6,9 @@
 
 #include "common.h"
 #include "psx_memory.h"
+#include "world_map_retail_trig.h"
 #include "world_map_helper_90fb4.h"
 
-extern long rcos(long a);
-extern long rsin(long a);
 
 /* Local vector struct for VectorNormal (same layout as PsyQ VECTOR) */
 typedef struct { long vx, vy, vz; } WmVec;
@@ -244,9 +243,9 @@ zoom_dispatch:
         s16 heading = fb4_lh(HEADING_MIRROR);
         s32 zoom = fb4_lw(slot_record + F_ZOOM_VAL) >> 12;
 
-        fb4_sw(slot_record + F_VEL_X, (s32)rcos((long)heading));
-        fb4_sw(slot_record + F_VEL_Y, (s32)rcos((long)zoom));
-        fb4_sw(slot_record + F_VEL_Z, -(s32)rsin((long)heading));
+        fb4_sw(slot_record + F_VEL_X, (s32)wm_retail_rcos((int)((long)heading)));
+        fb4_sw(slot_record + F_VEL_Y, (s32)wm_retail_rcos((int)((long)zoom)));
+        fb4_sw(slot_record + F_VEL_Z, -(s32)wm_retail_rsin((int)((long)heading)));
 
         /* Normalize velocity vector */
         {

@@ -1,0 +1,5 @@
+6aa0-gear	func_801C6AA0	offsetof(GameCharacter, gearId)] != 0xFF) {	offsetof(GameCharacter, gearId)] != 0xFE) {
+6aa0-first	func_801C6AA0	g_Menu->selectedPartySlot = (u8)i;	g_Menu->selectedPartySlot = (u8)i + 1;
+6aa0-choice	func_801C6AA0	if (D_80059460 == 0 && D_80059171 == 0) {	if (D_80059460 == 0) {
+6f70-green	func_801C6F70	        p->lines1[i].g0 = 0x40;	        p->lines1[i].g0 = 0x41;
+6f70-abr	func_801C6F70	tpage = (u16)GetTPage(0, 2, 0x180, 0);	tpage = (u16)GetTPage(0, 1, 0x180, 0);

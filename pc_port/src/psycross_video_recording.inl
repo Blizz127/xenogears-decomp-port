@@ -240,11 +240,78 @@ static void PsyX_StopRecording()
 	}
 }
 
+/* Test tooling: XENO_PRESENT_LOG=1 logs one line per presented frame with a
+ * hash of the finished back buffer and its count of non-black pixels
+ *   [present] n=<swap index> hash=<fnv64> nonblack=<pixels>/<total>
+ * so a harness can assert what actually reached the window (not what the
+ * VRAM mirror held).  XENO_PRESENT_DUMP_DIR=dir additionally writes each
+ * frame that differs from the one before, 1/4 scale, as dir/present-<n>.ppm.  Off (one getenv) when unset. */
+extern int g_xeno_swap_index;
+static void PsyX_XenoPresentDiag()
+{
+	static int init = 0, on = 0;
+	static const char* dumpDir = NULL;
+	static u_char* px = NULL;
+	static size_t cap = 0;
+	int w = g_windowWidth, h = g_windowHeight;
+	static unsigned long long lastHash = 0;
+	unsigned long long hash = 1469598103934665603ULL;
+	long nonBlack = 0;
+
+	if (!init) {
+		const char* e = getenv("XENO_PRESENT_LOG");
+		init = 1;
+		dumpDir = getenv("XENO_PRESENT_DUMP_DIR");
+		if (dumpDir && !*dumpDir)
+			dumpDir = NULL;
+		on = (e && *e && *e != '0') || dumpDir != NULL;
+	}
+	if (!on || w <= 0 || h <= 0)
+		return;
+	if ((size_t)w * h * 4 > cap) {
+		free(px);
+		cap = (size_t)w * h * 4;
+		px = (u_char*)malloc(cap);
+		if (!px) { cap = 0; return; }
+	}
+#if defined(RENDERER_OGL) || defined(RENDERER_OGLES)
+	glReadPixels(0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, px);
+#endif
+	for (size_t i = 0; i < (size_t)w * h; i++) {
+		const u_char* p = &px[i * 4];
+		if (p[0] > 8 || p[1] > 8 || p[2] > 8)
+			nonBlack++;
+		hash = (hash ^ p[0]) * 1099511628211ULL;
+		hash = (hash ^ p[1]) * 1099511628211ULL;
+		hash = (hash ^ p[2]) * 1099511628211ULL;
+	}
+	printf("[present] n=%d hash=%016llx nonblack=%ld/%ld\n", g_xeno_swap_index,
+		hash, nonBlack, (long)w * h);
+	fflush(stdout);
+	/* Dump only frames that differ from the previous one. */
+	if (dumpDir && hash != lastHash) {
+		char path[600];
+		FILE* f;
+		int ow = w / 4, oh = h / 4;
+		snprintf(path, sizeof(path), "%s/present-%06d.ppm", dumpDir, g_xeno_swap_index);
+		f = fopen(path, "wb");
+		if (f) {
+			fprintf(f, "P6\n%d %d\n255\n", ow, oh);
+			for (int j = oh - 1; j >= 0; j--)   /* GL rows are bottom-up */
+				for (int i = 0; i < ow; i++)
+					fwrite(&px[((size_t)(j * 4) * w + i * 4) * 4], 1, 3, f);
+			fclose(f);
+		}
+	}
+	lastHash = hash;
+}
+
 static void PsyX_RecordPresentedFrame()
 {
 	const int64_t frameIntervalNs = 1000000000LL / 60;
 	int64_t nowNs;
 
+	PsyX_XenoPresentDiag();
 	if (g_xenoRecordingPipe == NULL)
 		return;
 	nowNs = PsyX_RecordingMonotonicNs();

@@ -31,10 +31,38 @@ RUNNING
   ./xenogears.sh                      later runs
   XENOGEARS_WINDOWED=1 ./xenogears.sh windowed instead of fullscreen
   Settings: copy config.example.ini to ~/.config/xenogears-port/config.ini.
-  Saves, memory cards (memcards/card1.mcd) and the F7/F8 quick checkpoint
+  Saves, memory cards (memcards/card1.mcd) and the F11/F12 quick checkpoint
   are kept in ~/.local/share/xenogears-port/.
   Gamescope / Steam: add xenogears.sh as a non-Steam game, or point a
   launcher (Banshee) at it with the folder as its argument.
+
+CONTROLLERS
+  Keyboard: arrows, Z confirm, V menu, C and X the other face buttons,
+  Return Start, Space Select (rebind under [input] in config.ini). A game controller works at
+  the same time: bottom face button (Xbox A / PlayStation Cross) confirms,
+  as on the US PlayStation; input.pad_confirm = circle swaps it with the
+  right button. To set it without the dev menu, add
+      [input]
+      pad_confirm = circle
+  to ~/.config/xenogears-port/config.ini (or $XDG_CONFIG_HOME/xenogears-port/,
+  or the file named by XENO_CONFIG); "cross" is the US default. With the dev
+  menu on, Options > CONFIRM BUTTON toggles it immediately and saves that line. The left stick also moves like the D-pad.
+  Steam Input is not needed. On handhelds (Steam Deck, Legion Go with
+  InputPlumber) the built-in pad is used directly even when Steam's
+  environment hides it; with several pads one drives the game, and Steam's
+  virtual pad is used only when nothing else answers. The terminal output
+  names the chosen pad ("pad: port 1 uses ...") and, as "input:" lines,
+  the keys, mouse and pad buttons that arrive (useful in bug reports).
+  Host keys: F11 quick save, F12 quick load, F10 screenshot, F9 record,
+  hold Backspace or toggle F6 for fast-forward. Pad fast-forward is off by
+  default; input.pad_fast_forward = on makes L3 toggle and R3 hold it (each
+  pressed alone, with no face button or D-pad held). Every speed change is
+  logged as "speed: ... (source: ...)".
+  Dev menu (opt-in: XENO_DEV_MENU=1 or [cheats] dev_menu = on): Select+Start
+  on one pad, or F8. D-pad/stick move, A picks, B goes back. Warp, Finish
+  Area, Cheats (god mode, random battles, refills), Options (fast-forward,
+  speed, record, screenshot, confirm button, quick save/load, enhancements). The game keeps
+  running while it is open; a red CHEATS marker shows while a cheat is on.
 
 HOW FAR IT PLAYS (tested on the build machine)
   Boot, title screen, New Game, the opening, into Lahan (field map 2).
@@ -57,5 +85,5 @@ KNOWN ISSUES
 REPORTING BUGS
   Say what you did and what happened, and include version.txt, the last
   lines of the terminal output (run xenogears.sh from a terminal to see it),
-  and, if you can, the quick checkpoint (F7 saves it) from
+  and, if you can, the quick checkpoint (F11 saves it) from
   ~/.local/share/xenogears-port/quicksaves/quick.xgqs.

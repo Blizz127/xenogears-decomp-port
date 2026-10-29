@@ -71,6 +71,15 @@ elif [ "${XENO_ASAN:-0}" = "1" ]; then
     OBJ="$OUT/obj"
     echo "==> XENO_ASAN=1: AddressSanitizer build -> $OUT"
 fi
+# Native-only development target: keep the playable hybrid build, but omit
+# the CPU instruction engine from this executable. Missing native bodies
+# stop at their call boundary. This is a conversion target, not evidence that
+# every game path is implemented. Rendering/audio and game-script VMs remain.
+if [ "${XENO_NATIVE_ONLY:-0}" = "1" ]; then
+    OUT="${OUT}_only"
+    OBJ="$OUT/obj"
+    echo "==> XENO_NATIVE_ONLY=1: CPU interpreter excluded -> $OUT"
+fi
 mkdir -p "$OBJ"
 if [ -n "$TSAN_FLAGS" ] && [ -f pc_port/build_native/stubs.c ] && [ ! -f "$OUT/stubs.c" ]; then
     # The sanitizer variants mirror the normal build: reuse its validated stub
@@ -99,7 +108,7 @@ pkg-config --atleast-version=3.0 libcrypto 2>/dev/null || {
     echo "ERROR: OpenSSL 3 development files required for verified KROM loading (Ubuntu: libssl-dev)."
     exit 1
 }
-INC="-Ipc_port/include_shim -Iinclude -I$OUT -I$PSX/include -I$PSX/include/psx $(pkg-config --cflags libcrypto)"
+INC="-Ipc_port/include_shim -Ipc_port/include -Iinclude -I$OUT -I$PSX/include -I$PSX/include/psx $(pkg-config --cflags libcrypto)"
 # -std=gnu17: the game predates C23; gcc >= 15 defaults to C23 and rejects it.
 # -fpermissive: gcc >= 14 promotes old-C constructs (implicit decls, int/pointer
 #   conversions) to hard errors that -w can't silence; -fpermissive demotes them.
@@ -112,7 +121,11 @@ INC="-Ipc_port/include_shim -Iinclude -I$OUT -I$PSX/include -I$PSX/include/psx $
 # body. The native owner for the field-local 0x6B9 overlay is compiled from
 # pc_port/src/field_object_overlay.c; 0x801E742C/738C/7D14/8030/8330 are real
 # entry points in that retail archive, not member-change-menu mid-functions.
-GFLAGS="-std=gnu17 -fpermissive -DXENO_PC_PORT -DXENO_FIELD_OBJECT_OVERLAY -DSKIP_ASM -D_LANGUAGE_C -DUSE_EXTENDED_PRIM_POINTERS=0 -include assert.h -w -O0 -g -m64 -fno-builtin"
+# Strip the build machine's absolute paths from __FILE__/assert strings and
+# debug info, so no personal infrastructure path ships in the binary
+# (tools/analysis/psyq_port_guard.py --binary "path" check).
+PREFIX_MAP="-ffile-prefix-map=$ROOT=."
+GFLAGS="-std=gnu17 -fpermissive -DXENO_PC_PORT -DXENO_FIELD_OBJECT_OVERLAY -DSKIP_ASM -D_LANGUAGE_C -DUSE_EXTENDED_PRIM_POINTERS=0 -include assert.h -w -O0 -g -m64 -fno-builtin $PREFIX_MAP"
 # Optional compile-time diagnostics, for example:
 # XENO_DIAG_DEFINES=-DXENO_DIAG_OPCODE_SWEEP ./scratchpad/run_build_port.sh
 # Leave GFLAGS byte-for-byte unchanged when unset.
@@ -123,6 +136,9 @@ fi
 # GFLAGS stays byte-for-byte unchanged when unset.
 if [ -n "$TSAN_FLAGS" ]; then
     GFLAGS="$GFLAGS $TSAN_FLAGS"
+fi
+if [ "${XENO_NATIVE_ONLY:-0}" = "1" ]; then
+    GFLAGS="$GFLAGS -DXENO_NATIVE_ONLY"
 fi
 
 # Build-integrity policy:
@@ -537,8 +553,18 @@ apply_psycross_patch "$ROOT/pc_port/patches/psycross_raw_texture_dither.patch" "
 apply_psycross_patch "$ROOT/pc_port/patches/psycross_abr_clut_bit15.patch" "_xeno_clut_bit15_abr"
 apply_psycross_patch "$ROOT/pc_port/patches/psycross_compmatrix_alias.patch" "_xeno_compmatrix_alias"
 apply_psycross_patch "$ROOT/pc_port/patches/psycross_compmatrix_word_store.patch" "_xeno_compmatrix_word_store"
+apply_psycross_patch "$ROOT/pc_port/patches/psycross_compmatrix_translation_word.patch" "_xeno_compmatrix_translation_word"
+apply_psycross_patch "$ROOT/pc_port/patches/psycross_compmatrix_translation_overflow.patch" "_xeno_compmatrix_translation_overflow"
 apply_psycross_patch "$ROOT/pc_port/patches/psycross_sqrt_lz_registers.patch" "_xeno_sqrt_lz_registers"
 apply_psycross_patch "$ROOT/pc_port/patches/psycross_sqrt_retail_memory.patch" "_xeno_sqrt_retail_memory"
+# The port ships no game data: LIBGTE.C's retail rcossin/ratan tables are
+# loaded from the user's disc/SLUS_006.64 (retail_data.h); SQRT is dropped
+# (SquareRoot0 reads guest memory since the previous patch).
+apply_psycross_patch "$ROOT/pc_port/patches/psycross_gte_tables_from_disc.patch" "_xeno_gte_tables_from_disc"
+# Replace only the PushMatrix/PopMatrix failure blocks with host diagnostics.
+# Structural rewriting keeps the original text out of tracked patch payloads
+# and also repairs checkouts that received the old malformed insertion patch.
+python3 "$ROOT/pc_port/tools/fix_psycross_gte_stack_messages.py" "$PSX/src/psx/LIBGTE.C" || exit 1
 apply_psycross_patch "$ROOT/pc_port/patches/psycross_gte_mvmva_signed_translation.patch" "_xeno_gte_mvmva_signed_translation"
 apply_psycross_patch "$ROOT/pc_port/patches/psycross_gte_projection_signed_translation.patch" "_xeno_gte_projection_signed_translation"
 # Optional F22 logical-origin correction. This is intentionally applied only
@@ -614,6 +640,13 @@ apply_psycross_patch "$ROOT/pc_port/patches/psycross_critical_declarations.patch
 apply_psycross_patch "$ROOT/pc_port/patches/psycross_sw_critical_mask.patch" "_xeno_sw_critical_mask"
 apply_psycross_patch "$ROOT/pc_port/patches/psycross_event_delivery.patch" "_xeno_event_delivery"
 apply_psycross_patch "$ROOT/pc_port/patches/psycross_wait_event.patch" "_xeno_wait_event"
+# Reservation primitive only; no production sound continuation uses it yet.
+apply_psycross_patch "$ROOT/pc_port/patches/psycross_sound_reservation.patch" "_xeno_sound_reservation" "unidiff-zero"
+apply_psycross_patch "$ROOT/pc_port/patches/psycross_sound_reservation_identity.patch" "_xeno_sound_reservation_identity" "unidiff-zero"
+apply_psycross_patch "$ROOT/pc_port/patches/psycross_sound_reservation_cleanup.patch" "_xeno_sound_reservation_cleanup" "unidiff-zero"
+apply_psycross_patch "$ROOT/pc_port/patches/psycross_sound_reservation_epoch.patch" "_xeno_sound_reservation_epoch" "unidiff-zero"
+apply_psycross_patch "$ROOT/pc_port/patches/psycross_sound_reservation_owned.patch" "_xeno_sound_reservation_owned" "unidiff-zero"
+apply_psycross_patch "$ROOT/pc_port/patches/psycross_sound_reservation_pristine.patch" "_xeno_sound_reservation_pristine"
 # ADSR fidelity phase 1: per-voice hardware ADSR envelope (psx-spx 44100Hz
 # counter machine) in the SPU backend -- KON=attack-from-zero, KOFF=release
 # tail (source kept playing to level 0), composed single-writer AL_GAIN
@@ -666,6 +699,82 @@ apply_psycross_patch "$ROOT/pc_port/patches/psycross_host_speed.patch" "_xeno_ho
 # The BIOS memory-card driver entry points (InitCARD/_card_info/...) are owned
 # by pc_port/src/memcard_port.c; drop PsyCross's silent `return 0` copies.
 apply_psycross_patch "$ROOT/pc_port/patches/psycross_card_native_owner.patch" "_xeno_card_native_owner"
+# Game controllers (pc_port/src/psycross_pad_select.inl): drop the handheld /
+# InputPlumber entries (28de:1205/1206, 17ef:*) from Steam's inherited
+# SDL_GAMECONTROLLER_IGNORE_DEVICES, open every pad but feed port 1 from one
+# (Steam's virtual pad only as a last resort), reconcile hotplug by instance
+# id, and let the left stick drive the digital pad's D-pad.  Generated on top
+# of every PsyX_pad.cpp patch above (pad include, tap latch, dev menu input).
+apply_psycross_patch "$ROOT/pc_port/patches/psycross_pad_select.patch" "_xeno_pad_select"
+apply_psycross_patch "$ROOT/pc_port/patches/psycross_dev_menu_values.patch" "_xeno_dev_menu_values"
+# Host keys (owner spec): Backspace hold / F6 toggle fast-forward, F9 record,
+# F10 screenshot, F11 quick save, F12 quick load, F7 speed cycle only with the
+# dev-menu opt-in; no other host key actions.  Always-on, rate-limited input
+# trace (pc_port/src/psycross_input_trace.inl) and background joystick events.
+apply_psycross_patch "$ROOT/pc_port/patches/psycross_host_hotkeys.patch" "_xeno_host_hotkeys"
+# Diagnostic only: XENO_GPU_TRACE=a-b logs display/VRAM calls and each present
+# (scene vs VRAM path, DISPENV, mask) for presented-frame indices a..b. Off and
+# silent unless the variable is set.
+apply_psycross_patch "$ROOT/pc_port/patches/psycross_gpu_trace.patch" "_xeno_gpu_trace"
+# activeDispEnv names the buffer PsyCross renders into; PutDispEnv guesses it
+# from the double-buffer flip.  When VRAM-path presents already left the
+# current DISPENV on the buffer the game re-puts, a display-sized draw clip can
+# end up wholly outside activeDispEnv and the frame is offset/scissored off
+# screen (field zoom-fade first frame: one black frame at the title).  Rebase
+# only in that no-overlap case.  Generated on top of psycross_gpu_trace.patch.
+apply_psycross_patch "$ROOT/pc_port/patches/psycross_active_disp_draw_buffer.patch" "_xeno_active_disp_draw_buffer"
+# ClearImage must not mark CPU VRAM older than the last framebuffer capture:
+# the capture was mirrored when taken, so a later overlapping MoveImage would
+# splat stale pixels over newer CPU writes (the attract-return crossfade frame).
+apply_psycross_patch "$ROOT/pc_port/patches/psycross_clear_keeps_vram_synced.patch" "_xeno_clear_keeps_vram_synced"
+# Track which VRAM clips the GL backbuffer holds since the last present, so the
+# field's port-only backdrop snapshot (func_800A476C) can tell when the
+# backbuffer is a different buffer than the (0,0) rect it is about to save.
+apply_psycross_patch "$ROOT/pc_port/patches/psycross_rendered_clip_track.patch" "_xeno_rendered_clip_track"
+# Without new geometry, the CPU mirror already owns the last completed frame;
+# do not recapture retained presentation effects or host overlays.
+apply_psycross_patch "$ROOT/pc_port/patches/psycross_rendered_clip_pending_capture.patch" "_xeno_rendered_clip_pending_capture"
+# A scene present shows the drawn buffer one vblank early; on the first scene
+# after VRAM-only presents that buffer may never be displayed on the PSX (the
+# attract-return fade-start frame).  Show the DISPENV area there instead.
+apply_psycross_patch "$ROOT/pc_port/patches/psycross_present_displayed_after_vram.patch" "_xeno_present_displayed_after_vram"
+# Every speed / fast-forward change is logged with its source (F6, Backspace,
+# F7, L3, R3, dev-menu, focus-lost); applied last, on top of the host keys.
+apply_psycross_patch "$ROOT/pc_port/patches/psycross_speed_source.patch" "_xeno_speed_source"
+apply_psycross_patch "$ROOT/pc_port/patches/psycross_log_append.patch" "_xeno_log_append"
+# libetc VSync(n) for n >= 2 returned immediately, so the world map's
+# VSync(2)-paced frame driver (retail 30 world frames/s) ran at the host's
+# present rate.  Wait as retail does (SLUS Vsync 0x8004B54C).
+apply_psycross_patch "$ROOT/pc_port/patches/psycross_vsync_retail_n.patch" "_xeno_vsync_retail_n"
+# Reproduce existing vendor fixes absent from the pinned-source patch stack.
+# These markers intentionally do not appear in source: reverse-apply checks
+# verify each whole patch before skipping an already-fixed vendor tree.
+apply_psycross_patch "$ROOT/pc_port/patches/psycross_initialization_fail_fast.patch" "_xeno_init_fail_fast_reversecheck"
+apply_psycross_patch "$ROOT/pc_port/patches/psycross_cd_standby.patch" "_xeno_cd_standby_reversecheck"
+apply_psycross_patch "$ROOT/pc_port/patches/psycross_gte_retail_word_stores.patch" "_xeno_gte_retail_word_stores_reversecheck"
+# HD-2D enhancement lane hook points (pc_port/src/hd2d): HOOK 1 post-process
+# at both present sites, HOOK 3 textured-primitive override, and the
+# XENO_PRESENT_HASH_LOG per-present CRC. Weak symbols: with no hd2d
+# definition linked, retail rendering is unchanged. Keep this after every
+# other PsyCross patch; generated against the tree they produce.
+apply_psycross_patch "$ROOT/pc_port/patches/psycross_hd2d_hooks.patch" "_xeno_hd2d_hooks"
+# HD-2D lane PsyCross patches: every pc_port/patches/hd2d/*.patch, in
+# byte-sorted order, after all patches above. A patch is skipped when its
+# own sentinel -- the literal comment `/* _hd2d_<basename> */` (basename
+# without .patch) in one of its added lines -- is already in the tree, or
+# when it reverse-applies (already applied). Make each with diff -u against
+# the tree the earlier patches produce.
+if [ -d "$ROOT/pc_port/patches/hd2d" ]; then
+    while IFS= read -r hd2d_patch; do
+        hd2d_base="$(basename "$hd2d_patch" .patch)"
+        if grep -RqsF --exclude-dir=.git -- "/* _hd2d_${hd2d_base} */" "$PSX"; then
+            continue
+        fi
+        # The literal sentinel was checked above; this marker never matches,
+        # so apply_psycross_patch falls through to its reverse-check/apply.
+        apply_psycross_patch "$hd2d_patch" "_hd2d_sentinel_checked_above_$$_${RANDOM}"
+    done < <(find "$ROOT/pc_port/patches/hd2d" -maxdepth 1 -type f -name '*.patch' | LC_ALL=C sort)
+fi
 
 echo "==> [1/5] Building PsyCross (libpsycross.a) via CMake"
 # Drop a stale CMake cache generated under a different absolute path (e.g. from a
@@ -676,9 +785,10 @@ if [ -f "$PSYX_BUILD/CMakeCache.txt" ] && \
 fi
 if [ -n "$TSAN_FLAGS" ]; then
     cmake -S pc_port -B "$PSYX_BUILD" -DCMAKE_BUILD_TYPE=Debug \
-        -DCMAKE_C_FLAGS="$TSAN_FLAGS" -DCMAKE_CXX_FLAGS="$TSAN_FLAGS" >/dev/null
+        -DCMAKE_C_FLAGS="$TSAN_FLAGS $PREFIX_MAP" -DCMAKE_CXX_FLAGS="$TSAN_FLAGS $PREFIX_MAP" >/dev/null
 else
-    cmake -S pc_port -B "$PSYX_BUILD" -DCMAKE_BUILD_TYPE=Debug >/dev/null
+    cmake -S pc_port -B "$PSYX_BUILD" -DCMAKE_BUILD_TYPE=Debug \
+        -DCMAKE_C_FLAGS="$PREFIX_MAP" -DCMAKE_CXX_FLAGS="$PREFIX_MAP" >/dev/null
 fi
 if ! cmake --build "$PSYX_BUILD" --target psycross -j"$(nproc)" >/dev/null; then
     echo "ERROR: PsyCross build failed; refusing to link a stale library." >&2
@@ -805,16 +915,28 @@ python3 tools/scripts/gen_battle_bridge_map.py \
 PORT_SOURCES=(
     pc_port/src/krom_rom.c
     pc_port/src/disc_check.c
+    pc_port/src/glibc_compat.c
     pc_port/src/plat/xg_plat_psycross.c
     pc_port/src/plat/xg_plat_config.c
     pc_port/src/plat/xg_plat_mods.c
     pc_port/src/mod_events.c
     pc_port/src/cheat_console.c
+    pc_port/src/port_log.c
+    pc_port/src/port_soft_reset.c
+    pc_port/src/game_error_report.c
     pc_port/src/port_dev_menu.c
+    pc_port/src/port_dev_menu_actions.c
+    pc_port/src/port_dev_menu_warps.c
+    pc_port/src/port_pad_confirm.c
+    pc_port/src/port_dev_menu_steps.c
     pc_port/src/krom_mapping.c
     pc_port/src/psx_memory.c
     pc_port/src/battle_mips_adapter.c
     pc_port/src/battle_mips_runtime.c
+    pc_port/src/battle_results_host.c
+    pc_port/src/battle_guest_trampolines.c
+    pc_port/src/battle_state_hash.c # TEST TOOLING: opt-in battle-frame input/hash recorder
+    pc_port/src/battle_results_trace.c # TEST TOOLING: opt-in entry/render/return snapshots
     pc_port/src/guest_prim_link.c
     pc_port/src/model_prim_link.c
     pc_port/src/model_prim_ed20.c
@@ -824,7 +946,9 @@ PORT_SOURCES=(
     pc_port/src/fei_hd2d.c
     pc_port/src/god_mode.c
     pc_port/src/file_menu_notice.c
+    pc_port/src/battling_unavailable.c # TEMPORARY STOPGAP: unported state 4 returns to field
     pc_port/src/memcard_port.c
+    pc_port/src/route_recorder.c  # TEST TOOLING: XENO_ROUTE_LOG progression recorder
     pc_port/src/field_pos_diag.c  # TEST TOOLING: XENO_FIELD_POS_DIAG walk telemetry
     pc_port/src/field_warp_diag.c # TEST TOOLING: XENO_FIELD_WARP one-shot debug teleport
     pc_port/src/debug_battle_warp.c # TEST TOOLING: XENO_BATTLE_WARP_FILE battle launcher
@@ -880,10 +1004,12 @@ PORT_SOURCES=(
     pc_port/src/sound_transfer_callbacks.c
     pc_port/src/data_published_logo.c
     pc_port/src/data_font.c
+    pc_port/src/data_battle_popup_frame.c
     pc_port/src/data_kernel_menu.c
     pc_port/src/data_field.c
     pc_port/src/data_member_change_menu.c
     pc_port/src/data_shop_menu.c
+    pc_port/src/data_name_entry_menu.c
     pc_port/src/data_main_menu.c
     pc_port/src/data_game_state.c
     pc_port/src/data_controller.c
@@ -958,6 +1084,7 @@ PORT_SOURCES=(
     pc_port/src/world_map_cold_defaults.c
     pc_port/src/world_map_mode_selector_73300.c
     pc_port/src/psyq_compat_normal_light_col.c
+    pc_port/src/psyq_compat_transpose_matrix.c
     pc_port/src/psyq_compat_spu_noise_clock.c
     pc_port/src/world_map_callback_7cc6c.c
     pc_port/src/world_map_callback_7ce84.c
@@ -1068,6 +1195,13 @@ PORT_SOURCES=(
     pc_port/src/world_map_func_94a5c.c
     pc_port/src/world_map_func_95414.c
 )
+# HD-2D enhancement lane: every pc_port/src/hd2d/*.c is a port source by
+# glob (sorted), so that lane adds files without editing this list. Its
+# objects are named hd2d__<basename>.o so they cannot collide with the
+# flat pc_port/src basenames. pc_port/assets/hd2d/ is reserved for its assets.
+while IFS= read -r hd2d_src; do
+    PORT_SOURCES+=("$hd2d_src")
+done < <(find pc_port/src/hd2d -maxdepth 1 -type f -name '*.c' 2>/dev/null | LC_ALL=C sort)
 
 # Port-side sources that are deliberately NOT part of the runtime link: each is
 # a verification fixture that its own pc_port/tests/run_*.sh compiles directly,
@@ -1165,6 +1299,7 @@ for pf in "${PORT_SOURCES[@]}"; do
         exit 1
     fi
     o="$OBJ/$(basename "$pf").o"
+    case "$pf" in pc_port/src/hd2d/*) o="$OBJ/hd2d__$(basename "$pf").o" ;; esac
     compile_err="$OUT/$(echo "$pf" | tr '/' '_').err"
     rm -f "$o" "$compile_err"
     if ! gcc -c "$pf" $GFLAGS -Ipc_port/src $INC -o "$o" 2>"$compile_err"; then
@@ -1191,14 +1326,31 @@ BATTLE_HOST_TUS="$(python3 tools/scripts/battle_overlay_host_tus.py --verify)" |
     echo "ERROR: could not derive the battle host TU list from the allowlist."
     exit 1
 }
+# Typed bridge thunks (pc_port/src/battle_guest_abi_thunks.inc): every
+# guest-ABI leaf must declare its argument/return kinds, and each declaration
+# must agree with the C prototype, or the bridge would hand it legacy
+# heuristically translated arguments.
+python3 tools/scripts/battle_overlay_host_tus.py --check-abi-thunks || {
+    echo "ERROR: typed bridge thunks disagree with the battle guest-ABI leaves."
+    exit 1
+}
 BATTLE_HOST_OBJS=()
+# TUs on the battle guest ABI (include/battle_guest_abi.h) drop the blanket
+# `-w -fpermissive` and compile with strict int/pointer errors instead.
+BATTLE_ABI_TUS=" $(python3 tools/scripts/battle_overlay_host_tus.py --abi-tus | tr '\n' ' ') "
+BATTLE_ABI_FLAGS="$(python3 tools/scripts/battle_overlay_host_tus.py --abi-strict-flags)"
+BATTLE_ABI_GFLAGS="$(echo " $GFLAGS " | sed 's/ -w / /; s/ -fpermissive / /')"
 for btu in $BATTLE_HOST_TUS; do
     bo="$OBJ/battle_host_$(basename "$btu").o"
     berr="$OUT/$(echo "$btu" | tr '/' '_').host.err"
     rm -f "$bo" "$berr"
+    btu_flags="$GFLAGS"
+    case "$BATTLE_ABI_TUS" in
+        *" $btu "*) btu_flags="$BATTLE_ABI_GFLAGS $BATTLE_ABI_FLAGS" ;;
+    esac
     # XENO_BATTLE_OVERLAY_HOST_BODIES is what activates the guest-RAM D_*
     # aliases (see include/common.h); it must not be set for any other TU.
-    if ! gcc -c "$btu" $GFLAGS -DXENO_BATTLE_OVERLAY_HOST_BODIES $INC \
+    if ! gcc -c "$btu" $btu_flags -DXENO_BATTLE_OVERLAY_HOST_BODIES $INC \
         -o "$bo" 2>"$berr"; then
         echo "ERROR: adopted battle overlay host TU failed to compile: $btu"
         sed 's/^/       | /' "$berr"
@@ -1222,6 +1374,31 @@ for leaf in $(python3 tools/scripts/battle_overlay_host_tus.py --leaves); do
     fi
 done
 echo "    ${#BATTLE_HOST_OBJS[@]} battle host units define the full allowlist"
+
+# The battle RESULTS module (retail overlay at 0x801DE000) has its own
+# allowlist, pc_port/src/battle_results_host_leaves.inc, and its own host TU,
+# pc_port/src/battle_results_host.c (in PORT_SOURCES above).  The runtime binds
+# each entry with dlsym("battle_results_func_XXXXXXXX") behind the module
+# identity gate (battle_results_gate.inc); an entry with no compiled body would
+# silently stay interpreted while the list claims native coverage.  An empty
+# list is valid: then every results routine is interpreted, as before.
+RESULTS_HOST_OBJECT="$OBJ/battle_results_host.c.o"
+if ! python3 tools/scripts/battle_results_host_leaves.py --verify >/dev/null; then
+    echo "ERROR: pc_port/src/battle_results_host_leaves.inc is malformed."
+    exit 1
+fi
+BATTLE_RESULTS_SYMBOLS="$(python3 tools/scripts/battle_results_host_leaves.py --symbols)"
+results_adopted=0
+for sym in $BATTLE_RESULTS_SYMBOLS; do
+    if ! nm -g --defined-only "$RESULTS_HOST_OBJECT" 2>/dev/null \
+        | awk -v s="$sym" '$2 == "T" && $3 == s {found=1} END {exit !found}'; then
+        echo "ERROR: adopted results routine $sym is not defined by $RESULTS_HOST_OBJECT."
+        echo "ERROR: the results allowlist would be inert for it."
+        exit 1
+    fi
+    results_adopted=$((results_adopted+1))
+done
+echo "    ${results_adopted} adopted battle results bodies defined (rest of the results module interpreted)"
 
 # Every overlay loads at the same vram base, so a battle function and a field
 # function can share an address -- and therefore a splat symbol name. src/battle
@@ -1266,6 +1443,46 @@ if [ "${#collisions[@]}" -gt 0 ]; then
     done
 fi
 echo "    ${renamed} overlay name collision(s) resolved by battle_ renaming"
+# A battle host object can also CALL a battle-range function that no battle
+# host object defines.  If another overlay's game TU defines that name, the
+# call would silently bind to the other overlay's body (battle callers of
+# func_800877E0 ran the world-map function).  Rename those references to
+# battle_<name>: pc_port/src/battle_guest_trampolines.c defines them, and a
+# missing one fails the link instead of running foreign code.
+misbinds="$(python3 - "$OUT" "${BATTLE_HOST_OBJS[@]}" -- "${GAME_OBJS[@]}" <<'PY'
+import os, re, subprocess, sys
+args = sys.argv[2:]
+split = args.index("--")
+battle, game = args[:split], args[split + 1:]
+def syms(obj, undefined):
+    flag = ["-u"] if undefined else ["-g", "--defined-only"]
+    out = subprocess.run(["nm", *flag, obj], capture_output=True, text=True).stdout
+    return {line.split()[-1] for line in out.splitlines() if line.strip()}
+battle_defined = set().union(*(syms(o, False) for o in battle)) if battle else set()
+battle_set = set(battle)
+other_defined = set()
+for o in game:
+    base = os.path.basename(o)
+    if o in battle_set or not base.startswith("src_") or base.startswith("src_battle_"):
+        continue
+    other_defined |= syms(o, False)
+def overlay(name):
+    m = re.fullmatch(r"func_([0-9A-F]{8})", name)
+    return bool(m) and 0x8006FAF0 <= int(m.group(1), 16) < 0x800E0000
+refs = set().union(*(syms(o, True) for o in battle)) if battle else set()
+print(" ".join(sorted(n for n in refs if overlay(n) and n in other_defined and n not in battle_defined)))
+PY
+)" || { echo "ERROR: battle cross-overlay reference scan failed."; exit 1; }
+if [ -n "$misbinds" ]; then
+    redefs=()
+    for sym in $misbinds; do
+        redefs+=(--redefine-sym "$sym=battle_$sym")
+        echo "    battle reference to $sym (defined only by another overlay) linked as battle_$sym"
+    done
+    for bo in "${BATTLE_HOST_OBJS[@]}"; do
+        objcopy "${redefs[@]}" "$bo"
+    done
+fi
 
 # Port fallbacks are deliberately strong. If a matching game TU later gains
 # one of these retail definitions, weaken that duplicate in the game object
@@ -1370,10 +1587,12 @@ XG_PLAT_WRAP_SYMS+=" DrawOTag PutDrawEnv PutDispEnv ClearOTag ClearOTagR"   # re
 XG_PLAT_WRAP_SYMS+=" CdRead CdControl CdControlB CdControlF"                # disc
 XG_PLAT_WRAP_SYMS+=" PsyX_Pad_InitPad PsyX_UpdateInput"                     # input (pad buffers)
 XG_PLAT_WRAP_SYMS+=" VSync SetRCnt GetRCnt StartRCnt"                        # timing
+XG_PLAT_WRAP_SYMS+=" PsyX_Sys_DispatchCounter2"                              # sound tick clock
+XG_PLAT_WRAP_SYMS+=" acosf asinf sqrtf"   # pc_port/src/glibc_compat.c: pre-2.43 libm versions
 XG_PLAT_WRAPS=""
 for _sym in $XG_PLAT_WRAP_SYMS; do XG_PLAT_WRAPS+=" -Wl,--wrap=$_sym"; done
 if [ -n "$COV_OBJ" ]; then
-    gcc -c pc_port/tools/coverage_recorder.c -O2 -g -o "$COV_OBJ"
+    gcc -c pc_port/tools/coverage_recorder.c -O2 -g $PREFIX_MAP -o "$COV_OBJ"
 fi
 LINK=(gcc -m64 $NOPIE $TSAN_FLAGS "$PORT_MAIN_OBJECT" "${GAME_OBJS[@]}" ${COV_OBJ:+"$COV_OBJ"} "$PSYLIB" $LIBS $XG_PLAT_WRAPS -o "$OUT/xeno-port")
 
@@ -1386,12 +1605,12 @@ echo "    undefined symbols to stub: $(wc -l < "$OUT/undef.txt")"
 if [ -s "$OUT/undef.txt" ]; then
     ELFS=()
     for e in build/out/slus_006.64.elf build/out/field.elf build/out/member_change_menu.elf \
-             build/out/shop_menu.elf build/out/menu.elf build/out/battle.elf; do
+             build/out/shop_menu.elf build/out/name_entry_menu.elf build/out/menu.elf build/out/battle.elf; do
         [ -f "$e" ] && ELFS+=(--elf "$e")
     done
     MAPS=()
     for m in build/out/slus_006.64.map build/out/field.map build/out/member_change_menu.map \
-             build/out/shop_menu.map build/out/menu.map build/out/battle.map; do
+             build/out/shop_menu.map build/out/name_entry_menu.map build/out/menu.map build/out/battle.map; do
         [ -f "$m" ] && MAPS+=(--map "$m")
     done
     # symbol_addrs files carry the real struct sizes (size:) the ELF omits, so data
@@ -1401,7 +1620,7 @@ if [ -s "$OUT/undef.txt" ]; then
     SYMS=()
     for s in config/symbol_addrs.slus_006.64.txt config/symbol_addrs.field.txt \
              config/symbol_addrs.member_change_menu.txt config/symbol_addrs.shop_menu.txt \
-             config/symbol_addrs.menu.txt config/symbol_addrs.battle.txt \
+             config/symbol_addrs.name_entry_menu.txt config/symbol_addrs.menu.txt config/symbol_addrs.battle.txt \
              config/symbol_addrs.port_buffers.txt; do
         [ -f "$s" ] && SYMS+=(--symbol-addrs "$s")
     done
@@ -1491,13 +1710,60 @@ if removed:
     print(f"    pruned stale function stubs: {', '.join(removed[:8])}"
           f"{'...' if len(removed) > 8 else ''}")
 PY
-    gcc -c "$OUT/stubs.c" -O0 -g $TSAN_FLAGS -o "$OBJ/stubs.o"
+    gcc -c "$OUT/stubs.c" -O0 -g $TSAN_FLAGS $PREFIX_MAP -o "$OBJ/stubs.o"
 fi
 
 echo "==> [5/5] Final link"
 LINK_MAP="$OUT/xeno-port.map"
-gcc -m64 $NOPIE $TSAN_FLAGS "$PORT_MAIN_OBJECT" "${GAME_OBJS[@]}" "$OBJ/stubs.o" ${COV_OBJ:+"$COV_OBJ"} "$PSYLIB" $LIBS \
-    $XG_PLAT_WRAPS -Wl,-Map="$LINK_MAP" -o "$OUT/xeno-port" 2> "$OUT/link2.err"
+# Record the final link inputs and the port-source compile flags so a test
+# can relink this exact build with one extra pc_port/src/hd2d-style object
+# (pc_port/tests/run_hd2d_off_identity_test.sh) instead of rebuilding.
+printf '%s\n' -m64 $NOPIE $TSAN_FLAGS "$PORT_MAIN_OBJECT" "${GAME_OBJS[@]}" "$OBJ/stubs.o" \
+    ${COV_OBJ:+"$COV_OBJ"} "$PSYLIB" $LIBS $XG_PLAT_WRAPS > "$OUT/xeno-port.link-args"
+printf '%s\n' "$GFLAGS -Ipc_port/src $INC" > "$OUT/port-source.cflags"
+final_link() {
+    gcc -m64 $NOPIE $TSAN_FLAGS "$PORT_MAIN_OBJECT" "${GAME_OBJS[@]}" "$OBJ/stubs.o" ${COV_OBJ:+"$COV_OBJ"} "$PSYLIB" $LIBS \
+        $XG_PLAT_WRAPS -Wl,-Map="$LINK_MAP" -o "$OUT/xeno-port" 2> "$OUT/link2.err"
+}
+final_link
+# Size the battle bridge map's data bindings from the binary just linked
+# (gen_battle_bridge_map.py --size-from-host: min(guest extent, host object),
+# plus an entry for each host-defined D_ object inside another binding's
+# extent).  Only battle_mips_runtime.c includes the map; the link's undefined
+# set does not depend on it (dlsym names).  Recompile that TU and relink when
+# the map changes; a second pass over the relinked binary must reproduce it.
+if [ -f "$OUT/xeno-port" ] && [ ! -s "$OUT/link2.err" ]; then
+    for bridge_pass in 1 2 3; do
+        python3 tools/scripts/gen_battle_bridge_map.py \
+            "${BATTLE_BRIDGE_ELFS[@]}" --host-elf "$OUT/xeno-port" \
+            --size-from-host "$OUT/xeno-port" \
+            --symbols config/symbol_addrs.slus_006.64.txt \
+            --symbols linker/undefined_funcs_auto.battle.txt \
+            --symbols linker/undefined_syms_auto.battle.txt \
+            --out "$OUT/battle_bridge_map.inc.sized"
+        if cmp -s "$OUT/battle_bridge_map.inc.sized" "$OUT/battle_bridge_map.inc"; then
+            rm -f "$OUT/battle_bridge_map.inc.sized"
+            break
+        fi
+        if [ "$bridge_pass" = 3 ]; then
+            echo "ERROR: the sized battle bridge map does not converge"
+            exit 1
+        fi
+        mv "$OUT/battle_bridge_map.inc.sized" "$OUT/battle_bridge_map.inc"
+        echo "    battle bridge map sized from the linked binary (pass $bridge_pass); relinking"
+        bridge_err="$OUT/pc_port_src_battle_mips_runtime.c.err"
+        if ! gcc -c pc_port/src/battle_mips_runtime.c $GFLAGS -Ipc_port/src $INC \
+                -o "$OBJ/battle_mips_runtime.c.o" 2>"$bridge_err"; then
+            echo "ERROR: port source compilation failed (sized bridge map)."
+            sed 's/^/       | /' "$bridge_err"
+            exit 1
+        fi
+        final_link
+        if [ ! -f "$OUT/xeno-port" ] || [ -s "$OUT/link2.err" ]; then
+            break
+        fi
+    done
+fi
 if [ -f "$OUT/xeno-port" ] && [ ! -s "$OUT/link2.err" ]; then
     port_text_start=""
     port_text_size=""
@@ -1527,6 +1793,14 @@ if [ -f "$OUT/xeno-port" ] && [ ! -s "$OUT/link2.err" ]; then
     done
     echo "    LINK OK -> $OUT/xeno-port (port-owned addresses verified)"
 
+    # Native field packets use compact 24-bit host links. Optional metadata
+    # must not silently push their static backing buffer, or any game/port
+    # object's data, out of that range.
+    if ! python3 tools/analysis/field_render_address_guard.py "$OUT/xeno-port" --map "$LINK_MAP"; then
+        echo "ERROR: native field packet storage exceeds compact GPU addresses."
+        exit 1
+    fi
+
     # The shipped binary is the artifact that matters. An adopted overlay leaf
     # must be a real definition here and must NOT be one of the generated
     # stubs: runtime_bridge_call() refuses stub-backed overlay targets, so a
@@ -1549,6 +1823,21 @@ if [ -f "$OUT/xeno-port" ] && [ ! -s "$OUT/link2.err" ]; then
     fi
     echo "    overlay host allowlist verified against the linked binary"
 
+    # Same for the results allowlist: dlsym() needs each body exported by the
+    # shipped binary (-rdynamic), and never as a generated stub.
+    for sym in $BATTLE_RESULTS_SYMBOLS; do
+        if ! nm -D --defined-only "$OUT/xeno-port" 2>/dev/null \
+            | awk -v s="$sym" '$3 == s {found=1} END {exit !found}'; then
+            echo "ERROR: adopted results body is not exported by the linked binary: $sym"
+            exit 1
+        fi
+        if rg -q "\"$sym\"" "$OUT/stubs.c" 2>/dev/null; then
+            echo "ERROR: adopted results body is also a generated stub: $sym"
+            exit 1
+        fi
+    done
+    echo "    results host allowlist verified against the linked binary"
+
     # Being in the binary is not enough: an adopted body that reaches a
     # generated stub calls a placeholder where retail ran real code, and it
     # would do so silently. Walk each adopted leaf's call graph through the
@@ -1563,13 +1852,20 @@ if [ -f "$OUT/xeno-port" ] && [ ! -s "$OUT/link2.err" ]; then
     # No Sony Psy-Q code in the port (pc_port/THIRD_PARTY.md): refuse a binary
     # that links a matching-build Psy-Q TU (src/**/psyq/**, via DWARF compile
     # units) or defines func_XXXXXXXX at a Psy-Q address outside the compat
-    # layer. Known offenders pending replacement: pc_port/psyq_guard_allowlist.txt.
+    # layer. Release packaging additionally requires the retail table scan.
     if ! python3 tools/analysis/psyq_port_guard.py -q --no-sources --no-disc \
-        --binary "$OUT/xeno-port"; then
-        echo "ERROR: Psy-Q SDK code linked into the port (tools/analysis/psyq_port_guard.py)."
+        --strict --require-empty-allowlist --require-dwarf --binary "$OUT/xeno-port"; then
+        echo "ERROR: Psy-Q build guard failed (tools/analysis/psyq_port_guard.py)."
         exit 1
     fi
     echo "    Psy-Q exclusion verified against the linked binary"
+    if [ "${XENO_NATIVE_ONLY:-0}" = "1" ]; then
+        if nm -a "$OUT/xeno-port" | awk '$NF == "execute_one" {found=1} END {exit !found}'; then
+            echo "ERROR: native-only binary contains the CPU instruction engine."
+            exit 1
+        fi
+        echo "    native-only target: CPU instruction engine excluded; incomplete paths still refuse"
+    fi
 else
     echo "    LINK incomplete; remaining errors:"
     grep -oE "undefined reference to \`[A-Za-z0-9_]+'|multiple definition of \`[A-Za-z0-9_]+'" "$OUT/link2.err" | sort | uniq -c | sort -rn | head -20

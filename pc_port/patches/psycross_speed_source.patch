@@ -1,0 +1,68 @@
+diff --git a/src/PsyX_main.cpp b/src/PsyX_main.cpp
+--- a/src/PsyX_main.cpp
++++ b/src/PsyX_main.cpp
+@@ -630,24 +630,31 @@
+ static int g_xenoFastForwardToggle = 0;
+ static int g_xenoFastForwardKeyHeld = 0;
+ static int g_xenoFastForwardPadHeld = 0;
++/* _xeno_speed_source: who last asked for fast-forward, for the
++ * "speed: fast-forward on (source: ...)" log line (psycross_host_speed.inl). */
++static const char* g_xenoFastForwardSource = "api";
+ static void PsyX_HostFastForwardUpdate()
+ {
+-	PsyX_SetFastForwardHeld(g_xenoFastForwardToggle || g_xenoFastForwardKeyHeld ||
+-		g_xenoFastForwardPadHeld);
++	PsyX_SetFastForwardHeldFrom(g_xenoFastForwardToggle || g_xenoFastForwardKeyHeld ||
++		g_xenoFastForwardPadHeld, g_xenoFastForwardSource);
+ }
+ /* F6 / L3 (pad), dev menu Options; R3 hold (pad). */
+ extern "C" int PsyX_HostFastForwardEnabled(void) { return g_xenoFastForwardToggle; }
+-extern "C" void PsyX_HostFastForwardToggle(void)
++extern "C" void PsyX_HostFastForwardToggleFrom(const char* source)
+ {
+ 	g_xenoFastForwardToggle ^= 1;
+-	eprintinfo("Fast-forward: %s\n", g_xenoFastForwardToggle ? "on" : "off");
++	g_xenoFastForwardSource = source;
++	eprintinfo("fast-forward toggle %s (source: %s)\n", g_xenoFastForwardToggle ? "on" : "off", source);
+ 	PsyX_HostFastForwardUpdate();
+ }
+-extern "C" void PsyX_HostFastForwardPadHold(int held)
++extern "C" void PsyX_HostFastForwardToggle(void) { PsyX_HostFastForwardToggleFrom("F6"); }
++extern "C" void PsyX_HostFastForwardPadHoldFrom(int held, const char* source)
+ {
+ 	g_xenoFastForwardPadHeld = held ? 1 : 0;
++	g_xenoFastForwardSource = source;
+ 	PsyX_HostFastForwardUpdate();
+ }
++extern "C" void PsyX_HostFastForwardPadHold(int held) { PsyX_HostFastForwardPadHoldFrom(held, "pad"); }
+ 
+ void PsyX_Initialise(char* appName, int width, int height, int fullscreen)
+ {
+@@ -767,7 +774,7 @@
+ 				{
+ 				case SDL_WINDOWEVENT_FOCUS_LOST:
+ 					g_xenoFastForwardToggle = g_xenoFastForwardKeyHeld = g_xenoFastForwardPadHeld = 0;
+-					PsyX_SetFastForwardHeld(0);
++					PsyX_SetFastForwardHeldFrom(0, "focus-lost");
+ 					break;
+ 				case SDL_WINDOWEVENT_RESIZED:
+ 					g_windowWidth = event.window.data1;
+@@ -791,8 +798,8 @@
+ 				 * (cheats.dev_menu); otherwise F7 does nothing. */
+ 				if (nKey == SDL_SCANCODE_F7) {
+ 					if (event.type == SDL_KEYUP && PcPort_DevMenuEnabled())
+-						PsyX_SetSpeedMultiplier((event.key.keysym.mod & KMOD_SHIFT)
+-							? 1 : PsyX_GetSpeedMultiplier() % 5 + 1);
++						PsyX_SetSpeedMultiplierFrom((event.key.keysym.mod & KMOD_SHIFT)
++							? 1 : PsyX_GetSpeedMultiplier() % 5 + 1, "F7");
+ 					break;
+ 				}
+ 
+@@ -1123,6 +1130,7 @@
+ 	if (nKey == SDL_SCANCODE_BACKSPACE)
+ 	{
+ 		g_xenoFastForwardKeyHeld = down ? 1 : 0;
++		g_xenoFastForwardSource = "Backspace";
+ 		PsyX_HostFastForwardUpdate();
+ 	}
+ 

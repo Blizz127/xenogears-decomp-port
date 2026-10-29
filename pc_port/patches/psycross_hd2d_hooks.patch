@@ -1,0 +1,548 @@
+--- a/include/PsyX/PsyX_render.h
++++ b/include/PsyX/PsyX_render.h
+@@ -208,6 +208,7 @@
+ extern void			GR_SetTexture(TextureID texture, TexFormat texFormat);
+ extern void			GR_SetClutSemiMode(int mode);
+ extern void			GR_SetOverrideTextureSize(int width, int height);
++extern void			GR_SetHd2dUvRect(int on, const float* uv); /* _xeno_hd2d_hooks */
+ extern void			GR_SetTextureWindow(const RECT16* tw); /* _xeno_texwindow_decl: see build_port.sh */
+ extern void			GR_SetWireframe(int enable);
+ 
+--- a/src/PsyX_main.cpp
++++ b/src/PsyX_main.cpp
+@@ -955,6 +955,138 @@
+ 	fclose(f);
+ }
+ 
++#include <stdlib.h> /* _xeno_hd2d_hooks */
++
++/* _xeno_hd2d_hooks: HOOK 1 (post-process) for the optional HD-2D lane
++ * (pc_port/src/hd2d).  Called at both present sites just before
++ * PsyX_RecordPresentedFrame(): the default framebuffer holds the finished
++ * frame, and the hook must leave GL state as it found it (and do nothing
++ * while its enhancement is off).  path: 0 = scene (PsyX_EndScene),
++ * 1 = VRAM display (PsyX_PresentDisplayFromVRAM). */
++extern "C" void PcPort_Hd2dPostProcess(int path, int drawable_w, int drawable_h) __attribute__((weak));
++
++/* _xeno_hd2d_hooks: XENO_PRESENT_HASH_LOG=file logs the CRC-32 of every
++ * presented frame (glReadPixels of the default framebuffer at the drawable
++ * size, RGBA8, after HOOK 1, before recording and the toolbar), one line per
++ * present: "<index> <S|V> <w>x<h> <crc32> <input-key> <frame>", frame being
++ * the XENO_PAD_TEST_INPUT schedule clock (-1 without a schedule).
++ * input-key is a CRC-32 of what the present was rendered FROM, so two runs
++ * whose wall-clock timing differs can still be compared frame for frame:
++ *   S: every draw batch flushed since the last present (vertex buffer,
++ *      split state and the VRAM-mirror texture pages and CLUTs it samples,
++ *      see PsyX_GPU.cpp DrawAllSplits), plus the display environment;
++ *   V: the VRAM mirror rows of the display area and the display state.
++ * XENO_PRESENT_HASH_LIMIT=N exits the process after N logged presents;
++ * XENO_PRESENT_HASH_UNTIL_FRAME=F exits at the first present at schedule
++ * frame >= F (that present is not logged).
++ * Used by pc_port/tests/run_hd2d_off_identity_test.sh; no cost when unset
++ * beyond one test per present and per draw flush. */
++static int g_xenoPresentHashInit = 0;
++static FILE* g_xenoPresentHashLog = NULL;
++static int g_xenoPresentHashCount = 0;
++static int g_xenoPresentHashLimit = 0;
++static unsigned char* g_xenoPresentHashPixels = NULL;
++static size_t g_xenoPresentHashBytes = 0;
++static unsigned int g_xenoCrcTable[256];
++static unsigned int g_xenoPresentInputKey = 0xFFFFFFFFu;
++static int g_xenoPresentHashUntilFrame = 0;
++extern "C" int PcPort_PadTestInputFrame(void) __attribute__((weak));
++
++extern "C" void PcPort_LogFlush(void) __attribute__((weak)); /* port stderr mirror (port_log.c) */
++static void PsyX_PresentHashExit(void)
++{
++	fclose(g_xenoPresentHashLog);
++	g_xenoPresentHashLog = NULL;
++	fprintf(stderr, "[present-hash] %d presents logged; exiting\n", g_xenoPresentHashCount);
++	fflush(stdout);
++	fflush(stderr);
++	if (PcPort_LogFlush) PcPort_LogFlush(); /* _Exit skips atexit: drain the mirror first */
++	_Exit(0);
++}
++
++static unsigned int PsyX_Crc32Update(unsigned int crc, const void* data, size_t bytes)
++{
++	const unsigned char* p = (const unsigned char*)data;
++	while (bytes--)
++		crc = g_xenoCrcTable[(crc ^ *p++) & 0xFF] ^ (crc >> 8);
++	return crc;
++}
++
++extern "C" int PsyX_PresentHashOn(void)
++{
++	if (!g_xenoPresentHashInit) {
++		const char* file = getenv("XENO_PRESENT_HASH_LOG");
++		const char* limit = getenv("XENO_PRESENT_HASH_LIMIT");
++		g_xenoPresentHashInit = 1;
++		if (!file || !*file)
++			return 0;
++		g_xenoPresentHashLog = fopen(file, "w");
++		if (!g_xenoPresentHashLog)
++			return 0;
++		g_xenoPresentHashLimit = limit ? atoi(limit) : 0;
++		g_xenoPresentHashUntilFrame = getenv("XENO_PRESENT_HASH_UNTIL_FRAME") ?
++			atoi(getenv("XENO_PRESENT_HASH_UNTIL_FRAME")) : 0;
++		for (unsigned int n = 0; n < 256; n++) {
++			unsigned int c = n;
++			for (int k = 0; k < 8; k++)
++				c = (c & 1) ? 0xEDB88320u ^ (c >> 1) : c >> 1;
++			g_xenoCrcTable[n] = c;
++		}
++	}
++	return g_xenoPresentHashLog != NULL;
++}
++
++/* Fold renderer input into the key of the next present (PsyX_GPU.cpp). */
++extern "C" void PsyX_PresentHashInput(const void* data, size_t bytes)
++{
++	g_xenoPresentInputKey = PsyX_Crc32Update(g_xenoPresentInputKey, data, bytes);
++}
++
++static void PsyX_PresentHashLog(int path)
++{
++	int w = 0, h = 0;
++	size_t bytes;
++	unsigned int crc, key;
++	int frame;
++	if (!PsyX_PresentHashOn())
++		return;
++	frame = PcPort_PadTestInputFrame ? PcPort_PadTestInputFrame() : -1;
++	if (g_xenoPresentHashUntilFrame > 0 && frame >= g_xenoPresentHashUntilFrame)
++		PsyX_PresentHashExit();
++	{
++		const int disp[8] = { currentDispEnv.disp.x, currentDispEnv.disp.y, currentDispEnv.disp.w,
++			currentDispEnv.disp.h, currentDispEnv.isrgb24, g_GPUDisabledState, path,
++			activeDispEnv.disp.x | (activeDispEnv.disp.y << 16) };
++		int y0 = currentDispEnv.disp.y, y1 = currentDispEnv.disp.y + currentDispEnv.disp.h;
++		if (y0 < 0) y0 = 0;
++		if (y1 > VRAM_HEIGHT) y1 = VRAM_HEIGHT;
++		key = path ? 0xFFFFFFFFu : g_xenoPresentInputKey;
++		if (path && y1 > y0)
++			key = PsyX_Crc32Update(key, &vram[y0 * VRAM_WIDTH], (size_t)(y1 - y0) * VRAM_WIDTH * sizeof(vram[0]));
++		key = PsyX_Crc32Update(key, disp, sizeof(disp)) ^ 0xFFFFFFFFu;
++		g_xenoPresentInputKey = 0xFFFFFFFFu;
++	}
++	SDL_GL_GetDrawableSize(g_window, &w, &h);
++	if (w <= 0 || h <= 0)
++		return;
++	bytes = (size_t)w * (size_t)h * 4;
++	if (bytes > g_xenoPresentHashBytes) {
++		free(g_xenoPresentHashPixels);
++		g_xenoPresentHashPixels = (unsigned char*)malloc(bytes);
++		g_xenoPresentHashBytes = g_xenoPresentHashPixels ? bytes : 0;
++		if (!g_xenoPresentHashPixels)
++			return;
++	}
++	glPixelStorei(GL_PACK_ALIGNMENT, 4);
++	glReadPixels(0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, g_xenoPresentHashPixels);
++	crc = PsyX_Crc32Update(0xFFFFFFFFu, g_xenoPresentHashPixels, bytes) ^ 0xFFFFFFFFu;
++	fprintf(g_xenoPresentHashLog, "%d %c %dx%d %08x %08x %d\n", g_xenoPresentHashCount,
++		path ? 'V' : 'S', w, h, crc, key, frame);
++	g_xenoPresentHashCount++;
++	if (g_xenoPresentHashLimit > 0 && g_xenoPresentHashCount >= g_xenoPresentHashLimit)
++		PsyX_PresentHashExit();
++}
++
+ /* _xeno_display_present */
+ int PsyX_IsSceneOpen(void)
+ {
+@@ -975,6 +1107,8 @@
+ 	GR_PresentVRAMDisplay(currentDispEnv.disp.x, currentDispEnv.disp.y,
+ 		currentDispEnv.disp.w, currentDispEnv.disp.h,
+ 		currentDispEnv.isrgb24, !g_GPUDisabledState);
++	if (PcPort_Hd2dPostProcess) { int dw, dh; SDL_GL_GetDrawableSize(g_window, &dw, &dh); PcPort_Hd2dPostProcess(1, dw, dh); } /* _xeno_hd2d_hooks */
++	PsyX_PresentHashLog(1); /* _xeno_hd2d_hooks */
+ 	PsyX_RecordPresentedFrame();
+ 	PsyX_HostToolbarDraw();
+ 	GR_SwapWindow();
+@@ -1021,6 +1155,8 @@
+ 	}
+ 	g_xenoLastPresentFromVRAM = 0;
+ 
++	if (PcPort_Hd2dPostProcess) { int dw, dh; SDL_GL_GetDrawableSize(g_window, &dw, &dh); PcPort_Hd2dPostProcess(0, dw, dh); } /* _xeno_hd2d_hooks */
++	PsyX_PresentHashLog(0); /* _xeno_hd2d_hooks */
+ 	PsyX_RecordPresentedFrame();
+ 	PsyX_HostToolbarDraw();
+ 	GR_SwapWindow();
+--- a/src/gpu/PsyX_GPU.cpp
++++ b/src/gpu/PsyX_GPU.cpp
+@@ -52,6 +52,10 @@
+ 
+ 	int				drawPrimMode;
+ 
++	/* _xeno_hd2d_hooks: HOOK 3 split carries the override texture's UV rect */
++	int				hd2dUvOn;
++	float			hd2dUv[4];
++
+ 	u_short			startVertex;
+ 	u_short			numVerts;
+ 
+@@ -712,6 +716,102 @@
+ 
+ //------------------------------------------------------------------------------------------------------------------------
+ 
++/* _xeno_hd2d_hooks: HOOK 3 (area textures) for the optional HD-2D lane
++ * (pc_port/src/hd2d).  Every textured primitive (FT3/FT4/GT3/GT4/SPRT/
++ * SPRT_8/SPRT_16) offers its tpage, CLUT and UV bounds to the port before its
++ * vertices are emitted.  When the hook returns 1 the primitive is drawn with
++ * *out_gl_texture (an RGBA GL texture) at its own screen position and OT
++ * position; out_uv = {s0, t0, s1, t1} are the GL texcoords at the corner
++ * where the retail UV is (u0, v0) and at the one where it is (u1, v1), and
++ * the retail UVs in between are mapped linearly.  Texels with alpha < 0.5
++ * are discarded (the retail texel-0 cutout); the primitive keeps its retail
++ * colour modulation (128 = neutral) and blend mode (ABR 0 is 50/50).
++ *
++ * Cost: PsyCross samples VRAM with one texture and an in-shader CLUT lookup,
++ * so an overridden primitive gets its own draw split (a batch break, a
++ * texture bind and one uniform upload); consecutive overridden primitives
++ * with the same texture and UV rect share a split.  With the hook absent
++ * the retail path adds one test of a link-time-constant weak symbol per
++ * textured primitive, nothing else. */
++extern "C" int PsyX_PresentHashOn(void); /* PsyX_main.cpp */
++extern "C" void PsyX_PresentHashInput(const void* data, size_t bytes);
++extern unsigned short vram[];
++extern TextureID g_vramTexturesDouble[2];
++
++extern "C" int PcPort_Hd2dTextureOverride(int tpage, int clut, int u0, int v0, int u1, int v1,
++	unsigned int* out_gl_texture, float out_uv[4]) __attribute__((weak));
++
++static int g_hd2dPendingOn = 0;
++static float g_hd2dPendingUv[4];
++
++static bool Hd2dSplitMatches(const GPUDrawSplit& split)
++{
++	if (split.hd2dUvOn != g_hd2dPendingOn)
++		return false;
++	return !g_hd2dPendingOn || memcmp(split.hd2dUv, g_hd2dPendingUv, sizeof(g_hd2dPendingUv)) == 0;
++}
++
++static void AddSplit(bool semiTrans, bool textured, ClutSemiMode clutSemiMode);
++
++/* Ask the hook; on 1 open the override split for this primitive. */
++static bool Hd2dBeginPrim(int tpage, int clut, int u0, int v0, int u1, int v1, bool semiTrans)
++{
++	unsigned int texture = 0;
++	float uv[4] = { 0.0f, 0.0f, 1.0f, 1.0f };
++	if (!PcPort_Hd2dTextureOverride(tpage, clut, u0, v0, u1, v1, &texture, uv) || texture == 0)
++		return false;
++	memcpy(g_hd2dPendingUv, uv, sizeof(uv));
++	g_hd2dPendingOn = 1;
++	overrideTexture = texture;
++	overrideTextureWidth = 256;
++	overrideTextureHeight = 256;
++	AddSplit(semiTrans, true, CLUT_SEMI_ALL);
++	overrideTexture = 0;
++	g_hd2dPendingOn = 0;
++	return true;
++}
++
++static inline bool Hd2dPrim(int tpage, int clut, unsigned char* const* uv, int n, bool semiTrans)
++{
++	if (!PcPort_Hd2dTextureOverride || overrideTexture != 0)
++		return false;
++	int u0 = 255, v0 = 255, u1 = 0, v1 = 0;
++	for (int i = 0; i < n; i++) {
++		if (uv[i][0] < u0) u0 = uv[i][0];
++		if (uv[i][0] > u1) u1 = uv[i][0];
++		if (uv[i][1] < v0) v0 = uv[i][1];
++		if (uv[i][1] > v1) v1 = uv[i][1];
++	}
++	return Hd2dBeginPrim(tpage, clut, u0, v0, u1, v1, semiTrans);
++}
++
++static inline bool Hd2dRect(int tpage, int clut, const unsigned char* uv, int w, int h, bool semiTrans)
++{
++	if (!PcPort_Hd2dTextureOverride || overrideTexture != 0)
++		return false;
++	return Hd2dBeginPrim(tpage, clut, uv[0], uv[1], uv[0] + (w > 0 ? w - 1 : 0), uv[1] + (h > 0 ? h - 1 : 0), semiTrans);
++}
++
++/* Re-express the emitted retail texcoords as 0..255 across the primitive's
++ * UV bounds; the RGBA shader maps them onto the split's UV rect. */
++static void Hd2dRetarget(GrVertex* vertex, int n)
++{
++	int u0 = 255, v0 = 255, u1 = 0, v1 = 0;
++	for (int i = 0; i < n; i++) {
++		if (vertex[i].u < u0) u0 = vertex[i].u;
++		if (vertex[i].u > u1) u1 = vertex[i].u;
++		if (vertex[i].v < v0) v0 = vertex[i].v;
++		if (vertex[i].v > v1) v1 = vertex[i].v;
++	}
++	for (int i = 0; i < n; i++) {
++		vertex[i].u = u1 > u0 ? (u_char)(((vertex[i].u - u0) * 255 + (u1 - u0) / 2) / (u1 - u0)) : 0;
++		vertex[i].v = v1 > v0 ? (u_char)(((vertex[i].v - v0) * 255 + (v1 - v0) / 2) / (v1 - v0)) : 0;
++		vertex[i].page = vertex[i].clut = 0;
++		vertex[i].tcx = vertex[i].tcy = 0;
++		vertex[i]._p0 = vertex[i]._p1 = 0;
++	}
++}
++
+ static void AddSplit(bool semiTrans, bool textured, ClutSemiMode clutSemiMode = CLUT_SEMI_ALL)
+ {
+ 	int tpage = activeDrawEnv.tpage;
+@@ -750,7 +850,7 @@
+ 		/* _xeno_texwindow_split: an E2 texture-window change must break the
+ 		 * batch (tw is repurposed as the override size when overrideTexture
+ 		 * is active, so the comparison is skipped there). See build_port.sh. */
+-		(overrideTexture != 0 || (
++		(overrideTexture != 0 ? Hd2dSplitMatches(curSplit) : ( /* _xeno_hd2d_hooks */
+ 			curSplit.drawenv.tw.x == activeDrawEnv.tw.x &&
+ 			curSplit.drawenv.tw.y == activeDrawEnv.tw.y &&
+ 			curSplit.drawenv.tw.w == activeDrawEnv.tw.w &&
+@@ -777,6 +877,9 @@
+ 	split.drawenv = activeDrawEnv;
+ 	split.dispenv = activeDispEnv;
+ 	split.debugText = currentSplitDebugText;
++	split.hd2dUvOn = g_hd2dPendingOn; /* _xeno_hd2d_hooks */
++	if (g_hd2dPendingOn)
++		memcpy(split.hd2dUv, g_hd2dPendingUv, sizeof(split.hd2dUv));
+ 
+ 	if (textured && overrideTexture != 0)
+ 	{
+@@ -871,9 +974,10 @@
+ 	GR_SetTexture(split.textureId, split.texFormat);
+ 	GR_SetClutSemiMode(split.clutSemiMode);
+ 
+-	if (split.texFormat == TF_32_BIT_RGBA)
++	if (split.texFormat == TF_32_BIT_RGBA) {
+ 		GR_SetOverrideTextureSize(split.drawenv.tw.w, split.drawenv.tw.h);
+-	else
++		GR_SetHd2dUvRect(split.hd2dUvOn, split.hd2dUv); /* _xeno_hd2d_hooks */
++	} else
+ 		GR_SetTextureWindow(&split.drawenv.tw); /* _xeno_texwindow_draw: see build_port.sh */
+ 
+ 	const bool drawOnScreen = true; /* XENO_PC_PORT: dfe=0 is normal back-buffer draw; see build_port.sh */
+@@ -953,6 +1057,50 @@
+ 	if (g_vertexIndex != 0)
+ 		g_xeno_vram_snapshot_dirty = 1;
+ 
++	/* _xeno_hd2d_hooks: renderer input for the XENO_PRESENT_HASH_LOG key:
++	 * the vertex buffer, every split's state, and the VRAM mirror texels the
++	 * textured splits can sample (each referenced texture page and CLUT row;
++	 * VRAM the frame does not sample is left out of the key). */
++	if (g_vertexIndex != 0 && PsyX_PresentHashOn())
++	{
++		int pages[64], npages = 0;
++		PsyX_PresentHashInput(g_vertexBuffer, sizeof(GrVertex) * g_vertexIndex);
++		for (int i = 1; i <= g_splitIndex; i++)
++		{
++			const GPUDrawSplit& sp = g_splits[i];
++			/* the VRAM texture is double-buffered: key its role, not its id */
++			const int tex = (sp.textureId == g_vramTexturesDouble[0] || sp.textureId == g_vramTexturesDouble[1]) ? -2 :
++				sp.textureId == g_whiteTexture ? -3 : (int)sp.textureId;
++			for (int v = sp.startVertex; tex == -2 && v < sp.startVertex + sp.numVerts; v++)
++			{
++				const int pc = ((int)g_vertexBuffer[v].page & 0xFFFF) | ((int)g_vertexBuffer[v].clut << 16);
++				int k = 0;
++				while (k < npages && pages[k] != pc)
++					k++;
++				if (k == npages && npages < 64)
++				{
++					const int page = pc & 0xFFFF, clut = (pc >> 16) & 0xFFFF, fmt = (page >> 7) & 3;
++					const int x0 = (page & 0xF) * 64, y0 = ((page >> 4) & 1) * 256;
++					const int w = fmt == 0 ? 64 : fmt == 1 ? 128 : 256, n = fmt == 0 ? 16 : fmt == 1 ? 256 : 0;
++					pages[npages++] = pc;
++					PsyX_PresentHashInput(&pc, sizeof(pc));
++					for (int y = y0; y < y0 + 256 && y < VRAM_HEIGHT; y++)
++						PsyX_PresentHashInput(&vram[y * VRAM_WIDTH + x0], sizeof(unsigned short) * (x0 + w <= VRAM_WIDTH ? w : VRAM_WIDTH - x0));
++					if (n)
++						PsyX_PresentHashInput(&vram[((clut >> 6) & 511) * VRAM_WIDTH + (clut & 0x3F) * 16],
++							sizeof(unsigned short) * ((clut & 0x3F) * 16 + n <= VRAM_WIDTH ? n : VRAM_WIDTH - (clut & 0x3F) * 16));
++				}
++			}
++			const int desc[16] = { (int)sp.blendMode, (int)sp.clutSemiMode, (int)sp.texFormat, tex,
++				sp.drawPrimMode, sp.startVertex, sp.numVerts, sp.drawenv.clip.x, sp.drawenv.clip.y,
++				sp.drawenv.clip.w, sp.drawenv.clip.h, sp.drawenv.tw.x | (sp.drawenv.tw.y << 16),
++				sp.drawenv.tw.w | (sp.drawenv.tw.h << 16), sp.drawenv.dfe, sp.hd2dUvOn, 0 };
++			PsyX_PresentHashInput(desc, sizeof(desc));
++			if (sp.hd2dUvOn)
++				PsyX_PresentHashInput(sp.hd2dUv, sizeof(sp.hd2dUv));
++		}
++	}
++
+ 	ClearSplits();
+ }
+ 
+@@ -1282,7 +1430,9 @@
+ 		// It is an official hack from SCE devs to not use DR_TPAGE and instead use null polygon
+ 		if (!IsNull(poly))
+ 		{
+-			const bool splitClutSemi = BeginTexturedSplit(semiTrans);
++			unsigned char* const hd2dUv[3] = { &poly->u0, &poly->u1, &poly->u2 }; /* _xeno_hd2d_hooks */
++			const bool hd2d = Hd2dPrim(poly->tpage, poly->clut, hd2dUv, 3, semiTrans);
++			const bool splitClutSemi = hd2d ? false : BeginTexturedSplit(semiTrans);
+ 
+ 			GrVertex* firstVertex = &g_vertexBuffer[g_vertexIndex];
+ 			MakeVertexTriangle(firstVertex, &poly->x0, &poly->x1, &poly->x2, gteIndex);
+@@ -1290,6 +1440,8 @@
+ 			MakeColourTriangle(firstVertex, shadeTexOn, &poly->r0, &poly->r0, &poly->r0);
+ 			if (!shadeTexOn)
+ 				firstVertex[0]._p1 = firstVertex[1]._p1 = firstVertex[2]._p1 = 0x28; /* _xeno_raw_identity_polygon */
++			if (hd2d)
++				Hd2dRetarget(firstVertex, 3);
+ 
+ 			EndTexturedSplit(splitClutSemi, 3);
+ 
+@@ -1323,7 +1475,9 @@
+ 		POLY_FT4* poly = (POLY_FT4*)polyTag;
+ 		activeDrawEnv.tpage = poly->tpage;
+ 
+-		const bool splitClutSemi = BeginTexturedSplit(semiTrans);
++		unsigned char* const hd2dUv[4] = { &poly->u0, &poly->u1, &poly->u2, &poly->u3 }; /* _xeno_hd2d_hooks */
++		const bool hd2d = Hd2dPrim(poly->tpage, poly->clut, hd2dUv, 4, semiTrans);
++		const bool splitClutSemi = hd2d ? false : BeginTexturedSplit(semiTrans);
+ 
+ 		GrVertex* firstVertex = &g_vertexBuffer[g_vertexIndex];
+ 		MakeVertexQuad(firstVertex, &poly->x0, &poly->x1, &poly->x3, &poly->x2, gteIndex);
+@@ -1331,6 +1485,8 @@
+ 		MakeColourQuad(firstVertex, shadeTexOn, &poly->r0, &poly->r0, &poly->r0, &poly->r0);
+ 		if (!shadeTexOn)
+ 			firstVertex[0]._p1 = firstVertex[1]._p1 = firstVertex[2]._p1 = firstVertex[3]._p1 = 0x28; /* _xeno_raw_identity_polygon */
++		if (hd2d)
++			Hd2dRetarget(firstVertex, 4);
+ 
+ 		TriangulateQuad();
+ 
+@@ -1382,12 +1538,16 @@
+ 		POLY_GT3* poly = (POLY_GT3*)polyTag;
+ 		activeDrawEnv.tpage = poly->tpage;
+ 
+-		const bool splitClutSemi = BeginTexturedSplit(semiTrans);
++		unsigned char* const hd2dUv[3] = { &poly->u0, &poly->u1, &poly->u2 }; /* _xeno_hd2d_hooks */
++		const bool hd2d = Hd2dPrim(poly->tpage, poly->clut, hd2dUv, 3, semiTrans);
++		const bool splitClutSemi = hd2d ? false : BeginTexturedSplit(semiTrans);
+ 
+ 		GrVertex* firstVertex = &g_vertexBuffer[g_vertexIndex];
+ 		MakeVertexTriangle(firstVertex, &poly->x0, &poly->x1, &poly->x2, gteIndex);
+ 		MakeTexcoordTriangle(firstVertex, &poly->u0, &poly->u1, &poly->u2, poly->tpage, poly->clut, GET_TPAGE_DITHER(activeDrawEnv.tpage) || activeDrawEnv.dtd);
+ 		MakeColourTriangle(firstVertex, shadeTexOn, &poly->r0, &poly->r1, &poly->r2);
++		if (hd2d)
++			Hd2dRetarget(firstVertex, 3);
+ 
+ 		EndTexturedSplit(splitClutSemi, 3);
+ 
+@@ -1421,12 +1581,16 @@
+ 		POLY_GT4* poly = (POLY_GT4*)polyTag;
+ 		activeDrawEnv.tpage = poly->tpage;
+ 
+-		const bool splitClutSemi = BeginTexturedSplit(semiTrans);
++		unsigned char* const hd2dUv[4] = { &poly->u0, &poly->u1, &poly->u2, &poly->u3 }; /* _xeno_hd2d_hooks */
++		const bool hd2d = Hd2dPrim(poly->tpage, poly->clut, hd2dUv, 4, semiTrans);
++		const bool splitClutSemi = hd2d ? false : BeginTexturedSplit(semiTrans);
+ 
+ 		GrVertex* firstVertex = &g_vertexBuffer[g_vertexIndex];
+ 		MakeVertexQuad(firstVertex, &poly->x0, &poly->x1, &poly->x3, &poly->x2, gteIndex);
+ 		MakeTexcoordQuad(firstVertex, &poly->u0, &poly->u1, &poly->u3, &poly->u2, poly->tpage, poly->clut, GET_TPAGE_DITHER(activeDrawEnv.tpage) || activeDrawEnv.dtd);
+ 		MakeColourQuad(firstVertex, shadeTexOn, &poly->r0, &poly->r1, &poly->r3, &poly->r2);
++		if (hd2d)
++			Hd2dRetarget(firstVertex, 4);
+ 
+ 		TriangulateQuad();
+ 
+@@ -1479,12 +1643,15 @@
+ 	{
+ 		SPRT* poly = (SPRT*)polyTag;
+ 
+-		const bool splitClutSemi = BeginTexturedSplit(semiTrans);
++		const bool hd2d = Hd2dRect(activeDrawEnv.tpage, poly->clut, &poly->u0, poly->w, poly->h, semiTrans); /* _xeno_hd2d_hooks */
++		const bool splitClutSemi = hd2d ? false : BeginTexturedSplit(semiTrans);
+ 
+ 		GrVertex* firstVertex = &g_vertexBuffer[g_vertexIndex];
+ 		MakeVertexRect(firstVertex, &poly->x0, poly->w, poly->h, gteIndex);
+ 		MakeTexcoordRect(firstVertex, &poly->u0, activeDrawEnv.tpage, poly->clut, poly->w, poly->h);
+ 		MakeColourQuad(firstVertex, shadeTexOn, &poly->r0, &poly->r0, &poly->r0, &poly->r0);
++		if (hd2d)
++			Hd2dRetarget(firstVertex, 4);
+ 
+ 		TriangulateQuad();
+ 
+@@ -1539,12 +1706,15 @@
+ 	{
+ 		SPRT_8* poly = (SPRT_8*)polyTag;
+ 
+-		const bool splitClutSemi = BeginTexturedSplit(semiTrans);
++		const bool hd2d = Hd2dRect(activeDrawEnv.tpage, poly->clut, &poly->u0, 8, 8, semiTrans); /* _xeno_hd2d_hooks */
++		const bool splitClutSemi = hd2d ? false : BeginTexturedSplit(semiTrans);
+ 
+ 		GrVertex* firstVertex = &g_vertexBuffer[g_vertexIndex];
+ 		MakeVertexRect(firstVertex, &poly->x0, 8, 8, gteIndex);
+ 		MakeTexcoordRect(firstVertex, &poly->u0, activeDrawEnv.tpage, poly->clut, 8, 8);
+ 		MakeColourQuad(firstVertex, shadeTexOn, &poly->r0, &poly->r0, &poly->r0, &poly->r0);
++		if (hd2d)
++			Hd2dRetarget(firstVertex, 4);
+ 
+ 		TriangulateQuad();
+ 
+@@ -1579,12 +1749,15 @@
+ 	{
+ 		SPRT_16* poly = (SPRT_16*)polyTag;
+ 
+-		const bool splitClutSemi = BeginTexturedSplit(semiTrans);
++		const bool hd2d = Hd2dRect(activeDrawEnv.tpage, poly->clut, &poly->u0, 16, 16, semiTrans); /* _xeno_hd2d_hooks */
++		const bool splitClutSemi = hd2d ? false : BeginTexturedSplit(semiTrans);
+ 
+ 		GrVertex* firstVertex = &g_vertexBuffer[g_vertexIndex];
+ 		MakeVertexRect(firstVertex, &poly->x0, 16, 16, gteIndex);
+ 		MakeTexcoordRect(firstVertex, &poly->u0, activeDrawEnv.tpage, poly->clut, 16, 16);
+ 		MakeColourQuad(firstVertex, shadeTexOn, &poly->r0, &poly->r0, &poly->r0, &poly->r0);
++		if (hd2d)
++			Hd2dRetarget(firstVertex, 4);
+ 
+ 		TriangulateQuad();
+ 
+--- a/src/render/PsyX_render.cpp
++++ b/src/render/PsyX_render.cpp
+@@ -757,9 +757,13 @@
+ const char* gpu_shader_32_rgba = 
+ 	"	uniform sampler2D s_texture;\n"\
+ 	"	uniform vec2 texelSize;\n"\
++	"	uniform vec4 u_hd2dUvRect; // _xeno_hd2d_hooks\n"\
++	"	uniform int u_hd2dUvOn;\n"\
+ 	"	void main() {\n"\
+ 	"		vec2 tc = v_texcoord.xy * texelSize + texelSize * 0.5;\n"\
++	"		if (u_hd2dUvOn > 0) tc = mix(u_hd2dUvRect.xy, u_hd2dUvRect.zw, v_texcoord.xy / 255.0);\n"\
+ 	"		vec4 color = texture2D(s_texture, tc);\n"\
++	"		if (u_hd2dUvOn > 0) { if (color.a < 0.5) { discard; } color.a = 0.5; }\n"\
+ 	"		fragColor = dither(color * v_color);\n"\
+ 	"	}\n";
+ 
+@@ -1520,6 +1524,36 @@
+ #endif
+ }
+ 
++/* _xeno_hd2d_hooks: UV rect of a HOOK 3 override split (RGBA shader). The
++ * uniform is uploaded only when it changes, and only on RGBA splits, which
++ * retail content never produces. */
++void GR_SetHd2dUvRect(int on, const float* uv)
++{
++#if USE_OPENGL
++	static GLuint program = 0;
++	static GLint onLoc = -1, rectLoc = -1;
++	static int lastOn = 0;
++	static float last[4];
++	if (program != g_gpu_shader_32_rgba.shader) {
++		program = g_gpu_shader_32_rgba.shader;
++		onLoc = glGetUniformLocation(program, "u_hd2dUvOn");
++		rectLoc = glGetUniformLocation(program, "u_hd2dUvRect");
++		lastOn = -1;
++	}
++	if (!on && lastOn == 0)
++		return;
++	if (on && lastOn == 1 && memcmp(last, uv, sizeof(last)) == 0)
++		return;
++	if (onLoc != -1)
++		glUniform1i(onLoc, on ? 1 : 0);
++	if (on && rectLoc != -1)
++		glUniform4f(rectLoc, uv[0], uv[1], uv[2], uv[3]);
++	lastOn = on ? 1 : 0;
++	if (on)
++		memcpy(last, uv, sizeof(last));
++#endif
++}
++
+ void GR_SetOverrideTextureSize(int width, int height)
+ {
+ 	if(u_texelSizeLoc == -1)

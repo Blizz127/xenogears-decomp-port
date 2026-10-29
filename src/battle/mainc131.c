@@ -2,14 +2,69 @@
 
 
 #ifndef XENO_PC_PORT
-INCLUDE_ASM("asm/battle/nonmatchings/mainc131", func_800BF85C);
-INCLUDE_ASM("asm/battle/nonmatchings/mainc131", func_800BF8CC);
-#endif
-#ifndef XENO_PC_PORT
 extern s16 D_800D3678;
 #endif
 #ifndef XENO_PC_PORT
 extern u32 D_800D363C[];
+#endif
+#ifndef XENO_PC_PORT
+extern u8 D_800C3EB0[];
+extern u32 D_800C3E1C[];
+extern u16 D_800D3634[];
+
+/* Make slot `from`'s record current (D_800C3E1C), point its +0x74 link at
+ * slot `to`'s record and restart the D_800D363C chain there.  The slot table
+ * sits at D_800C3EB0 + 0x8C8C; the base is a local so the 0x8C8C stays out
+ * of the symbol (ori + addu, as retail).  The globals are arrays so their
+ * stores split into lui + %lo.  The link is read before the D_800D3634
+ * store and the table entry is read again for the chain head (found by a
+ * permuter run). */
+void func_800BF85C(u32 from, u32 to) {
+    u8* base = D_800C3EB0;
+    u8* rec = *(u8**)(base + from * 4 + 0x8C8C);
+    u32 link;
+
+    if (rec != NULL) {
+        D_800C3E1C[0] = (u32)rec;
+        link = *(u32*)(base + to * 4 + 0x8C8C);
+        D_800D3634[0] = 1 << to;
+        *(u32*)(rec + 0x74) = link;
+        D_800D363C[0] = *(u32*)(base + to * 4 + 0x8C8C);
+        D_800D363C[1] = 0;
+    }
+}
+#endif
+#ifndef XENO_PC_PORT
+/* The count is read through an array view so gcc splits each load into
+ * lui + lh %lo: dbr then cannot treat the reload after the loop as
+ * redundant (a single-insn load would let it retarget the count test past
+ * the reload), and it can steal the lui into the loop's exit branch. */
+extern s16 D_800D3678__a[] asm("D_800D3678");
+
+/* Advance rec->+0x74 to the entry after it in the D_800D363C chain
+ * (D_800D3678 entries); wrap to the first entry when it is the last one or
+ * is not in the chain. */
+void func_800BF8CC(u8* rec) {
+    s32 i = 0;
+    s16 h = D_800D3678__a[0];
+
+    if (h != 0) {
+        u32 key = *(u32*)(rec + 0x74);
+        s32 n = h;
+        u32* p = D_800D363C;
+
+        for (i = 0; i != n; i++, p++) {
+            if (*p == key) {
+                break;
+            }
+        }
+    }
+    if (i >= D_800D3678__a[0]) {
+        *(u32*)(rec + 0x74) = D_800D363C[0];
+    } else {
+        *(u32*)(rec + 0x74) = D_800D363C[i + 1];
+    }
+}
 #endif
 /* func_800BF954.s: index of a0 in the D_800D363C table (D_800D3678 entries);
  * returns the count when absent or when the table is empty. */

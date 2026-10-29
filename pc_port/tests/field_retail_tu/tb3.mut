@@ -1,0 +1,3 @@
+[
+ ("func_8009C5A8", "    g_FieldScriptVMCurActor->dialogFlags = dialogFlags;\n    if (SCRIPT_READ_U8_REL(3) != 0) {", "    if (SCRIPT_READ_U8_REL(3) != 0) {"),
+]

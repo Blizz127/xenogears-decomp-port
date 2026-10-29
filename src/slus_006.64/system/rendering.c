@@ -116,6 +116,43 @@ static s16 ScaleSpriteFrameByte(u8 value, s16 scale) {
 }
 #endif
 
+#ifdef XENO_PC_PORT
+static s32 ScaleSpriteFrameByte32(s32 value, s32 scale) {
+    s32 result = (s32)((u32)value * (u32)scale);
+
+    if (result < 0) {
+        result += 0xFFF;
+    }
+
+    return result >> 12;
+}
+
+/* Retail RotMatrix (8003F738) with its exact Q12 stage rounding; the host
+ * trig-identity RotMatrix differs. Macro rcos is sine, rsin is cosine (see
+ * AnimationC1RotMatrix in animation_scripts.c). */
+static void Retail8003F738RotMatrix(const SVECTOR* angles, MATRIX* matrix) {
+    s32 sx = rcos((u16)angles->vx & 0xFFF);
+    s32 cx = rsin((u16)angles->vx & 0xFFF);
+    s32 sy = rcos((u16)angles->vy & 0xFFF);
+    s32 cy = rsin((u16)angles->vy & 0xFFF);
+    s32 sz = rcos((u16)angles->vz & 0xFFF);
+    s32 cz = rsin((u16)angles->vz & 0xFFF);
+    s32 nsy = -sy;
+    s32 t0 = (cz * nsy) >> 12;
+    s32 t0b = (sz * nsy) >> 12;
+
+    matrix->m[0][0] = (s16)((cz * cy) >> 12);
+    matrix->m[1][0] = (s16)(((sz * cx) >> 12) - ((t0 * sx) >> 12));
+    matrix->m[2][0] = (s16)(((t0 * cx) >> 12) + ((sz * sx) >> 12));
+    matrix->m[0][1] = (s16)((-(sz * cy)) >> 12);
+    matrix->m[1][1] = (s16)(((cz * cx) >> 12) + ((t0b * sx) >> 12));
+    matrix->m[2][1] = (s16)(((cz * sx) >> 12) - ((t0b * cx) >> 12));
+    matrix->m[0][2] = (s16)sy;
+    matrix->m[1][2] = (s16)((-(cy * sx)) >> 12);
+    matrix->m[2][2] = (s16)((cy * cx) >> 12);
+}
+#endif
+
 /* Retail8001D4E8: allocate and initialize eight direction records once. */
 extern void func_800234AC(void* pSpriteData);
 void func_8001D4E8(void* pSpriteData) {
@@ -161,7 +198,7 @@ void func_8001D53C(void* pSpriteData, u16 frameIndex, void* pAnimPackage) {
         u8* pTile;
         u8 command;
         u8 texByte;
-        u8 tileHeader;
+        u32 tileHeader;
         s32 abr;
         s32 clutXNibble;
         s32 texXOffset;
@@ -358,8 +395,11 @@ void func_8001DAE8(void* pSpriteData, u16 frameIndex, u32 animPackageAddr) {
     {
         u8* pFrame = pFrames + *(u16*)(pFrames + frameIndex * 2);
         u8* pVramData = (u8*)(uintptr_t)*(u32*)(pData + 0x24);
-        u16 vramX = *(u16*)(pVramData + 0x4);
-        u16 vramYWord = *(u16*)(pVramData + 0x6);
+        /* asm 8001DC60-8001DC94: the {+4,+6} halfword pair is copied to a
+         * 4-byte stack slot that func_8001F530 rewrites as one word. */
+        u16 vramXY[2];
+#define vramX vramXY[0]
+#define vramYWord vramXY[1]
         u8 header = pFrame[0];
         s32 hasWideOffsets = header & 0x80;
         s32 partCount = header & 0x3F;
@@ -367,7 +407,7 @@ void func_8001DAE8(void* pSpriteData, u16 frameIndex, u32 animPackageAddr) {
         u8* pStream = pFrame + partCount * 4 + 0x6;
         u8* pBase = (u8*)(uintptr_t)*(u32*)(pData + 0x20);
         u8* pPrim = (u8*)(uintptr_t)*(u32*)(pBase + 0x30);
-        s32 baseClutY = *(u8*)(pVramData + 0x6);
+        s32 baseClutY;
         s32 spriteMode = (*(u8*)(pData + 0x3C) >> 5);
         u32 colorAndCode = *(u32*)(pData + 0x28);
         s32 directionIndex = 4;
@@ -376,9 +416,13 @@ void func_8001DAE8(void* pSpriteData, u16 frameIndex, u32 animPackageAddr) {
         s32 texUBase4;
         s32 texUBase8;
 
+        vramXY[0] = *(u16*)(pVramData + 0x4);
+        vramXY[1] = *(u16*)(pVramData + 0x6);
         if (((*(u32*)(pData + 0x40) >> 13) & 0xF) == 0xE) {
-            func_8001F530(&vramX, pFrame[4]);
+            func_8001F530(vramXY, pFrame[4]);
         }
+        /* The V base is the low byte of the (possibly rewritten) Y word. */
+        baseClutY = (u8)vramYWord;
 
         /* asm 8001DD0C-8001DD2C: the part U coordinate is based at the
          * sprite band's texel origin within its 64-word texture page
@@ -529,6 +573,8 @@ void func_8001DAE8(void* pSpriteData, u16 frameIndex, u32 animPackageAddr) {
         *(u32*)(pData + 0x40) = (*(u32*)(pData + 0x40) & ~0xFC) | ((i & 0x3F) << 2);
         func_800251C8(NULL, (s16)vramX, (s16)vramYWord, pFrame[4], pFrame[5]);
     }
+#undef vramX
+#undef vramYWord
 }
 #endif
 
@@ -740,13 +786,19 @@ void func_8001E3D8(void* pSpriteData, void* ot) {
                     if ((flags3C >> 3) & 1) {
                         dirXOffset = -dirXOffset;
                     }
-                    dirYOffset = (dirYOffset * *(s16*)(pData + 0x2C)) >> 12;
-                    dirXOffset = (dirXOffset * *(s16*)(pData + 0x2C)) >> 12;
+                    /* asm 8001E54C-8001E5C8: negative products are rounded
+                     * toward zero (+0xFFF) before the >>12. */
+                    dirYOffset = ScaleSpriteFrameByte32(dirYOffset, *(s16*)(pData + 0x2C));
+                    dirXOffset = ScaleSpriteFrameByte32(dirXOffset, *(s16*)(pData + 0x2C));
 
                     rotation.vx = *(u16*)(pDirection + 0x2);
                     rotation.vy = *(u16*)(pDirection + 0x4);
                     rotation.vz = *(u16*)(pDirection + 0x6);
-                    RotMatrix(&rotation, &matrix);
+                    /* asm 8001E5B4-8001E5D0: flip-X negates the Z angle. */
+                    if ((flags3C >> 3) & 1) {
+                        rotation.vz = (s16)-(s32)(u16)rotation.vz;
+                    }
+                    Retail8003F738RotMatrix(&rotation, &matrix);
                     matrix.t[0] = *(s32*)(pBase + 0x20) + dirXOffset;
                     matrix.t[1] = *(s32*)(pBase + 0x24) + dirYOffset;
                     matrix.t[2] = *(s32*)(pBase + 0x28);
@@ -1122,7 +1174,28 @@ extern s16 D_80059194;
 extern s16 D_80059196;
 
 #ifndef XENO_PC_PORT
-INCLUDE_ASM("asm/slus_006.64/nonmatchings/system/rendering", func_8001F530);
+typedef struct { s16 x; s16 y; } PtF530;
+void *func_8001F530__r(PtF530 *arg0, s32 arg1) asm("func_8001F530");
+void *func_8001F530__r(PtF530 *arg0, s32 arg1) {
+    PtF530 sp;
+    u16 cy;
+    s32 cx;
+
+    if ((D_80059196 + arg1) >= 0x41) {
+        D_80059196 = 0;
+        D_80059194 = D_80059194 + 1;
+        if (D_80059194 >= 3) {
+            D_80059194 = 0;
+        }
+    }
+    cy = D_80059196;
+    cx = D_80059194;
+    sp.x = cy + 0x300;
+    sp.y = (cx << 6) + 0x140;
+    *arg0 = sp;
+    D_80059196 = cy + arg1;
+    return arg0;
+}
 #else
 void func_8001F530(void* pOut, s32 advance) {
     u16* p = (u16*)pOut;
@@ -1159,7 +1232,36 @@ static s32 ScaleFrameExtent(s32 value, s16 scale) {
 #endif
 
 #ifndef XENO_PC_PORT
-INCLUDE_ASM("asm/slus_006.64/nonmatchings/system/rendering", func_8001F5BC);
+void func_8001F5BC(void *pSpriteData, s32 arg1, s32 *outZ, s32 *outX, s32 *volatile outY) {
+    u8 *pData = pSpriteData;
+    u8 *pVram;
+    u8 *pAnims;
+    u8 *pAnim;
+    u8 *pDir;
+    s32 fi;
+    u8 *pFrames;
+    u8 *pFrame;
+    s32 ty;
+
+    pVram = *(u8 **)(pData + 0x24);
+    pAnims = *(u8 **)(pVram + 0x10);
+    pAnim = (u8 *)((s32)*(u16 *)(pAnims + 2) + (s32)pAnims);
+    pDir = (u8 *)((s32)*(u16 *)(pAnim + 4) + (s32)pAnim);
+    fi = *(u8 *)(pDir + 4);
+    pFrames = *(u8 **)pVram;
+    if (fi != 0) {
+        fi -= 1;
+    }
+    if (*(u16 *)(pFrames + fi * 2) < fi) {
+        fi = 0;
+    }
+    pFrame = (u8 *)((s32)*(u16 *)(pFrames + fi * 2 + 2) + (s32)pFrames);
+    *outX = (*(u8 *)(pFrame + 3) * *(s16 *)(pData + 0x2C)) / 0x1000;
+    ty = *(u8 *)(pFrame + 1);
+    ty = (ty * *(s16 *)(pData + 0x2C)) / 0x1000;
+    *outY = ty;
+    *outZ = (*(u8 *)(pFrame + 2) * *(s16 *)(pData + 0x2C)) / 0x1000;
+}
 #else
 void func_8001F5BC(void* pSpriteData, s32 arg1, s32* outZ, s32* outX, s32* outY) {
     u8* pData = pSpriteData;
@@ -1404,10 +1506,8 @@ extern void* D_800592E4;
 extern s16 D_800592E8;
 extern s16 D_800592EA;
 
-#ifndef XENO_PC_PORT
-INCLUDE_ASM("asm/slus_006.64/nonmatchings/system/rendering", func_8001FB30);
-#else
 void func_8001FB30(void) {
+#ifdef XENO_PC_PORT
     u8* pStack = HeapAlloc(0x2000, 1);
 #ifdef XENO_PC_PORT
     /* Host cannot emit R3000 $sp move/lw. Alloc/free stay so heap state
@@ -1423,5 +1523,13 @@ void func_8001FB30(void) {
     __asm__ volatile("lw $sp, 0($sp)");
 #endif
     HeapFree(pStack);
-}
+#else
+    u8* pStack = HeapAlloc(0x2000, 1);
+    u8 *p = pStack + 0x1F00;
+    register u8 *q asm("$8");
+    __asm__ volatile("move %0,%1\n\tsw $29,0(%0)\n\taddiu %0,%0,-4\n\tmove $29,%0" : "=&r"(q) : "r"(p));
+    func_8002DDE4(D_800592E4, 1, D_800592E8, D_800592EA, 0, 0, 0);
+    __asm__ volatile("addiu $29,$29,4\n\tlw $29,0($29)");
+    HeapFree(pStack);
 #endif
+}

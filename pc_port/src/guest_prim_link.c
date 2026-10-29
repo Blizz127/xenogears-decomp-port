@@ -78,3 +78,32 @@ void PcPort_AddPrimDomainAware(void *ot, void *prim)
 #endif
     s_native_links++;
 }
+
+/* Retail tagged leaves save the complete old OT word, replace the OT with
+ * the low-24-bit link, then write old|tag to the primitive. This differs
+ * from AddPrim for nonzero OT tag bytes and for an aliased OT/primitive.
+ * The caller supplies aligned, mapped words, as for AddPrim above. */
+void PcPort_LinkTaggedPrimDomainAware(void *ot, void *prim, unsigned int tag)
+{
+    u32 link = (u32)(uintptr_t)prim;
+    int guest = pc_port_in_guest_ram(ot);
+
+    if (guest) {
+        if (!pc_port_in_guest_ram(prim)) {
+            s_rejected_links++;
+            fprintf(stderr,
+                    "[prim-link] reject native tagged prim=%p for guest ot=%p "
+                    "count=%d\n", prim, ot, s_rejected_links);
+            return;
+        }
+        link = PsxMemory_GuestAddr(prim);
+    }
+
+    u32 old = *(u32 *)ot;
+    *(u32 *)ot = link & 0x00FFFFFFu;
+    *(u32 *)prim = old | tag;
+    if (guest)
+        s_guest_links++;
+    else
+        s_native_links++;
+}

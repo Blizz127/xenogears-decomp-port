@@ -22,7 +22,9 @@ extern u_long* g_GfxCurOT;
 INCLUDE_ASM("asm/slus_006.64/nonmatchings/system/temp1f", func_80025C04);
 #endif
 
-/* Handwritten GTE color-processing routine retained as assembly. */
+/* Handwritten GTE color-processing routine retained as assembly; the port
+ * runs pc_port/src/retail_leaf_adapters.c func_80025D4C (retail differential:
+ * pc_port/tests/run_color_shift_25d4c_retail_test.sh). */
 #ifndef XENO_PC_PORT
 INCLUDE_ASM("asm/slus_006.64/nonmatchings/system/temp1f", func_80025D4C);
 #endif
@@ -784,7 +786,8 @@ void func_800278F8(u8* ctx, s32 scroll, s32 screenY, s32 fade, void* ot,
 
     t = (width << 8) / fadePlus;
     t = 0x140 - t;
-    half = (t + (t >> 31)) >> 1;
+    /* asm 8002796C: srl (logical) sign bit, not sra. */
+    half = (t + (s32)((u32)t >> 31)) >> 1;
     t = half + HorizonMulShift8(half, fade);
     t = (s16)(scroll - t);
 
@@ -833,14 +836,15 @@ void func_800278F8(u8* ctx, s32 scroll, s32 screenY, s32 fade, void* ot,
         s32 tpY = *(s16*)(ctx + 0x336);
         s32 gx;
 
-        if ((s16)(uPos + (s16)uSpan) > width) {
+        if (((s16)uPos + (s16)uSpan) > width) {
             uSpan = (s16)(width - uPos);
         }
 
         /* asm: sll uSpan,16; sra 8 → (s16)uSpan << 8, then / fadePlus */
         spanPx = (((s32)(s16)uSpan << 8) / fadePlus);
 
-        if ((s16)(xCursor + spanPx) > 0x140) {
+        /* asm 80027B6C-80027B74: two sign-extended halfwords, summed unwrapped. */
+        if (((s16)xCursor + (s16)spanPx) > 0x140) {
             spanPx = 0x140 - xCursor;
             {
                 s32 tmp = (s16)spanPx * fadePlus;

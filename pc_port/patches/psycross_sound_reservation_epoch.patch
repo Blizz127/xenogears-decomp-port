@@ -1,0 +1,29 @@
+--- a/src/psx/LIBAPI.C
++++ b/src/psx/LIBAPI.C
+@@ -115,0 +116,2 @@
++/* _xeno_sound_reservation_epoch: detect transient enable/disable calls. */
++static unsigned long long s_eventMutation[PSYX_EVENT_MAX];
+@@ -317 +319,2 @@
+-				s_psyxEvents[idx].enabled = 1;
++				s_eventMutation[idx]++;
++				s_psyxEvents[idx].enabled = 1;
+@@ -324,0 +328 @@
++			s_eventMutation[idx]++;
+@@ -351 +355,2 @@
+-				s_psyxEvents[idx].enabled = 0;
++				s_eventMutation[idx]++;
++				s_psyxEvents[idx].enabled = 0;
+@@ -358,0 +364 @@
++			s_eventMutation[idx]++;
+@@ -384,0 +391 @@
++static __thread unsigned long long s_soundReservationMutation = 0;
+@@ -434,0 +442 @@
++    s_soundReservationMutation = s_eventMutation[event - 1];
+@@ -442 +450,2 @@
+-        !PsyX_Sys_ValidateSoundEventReservation(event, 0))
++        !PsyX_Sys_ValidateSoundEventReservation(event, 0) ||
++        s_eventMutation[event - 1] != s_soundReservationMutation)
+@@ -464 +473,2 @@
+-    if (s_soundTickHold != 1)
++    if (s_soundTickHold != 1 ||
++        s_eventMutation[event - 1] != s_soundReservationMutation)

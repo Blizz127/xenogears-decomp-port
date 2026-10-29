@@ -31,7 +31,92 @@ void func_80076544(void) {
 }
 
 #ifndef XENO_PC_PORT
-INCLUDE_ASM("asm/battle/nonmatchings/main3", func_800765C4);
+extern u8* D_800D2D28;
+extern u8 D_800D3280;
+extern u8 D_800C3254[];
+extern u8 D_800D32A1[];
+extern u8 D_800D2D24[];
+
+/* D_800D2D28 scroll-window record (fields used by func_800765C4). */
+typedef struct {
+    u8 pad0[0x34];
+    s32 f34;
+    s32 pad38;
+    s32 f3C;
+    s32 pad40;
+    s32 f44;
+    s32 pad48;
+    s32 f4C;
+    s32 pad50;
+    s32 f54;
+    s32 pad58;
+    s32 f5C;
+    s32 pad60;
+    s32 f64;
+    s32 pad68;
+    s32 f6C;
+    u8 pad70[0x20];
+    u8 f90[0x19];
+    u8 fA9;
+    u8 padAA;
+    u8 fAB;
+    u8 padAC[0x58];
+    u16 f104;
+    u16 f106;
+} M3Scroll;
+
+/* func_800765C4.s, byte-exact: open the scroll window for slot `index`.
+ * The top comes from the D_800C3254 entry for D_800D3280 * 3 + index:
+ * entry + 0x48 with height 0x1C, or entry + 0x44 with height 0x24 when
+ * D_800D32A1[index * 8] is set and D_800D2D24[index] is not 7, offset by
+ * index * 96.  Then the 0x10/0x98 bounds, the 8.8 scroll step f54 =
+ * ((top - 5 - f3C) << 8) / span, the speed/state bytes, f90[index]-- and
+ * fAB = 1.  The divide sits between the two +0x5C stores; its f54 load is
+ * a memory read between them, so both stores survive as in retail. */
+void func_800765C4(s32 index) {
+    s32 slot = D_800D3280 * 3 + index;
+    u16* tbl = (u16*)D_800C3254;
+    u16* entry = &tbl[slot];
+    M3Scroll* p = (M3Scroll*)D_800D2D28;
+    s32 row = index * 96;
+    u32 span;
+
+    {
+        s32 y = *entry + 0x48;
+
+        p->f44 = 0x1C;
+        p->f34 = row + y;
+    }
+    if (D_800D32A1[index * 8] != 0 && D_800D2D24[index] != 7) {
+        s32 y = *entry + 0x44;
+
+        p->f44 = 0x24;
+        p->f34 = row + y;
+    }
+    {
+        M3Scroll* q = (M3Scroll*)D_800D2D28;
+        s32 top;
+        s32 bot;
+
+        q->f3C = 0x10;
+        q->f4C = 0x98;
+        top = q->f34 - 5;
+        q->f54 = top - q->f3C;
+        bot = q->f44 + 5;
+        span = q->f4C - bot;
+        q->f104 = 0x800;
+        q->fA9 = 6;
+        q->f5C = span;
+        q->f54 = (q->f54 << 8) / span;
+        q->f5C = 0x100;
+        q->f64 = 0;
+        q->f6C = 0;
+        q->f106 = 0;
+    }
+    ((M3Scroll*)D_800D2D28)->fAB = 1;
+    ((M3Scroll*)D_800D2D28)->f90[index]--;
+}
+
 INCLUDE_ASM("asm/battle/nonmatchings/main3", func_80076710);
 #endif
 

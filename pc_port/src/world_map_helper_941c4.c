@@ -13,11 +13,10 @@
 
 #include "common.h"
 #include "psx_memory.h"
+#include "world_map_retail_trig.h"
 #include "world_map_helper_941c4.h"
 
 extern long ratan2(long y, long x);
-extern long rcos(long a);
-extern long rsin(long a);
 
 #if defined(WM_941C4_TEST_TRACE)
 extern long wm_941c4_test_ratan2(long y, long x);
@@ -28,8 +27,8 @@ extern long wm_941c4_test_rsin(long a);
 #define WM_941C4_RSIN(a)      wm_941c4_test_rsin(a)
 #else
 #define WM_941C4_RATAN2(y, x) ratan2((y), (x))
-#define WM_941C4_RCOS(a)      rcos(a)
-#define WM_941C4_RSIN(a)      rsin(a)
+#define WM_941C4_RCOS(a)      wm_retail_rcos((int)(a))
+#define WM_941C4_RSIN(a)      wm_retail_rsin((int)(a))
 #endif
 
 static u32 wm_941c4_load_u32(u32 addr)

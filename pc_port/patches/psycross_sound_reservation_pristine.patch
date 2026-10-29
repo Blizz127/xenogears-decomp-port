@@ -1,0 +1,19 @@
+--- a/src/psx/LIBAPI.C
++++ b/src/psx/LIBAPI.C
+@@ -449,6 +449,16 @@
+     return 1;
+ }
+ 
++/* _xeno_sound_reservation_pristine: query only; caller owns this thread's
++ * reservation. A disabled replacement or a restored state after re-entry
++ * is rejected; this does not detect changes to sound data. */
++extern "C" int PsyX_Sys_ReservedSoundBracketPristine(unsigned int event)
++{
++    return s_soundReservationBracket && s_reservedOwnHold && s_soundTickHold == 1 &&
++        PsyX_Sys_ValidateSoundEventReservation(event, 0) &&
++        s_eventMutation[event - 1] == s_soundReservationMutation;
++}
++
+ extern "C" int PsyX_Sys_FinishReservedSoundBracket(void)
+ {
+     unsigned int event = s_soundReservation;

@@ -1,0 +1,4 @@
+6400-code	func_801C6400	            if (val >= 0x80) {	            if (val > 0x80) {
+6400-skip	func_801C6400	                    pos++;\n                    break;	                    break;
+6400-len	func_801C6400	    for (i = 0; i < 0x1E; i++) {	    for (i = 0; i < 0x1D; i++) {
+6400-ff	func_801C6400	        pData[MENU_CARD_OFF(0x4F8C) + i] = 0xFF;	        pData[MENU_CARD_OFF(0x4F8C) + i] = 0xFE;

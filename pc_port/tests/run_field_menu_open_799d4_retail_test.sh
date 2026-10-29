@@ -24,7 +24,7 @@ fi
 
 BASE=(-std=gnu17 -fno-pie -no-pie -fno-builtin -fno-stack-protector
       -DXENO_PC_PORT -DSKIP_ASM -D_LANGUAGE_C -DUSE_EXTENDED_PRIM_POINTERS=0
-      -include assert.h -fpermissive -ffunction-sections -fdata-sections)
+      -include assert.h -ffunction-sections -fdata-sections)
 INC=(-Ipc_port/include_shim -Iinclude -Ipc_port/extern/PsyCross/include
      -Ipc_port/extern/PsyCross/include/psx -Ipc_port/src)
 
@@ -32,7 +32,7 @@ build_and_run() {
     local name="$1"
     local linker="$CC"
     shift
-    "$CC" "${BASE[@]}" "${INC[@]}" -w -fno-inline "$@" \
+    "$CC" "${BASE[@]}" "${INC[@]}" -w -fpermissive -fno-inline "$@" \
         -c src/field/main/misc4.c -o "$BUILD_DIR/$name.misc4.o"
     objcopy --weaken-symbol=FieldSwapRenderContext \
             --weaken-symbol=func_80079784 \
@@ -60,7 +60,7 @@ build_and_run UBSan -O2 -g -fsanitize=undefined -fno-sanitize-recover=all
 
 cmp "$BUILD_DIR/O0.stdout" "$BUILD_DIR/O2.stdout"
 cmp "$BUILD_DIR/O0.stdout" "$BUILD_DIR/UBSan.stdout"
-rg -q '^FIELD MENU OPEN 799D4 certificate PASS checks=19$' \
+grep -Eq '^FIELD MENU OPEN 799D4 certificate PASS checks=26$' \
     "$BUILD_DIR/O0.stdout"
 
 echo "FIELD MENU OPEN 799D4 O0/O2/UBSAN PASS"
@@ -71,10 +71,23 @@ build_and_run mutant_wait -O0 -g \
 mutant_rc=$?
 set -e
 if [[ "$mutant_rc" -eq 0 ]] || \
-   ! rg -q '^ASSERTION menu.open ' \
+   ! grep -Eq '^ASSERTION menu.open ' \
        "$BUILD_DIR/mutant_wait.stderr"; then
     echo "SKIP-WAIT-CLEAR MUTANT NOT DETECTED rc=$mutant_rc" >&2
     sed -n '1,40p' "$BUILD_DIR/mutant_wait.stderr" >&2 || true
+    exit 1
+fi
+
+set +e
+build_and_run mutant_close -O0 -g \
+    -DFIELD_799D4_MUTANT_CLOSE_COPY_TO_ORIGIN
+mutant_rc=$?
+set -e
+if [[ "$mutant_rc" -eq 0 ]] || \
+   ! grep -Eq '^ASSERTION menu.open field=close.copy0.dst.x ' \
+       "$BUILD_DIR/mutant_close.stderr"; then
+    echo "CLOSE-COPY-TO-ORIGIN MUTANT NOT DETECTED rc=$mutant_rc" >&2
+    sed -n '1,40p' "$BUILD_DIR/mutant_close.stderr" >&2 || true
     exit 1
 fi
 

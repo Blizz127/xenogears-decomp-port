@@ -48,6 +48,8 @@ void func_801CCD28(void) {}
 void func_801CE024(void) {}
 void MemberChangeMenuMain(void) { func_801CB0A8(); }
 void ShopMenuMain(void) { func_801CCD28(); }
+void NameEntryMenuMain(void) { func_801CBDBC(); }
+void PcPort_NameEntryMenuLoadData(void) {}
 
 void* HeapAlloc(u32 size, u32 flags)
 {

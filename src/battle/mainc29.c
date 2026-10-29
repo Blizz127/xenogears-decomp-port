@@ -42,9 +42,9 @@ void func_8007E6F0(u8 **pp, s32 idx) {
 #undef BATTLE_U32_ROW
 
 /* func_8007E740.s: row[(idx&0xFF)] table mul: T[p[1]] = T[p[1]] * p[2]. */
-/* Not yet byte-matching: the matching build assembles retail bytes for
- * this function from its own asm segment (see config/battle.yaml).  The
- * body below is kept for the port and the differential harnesses. */
+/* The retail build compiles this function's byte-exact C in
+ * mainasm_EC50.c.  The body below is kept for the port and the
+ * differential harnesses. */
 #ifdef XENO_PC_PORT
 void func_8007E740(u8 **pp, s32 idx) {
     u8 *p = *pp;

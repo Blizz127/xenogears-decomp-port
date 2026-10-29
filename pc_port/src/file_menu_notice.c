@@ -3,8 +3,8 @@
 const char *const PcPort_FileMenuNoticeTitle = "File menu not implemented";
 const char *const PcPort_FileMenuNoticeText =
     "The in-game memory-card File menu is not implemented in this port yet.\n\n"
-    "Close this message and cancel back to the field. Use the toolbar's "
-    "SAVE and LOAD buttons for field checkpoints.";
+    "Close this message and cancel back to the field. Use F11 (quick save) "
+    "and F12 (quick load) for field checkpoints.";
 
 typedef struct PcPortFileMenuNoticeContext {
     const char *title;

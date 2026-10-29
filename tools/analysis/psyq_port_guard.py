@@ -24,6 +24,10 @@ config/slus_006.64.yaml + config/psyq_data_ranges.tsv)
   tu      -- (--binary) the linked executable's DWARF names a compile unit
              under src/**/psyq/ : a Psy-Q TU was linked into the port.
   bfunc   -- (--binary) the executable defines func_XXXXXXXX at a Psy-Q address.
+  nodwarf -- (--binary --require-dwarf) translation-unit evidence is missing.
+  path    -- (--binary) an absolute build-machine path (/home/, /tmp/, /root/,
+             /xenogears-decomp/) in a loaded section of the executable
+             (e.g. an assert's __FILE__): personal infrastructure must not ship.
   table   -- Psy-Q data tables (address ranges in config/psyq_data_ranges.tsv).
              With the user's disc/SLUS_006.64 the table bytes are read from
              THE USER'S DISC and looked for as numeric-literal runs in
@@ -32,7 +36,9 @@ config/slus_006.64.yaml + config/psyq_data_ranges.tsv)
 
 Allowlist (pc_port/psyq_guard_allowlist.txt) holds known offenders while the
 replacement lands.  It must SHRINK: a finding not in it fails, an entry no
-longer found fails (stale).  --strict ignores it (goal state).
+longer found fails (stale). --strict ignores exemptions, including PsyCross's
+legacy table exemption. --require-empty-allowlist also rejects any active
+allowlist entry; release packaging requires both flags.
 
 Exit 0 = clean, 1 = findings, 2 = usage error.
 """
@@ -56,8 +62,8 @@ EXE_SHA256 = "dc0b2dd786203d4cce5927c5a3fc85a18f39a3f7406078860076ebb0bbae7119"
 TEXT_VRAM_BIAS = 0x80010000 - 0x800
 SRC_EXT = (".c", ".cc", ".cpp", ".C", ".h", ".hpp", ".inc", ".inl")
 SKIP_DIRS = {"extern", ".git", "__pycache__"}
-# The port's Psy-Q API compatibility layer: clean-room implementations of the
-# SDK's documented interface on top of PsyCross.  Defining SDK names is their
+# The port's Psy-Q API compatibility layer. Clean-room provenance is pending
+# replacement and oracle validation (2026-10-09). Defining SDK names is its
 # job, so the `name` check does not apply to them (func/table checks do).
 # Their func_XXXXXXXX definitions at Psy-Q addresses (SDK entry points the
 # game calls by address) are likewise part of the compat layer.
@@ -67,6 +73,7 @@ COMPAT_FILES = {
     "pc_port/src/memcard_port.c",   # BIOS/libcard memory-card API on host files
     "pc_port/src/pc_file_io.c",     # libsn PCopen/PCread... on POSIX file I/O
     "pc_port/src/psyq_compat_normal_light_col.c",
+    "pc_port/src/psyq_compat_transpose_matrix.c",
     "pc_port/src/psyq_compat_spu_noise_clock.c",
     "pc_port/src/psyq_compat_leaf.inc",  # included by retail_leaf_adapters.c
     "pc_port/src/controller_vblank_service.c",  # libetc vblank callback on the host
@@ -155,25 +162,37 @@ def tool(*names):
     raise SystemExit(f"psyq_port_guard: need one of {names} for --binary")
 
 
-def check_binary(binary: Path, cls):
+def binary_tool(args):
+    """A failed inspection must never become an empty, passing scan."""
+    result = subprocess.run(args, capture_output=True, text=True, errors="replace")
+    if result.returncode:
+        print(f"psyq_port_guard: inspection failed: {args[0]}: {result.stderr.strip()}",
+              file=sys.stderr)
+        raise SystemExit(2)
+    return result.stdout
+
+
+def check_binary(binary: Path, cls, require_dwarf: bool = False):
     out = []
     readelf = tool("readelf", "llvm-readelf")
-    r = subprocess.run([readelf, "--debug-dump=info", "--dwarf-depth=1", str(binary)],
-                       capture_output=True, text=True, errors="replace")
+    dwarf = binary_tool([readelf, "--debug-dump=info", "--dwarf-depth=1", str(binary)])
     cus = set()
-    for line in r.stdout.splitlines():
+    for line in dwarf.splitlines():
         m = re.search(r"DW_AT_name\s*:\s*(?:\(indirect[^)]*\):\s*)?(.+)$", line)
         if m:
             cus.add(m.group(1).strip())
     if not cus:
-        print(f"psyq_port_guard: WARNING {binary.name} has no DWARF; TU check skipped "
-              "(build with -g)", file=sys.stderr)
+        if require_dwarf:
+            out.append(("nodwarf", binary.name, f"bin:{binary.name}",
+                        "no DWARF: the TU check cannot run (scan the unstripped build binary)"))
+        else:
+            print(f"psyq_port_guard: WARNING {binary.name} has no DWARF; TU check skipped "
+                  "(build with -g)", file=sys.stderr)
     for cu in sorted(cus):
         if re.search(r"(^|/)src/[^ ]*/psyq/", cu) and "extern/PsyCross" not in cu:
             out.append(("tu", cu.split("xenogears-decomp/")[-1], f"bin:{binary.name}", "Psy-Q TU linked"))
     nm = tool("nm", "llvm-nm")
-    r = subprocess.run([nm, "--defined-only", str(binary)], capture_output=True, text=True)
-    for line in r.stdout.splitlines():
+    for line in binary_tool([nm, "--defined-only", str(binary)]).splitlines():
         m = re.search(r"\s[TtWw]\s+_?func_([0-9A-Fa-f]{8})\b", line)
         if m:
             a = int(m.group(1), 16)
@@ -183,10 +202,30 @@ def check_binary(binary: Path, cls):
     return out
 
 
+ABS_PATH_RE = re.compile(rb"/(?:home|tmp|root|xenogears-decomp)/[\x21-\x7e]{3,}")
+
+
+def check_paths_binary(binary: Path):
+    """Absolute build-machine paths in SHF_ALLOC sections (debug sections are
+    stripped from packages and are not scanned)."""
+    readelf = tool("readelf", "llvm-readelf")
+    blob = binary.read_bytes()
+    found = set()
+    for l in binary_tool([readelf, "-SW", str(binary)]).splitlines():
+        m = re.match(r"\s*\[\s*\d+\]\s+(\S+)\s+(\S+)\s+[0-9a-f]+\s+([0-9a-f]+)\s+([0-9a-f]+)\s+\S+\s+(\S*)", l)
+        if not m or m.group(2) == "NOBITS" or "A" not in m.group(5):
+            continue
+        off, size = int(m.group(3), 16), int(m.group(4), 16)
+        for hit in ABS_PATH_RE.finditer(blob, off, off + size):
+            found.add(hit.group(0).decode("ascii", "replace")[:160])
+    return [("path", p, f"bin:{binary.name}", "absolute build path in a loaded section") for p in sorted(found)]
+
+
 def psycross_symbols(binary: Path) -> set[str]:
     """Data symbols defined by libpsycross.a (PsyCross, MIT, pinned in
     pc_port/psycross.lock).  PsyCross upstream ships its own GTE tables
-    (rcossin_tbl, SQRT); those are the accepted third-party layer."""
+    (rcossin_tbl, SQRT). This legacy exemption is disabled in strict mode;
+    it must never be used by a release gate."""
     libs = sorted(ROOT.glob("pc_port/build*/**/libpsycross.a"))
     if not libs:
         return set()
@@ -217,9 +256,11 @@ def symbol_map(binary: Path):
     return out
 
 
-def check_tables_binary(binary: Path, tables):
+def check_tables_binary(binary: Path, tables, strict: bool = False):
+    """In --strict mode nothing is exempt: retail-identical SDK tables must not
+    ship even inside PsyCross (they load from the user's disc)."""
     blob = binary.read_bytes()
-    exempt = psycross_symbols(binary)
+    exempt = set() if strict else psycross_symbols(binary)
     syms = symbol_map(binary) if exempt else []
     out = []
     for name, data in tables:
@@ -303,11 +344,32 @@ def run(argv=None) -> int:
     ap.add_argument("--exe", default=str(DEF_EXE), help="retail SLUS_006.64 (tables)")
     ap.add_argument("--no-disc", action="store_true", help="skip the table check")
     ap.add_argument("--require-exe", action="store_true")
+    ap.add_argument("--require-dwarf", action="store_true",
+                    help="a --binary without DWARF is a finding (gate on the unstripped build binary)")
     ap.add_argument("--no-sources", action="store_true")
     ap.add_argument("--strict", action="store_true", help="ignore the allowlist (goal state)")
+    ap.add_argument("--require-empty-allowlist", action="store_true",
+                    help="reject non-comment allowlist entries (required for releases)")
     ap.add_argument("--write-allowlist", action="store_true")
     ap.add_argument("-q", "--quiet", action="store_true")
     a = ap.parse_args(argv)
+    if a.no_disc and a.require_exe:
+        ap.error("--no-disc conflicts with --require-exe")
+    if a.require_dwarf and not a.binary:
+        ap.error("--require-dwarf needs --binary")
+    if a.write_allowlist and (a.strict or a.require_empty_allowlist):
+        ap.error("--write-allowlist conflicts with strict/empty-allowlist checks")
+    if a.require_empty_allowlist:
+        try:
+            entries = [line for line in Path(a.allowlist).read_text().splitlines()
+                       if line.strip() and not line.lstrip().startswith("#")]
+        except OSError as exc:
+            print(f"psyq_port_guard: cannot read allowlist: {exc}", file=sys.stderr)
+            return 2
+        if entries:
+            print("psyq_port_guard: --require-empty-allowlist but active entries remain",
+                  file=sys.stderr)
+            return 1
 
     cls = psyq_classify.Classification()
     if not cls.ranges:
@@ -315,6 +377,7 @@ def run(argv=None) -> int:
         return 2
     tree = Path(a.tree)
     findings = []
+    COMPAT_ADDRS.clear()
     compat_scan = check_sources(tree, cls)  # also fills COMPAT_ADDRS
     if not a.no_sources:
         findings += compat_scan
@@ -322,7 +385,8 @@ def run(argv=None) -> int:
         if not Path(b).is_file():
             print(f"psyq_port_guard: --binary {b} does not exist", file=sys.stderr)
             return 2
-        findings += check_binary(Path(b), cls)
+        findings += check_binary(Path(b), cls, a.require_dwarf)
+        findings += check_paths_binary(Path(b))
 
     tables = []
     exe_path = Path(a.exe)
@@ -332,6 +396,8 @@ def run(argv=None) -> int:
         if hashlib.sha256(exe).hexdigest() != EXE_SHA256:
             print(f"psyq_port_guard: {exe_path} is not the retail USA SLUS_006.64; "
                   "table check skipped", file=sys.stderr)
+            if a.require_exe:
+                return 2
         else:
             for name, lo, hi, _lib in psyq_classify.load_data_ranges():
                 tables.append((name, exe[lo - TEXT_VRAM_BIAS:hi - TEXT_VRAM_BIAS]))
@@ -345,7 +411,7 @@ def run(argv=None) -> int:
         if not a.no_sources:
             findings += check_tables_sources(tree, tables)
         for b in a.binary:
-            findings += check_tables_binary(Path(b), tables)
+            findings += check_tables_binary(Path(b), tables, a.strict)
 
     findings = sorted(set(findings))
     keys = {(k, key, where) for k, key, where, _ in findings}
@@ -383,8 +449,9 @@ def run(argv=None) -> int:
     if new or stale:
         print(f"psyq_port_guard: FAIL ({len(new)} new, {len(stale)} stale)")
         return 1
-    print("psyq_port_guard: PASS" + (" (strict: no Psy-Q code or tables)" if a.strict or not findings
-                                     else f" (relative to allowlist; {len(findings)} offenders remain)"))
+    table_status = "tables checked" if tables else "table scan SKIPPED"
+    print("psyq_port_guard: PASS" + (f" (strict: no findings; {table_status})" if a.strict
+          else f" (relative to allowlist; {len(findings)} findings; {table_status})"))
     return 0
 
 

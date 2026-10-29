@@ -2,8 +2,77 @@
 
 
 #ifndef XENO_PC_PORT
-INCLUDE_ASM("asm/battle/nonmatchings/mainc95", func_800B6E84);
-INCLUDE_ASM("asm/battle/nonmatchings/mainc95", func_800B6F0C);
+#include "psyq/libgte.h"
+
+extern void func_80021B04(void* v, s16 x, s16 y, s16 z);
+
+/* func_800B6E84.s: rotate the actor's position vector (+0xC, a VECTOR)
+ * about z by the signed byte args[0] * 16 (4096 = one turn).
+ * func_80021B04 sets the SVECTOR to (0, 0, angle), RotMatrix builds the
+ * matrix, and ApplyMatrixLV's result is copied back field by field. */
+void func_800B6E84(u8* actor, u8* args) {
+    SVECTOR rot;
+    MATRIX m;
+    VECTOR out;
+
+    func_80021B04(&rot, 0, 0, (s8)args[0] * 16);
+    RotMatrix(&rot, &m);
+    ApplyMatrixLV(&m, (VECTOR*)(actor + 0xC), &out);
+    *(s32*)(actor + 0xC) = out.vx;
+    *(s32*)(actor + 0x10) = out.vy;
+    *(s32*)(actor + 0x14) = out.vz;
+}
+#include "battle/shard.h"
+
+extern u8 D_800C3EB0[];
+extern s32 func_80021AD8(s32 c, s32 delta);
+
+/* Timer callback: count the frame, then for every shard past its start
+ * delay fade the colour (func_80021AD8, -6 per channel), integrate the
+ * position by the integer part of the velocity and the rotation by its
+ * delta, damp the velocity by 1/16 and add gravity to its y. */
+void func_800B6F0C(u8* task) {
+    SVECTOR v;
+    BattleShardSet* set;
+    BattleShard* e;
+    BattleShardPoly* prim;
+    u8* base;
+    s32 k;
+    s32 j;
+    s32 i;
+
+    set = *(BattleShardSet**)(task + 4);
+    set->frame++;
+    for (k = 0; k != 2; k++) {
+        for (j = 0; j != 14; j++) {
+            for (i = 0; i != 20; i++) {
+                e = &set->grid[k][j][i];
+                if (e->delay != 0) {
+                    e->delay--;
+                } else {
+                    base = (u8*)(u32)D_800C3EB0;
+                    prim = &e->prims[*(s32*)(base + 0x8000 + 0xC84)];
+                    prim->r0 = func_80021AD8(prim->r0, -6);
+                    prim->g0 = func_80021AD8(prim->g0, -6);
+                    prim->b0 = func_80021AD8(prim->b0, -6);
+                    v.vx = e->vel.vx >> 16;
+                    v.vy = e->vel.vy >> 16;
+                    v.vz = e->vel.vz >> 16;
+                    e->pos.vx += v.vx;
+                    e->pos.vy += v.vy;
+                    e->pos.vz += v.vz;
+                    e->rot.vx += e->drot.vx;
+                    e->rot.vy += e->drot.vy;
+                    e->rot.vz += e->drot.vz;
+                    e->vel.vy -= e->vel.vy / 16;
+                    e->vel.vx -= e->vel.vx / 16;
+                    e->vel.vz -= e->vel.vz / 16;
+                    e->vel.vy += e->gravity;
+                }
+            }
+        }
+    }
+}
 #endif
 
 
@@ -26,7 +95,7 @@ extern u8 D_800C3EB0[];
 extern u32 WorkListsAddTasks(u32 a0, u32 a1, void* a2, void* a3, void* a4);
 extern void func_800B7424(u32 p);
 extern void func_800B7364(void);
-extern void func_800B6F0C(void);
+extern void func_800B6F0C(u8* task);
 extern void func_800B7134(void);
 extern void WorkListSetTaskCallback(void* pTask, void* callback);
 extern void D_80025A88(void);

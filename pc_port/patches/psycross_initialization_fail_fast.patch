@@ -1,0 +1,36 @@
+--- a/src/PsyX_main.cpp
++++ b/src/PsyX_main.cpp
+@@ -710,14 +710,14 @@
+ 	{
+ 		eprinterr("Failed to initialise SDL\n");
+ 		PsyX_Shutdown();
+-		return;
++		exit(1); /* xeno: never limp on with a dead backend (was: ResetGraph SEGV) */
+ 	}
+ 	
+ 	if (!GR_InitialiseRender(windowNameStr, width, height, fullscreen))
+ 	{
+ 		eprinterr("Failed to Intialise Window\n");
+ 		PsyX_Shutdown();
+-		return;
++		exit(1); /* xeno: never limp on with a dead backend (was: ResetGraph SEGV) */
+ 	}
+ 	PsyX_HostToolbarInitialise();
+ 
+@@ -725,14 +725,14 @@
+ 	{
+ 		eprinterr("Failed to Intialise Psy-X Core.\n");
+ 		PsyX_Shutdown();
+-		return;
++		exit(1); /* xeno: never limp on with a dead backend (was: ResetGraph SEGV) */
+ 	}
+ 
+ 	if (!GR_InitialisePSX())
+ 	{
+ 		eprinterr("Failed to Intialise PSX.\n");
+ 		PsyX_Shutdown();
+-		return;
++		exit(1); /* xeno: never limp on with a dead backend (was: ResetGraph SEGV) */
+ 	}
+ 
+ 	PsyX_Sys_InitialiseInput();

@@ -171,8 +171,8 @@ static int notice_text_pinned(void)
 {
     CHECK("pin-title", strcmp(PcPort_FileMenuNoticeTitle,
                               "File menu not implemented") == 0);
-    CHECK("pin-text-toolbar", strstr(PcPort_FileMenuNoticeText,
-                                     "SAVE and LOAD") != NULL);
+    CHECK("pin-text-quick-keys", strstr(PcPort_FileMenuNoticeText,
+                                        "F11 (quick save)") != NULL);
     CHECK("pin-text-card", strstr(PcPort_FileMenuNoticeText,
                                   "memory-card File menu") != NULL);
     return 0;

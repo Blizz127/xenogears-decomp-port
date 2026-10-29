@@ -1,0 +1,18 @@
+{
+  "references": "walkthrough references (public Xenogears walkthroughs, used for ordering and naming only; no guide text copied)",
+  "warps": [
+    {"id": "w_lahan_bridge", "disc": 1, "chapter": "Lahan", "area": "Lahan", "spot": "Lahan village (bridge)", "map": 1, "entrance": 0, "scenario": 7, "walk": true, "provenance": "map 1 entrance 0 found by atlas sweep; scenario 7 is the value the game wrote after the chief's-house scene (route recording)"},
+    {"id": "w_lahan_well", "disc": 1, "chapter": "Lahan", "area": "Lahan", "spot": "Village well", "map": 1, "entrance": 6, "scenario": 7, "walk": true, "provenance": "atlas sweep (well visible at arrival)"},
+    {"id": "w_chief_house", "disc": 1, "chapter": "Lahan", "area": "Lahan", "spot": "Chief's house", "map": 13, "entrance": 1, "scenario": 6, "walk": true, "provenance": "route recording: CHANGE_FIELD 14 -> 13 entrance 1 at scenario 6"},
+    {"id": "w_fei_room", "disc": 1, "chapter": "Lahan", "area": "Lahan", "spot": "Fei's room", "map": 14, "entrance": 0, "scenario": 6, "walk": true, "provenance": "route recording: field 14 entrance 0 at scenario 6 after the opening battle"},
+    {"id": "w_alice_house", "disc": 1, "chapter": "Lahan", "area": "Lahan", "spot": "Alice's house", "map": 12, "entrance": 0, "scenario": 7, "walk": false, "provenance": "atlas sweep; arrival starts the wedding-dress scene (scripted, no walk-in)"},
+    {"id": "w_alice_down", "disc": 1, "chapter": "Lahan", "area": "Lahan", "spot": "Alice's house (downstairs)", "map": 11, "entrance": 1, "scenario": 8, "walk": true, "provenance": "route recording: CHANGE_FIELD 12 -> 11 entrance 1 at scenario 8"},
+    {"id": "w_pub", "disc": 1, "chapter": "Lahan", "area": "Lahan", "spot": "Lahan pub", "map": 9, "entrance": 0, "scenario": 7, "walk": true, "provenance": "atlas sweep (bar counter)"},
+    {"id": "w_mtn_start", "disc": 1, "chapter": "Lahan", "area": "Mountain Path", "spot": "Mountain Path (start)", "map": 15, "entrance": 0, "scenario": 8, "walk": true, "provenance": "atlas sweep; scenario 8 follows Alice's house scene in the walkthrough order"},
+    {"id": "w_mtn_bridge", "disc": 1, "chapter": "Lahan", "area": "Mountain Path", "spot": "Mountain Path (rope bridge)", "map": 15, "entrance": 3, "scenario": 8, "walk": true, "provenance": "atlas sweep (rope bridge at arrival)"}
+  ],
+  "steps": [
+    {"id": "s01_dan_talk", "disc": 1, "chapter": "Lahan", "area": "Lahan", "name": "Hear Dan out at the chief's house", "detect_scen": 6, "detect_map": null, "detect_var": null, "writes": [[0, 7]], "next_map": 12, "next_entrance": 0, "area_last": 0, "provenance": "route recording: scenario 6 -> 7 written by the game on map 13 (actor 10 ip 725)"},
+    {"id": "s02_alice_dress", "disc": 1, "chapter": "Lahan", "area": "Lahan", "name": "Alice's wedding-dress scene", "detect_scen": 7, "detect_map": null, "detect_var": null, "writes": [[0, 8]], "next_map": 11, "next_entrance": 1, "area_last": 0, "provenance": "route recording: scenario 7 -> 8 written by the game on map 12 (actor 0 ip 56), then CHANGE_FIELD 12 -> 11 entrance 1"}
+  ]
+}

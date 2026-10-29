@@ -79,6 +79,8 @@ RETAIL_FILES = [
     ("shop_menu.bin", "shop_menu.bin", 0x801C5000, 0),
     ("member_change_menu.bin", "member_change_menu.bin", 0x801C5000, 0),
     ("battle_command_file1.bin", "battle_command_file1.bin", 0x801E5000, 0),
+    ("name_entry_menu.bin", "name_entry_menu.bin", 0x801C5000, 0),
+    ("battle_module_0c4.bin", "battle_module_0c4.bin", 0x801E4000, 0),
 ]
 # SCPH-5500 BIOS (not game data, but Sony code: must not be committed either).
 BIOS = ("scph5500.bin", "11052b6499e466bbf0a709b1f9cb6834a9418e66680387912451e971cf8a1fef")

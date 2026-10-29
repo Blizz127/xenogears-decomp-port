@@ -74,12 +74,20 @@ for path, image, base, expected_count in asm_checks:
     path = str(locate(path))
     text = Path(path).read_text()
     rows = re.findall(r'/\* ([0-9A-F]+) ([0-9A-F]+) ([0-9A-F]+) \*/', text)
-    assert len(rows) == expected_count, f'{path}: {len(rows)} rows'
+    # A matched C function's listing can also contain its jump-table rodata.
+    # Count the complete pinned function span, and still verify every listed
+    # word (including attached rodata) against the original image below.
+    start, end = next((start, end) for name, _, _, start, end, _ in slices
+                      if name == Path(path).stem)
+    code_addresses = [int(address, 16) for _, address, _ in rows
+                      if start <= int(address, 16) < end]
+    assert len(code_addresses) == expected_count, f'{path}: {len(code_addresses)} code rows'
+    assert code_addresses == list(range(start, end, 4)), f'{path}: incomplete code span'
     for _, address, word in rows:
         offset = int(address, 16) - base
         assert image[offset:offset + 4] == bytes.fromhex(word), \
             f'{path}:{address} mismatch'
-    print(f'ANIMRENDER15 {path}: {len(rows)} annotated bytes match disc')
+    print(f'ANIMRENDER15 {path}: {expected_count} code words; {len(rows)} total words match disc')
 
 # -- Production extraction -------------------------------------------------
 inc = Path('src/battle/anim_render_index15.inc').read_text()

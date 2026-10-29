@@ -13,6 +13,11 @@ static int action;
 } } while (0)
 
 int PsyX_Sys_GetVBlankCount(void) { return (int)clock_count; }
+/* Host speed multiplier and the retail controller FIFO depth, which the
+ * service consults while sped up (weak in the service). */
+static int speed = 1;
+int PsyX_GetSpeedMultiplier(void) { return speed; }
+unsigned int g_ControllerNumStates;
 static void second(void) { ++second_calls; }
 static void first(void)
 {
@@ -123,6 +128,25 @@ int main(void)
     func_8004B7D0(first);
     PcPort_ServiceVblank();
     CHECK(first_calls == 19 && PcPort_GetServicedVblankCount() == 3);
-    puts("CONTROLLER VBLANK SERVICE PASS: elapsed ticks, duplicate suppression, replacement, unregister, reentry, wrap");
+    /* Sped up with the controller FIFO nearly full: no callback (no push that
+     * would overflow it) and the backlog is dropped, not replayed later. */
+    speed = 5;
+    g_ControllerNumStates = 15;
+    clock_count += 10;
+    PcPort_ServiceVblank();
+    CHECK(first_calls == 19 && PcPort_GetServicedVblankCount() == 3);
+    g_ControllerNumStates = 0;
+    PcPort_ServiceVblank();
+    CHECK(first_calls == 19);
+    clock_count += 3;
+    PcPort_ServiceVblank();
+    CHECK(first_calls == 22 && PcPort_GetServicedVblankCount() == 6);
+    /* At 1x the retail behaviour stands: a full FIFO does not stop service. */
+    speed = 1;
+    g_ControllerNumStates = 15;
+    clock_count += 2;
+    PcPort_ServiceVblank();
+    CHECK(first_calls == 24 && PcPort_GetServicedVblankCount() == 8);
+    puts("CONTROLLER VBLANK SERVICE PASS: elapsed ticks, duplicate suppression, replacement, unregister, reentry, wrap, sped-up FIFO guard");
     return 0;
 }

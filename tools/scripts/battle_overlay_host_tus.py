@@ -115,6 +115,29 @@ def is_definition(text: str, paren_end: int) -> bool:
     return False
 
 
+def host_excluded_spans(text: str) -> list[tuple[int, int]]:
+    """Byte ranges of `#ifndef XENO_BATTLE_OVERLAY_HOST_BODIES` branches: a
+    body there still compiles for retail and for standalone XENO_PC_PORT
+    tests, but never in an adopted host TU, so it cannot own a host leaf
+    (its port body lives in that function's own *_port.c TU)."""
+    stack: list[list] = []  # [is_guard, start]
+    spans: list[tuple[int, int]] = []
+    for m in CONDITIONAL_RE.finditer(text):
+        kind = m.group(1)
+        if kind in ("ifdef", "ifndef", "if"):
+            guard = kind == "ifndef" and "XENO_BATTLE_OVERLAY_HOST_BODIES" in m.group(0)
+            stack.append([guard, m.end()])
+        elif kind in ("else", "elif") and stack:
+            if stack[-1][0]:
+                spans.append((stack[-1][1], m.start()))
+            stack[-1][0] = False
+        elif kind == "endif" and stack:
+            if stack[-1][0]:
+                spans.append((stack[-1][1], m.start()))
+            stack.pop()
+    return spans
+
+
 def definitions() -> dict[str, list[tuple[str, bool]]]:
     """name -> [(translation unit, is_port_only), ...] over all of src/battle."""
     found: dict[str, list[tuple[str, bool]]] = {}
@@ -122,11 +145,14 @@ def definitions() -> dict[str, list[tuple[str, bool]]]:
         text = path.read_text(errors="ignore")
         port_only = port_only_spans(text)
         retail_only = retail_only_spans(text)
+        host_excluded = host_excluded_spans(text)
         for m in DEFINITION_RE.finditer(text):
             if not is_definition(text, m.end() - 1):
                 continue
             if in_spans(m.start(), retail_only):
                 continue  # invisible to the port's host build
+            if in_spans(m.start(), host_excluded):
+                continue  # never compiled in an adopted host TU
             found.setdefault(m.group(3), []).append(
                 (path.name, in_spans(m.start(), port_only))
             )
@@ -155,6 +181,12 @@ def return_widths() -> dict[str, int]:
     return widths
 
 
+# Lifted leaves that keep the mask they were proven with (their hand cases
+# build the pointer arguments) instead of their retail prototype's; see
+# pointer_params().
+LIFTED_MASK_EXEMPT = {"func_8009EF3C", "func_8009F1C4", "func_800A0838"}
+
+
 def pointer_params() -> dict[str, int]:
     """name -> bitmask of parameter positions declared as a pointer.
 
@@ -163,10 +195,19 @@ def pointer_params() -> dict[str, int]:
     A sweep that feeds pointer-shaped values to a scalar parameter therefore
     measures that convention, not the body. The differential harness uses this
     mask to keep the two apart.
+
+    A lifted port body (include/battle_lift.h) takes every argument as a raw
+    u32 guest word (typed W32 thunk), so its own prototype says nothing about
+    which words are addresses; the retail-only matched C it stands in for
+    does.  Such a leaf takes the mask of its retail-only definition(s) when
+    they agree, so the sweep hands it guest addresses where retail expects
+    them (LIFTED_MASK_EXEMPT excepted).
     """
     masks: dict[str, int] = {}
+    retail: dict[str, set[int]] = {}
     for path in sorted(BATTLE_SRC.glob("*.c")):
         text = path.read_text(errors="ignore")
+        retail_only = retail_only_spans(text)
         for m in DEFINITION_RE.finditer(text):
             if not is_definition(text, m.end() - 1):
                 continue
@@ -186,10 +227,160 @@ def pointer_params() -> dict[str, int]:
             for index, param in enumerate(params.split(",")):
                 if index >= 8:
                     break
-                if "*" in param:
+                # GSLOT(T) is the guest-ABI spelling of a T** slot parameter.
+                if "*" in param or "GSLOT(" in param:
                     mask |= 1 << index
             masks[name] = mask
+            if in_spans(m.start(), retail_only):
+                retail.setdefault(name, set()).add(mask)
+    for name, (_, _, body) in port_prototypes().items():
+        if ("bl_enter(FN" in body and name not in LIFTED_MASK_EXEMPT
+                and len(retail.get(name, ())) == 1):
+            masks[name] = next(iter(retail[name]))
     return masks
+
+
+# Strict int/pointer diagnostics for battle host TUs that adopted the battle
+# guest ABI (include/battle_guest_abi.h).  They replace the port's blanket
+# `-w -fpermissive` for those TUs, so a pointer-width or address-domain slip in
+# a macro-ised body is a compile error instead of a silent truncation.
+ABI_STRICT_FLAGS = (
+    "-Werror=int-to-pointer-cast -Werror=pointer-to-int-cast "
+    "-Werror=int-conversion -Werror=incompatible-pointer-types"
+)
+
+
+def abi_tus() -> list[str]:
+    """src/battle TUs that include the battle guest ABI header."""
+    return [
+        f"src/battle/{path.name}"
+        for path in sorted(BATTLE_SRC.glob("*.c"))
+        if '#include "battle_guest_abi.h"' in path.read_text(errors="ignore")
+    ]
+
+
+def lift_tus() -> list[str]:
+    """src/battle TUs that hold lifted port bodies (include/battle_lift.h)."""
+    return [
+        f"src/battle/{path.name}"
+        for path in sorted(BATTLE_SRC.glob("*.c"))
+        if '#include "battle_lift.h"' in path.read_text(errors="ignore")
+    ]
+
+
+THUNKS = ROOT / "pc_port" / "src" / "battle_guest_abi_thunks.inc"
+THUNK_RE = re.compile(
+    r"^BG_THUNK\(\s*0x([0-9A-Fa-f]+)u\s*,\s*\"(func_\w+)\"\s*,\s*BG_THUNK_RET_(\w+)\s*,"
+    r"\s*(\d+)\s*((?:,\s*BG_THUNK_ARG_\w+\s*)*)\)",
+    re.M,
+)
+GUEST_ABI_MACRO_RE = re.compile(r"\b(GPTR|GADDR|GSLOT|GLOAD|GGET|GSTORE)\s*\(")
+NARROW_KINDS = {"u8": "U8", "s8": "S8", "char": "S8", "u16": "U16",
+                "s16": "S16", "short": "S16"}
+
+
+def port_prototypes() -> dict[str, tuple[str, str, str]]:
+    """name -> (return type incl. stars, parameter text, body) of the
+    port-visible definition (retail-only spans skipped)."""
+    out: dict[str, tuple[str, str, str]] = {}
+    for path in sorted(BATTLE_SRC.glob("*.c")):
+        text = path.read_text(errors="ignore")
+        retail_only = retail_only_spans(text)
+        for m in DEFINITION_RE.finditer(text):
+            if not is_definition(text, m.end() - 1) or in_spans(m.start(), retail_only):
+                continue
+            depth = 0
+            close = m.end() - 1
+            for i in range(m.end() - 1, len(text)):
+                if text[i] == "(":
+                    depth += 1
+                elif text[i] == ")":
+                    depth -= 1
+                    if depth == 0:
+                        close = i
+                        break
+            params = text[m.end():close]
+            depth = 0
+            start = text.index("{", close)
+            end = start
+            for i in range(start, len(text)):
+                if text[i] == "{":
+                    depth += 1
+                elif text[i] == "}":
+                    depth -= 1
+                    if depth == 0:
+                        end = i
+                        break
+            body = re.sub(r"/\*.*?\*/", "", text[start:end], flags=re.S)
+            out[m.group(3)] = (m.group(1) + m.group(2), params, body)
+    return out
+
+
+def check_abi_thunks(wanted: list[str]) -> int:
+    """Typed bridge thunks (pc_port/src/battle_guest_abi_thunks.inc) agree with
+    the C prototypes, and every adopted leaf whose body uses a guest-ABI macro
+    has one.  Returns the number of violations."""
+    protos = port_prototypes()
+    text = re.sub(r"/\*.*?\*/", "", THUNKS.read_text(), flags=re.S)
+    declared: dict[str, tuple[int, str, list[str]]] = {}
+    bad = 0
+    for m in THUNK_RE.finditer(text):
+        kinds = re.findall(r"BG_THUNK_ARG_(\w+)", m.group(5))
+        declared[m.group(2)] = (int(m.group(1), 16), m.group(3), kinds)
+        if int(m.group(4)) != len(kinds):
+            print(f"THUNK {m.group(2)}: argc {m.group(4)} != {len(kinds)} kinds")
+            bad += 1
+    if len(declared) != text.count("BG_THUNK("):
+        print("THUNK: an entry does not parse")
+        bad += 1
+    for name, (addr, ret, kinds) in declared.items():
+        if name not in wanted:
+            print(f"THUNK {name}: not an adopted leaf")
+            bad += 1
+            continue
+        if addr != int(name[5:], 16):
+            print(f"THUNK {name}: address 0x{addr:08X} does not match the name")
+            bad += 1
+        if name not in protos:
+            print(f"THUNK {name}: no port-visible definition")
+            bad += 1
+            continue
+        rtype, params, _ = protos[name]
+        if "*" in rtype:
+            want_ret = {"HOST"}
+        elif rtype == "void":
+            want_ret = {"VOID"}
+        elif rtype in NARROW_KINDS:
+            want_ret = {NARROW_KINDS[rtype]}
+        else:
+            want_ret = {"W32", "GUEST"}
+        if ret not in want_ret:
+            print(f"THUNK {name}: return {ret}, prototype '{rtype}' wants {sorted(want_ret)}")
+            bad += 1
+        plist = [p.strip() for p in params.split(",")] if params.strip() not in ("", "void") else []
+        if len(plist) != len(kinds):
+            print(f"THUNK {name}: {len(kinds)} kinds, prototype has {len(plist)} parameters")
+            bad += 1
+            continue
+        for index, (param, kind) in enumerate(zip(plist, kinds)):
+            base = param.replace("const ", "").split()[0] if param.split() else ""
+            if "*" in param or "GSLOT(" in param:
+                want = {"HOST"}
+            elif base in NARROW_KINDS:
+                want = {NARROW_KINDS[base]}
+            else:
+                want = {"W32", "GUEST"}
+            if kind not in want:
+                print(f"THUNK {name}: parameter {index} '{param}' declared {kind}, wants {sorted(want)}")
+                bad += 1
+    for name in wanted:
+        if name in protos and name not in declared and (
+            GUEST_ABI_MACRO_RE.search(protos[name][2])
+            or "GSLOT(" in protos[name][1]
+        ):
+            print(f"THUNK {name}: guest-ABI leaf has no typed thunk")
+            bad += 1
+    return bad
 
 
 def owners(name: str, found: dict[str, list[tuple[str, bool]]]) -> list[str]:
@@ -212,8 +403,12 @@ def c_bodies() -> dict[str, set[str]]:
     bodies: dict[str, set[str]] = {}
     for path in sorted(BATTLE_SRC.glob("*.c")):
         text = path.read_text(errors="ignore")
+        # The port links only port-visible bodies: a retail-only definition
+        # (an `#ifndef XENO_PC_PORT` span, e.g. matched C whose port body
+        # lives in another TU) must not overwrite the port body's edges.
+        retail_only = retail_only_spans(text)
         for m in DEFINITION_RE.finditer(text):
-            if not is_definition(text, m.end() - 1):
+            if not is_definition(text, m.end() - 1) or in_spans(m.start(), retail_only):
                 continue
             depth = 0
             start = m.end() - 1
@@ -326,6 +521,22 @@ def main() -> int:
         )
         return 1
 
+    if "--lift-tus" in sys.argv:
+        print("\n".join(lift_tus()))
+        return 0
+    if "--abi-tus" in sys.argv:
+        print("\n".join(abi_tus()))
+        return 0
+    if "--check-abi-thunks" in sys.argv:
+        bad = check_abi_thunks(wanted)
+        if bad:
+            print(f"ERROR: {bad} typed bridge thunk violation(s)", file=sys.stderr)
+            return 1
+        print(f"# typed bridge thunks agree with the C prototypes", file=sys.stderr)
+        return 0
+    if "--abi-strict-flags" in sys.argv:
+        print(ABI_STRICT_FLAGS)
+        return 0
     if "--leaves" in sys.argv:
         for name in wanted:
             print(name)

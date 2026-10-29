@@ -1,22 +1,19 @@
 #include "common.h"
 
 
-#ifndef XENO_PC_PORT
-INCLUDE_ASM("asm/battle/nonmatchings/main75", func_800B14CC);
-#endif
 typedef struct { u32 w[7]; } BattleOtRecord;
 #ifndef XENO_PC_PORT
 extern BattleOtRecord D_800C3BD0;
 #endif
 #ifndef XENO_PC_PORT
-extern u32 D_800C3BEC;
+extern u32 D_800C3BEC[];
 #endif
 #ifndef XENO_PC_PORT
-extern u32 D_800C3BF0;
+extern u32 D_800C3BF0[];
 #endif
 #ifdef XENO_PC_PORT
-/* Coexistence: decompiled and logic-faithful, but not byte-exact yet, so the
- * matching build assembles retail bytes below and the port uses this body. */
+/* Port body; the retail build compiles the byte-exact C in the #else branch.
+ */
 /* func_800B15D8.s: copy entry idx of the 28-byte record array at a0 + 0xC into
  * D_800C3BD0; unless bit0 of a0[+4] is set, relocate the record's three
  * pointer words by the entry address.  Publishes the +0x10 word in D_800C3BEC,
@@ -35,7 +32,27 @@ u32 func_800B15D8(u8* a0, s32 idx) {
     return *(u32*)(e + 0x14);
 }
 #else
-INCLUDE_ASM("asm/battle/nonmatchings/main75", func_800B15D8);
+/* func_800B15D8.s, byte-exact.  The do/while(0) around the D_800C3BEC store
+ * is a scheduling barrier with no semantic effect.  Without it sched1 favours
+ * the w load, whose register has a single set, and puts it after the
+ * D_800C3BF0 store; retail loads w first.  Reusing w for the flags test also
+ * fixes the order but is 2 instructions off (the flags take w's register).
+ * Revisit for a natural form. */
+u32 func_800B15D8(u8* a0, s32 idx) {
+    u8* e = a0 + (idx * 28 + 0xC);
+    u32 w;
+
+    D_800C3BD0 = *(BattleOtRecord*)e;
+    if ((*(u32*)(a0 + 4) & 1) == 0) {
+        D_800C3BD0.w[0] += (u32)e;
+        D_800C3BD0.w[2] += (u32)e;
+        D_800C3BD0.w[4] += (u32)e;
+    }
+    w = D_800C3BD0.w[4];
+    D_800C3BF0[0] = 0;
+    do { D_800C3BEC[0] = w; } while (0);
+    return *(u32*)(e + 0x14);
+}
 #endif
 #ifndef XENO_PC_PORT
 extern u32 D_800D2D40;

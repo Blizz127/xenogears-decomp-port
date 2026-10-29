@@ -2,7 +2,58 @@
 
 
 #ifndef XENO_PC_PORT
-INCLUDE_ASM("asm/battle/nonmatchings/mainc123", func_800BEC18);
+/* func_800BEC18.s, byte-exact: update the two pads' button state in the
+ * D_800C3EB0 block at +0x8C58 (held[2], press[2], rel[2], then a 4-entry
+ * history).  Pad 0 takes ControllerGetButtonState(0): held, newly pressed
+ * (~old & cur) and released (old & ~cur).  Pad 1 takes (1): newly pressed
+ * (~old & cur), held, and, as in retail, a released mask computed from
+ * pad 0's held state (rel[1] = held[0] & ~cur).  When pad 0's held state
+ * differs from the newest history entry, the history shifts down one
+ * entry and entry 0 takes pad 0's held/press/rel and D_800D30E4[0].
+ * Codegen:
+ * - cur is one u32 variable for both results, with the first narrowed by
+ *   (u16): retail keeps both in a1 (andi for the first, a plain copy for
+ *   the second).  ControllerGetButtonState is declared as defined (int).
+ * - Every access goes through the BattlePadState view at base + 0x8C58.
+ *   With *(u16*)(base + K) reads, the four new history values load before
+ *   the third entry copy (13/70); a local pad pointer moves the base
+ *   register (42/70). */
+extern u8 D_800C3EB0[];
+extern u16 D_800D30E4[];
+extern int ControllerGetButtonState(int controllerIndex);
+typedef struct BattlePadHist { u16 held; u16 press; u16 rel; u16 time; } BattlePadHist;
+typedef struct BattlePadState {
+    u16 held[2];
+    u16 press[2];
+    u16 rel[2];
+    BattlePadHist hist[4];
+} BattlePadState;
+
+void func_800BEC18(void) {
+    u8* base;
+    u32 cur;
+    u16 old;
+
+    cur = (u16)ControllerGetButtonState(0);
+    base = D_800C3EB0;
+    old = ((BattlePadState*)(base + 0x8C58))->held[0];
+    ((BattlePadState*)(base + 0x8C58))->held[0] = cur;
+    ((BattlePadState*)(base + 0x8C58))->press[0] = ~old & cur;
+    ((BattlePadState*)(base + 0x8C58))->rel[0] = old & ~cur;
+    cur = ControllerGetButtonState(1);
+    ((BattlePadState*)(base + 0x8C58))->press[1] = ~((BattlePadState*)(base + 0x8C58))->held[1] & cur;
+    ((BattlePadState*)(base + 0x8C58))->held[1] = cur;
+    ((BattlePadState*)(base + 0x8C58))->rel[1] = ((BattlePadState*)(base + 0x8C58))->held[0] & ~cur;
+    if (((BattlePadState*)(base + 0x8C58))->held[0] != ((BattlePadState*)(base + 0x8C58))->hist[0].held) {
+        ((BattlePadState*)(base + 0x8C58))->hist[3] = ((BattlePadState*)(base + 0x8C58))->hist[2];
+        ((BattlePadState*)(base + 0x8C58))->hist[2] = ((BattlePadState*)(base + 0x8C58))->hist[1];
+        ((BattlePadState*)(base + 0x8C58))->hist[1] = ((BattlePadState*)(base + 0x8C58))->hist[0];
+        ((BattlePadState*)(base + 0x8C58))->hist[0].held = ((BattlePadState*)(base + 0x8C58))->held[0];
+        ((BattlePadState*)(base + 0x8C58))->hist[0].press = ((BattlePadState*)(base + 0x8C58))->press[0];
+        ((BattlePadState*)(base + 0x8C58))->hist[0].rel = ((BattlePadState*)(base + 0x8C58))->rel[0];
+        ((BattlePadState*)(base + 0x8C58))->hist[0].time = D_800D30E4[0];
+    }
+}
 #endif
 
 

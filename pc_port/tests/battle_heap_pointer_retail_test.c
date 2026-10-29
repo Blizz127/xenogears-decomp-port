@@ -33,7 +33,7 @@ static unsigned free_calls;
 static uintptr_t freed_pointer;
 #define FREE_SCALAR_RESULT 0x00623450u
 
-void HeapChangeCurrentUser(uint32_t user, void *names)
+void HeapChangeCurrentUser(uint32_t user, char **names)
 {
     assert(user == 2 && names == NULL);
     ++user_calls;
@@ -60,7 +60,7 @@ static int oracle_bridge(void *unused, PcPortMipsCpu *cpu, uint32_t target)
 {
     (void)unused;
     if (target == 0x80032498u) {
-        HeapChangeCurrentUser(cpu->gpr[4], (void *)(uintptr_t)cpu->gpr[5]);
+        HeapChangeCurrentUser(cpu->gpr[4], (char **)(uintptr_t)cpu->gpr[5]);
         return 1;
     }
     if (target == 0x80031bdcu) {
@@ -130,7 +130,7 @@ static int compare_fragment(uint32_t first, uint32_t second)
     return 0;
 }
 
-static int compare_direct(uint32_t result_pointer, uint32_t size, uint32_t flags)
+static int compare_direct(uint32_t result_pointer, uint32_t size, uint32_t flags, uint32_t entry)
 {
     PcPortMipsCpu cpu;
     allocation_plan[0] = result_pointer;
@@ -138,18 +138,18 @@ static int compare_direct(uint32_t result_pointer, uint32_t size, uint32_t flags
     initialize_cpu(&cpu, &oracle_runtime);
     cpu.bus.bridge = oracle_bridge;
     cpu.gpr[4] = size; cpu.gpr[5] = flags;
-    assert(PcPortMipsRun(&cpu, 0x80031bdcu, BATTLE_HALT_PC, 64) == PC_PORT_MIPS_HALTED);
+    assert(PcPortMipsRun(&cpu, entry, BATTLE_HALT_PC, 64) == PC_PORT_MIPS_HALTED);
     uint32_t expected = cpu.gpr[2];
     memcpy(expected_calls, calls, sizeof(calls));
     reset_calls();
     initialize_cpu(&cpu, &candidate_runtime);
     cpu.gpr[4] = size; cpu.gpr[5] = flags;
-    assert(PcPortMipsRun(&cpu, 0x80031bdcu, BATTLE_HALT_PC, 64) == PC_PORT_MIPS_HALTED);
-    if (call_count != 1 || user_calls != 0 || cpu.gpr[2] != expected ||
+    assert(PcPortMipsRun(&cpu, entry, BATTLE_HALT_PC, 64) == PC_PORT_MIPS_HALTED);
+    if (call_count != 1 || user_calls != (entry == 0x8008abb8u) || cpu.steps != 0 || cpu.gpr[2] != expected ||
         memcmp(calls, expected_calls, sizeof(calls)) || candidate_runtime.bridge_cpu != NULL) {
         if (printed++ < 10)
-            fprintf(stderr, "BATTLE HEAP POINTER FAIL direct size=%u flags=%u returned=%08x expected=%08x\n",
-                    size, flags, cpu.gpr[2], expected);
+            fprintf(stderr, "BATTLE HEAP POINTER FAIL direct entry=%08x size=%u flags=%u returned=%08x expected=%08x steps=%llu\n",
+                    entry, size, flags, cpu.gpr[2], expected, (unsigned long long)cpu.steps);
         return 1;
     }
     return 0;
@@ -204,13 +204,21 @@ int main(void)
             ++cases;
         }
     const uint32_t pointers[] = {0, 0x80000000u, 0x80000004u, 0x80100000u, 0x801f34a8u, 0x801fffffu};
-    const uint32_t sizes[] = {0, 4, 128};
+    const uint32_t sizes[] = {0, 4, 128, 0xa2b4, 0x10c, 0x2f8};
     for (unsigned p = 0; p < sizeof(pointers) / sizeof(pointers[0]); ++p)
         for (unsigned s = 0; s < sizeof(sizes) / sizeof(sizes[0]); ++s)
             for (uint32_t flags = 0; flags <= 1; ++flags) {
-                failures += compare_direct(pointers[p], sizes[s], flags);
-                ++cases;
+                failures += compare_direct(pointers[p], sizes[s], flags, 0x80031bdcu);
+                failures += compare_direct(pointers[p], sizes[s], flags, 0x8008abb8u);
+                cases += 2;
             }
+    /* Both heap entry points must preserve pointer-looking scalar bits. */
+    for (unsigned p = 0; p < sizeof(pointers) / sizeof(pointers[0]); ++p)
+        for (uint32_t flags = 0; flags <= 1; ++flags) {
+            failures += compare_direct(pointers[p], 0x80100000u, flags, 0x8008abb8u);
+            failures += compare_direct(pointers[p], 0x80100000u, flags, 0x80031bdcu);
+            cases += 2;
+        }
     for (unsigned p = 0; p < sizeof(pointers) / sizeof(pointers[0]); ++p) {
         failures += compare_roundtrip(pointers[p]);
         ++cases;

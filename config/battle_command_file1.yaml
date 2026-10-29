@@ -54,5 +54,7 @@ segments:
       # file stays for the port; it is not the matching-build input.
       - [0x1CE8, asm, message_controller]
       - [0x21D4, c, after_controller]
+      # 801E93E8..: CDK-compiled tail (BattleCdk preset), see after_controller_cdk.c
+      - [0x43E8, c, after_controller_cdk]
       - [0x4B5C, data, module_data]
   - [0x4C3C]

@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <errno.h>
+#include <sys/stat.h>
 
 #include "../../include/xg_plat/config.h"
 #include "../../include/xg_plat/audio.h"
@@ -228,6 +230,226 @@ const char* xg_plat_config_path(void)
     return s_path[0] ? s_path : NULL;
 }
 
+/* ---- persisting one key (player preferences changed in a menu) ---------- */
+
+/* Path persist writes: the file that was loaded (--config, $XENO_CONFIG, or
+ * whichever default was found), else ${XDG_CONFIG_HOME:-~/.config}/
+ * xenogears-port/config.ini.  Returns 0 when there is no usable location. */
+static int xdg_config_path(char* out, size_t n)
+{
+    const char* xdg = getenv("XDG_CONFIG_HOME");
+    const char* home = getenv("HOME");
+    if (xdg && *xdg)
+        snprintf(out, n, "%.900s/xenogears-port/config.ini", xdg);
+    else if (home && *home)
+        snprintf(out, n, "%.900s/.config/xenogears-port/config.ini", home);
+    else
+        return 0;
+    return 1;
+}
+
+const char* xg_plat_config_user_path(char* out, size_t n)
+{
+    const char* env = getenv("XENO_CONFIG");
+    if (s_cli_file[0])
+        snprintf(out, n, "%s", s_cli_file);
+    else if (env && *env)
+        snprintf(out, n, "%s", env);
+    else if (s_path[0])
+        snprintf(out, n, "%s", s_path);
+    else if (!xdg_config_path(out, n))
+        return NULL;
+    return out;
+}
+
+static void make_parent_dirs(const char* path)
+{
+    char dir[1024];
+    char* p;
+    snprintf(dir, sizeof dir, "%s", path);
+    for (p = dir + 1; *p; p++) {
+        if (*p == '/') {
+            *p = '\0';
+            mkdir(dir, 0777);
+            *p = '/';
+        }
+    }
+}
+
+static int ieq(const char* a, size_t alen, const char* b)
+{
+    size_t i;
+    if (strlen(b) != alen)
+        return 0;
+    for (i = 0; i < alen; i++)
+        if (tolower((unsigned char)a[i]) != tolower((unsigned char)b[i]))
+            return 0;
+    return 1;
+}
+
+/* Rewrite `text` so that section.name = value.  Other lines, comments and
+ * blank lines are kept byte for byte.  An existing assignment keeps its
+ * indentation and trailing comment.  Returns a malloc'd string. */
+static char* rewrite_key(const char* text, const char* section, const char* name,
+                         const char* value)
+{
+    size_t cap = strlen(text) + strlen(section) + strlen(name) + strlen(value) + 64;
+    char* out = (char*)malloc(cap);
+    size_t o = 0;
+    const char* p = text;
+    char cur[64] = "";
+    int found = 0, in_target = 0;
+    long insert_at = -1;   /* offset in out after the target section's last content line */
+    char full[130];
+
+    if (out == NULL)
+        return NULL;
+    snprintf(full, sizeof full, "%s.%s", section, name);
+    while (*p) {
+        size_t len = strcspn(p, "\n");
+        int has_nl = p[len] == '\n';
+        const char* ls = p;
+        const char* t = ls;
+        const char* te = ls + len;
+        int handled = 0;
+        while (t < te && isspace((unsigned char)*t))
+            t++;
+        if (t < te && *t == '[') {
+            const char* close = memchr(t, ']', (size_t)(te - t));
+            if (close) {
+                const char* a = t + 1;
+                const char* b = close;
+                while (a < b && isspace((unsigned char)*a)) a++;
+                while (b > a && isspace((unsigned char)b[-1])) b--;
+                snprintf(cur, sizeof cur, "%.*s", (int)(b - a), a);
+                in_target = ieq(cur, strlen(cur), section);
+            }
+        } else if (t < te && *t != '#' && *t != ';') {
+            const char* eq = memchr(t, '=', (size_t)(te - t));
+            if (eq) {
+                const char* ke = eq;
+                const char* v = eq + 1;
+                const char* hash;
+                while (ke > t && isspace((unsigned char)ke[-1])) ke--;
+                if ((in_target && ieq(t, (size_t)(ke - t), name)) ||
+                    ieq(t, (size_t)(ke - t), full)) {
+                    hash = memchr(v, '#', (size_t)(te - v));
+                    o += (size_t)snprintf(out + o, cap - o, "%.*s = %s", (int)(ke - ls), ls, value);
+                    if (hash) {
+                        const char* ce = hash;
+                        while (ce > v && isspace((unsigned char)ce[-1])) ce--;
+                        (void)ce;
+                        o += (size_t)snprintf(out + o, cap - o, "  %.*s", (int)(te - hash), hash);
+                    }
+                    if (has_nl)
+                        out[o++] = '\n';
+                    found = 1;
+                    handled = 1;
+                }
+            }
+        }
+        if (!handled) {
+            memcpy(out + o, ls, len + (size_t)has_nl);
+            o += len + (size_t)has_nl;
+        }
+        if (in_target && t < te && *t != '#' && *t != ';' &&
+            (*t == '[' || memchr(t, '=', (size_t)(te - t))))
+            insert_at = (long)o;   /* after the section header or its last assignment */
+        p += len + (size_t)has_nl;
+    }
+    if (!found) {
+        char line[300];
+        size_t ll;
+        if (insert_at >= 0) {
+            ll = (size_t)snprintf(line, sizeof line, "%s = %s\n", name, value);
+            /* the insertion point may follow a last line without a newline */
+            if (insert_at > 0 && out[insert_at - 1] != '\n') {
+                memmove(out + insert_at + 1, out + insert_at, o - (size_t)insert_at);
+                out[insert_at++] = '\n';
+                o++;
+            }
+            memmove(out + insert_at + ll, out + insert_at, o - (size_t)insert_at);
+            memcpy(out + insert_at, line, ll);
+            o += ll;
+        } else {
+            if (o > 0 && out[o - 1] != '\n')
+                out[o++] = '\n';
+            if (o > 0)
+                out[o++] = '\n';
+            o += (size_t)snprintf(out + o, cap - o, "[%s]\n%s = %s\n", section, name, value);
+        }
+    }
+    out[o] = '\0';
+    return out;
+}
+
+int xg_plat_config_persist(const char* key, const char* value)
+{
+    char path[1024], tmp[1100], section[64];
+    const char* dot = strchr(key, '.');
+    char* text = NULL;
+    char* out;
+    long len = 0;
+    FILE* f;
+    int pass;
+
+    if (dot == NULL || dot == key || value == NULL || strpbrk(value, "\r\n#"))
+        return 0;
+    snprintf(section, sizeof section, "%.*s", (int)(dot - key), key);
+    for (pass = 0; pass < 2; pass++) {
+        if (pass == 0) {
+            if (xg_plat_config_user_path(path, sizeof path) == NULL)
+                continue;
+        } else if (!xdg_config_path(path, sizeof path)) {
+            break;
+        }
+        free(text);
+        text = NULL;
+        f = fopen(path, "rb");
+        if (f) {
+            if (fseek(f, 0, SEEK_END) == 0 && (len = ftell(f)) >= 0 && fseek(f, 0, SEEK_SET) == 0 &&
+                (text = (char*)malloc((size_t)len + 1)) != NULL) {
+                len = (long)fread(text, 1, (size_t)len, f);
+                text[len] = '\0';
+            }
+            fclose(f);
+            if (text == NULL)
+                continue;
+        } else if (errno != ENOENT) {
+            continue;
+        } else {
+            text = (char*)calloc(1, 1);
+        }
+        out = rewrite_key(text ? text : "", section, dot + 1, value);
+        if (out == NULL)
+            continue;
+        make_parent_dirs(path);
+        snprintf(tmp, sizeof tmp, "%s.tmp", path);
+        f = fopen(tmp, "wb");
+        if (f && fwrite(out, 1, strlen(out), f) == strlen(out) && fclose(f) == 0 &&
+            rename(tmp, path) == 0) {
+            free(out);
+            free(text);
+            {
+                char lk[64];
+                size_t i;
+                snprintf(lk, sizeof lk, "%s", key);
+                for (i = 0; lk[i]; i++)
+                    lk[i] = (char)tolower((unsigned char)lk[i]);
+                set_entry(lk, value);
+            }
+            printf("[xg_plat] config: saved %s = %s to %s\n", key, value, path);
+            return 1;
+        }
+        if (f && tmp[0])
+            remove(tmp);
+        free(out);
+        fprintf(stderr, "[xg_plat] config: cannot write %s: %s\n", path, strerror(errno));
+    }
+    free(text);
+    return 0;
+}
+
 static const char* env_override(const char* key)
 {
     static const struct { const char* key; const char* env; } aliases[] = {
@@ -323,7 +545,7 @@ void xg_plat_config_apply_runtime(void)
     const char* v;
     int b;
     if (xg_plat_config_get("game.speed"))
-        xg_plat_timing_set_speed(xg_plat_config_int("game.speed", 1));
+        xg_plat_timing_set_speed_from(xg_plat_config_int("game.speed", 1), "config");
     if (xg_plat_config_get("game.fast_forward_speed"))
         xg_plat_timing_set_fast_forward_speed(xg_plat_config_int("game.fast_forward_speed", 5));
     if (xg_plat_config_get("audio.volume") &&

@@ -155,9 +155,11 @@ void func_8007E114(int index, int arg1, int arg2, int arg3, s32 arg4) {
 }
 
 #ifndef XENO_PC_PORT
-INCLUDE_ASM("asm/field/nonmatchings/dialogue/text_box_render", func_8007E16C);
-#else
+/* func_8007E16C: the right-edge value is a separate block-local in each arm (a
+ * shared x1 gets hoisted/allocated differently); int parameters. */
+#endif
 void func_8007E16C(void* arg0, s32 x, s32 y, s32 w, s32 h, s32 flipX) {
+#ifdef XENO_PC_PORT
     u8* pPrim = arg0;
     s32 x1;
     s32 y1;
@@ -182,8 +184,33 @@ void func_8007E16C(void* arg0, s32 x, s32 y, s32 w, s32 h, s32 flipX) {
     *(s16*)(pPrim + 0x12) = y;
     *(s16*)(pPrim + 0x1A) = y1;
     *(s16*)(pPrim + 0x22) = y1;
+#else
+    u8* pPrim = arg0;
+    s32 y1;
+
+    if (flipX == 0) {
+        s32 x1;
+        x--;
+        x1 = x + w;
+        *(s16*)(pPrim + 0x08) = x;
+        *(s16*)(pPrim + 0x10) = x1;
+        *(s16*)(pPrim + 0x18) = x;
+        *(s16*)(pPrim + 0x20) = x1;
+    } else {
+        s32 x2 = x + w;
+        *(s16*)(pPrim + 0x10) = x;
+        *(s16*)(pPrim + 0x08) = x2;
+        *(s16*)(pPrim + 0x20) = x;
+        *(s16*)(pPrim + 0x18) = x2;
+    }
+
+    y1 = y + h;
+    *(s16*)(pPrim + 0x0A) = y;
+    *(s16*)(pPrim + 0x12) = y;
+    *(s16*)(pPrim + 0x1A) = y1;
+    *(s16*)(pPrim + 0x22) = y1;
+#endif
 }
-#endif /* XENO_PC_PORT */
 
 #ifndef XENO_PC_PORT
 INCLUDE_ASM("asm/field/nonmatchings/dialogue/text_box_render", func_8007E1C0);

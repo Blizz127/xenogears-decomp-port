@@ -175,9 +175,20 @@ def addr_from_name(name, slus):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", required=True)
-    ap.add_argument("--opt", default="-O0")
+    ap.add_argument("--opt", default="-O0", help="optimisation/sanitizer flags (space-separated)")
     ap.add_argument("--extra", nargs="*", default=[], help="extra -D flags for the TUs")
+    ap.add_argument("--compile-one", nargs=2, metavar=("SRC", "OBJ"),
+                    help="compile one (mutant) TU with the harness flags and exit")
     a = ap.parse_args()
+    if a.compile_one:
+        os.chdir(ROOT)
+        src, obj = a.compile_one
+        cmd = ["gcc", "-c", src, *GFLAGS, *a.opt.split(), *[x for e in a.extra for x in e.split()],
+               "-iquote", "pc_port/src", *INC, "-o", obj]
+        r = subprocess.run(cmd, capture_output=True, text=True)
+        if r.returncode:
+            sys.stderr.write(r.stderr)
+        sys.exit(r.returncode)
     out = pathlib.Path(a.out)
     (out / "obj").mkdir(parents=True, exist_ok=True)
     os.chdir(ROOT)
@@ -186,7 +197,8 @@ def main():
     for tu in tus:
         base = pathlib.Path(tu).stem
         o, aux = out / "obj" / (base + ".o"), out / "obj" / (base + ".aux")
-        cmd = ["gcc", "-c", tu, *GFLAGS, a.opt, *a.extra, *INC, "-aux-info", str(aux), "-o", str(o)]
+        cmd = ["gcc", "-c", tu, *GFLAGS, *a.opt.split(), *[x for e in a.extra for x in e.split()], *INC,
+               "-aux-info", str(aux), "-o", str(o)]
         r = subprocess.run(cmd, capture_output=True, text=True)
         if r.returncode:
             sys.stderr.write(f"compile failed: {tu}\n{r.stderr}\n")

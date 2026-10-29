@@ -1,0 +1,4 @@
+[
+ ("func_800A3474", "*(u32*)(actorData + 0x118) = saved118;", "(void)saved118;"),
+ ("func_800A3F4C", "D_8005A408[i] = ((u8*)g_pGameState)[0x22B1 + i];", "D_8005A408[i] = ((u8*)g_pGameState)[0x22B0 + i];"),
+]

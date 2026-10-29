@@ -1,0 +1,50 @@
+--- a/src/PsyX_main.cpp
++++ b/src/PsyX_main.cpp
+@@ -886,6 +886,14 @@
+ 	__attribute__((weak));
+ #endif
+ 
++/* _xeno_hd2d_present: optional port-owned effects, after retail storage.
++ * Current presentation has no verified linear-depth/coverage attachments. */
++#if defined(__GNUC__)
++extern "C" void PcPort_Hd2dBeforePresent(int width, int height)
++    __attribute__((weak));
++extern "C" void XgHd2d_Shutdown(void) __attribute__((weak));
++#endif
++
+ /* _xeno_video_recording */
+ #include "../../../src/psycross_video_recording.inl"
+ 
+@@ -908,6 +916,10 @@
+ 	GR_PresentVRAMDisplay(currentDispEnv.disp.x, currentDispEnv.disp.y,
+ 		currentDispEnv.disp.w, currentDispEnv.disp.h,
+ 		currentDispEnv.isrgb24, !g_GPUDisabledState);
++#if defined(__GNUC__)
++	if (PcPort_Hd2dBeforePresent != NULL)
++		PcPort_Hd2dBeforePresent(g_windowWidth, g_windowHeight);
++#endif
+ 	PsyX_RecordPresentedFrame();
+ 	PsyX_HostToolbarDraw();
+ 	GR_SwapWindow();
+@@ -930,6 +942,10 @@
+ 	
+ 	GR_StoreFrameBuffer(activeDispEnv.disp.x, activeDispEnv.disp.y, activeDispEnv.disp.w, activeDispEnv.disp.h);
+ 
++#if defined(__GNUC__)
++	if (PcPort_Hd2dBeforePresent != NULL)
++		PcPort_Hd2dBeforePresent(g_windowWidth, g_windowHeight);
++#endif
+ 	PsyX_RecordPresentedFrame();
+ 	PsyX_HostToolbarDraw();
+ 	GR_SwapWindow();
+@@ -1177,6 +1193,10 @@
+ 
+ void PsyX_Shutdown()
+ {
++#if defined(__GNUC__)
++	if (g_window && XgHd2d_Shutdown != NULL)
++		XgHd2d_Shutdown();
++#endif
+ 	/* _xeno_cd_shutdown_join: SDL_Delay and the callback dispatch used by the
+ 	 * streaming worker remain SDL-owned. Stop and join it before SDL_Quit. */
+ 	PsyX_CD_Shutdown();

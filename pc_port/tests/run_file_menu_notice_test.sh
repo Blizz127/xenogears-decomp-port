@@ -29,13 +29,12 @@ from hashlib import sha256
 import json, re, sys
 out = Path(sys.argv[1]); source = Path(sys.argv[2])
 
+# The game no longer calls the notice: File opens the retail card screen
+# (src/menu/main/misc.c func_801C55A0).  The policy below stays certified for
+# the host hook in case a caller returns.
 menu = Path('src/menu/main/misc.c').read_text()
-assert 'PcPort_NotifyUnsupportedFileMenu();' in menu, \
-    'the field menu no longer calls PcPort_NotifyUnsupportedFileMenu'
-# The call must stay on the File branch (menu1Choice == 1).
-m = re.search(r'if \(g_Menu->menu1Choice == 1\) \{\s*\n\s*'
-              r'PcPort_NotifyUnsupportedFileMenu\(\);', menu)
-assert m, 'the notice call moved off the File (menu1Choice == 1) branch'
+assert 'PcPort_NotifyUnsupportedFileMenu();' not in menu, \
+    'the field menu refuses File again (retail opens the card screen)'
 
 header = Path('pc_port/src/file_menu_notice.h').read_text()
 assert 'PcPort_FileMenuNoticeStartThread' in header, \
@@ -55,7 +54,7 @@ paths = [source, Path('pc_port/src/file_menu_notice.h'),
          Path('src/menu/main/misc.c')]
 (out / 'provenance.json').write_text(json.dumps({
     'scope': 'field menu File-entry notice dispatch (never modal on the game thread)',
-    'retail_call_site': 'src/menu/main/misc.c menu1Choice == 1',
+    'retail_call_site': 'none (File opens the retail card screen)',
     'source_pins': {str(p.resolve()): sha256(p.read_bytes()).hexdigest() for p in paths},
 }, indent=2) + '\n')
 print('FILE MENU NOTICE provenance: menu1Choice==1 -> policy -> thread hook PASS')
@@ -153,12 +152,15 @@ echo "== mutants (each must be rejected) =="
 MUTANTS=(dialog-inline dispatch-skipped oom-frees failure-leaks title-drift)
 for mutant in "${MUTANTS[@]}"; do
     set +e
-    build_and_run "$mutant" gcc "$OUT/$mutant.c" -O0 -w > "$OUT/$mutant.log" 2>&1
+    # build_and_run writes the binary's output to $OUT/$mutant.log itself;
+    # the build output goes elsewhere (redirecting it onto the same file
+    # made cat refuse it and overwrite the FAIL line with that error).
+    build_and_run "$mutant" gcc "$OUT/$mutant.c" -O0 -w > "$OUT/$mutant.build.log" 2>&1
     rc=$?
     set -e
     if [ "$rc" -eq 0 ] || ! grep -q '^FILE MENU NOTICE FAIL ' "$OUT/$mutant.log"; then
         echo "FILE MENU NOTICE MUTANT NOT DETECTED: $mutant rc=$rc" >&2
-        cat "$OUT/$mutant.log" >&2
+        cat "$OUT/$mutant.build.log" "$OUT/$mutant.log" >&2
         exit 1
     fi
     printf 'FILE MENU NOTICE mutant rejected: %s\n' "$mutant"

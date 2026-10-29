@@ -8,6 +8,26 @@
 #include "psx_memory.h"
 #endif
 
+/* Signed 32-bit division with R3000 DIV semantics where the retail code has
+ * no divide-by-zero check (GCC emitted no `break 7`/`teq` guard).  On a PS1 a
+ * zero divisor does not trap: LO = (a >= 0) ? -1 : 1.  INT_MIN / -1 gives
+ * INT_MIN.  x86 traps (SIGFPE) on both, so the port must not use a plain `/`
+ * there.  The matching build keeps the plain operator, so the retail bytes
+ * (and rom-check) are unchanged. */
+#ifdef XENO_PC_PORT
+static inline int XenoMipsDiv(int a, int b)
+{
+    if (b == 0)
+        return a >= 0 ? -1 : 1;
+    if (b == -1 && a == (int)0x80000000)
+        return a;
+    return a / b;
+}
+#define MIPS_DIV(a, b) XenoMipsDiv((int)(a), (int)(b))
+#else
+#define MIPS_DIV(a, b) ((a) / (b))
+#endif
+
 /* Battle-overlay D_* guest-RAM aliases are function-like name shadows, so they
  * can only be included by the battle host translation units that use them.
  * A TU that merely *declares* one of these symbols -- e.g. main-exe

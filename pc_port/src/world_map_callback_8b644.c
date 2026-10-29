@@ -26,6 +26,7 @@
 
 #include "common.h"
 #include "psx_memory.h"
+#include "world_map_retail_trig.h"
 #include "world_map_callback_8b644.h"
 #include "world_map_animation_guard.h"
 #include "world_map_common_tail.h"
@@ -37,8 +38,6 @@
 #include "world_map_terrain_sampler.h"
 
 extern void func_800245D8(void* object, s16 animation);
-extern long rcos(long a);
-extern long rsin(long a);
 
 /* ------------------------------------------------------------------ */
 /* Guest layout                                                        */
@@ -378,13 +377,13 @@ main_dispatch:
 
         /* Compute forward offset using rcos/rsin */
         /* rcos returns sin(angle) (retail naming swap) */
-        cos_val = (s32)rcos((long)heading);
+        cos_val = (s32)wm_retail_rcos((int)((long)heading));
         v1 = cos_val * 3;
         v1 = v1 << 4;  /* v1 = cos_val * 48 */
         b644_sw(s3 + 0x00, b644_lw(s1 + 0x28) + (u32)v1);
 
         /* rsin returns cos(angle) (retail naming swap) */
-        sin_val = (s32)rsin((long)heading);
+        sin_val = (s32)wm_retail_rsin((int)((long)heading));
         v0 = (u32)(-(s32)sin_val);
         v1 = (s32)v0 * 3;
         v1 = v1 << 4;  /* v1 = -sin_val * 48 */

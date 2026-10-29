@@ -438,6 +438,14 @@ extern void* g_FieldSpriteData;
 
 #define SCRIPT_READ_U8(idx) *(u8*)&g_FieldScriptVMCurScriptData[idx]
 #define SCRIPT_READ_U8_REL(idx) *(u8*)&g_FieldScriptVMCurScriptData[g_FieldScriptVMCurActor->scriptInstructionPointer + idx]
+#ifndef XENO_PC_PORT
+/* SCRIPT_READ_U8_REL through plain pointer arithmetic.  gcc 2.7.2 treats a
+ * struct-field read as non-aliasing with a preceding store to a scalar global
+ * and hoists it above the store; sites that store one call's result before
+ * reading the next operand (func_8008A08C, func_8008B45C, ...) keep retail's
+ * schedule only in this form.  Retail-only: the (s32) cast is 32-bit. */
+#define SCRIPT_READ_U8_REL_RAW(idx) (*(u8*)(*(u16*)((u8*)g_FieldScriptVMCurActor + 0xCC) + (s32)g_FieldScriptVMCurScriptData + (idx)))
+#endif
 
 #define ARG(index) ((index * 2) - 1)
 #define SCRIPT_IMM_ARG(index) (FieldScriptVMGetInstructionArgument(ARG(index)) & 0xFFFF)

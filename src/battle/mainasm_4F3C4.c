@@ -65,7 +65,24 @@ s16 func_800BEF24(s16* a, s16* b) {
     return func_80023124(pb, pa);
 }
 
-INCLUDE_ASM("asm/battle/nonmatchings/mainasm_4F3C4", func_800BEF8C);
+/* func_80023124(the +0xA0/+0xA4 target (read unsigned), the +2/+0xA
+ * position), as func_800BEF24 does for two objects. */
+s16 func_800BEF8C(u8* e) {
+    PairXZ pa;
+    PairXZ pb;
+    s32 ax, az;
+    u32 bx, bz;
+
+    ax = *(s16*)(e + 2);
+    pa.x = ax;
+    az = *(s16*)(e + 0xA);
+    pa.z = az;
+    bx = *(u16*)(e + 0xA0);
+    pb.x = bx;
+    bz = *(u16*)(e + 0xA4);
+    pb.z = bz;
+    return func_80023124(pb, pa);
+}
 extern u8* D_800C3610[];
 extern u8 D_800C3EB0[];
 extern void func_800245D8(void* pSpriteData, s16 animIndex);

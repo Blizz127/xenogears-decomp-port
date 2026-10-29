@@ -326,7 +326,14 @@ void func_800230A8(void* pSpriteData)
 #endif
 
 #ifndef XENO_PC_PORT
-INCLUDE_ASM(TEMP1_ASM, func_80023124);
+typedef struct { s16 x,y; } XenoAnglePoint;
+s32 func_80023124__ret(XenoAnglePoint, XenoAnglePoint) asm("func_80023124");
+s32 func_80023124__ret(XenoAnglePoint a, XenoAnglePoint b) {
+    VECTOR delta;
+    delta.vx = a.x - b.x;
+    delta.vz = a.y - b.y;
+    return -ratan2(delta.vz, delta.vx) & 0xFFF;
+}
 #else
 s32 func_80023124(s32 pointA, s32 pointB) {
     s16 ax = (s16)(pointA & 0xFFFF);
@@ -338,7 +345,29 @@ s32 func_80023124(s32 pointA, s32 pointB) {
 #endif
 
 #ifndef XENO_PC_PORT
-INCLUDE_ASM(TEMP1_ASM, func_80023170);
+void func_80023170__ret(void*,s32,s32,s32) asm("func_80023170");
+void func_8001D2B0(void*,s32);
+void func_80023170__ret(void* arg0,s32 arg1,s32 arg2,s32 arg3) {
+    register u32 mask9 asm("$9") = 0xFFCFFFFF;
+    register u32 mask8 asm("$8") = 0xFFF1FFFF;
+    register u32 value asm("$2") = ~0x10;
+    register u32 flags asm("$3");
+    arg3 = (arg3 & 1) << 4;
+    arg2 = (arg2 & 1) << 3;
+    flags = *(u32*)((u8*)arg0 + 0x3C);
+    *(u16*)((u8*)arg0 + 0x9E) = 0;
+    flags &= value;
+    flags |= arg3;
+    value = ~8;
+    flags &= value;
+    value = *(u32*)((u8*)arg0 + 0xA8);
+    flags |= arg2;
+    *(u32*)((u8*)arg0 + 0x3C) = flags;
+    value &= mask9;
+    value &= mask8;
+    *(u32*)((u8*)arg0 + 0xA8) = value;
+    func_8001D2B0(arg0,arg1);
+}
 #else
 void func_80023170(void* pSpriteData, s16 animFrame, s32 flagA, s32 flagB) {
     u8* pData = (u8*)pSpriteData;
@@ -348,7 +377,7 @@ void func_80023170(void* pSpriteData, s16 animFrame, s32 flagA, s32 flagB) {
     s32 bitA = (flagA & 1) << 3;
 
     *(u16*)(pData + 0x9E) = 0;
-    flags3C = (flags3C & ~0x30) | bitB;
+    flags3C = (flags3C & ~0x10) | bitB;
     flags3C = (flags3C & ~0x08) | bitA;
     *(u32*)(pData + 0x3C) = flags3C;
 
@@ -392,10 +421,8 @@ void AnimScriptTick(void* pSpriteData) {
     }
 }
 
-#ifndef XENO_PC_PORT
-INCLUDE_ASM(TEMP1_ASM, func_80023290);
-#else
 void func_80023290(u8* pSprite, s32 animType) {
+#ifdef XENO_PC_PORT
     u32 flags3C;
     animType &= 7;
     flags3C = *(u32*)(pSprite + 0x3C);
@@ -417,8 +444,34 @@ void func_80023290(u8* pSprite, s32 animType) {
             func_8001F6B0(pSprite);
         }
     }
-}
+#else
+    extern void func_8001F6B0(void*);
+    register u32 value asm("$2");
+    register u32 bits asm("$3");
+    bits = ~0xE0;
+    value = *(u32*)((u8*)pSprite + 0x3C);
+    animType &= 7;
+    value &= bits;
+    bits = animType << 5;
+    *(u32*)((u8*)pSprite + 0x3C) = value | bits;
+    if (animType) value = *(u8*)((u8*)pSprite + 0x2B) | 2;
+    else value = *(u8*)((u8*)pSprite + 0x2B) & 0xFD;
+    *(u8*)((u8*)pSprite + 0x2B) = value;
+    value = *(u32*)((u8*)pSprite + 0x40);
+    value = ((value >> 13) & 15) - 8;
+    if (value < 2U) {
+        animType = *(u32*)((u8*)pSprite + 0x3C);
+        value = ((u32)animType >> 5) & 7;
+        if (value) {
+            bits = ~0xE0;
+            bits = (u32)animType & bits;
+            value = ((value - 1) & 7) << 5;
+            bits |= value;
+            *(u32*)((u8*)pSprite + 0x3C) = bits;
+        }
+    } else func_8001F6B0(pSprite);
 #endif
+}
 
 void func_80023340(void* pSpriteData, s32 count) {
 #ifdef XENO_PC_PORT
@@ -519,9 +572,6 @@ s32 func_80023440(void* pData)
     return result;
 }
 
-#ifndef XENO_PC_PORT
-INCLUDE_ASM(TEMP1_ASM, func_80023468);
-#else
 /* Transcribed from asm/slus_006.64/nonmatchings/system/temp1/func_80023468.s
  * (0x80023468-0x800234AC, 17 instructions). Small dispatch on `type`: retail
  * rejects `type >= 0x10` up front, then jtbl_80018664 maps cases 0/5/6/10-14 to
@@ -532,6 +582,7 @@ INCLUDE_ASM(TEMP1_ASM, func_80023468);
  * an explicit value); a one-argument call therefore yields that slot's content,
  * exactly like retail. */
 s32 func_80023468(s32 type, s32 arg1) {
+#ifdef XENO_PC_PORT
     switch (type) {
     case 0:
     case 5:
@@ -558,13 +609,21 @@ s32 func_80023468(s32 type, s32 arg1) {
     default:
         return arg1;
     }
-}
-#endif
-
-#ifndef XENO_PC_PORT
-INCLUDE_ASM(TEMP1_ASM, func_800234AC);
 #else
+    switch(type) {
+    case 0: case 5: case 6: case 10: case 11: case 12: case 13: case 14:
+        arg1 = 1; break;
+    case 1: case 4: case 8: case 9:
+        arg1 = 0; break;
+    case 2: case 7: case 15:
+        arg1 = 2; break;
+    }
+    return arg1;
+#endif
+}
+
 void func_800234AC(void* pSpriteData) {
+#ifdef XENO_PC_PORT
     u8* pData = pSpriteData;
     u8* pBase = (u8*)(uintptr_t)*(u32*)(pData + 0x20);
     u8* pDirTransforms = (u8*)(uintptr_t)*(u32*)(pBase + 0x34);
@@ -579,8 +638,21 @@ void func_800234AC(void* pSpriteData) {
         *(s16*)(pDir + 0x4) = 0;
         *(s16*)(pDir + 0x6) = 0;
     }
-}
+#else
+    s32 i;
+    s32 offset;
+    i = 0;
+    do {
+        offset = i * 8;
+        *(u8*)(offset + *(s32*)(*(u8**)((u8*)pSpriteData + 0x20) + 0x34)) = 0;
+        *(u8*)(offset + *(s32*)(*(u8**)((u8*)pSpriteData + 0x20) + 0x34) + 1) = 0;
+        *(s16*)(offset + *(s32*)(*(u8**)((u8*)pSpriteData + 0x20) + 0x34) + 2) = 0;
+        *(s16*)(offset + *(s32*)(*(u8**)((u8*)pSpriteData + 0x20) + 0x34) + 4) = 0;
+        i++;
+        *(s16*)(offset + *(s32*)(*(u8**)((u8*)pSpriteData + 0x20) + 0x34) + 6) = 0;
+    } while(i != 8);
 #endif
+}
 
 extern s32 D_800591A8;
 extern s32 D_80059198;
@@ -1365,6 +1437,26 @@ extern void func_8001FBE4(void* pSpriteData, u32 opcodeIndex, void* operands);
 #ifndef XENO_PC_PORT
 INCLUDE_ASM(TEMP1_ASM, func_800248D4);
 #else
+/* Port-only input: $s3 at func_800248D4 entry (see opcodes 0x40-0x7F). */
+u32 g_SpriteTickEntryS3;
+
+#ifdef XENO_PC_PORT
+/* Port-only inline of func_8001FBA4 (animation_scripts.c): variable slot
+ * selected by index byte *pIndex: bit7 clear -> sprite stack slot
+ * (+0x8E + (s8)+0x8C + (s8)index), bit7 set -> guest pointer at +0x88 plus
+ * (index & 0x7F). Inlined so this TU stays self-contained for the retail
+ * differential test. */
+static void* SpriteTickVarSlot(u8* pData, const u8* pIndex)
+{
+    u8 index = *pIndex;
+
+    if (!(index & 0x80)) {
+        return pData + 0x8E + (s8)pData[0x8C] + (s8)index;
+    }
+    return (void*)(uintptr_t)((*(u32*)(pData + 0x88)) + (u32)(index & 0x7F));
+}
+#endif
+
 void func_800248D4(void* pSpriteData) {
     u8* pData = pSpriteData;
     u8* pc;
@@ -1462,7 +1554,8 @@ reenter:
             flags = *(u32*)(pData + 0xA8) & 0xF03FFFFF;
             subIndex = (((*(u32*)(pData + 0xA8) >> 22) & 0x3F) - 1) & 0x3F;
             *(u32*)(pData + 0xA8) = flags | (subIndex << 22);
-            func_800248D4(pData);
+            /* retail 80024A34-80024DC4 stores A8 and RETURNS here (it does
+             * not re-enter); the next tick resumes at the new pc. */
         }
         return;
     }
@@ -1499,7 +1592,8 @@ reenter:
             flags = *(u32*)(pData + 0xA8) & 0xF03FFFFF;
             subIndex = (((*(u32*)(pData + 0xA8) >> 22) & 0x3F) - 1) & 0x3F;
             *(u32*)(pData + 0xA8) = flags | (subIndex << 22);
-            func_800248D4(pData);
+            /* retail 80024A34-80024DC4 stores A8 and RETURNS here (it does
+             * not re-enter); the next tick resumes at the new pc. */
         }
         return;
     }
@@ -1534,7 +1628,8 @@ reenter:
             flags = *(u32*)(pData + 0xA8) & 0xF03FFFFF;
             subIndex = (((*(u32*)(pData + 0xA8) >> 22) & 0x3F) - 1) & 0x3F;
             *(u32*)(pData + 0xA8) = flags | (subIndex << 22);
-            func_800248D4(pData);
+            /* retail 80024A34-80024DC4 stores A8 and RETURNS here (it does
+             * not re-enter); the next tick resumes at the new pc. */
         }
         return;
     }
@@ -1566,16 +1661,25 @@ reenter:
             flags = *(u32*)(pData + 0xA8) & 0xF03FFFFF;
             subIndex = (((*(u32*)(pData + 0xA8) >> 22) & 0x3F) - 1) & 0x3F;
             *(u32*)(pData + 0xA8) = flags | (subIndex << 22);
-            func_800248D4(pData);
+            /* retail 80024A34-80024DC4 stores A8 and RETURNS here (it does
+             * not re-enter); the next tick resumes at the new pc. */
         }
         return;
     }
 
     /* asm 800249C0-80024A54: 0x40-0x7F fall through to the shared delay
-     * tail with stale $s3 (no 1D2B0). A first-opcode stale delay of 0
-     * clamps to 1, same as the 0x00-0x3F tail. */
+     * tail WITHOUT assigning $s3, so the delay is whatever $s3 held at
+     * function entry. $s3 is callee-saved and is never written before this
+     * point on any path that reaches here (all paths that set it return, the
+     * 0x82 recursion saves/restores it), so it is exactly the caller's $s3:
+     * AnimScriptTick does not touch $s3, so it is the register value of
+     * AnimScriptTick's own caller (many different sites). That is
+     * genuinely caller-dependent stale state; the port models it as the
+     * port-only input g_SpriteTickEntryS3 (default 0 -> delay clamps to 1).
+     * Opcodes 0x40-0x7F are outside the script ISA; retail scripts are not
+     * expected to contain them. */
     if (opcode >= 0x40 && opcode < 0x80) {
-        s32 delay = 0;
+        s32 delay = (s32)g_SpriteTickEntryS3;
         s32 speed = (*(u32*)(pData + 0xAC) >> 7) & 0xFFF;
         s32 scaledDelay;
         u32 flags;
@@ -1583,7 +1687,7 @@ reenter:
 
         *(u32*)(pData + 0x64) = (u32)(uintptr_t)(pc + 1);
 
-        scaledDelay = delay * speed;
+        scaledDelay = (s32)((u32)delay * (u32)speed); /* mult lo, wraps */
         if (scaledDelay < 0) {
             scaledDelay += 0xFF;
         }
@@ -1601,7 +1705,8 @@ reenter:
             flags = *(u32*)(pData + 0xA8) & 0xF03FFFFF;
             subIndex = (((*(u32*)(pData + 0xA8) >> 22) & 0x3F) - 1) & 0x3F;
             *(u32*)(pData + 0xA8) = flags | (subIndex << 22);
-            func_800248D4(pData);
+            /* retail 80024A34-80024DC4 stores A8 and RETURNS here (it does
+             * not re-enter); the next tick resumes at the new pc. */
         }
         return;
     }
@@ -1628,7 +1733,8 @@ reenter:
     /* jtbl_800186E0[0xBE] = 0x80024A84. Advances by 3 bytes rather than
      * D_8004FC40[0xBE] == 2. */
     if (opcode == 0xBE) {
-        s32 packed = pc[1] | ((s32)(s8)pc[2] << 8);
+        /* lb pc[2] << 8 | lbu pc[1], computed unsigned (no negative left shift) */
+        s32 packed = (s32)((u32)pc[1] | ((u32)(s32)(s8)pc[2] << 8));
         s32 delay = (((packed >> 11) & 0xF) + 1);
         s32 speed = (*(u32*)(pData + 0xAC) >> 7) & 0xFFF;
         s32 scaledDelay = delay * speed;
@@ -1726,30 +1832,10 @@ reenter:
         return;
     }
 
-    if (opcode == 0xB4) {
-        s32 delay;
-        s32 speed;
-
-        *(u32*)(pData + 0x64) = (u32)(uintptr_t)(pc + 4);
-        if (pc[1] & 0x80) {
-            *(s16*)(pData + 0x9E) = *(u16*)(pData + 0x9E) + 1;
-            g_WorkListCurTimer = (pc[1] & 0x7F) + 1;
-            return;
-        }
-
-        delay = pc[1] + 2;
-        speed = (*(u32*)(pData + 0xAC) >> 7) & 0xFFF;
-        delay *= speed;
-        if (delay < 0) {
-            delay += 0xFF;
-        }
-        delay >>= 8;
-        if (delay == 0) {
-            delay = 1;
-        }
-        *(s16*)(pData + 0x9E) = *(u16*)(pData + 0x9E) + delay;
-        return;
-    }
+    /* jtbl_800186E0[0xB4-0x80] is the shared default .L80024EC8 (NOT a
+     * dedicated wait): func_8001FBE4 pushes the operand byte, pc advances by
+     * D_8004FC40[0xB4]==2 and the tick re-enters. Handled by the default
+     * path below. */
 
     if (opcode == 0xB3) {
         /* jtbl default .L80024EC8 + FBE4 0xB3 (asm 800214AC): set +0xA8
@@ -1877,15 +1963,99 @@ reenter:
         goto reenter;
     }
 
-    /* jtbl_800186E0 dedicated handlers still unported — keep loud. */
-    if (opcode == 0x85 || opcode == 0x8E ||
-        opcode == 0x98 || opcode == 0xC8 ||
-        opcode == 0xD4 || opcode == 0xE2 || opcode == 0xFA) {
-#ifdef XENO_PC_PORT
-        fprintf(stderr, "{\"event\":\"sprite_animation_dedicated_unimplemented\",\"opcode\":%u,\"pc\":\"%p\"}\n", (unsigned)opcode, (void*)pc);
-        fflush(stderr);
-#endif
-        assert(0 && "func_800248D4 dedicated opcode path is not implemented");
+    /* asm 80024BE4 (jtbl[0x85-0x80]): AnimScriptStackPopU24 into the low 24
+     * bits of the script pc (upper byte kept), re-enter. */
+    if (opcode == 0x85) {
+        u8 idx = *(u8*)(pData + 0x8C);
+        u8* slot = pData + 0x8E + (s8)idx;
+        u32 value = (u32)slot[0] | ((u32)slot[1] << 8) | ((u32)slot[2] << 16);
+
+        *(u8*)(pData + 0x8C) = (u8)(idx + 3);
+        *(u32*)(pData + 0x64) = (*(u32*)(pData + 0x64) & 0xFF000000u) | value;
+        goto reenter;
+    }
+
+    /* asm 80024BA0 (jtbl[0x8E-0x80]): script pc cleared, tick ends. */
+    if (opcode == 0x8E) {
+        *(u32*)(pData + 0x64) = 0;
+        return;
+    }
+
+    /* asm 80024CF8 (jtbl[0x98-0x80]): wait on the linked sprite at +0x70.
+     * No link: advance. Else wait=1; if its +0xAF animation differs from our
+     * +0x8D advance, else stay (pc unchanged) while its +0xA8 bits 28-29 == 2,
+     * otherwise advance by D_8004FC40[0x98] and re-enter. */
+    if (opcode == 0x98) {
+        extern const u8 D_8004FC40[256];
+        u8* link = (u8*)(uintptr_t)*(u32*)(pData + 0x70);
+
+        if (link != NULL) {
+            *(s16*)(pData + 0x9E) = 1;
+            if (*(s8*)(link + 0xAF) == *(s8*)(pData + 0x8D) &&
+                ((*(u32*)(link + 0xA8) >> 28) & 0x3) == 2) {
+                return;
+            }
+        }
+        *(u32*)(pData + 0x64) = (u32)(uintptr_t)(pc + D_8004FC40[opcode]);
+        goto reenter;
+    }
+
+    /* asm 80024EAC (jtbl[0xC8-0x80]): FBE4(sprite, pc[1], FBA4(sprite, pc+2)),
+     * then the default advance D_8004FC40[0xC8], re-enter. */
+    if (opcode == 0xC8) {
+        extern const u8 D_8004FC40[256];
+        void* slot = SpriteTickVarSlot(pData, pc + 2);
+
+        func_8001FBE4(pData, pc[1], slot);
+        *(u32*)(pData + 0x64) = (u32)(uintptr_t)(pc + D_8004FC40[opcode]);
+        goto reenter;
+    }
+
+    /* asm 80024C30 (jtbl[0xD4-0x80]): signed 16-bit pc-relative jump
+     * (operand pc[1] | pc[2]<<8) stored BEFORE the +0x68 callback (if any)
+     * runs; then re-enter. */
+    if (opcode == 0xD4) {
+        void (*callback)(void*) = (void (*)(void*))(uintptr_t)*(u32*)(pData + 0x68);
+        s32 offset = (s16)((u16)pc[1] | ((u16)pc[2] << 8));
+
+        *(u32*)(pData + 0x64) = (u32)(uintptr_t)(pc + offset);
+        if (callback != NULL) {
+            callback(pData);
+        }
+        goto reenter;
+    }
+
+    /* asm 80024BA8 (jtbl[0xE2-0x80]): call. Push pc+3 (AnimScriptStackPushU24,
+     * 24 bits), then jump by the signed 16-bit operand pc[1] | pc[2]<<8. */
+    if (opcode == 0xE2) {
+        u32 ret = (u32)(uintptr_t)pc + 3u;
+        s32 offset = (s16)((u16)pc[1] | ((u16)pc[2] << 8));
+
+        /* AnimScriptStackPushU24: the index byte is re-read before each store
+         * (the stack window can alias +0x8C itself). */
+        *(u8*)(pData + 0x8C) = (u8)(*(u8*)(pData + 0x8C) - 3);
+        *(u8*)(pData + 0x8E + (s8)*(u8*)(pData + 0x8C)) = (u8)ret;
+        *(u8*)(pData + 0x8F + (s8)*(u8*)(pData + 0x8C)) = (u8)(ret >> 8);
+        *(u8*)(pData + 0x90 + (s8)*(u8*)(pData + 0x8C)) = (u8)(ret >> 16);
+        *(u32*)(pData + 0x64) = (u32)(uintptr_t)(pc + offset);
+        goto reenter;
+    }
+
+    /* asm 80024C04 (jtbl[0xFA-0x80]): if the byte at FBA4(sprite, pc+1) is
+     * zero advance by D_8004FC40[0xFA]; else jump by the signed 16-bit
+     * operand pc[2] | pc[3]<<8. Re-enter either way. */
+    if (opcode == 0xFA) {
+        extern const u8 D_8004FC40[256];
+        u8* slot = (u8*)SpriteTickVarSlot(pData, pc + 1);
+
+        if (*slot == 0) {
+            *(u32*)(pData + 0x64) = (u32)(uintptr_t)(pc + D_8004FC40[opcode]);
+        } else {
+            s32 offset = (s16)((u16)pc[2] | ((u16)pc[3] << 8));
+
+            *(u32*)(pData + 0x64) = (u32)(uintptr_t)(pc + offset);
+        }
+        goto reenter;
     }
 
     if (opcode >= 0x80) {
@@ -1898,8 +2068,7 @@ reenter:
 
         func_8001FBE4(pData, opcode, pc + 1);
         *(u32*)(pData + 0x64) = (u32)(uintptr_t)(pc + D_8004FC40[opcode]);
-        func_800248D4(pData);
-        return;
+        goto reenter; /* .L8002490C: no gate re-check, as retail */
     }
 
 #ifdef XENO_PC_PORT

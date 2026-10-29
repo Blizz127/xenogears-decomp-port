@@ -1,0 +1,6 @@
+[
+ ("func_8009E574", "pActor->position.vx = (s32)((u32)x << 16);", "pActor->position.vx = (s32)((u32)x << 15);"),
+ ("func_8009E810", "g_FieldScriptVMCurActor->unkEC = arg0;", "g_FieldScriptVMCurActor->unkEC = arg0 + 1;"),
+ ("func_8009F5F4", "D_800ADB68 = 1;", "D_800ADB68 = 2;"),
+ ("func_8009FA54", "angle = ((rotByte & 0x7) << 9) | 0x8000;", "angle = ((rotByte & 0x7) << 9) | 0x4000;"),
+]

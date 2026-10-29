@@ -1,0 +1,13 @@
+diff --git a/src/pad/PsyX_pad.cpp b/src/pad/PsyX_pad.cpp
+--- a/src/pad/PsyX_pad.cpp
++++ b/src/pad/PsyX_pad.cpp
+@@ -224,6 +224,9 @@
+ 				if (gc) {
+ 					if (!(padBits & 0x10)) menuBits |= 1u << 0;	/* up (D-pad or stick) */
+ 					if (!(padBits & 0x40)) menuBits |= 1u << 1;	/* down */
++					/* _xeno_dev_menu_values: horizontal adjustment, D-pad or left stick. */
++					if (!(padBits & 0x80)) menuBits |= 1u << 6;	/* left */
++					if (!(padBits & 0x20)) menuBits |= 1u << 7;	/* right */
+ 					if (SDL_GameControllerGetButton(gc, SDL_CONTROLLER_BUTTON_A)) menuBits |= 1u << 2;
+ 					if (SDL_GameControllerGetButton(gc, SDL_CONTROLLER_BUTTON_B)) menuBits |= 1u << 3;
+ 					if (SDL_GameControllerGetButton(gc, SDL_CONTROLLER_BUTTON_BACK)) menuBits |= 1u << 4;

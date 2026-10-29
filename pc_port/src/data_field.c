@@ -765,7 +765,9 @@ unsigned char g_FieldTransitionPackets[0xD0] __attribute__((aligned(8)));
 unsigned char g_FieldBss_800B20A8[0x424] __attribute__((aligned(8)));
 unsigned char g_FieldBss_800AFC60[0xC0] __attribute__((aligned(8)));
 unsigned char g_FieldBss_800AEB60[0x08] __attribute__((aligned(8)));
-unsigned char g_FieldBss_800AFE9C[0x110] __attribute__((aligned(8)));
+/* 0x800AFE9C..0x800AFFEB: D_800AFEA8 line-scroll table runs to +0x104 s16 size[32]
+ * (== D_800AFFAC), so the block ends where D_800AFFEC begins. */
+unsigned char g_FieldBss_800AFE9C[0x150] __attribute__((aligned(8)));
 unsigned char g_FieldBss_800AFB20[0x108] __attribute__((aligned(8)));
 unsigned char g_FieldBss_800AF85C[0x2A0] __attribute__((aligned(8)));
 /* Retail keeps D_800B004C..D_800B0052 as one packed RECT.  Host-side
@@ -880,6 +882,7 @@ FIELD_BSS_ALIAS(D_800AFE9C, g_FieldBss_800AFE9C, 0x000);
 FIELD_BSS_ALIAS(D_800AFEA0, g_FieldBss_800AFE9C, 0x004);
 FIELD_BSS_ALIAS(D_800AFEA4, g_FieldBss_800AFE9C, 0x008);
 FIELD_BSS_ALIAS(D_800AFEA8, g_FieldBss_800AFE9C, 0x00C);
+FIELD_BSS_ALIAS(D_800AFFAC, g_FieldBss_800AFE9C, 0x110);
 
 FIELD_BSS_ALIAS(D_800B007C, g_FieldBss_800B007C, 0x000);
 FIELD_BSS_ALIAS(D_800B0080, g_FieldBss_800B007C, 0x004);

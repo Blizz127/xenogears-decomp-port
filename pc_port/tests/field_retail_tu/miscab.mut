@@ -1,0 +1,7 @@
+[
+ ("func_8008B5D4", "alt[0x24] = cur[0x24];", "alt[0x24] = cur[0x25];"),
+ ("func_8008B978", "->scriptInstructionPointer = off0c;", "->scriptInstructionPointer = off0;"),
+ ("func_8008BC80", "(u16)(1u << (charId & 31))", "(u16)(1u << (charId & 15))"),
+ ("func_8008BF38", "+ 0x134) >> 4) & 1;", "+ 0x134) >> 5) & 1;"),
+ ("func_8008C334", "(player->scriptFlags.flags | 0x4400) & ~0x80;", "(player->scriptFlags.flags | 0x4400) & ~0x81;"),
+]

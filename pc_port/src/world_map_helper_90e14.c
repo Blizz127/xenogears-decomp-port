@@ -7,10 +7,9 @@
 
 #include "common.h"
 #include "psx_memory.h"
+#include "world_map_retail_trig.h"
 #include "world_map_helper_90e14.h"
 
-extern long rcos(long a);
-extern long rsin(long a);
 
 #define G90E_DIR_WORD   0x8009CD4Cu
 #define G90E_HEAD_BASE  0x8009BD3Au
@@ -43,8 +42,8 @@ s32 wm_80090E14(u32 slot_record)
     /* Button velocity: flags & 0xF000 */
     if (g90e_lhu(G90E_FLAGS) & 0xF000) {
         s16 heading = g90e_lh(slot_record + 0x48);
-        g90e_sw(slot_record + 0x38, (u32)rcos((long)heading));
-        g90e_sw(slot_record + 0x40, (u32)(-(s32)rsin((long)heading)));
+        g90e_sw(slot_record + 0x38, (u32)wm_retail_rcos((int)((long)heading)));
+        g90e_sw(slot_record + 0x40, (u32)(-(s32)wm_retail_rsin((int)((long)heading))));
     }
 
     /* Boundary check: flags & 0x20 */

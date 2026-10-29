@@ -1,0 +1,8 @@
+[
+ ("func_800871B0", "D_800AFC5C = 0x100;", "D_800AFC5C = 0x101;"),
+ ("func_8008800C", "mtx.t[1] = 0;", "mtx.t[1] = 1;"),
+ ("func_8008A2E8", "(short)arg2, (short)arg3, 0,", "(short)arg3, (short)arg2, 0,"),
+ ("func_8008A7DC", "gearId = (s32)((u32)gearId + 0x10);", "gearId = (s32)((u32)gearId + 0x11);"),
+ ("func_8008AACC", "D_800AFD0C = (arg4 & 0x7F) + 0x1F;", "D_800AFD0C = (arg4 & 0xFF) + 0x1F;"),
+ ("func_8008F7B8", "func_80085B20(fieldId);", "func_80085B20(fieldId + 1);"),
+]

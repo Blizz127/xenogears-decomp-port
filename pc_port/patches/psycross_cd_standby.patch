@@ -1,0 +1,14 @@
+--- a/src/psx/LIBCD.C
++++ b/src/psx/LIBCD.C
+@@ -424,6 +424,11 @@
+ 
+ 		break;
+ 	}
++	case CdlStandby:
++		/* _xeno_cd_standby: standby leaves the image mounted and spinning,
++		 * but aborts an active stream just as the retail drive does. */
++		_eCdControlF_Pause();
++		return 1;
+ 	default:
+ 		eprinterr("Unhandled command 0x%02X!\n", com);
+ 		break;

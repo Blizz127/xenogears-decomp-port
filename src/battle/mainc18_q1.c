@@ -11,13 +11,10 @@ extern u8 D_800D3420[];
  * carries the cell index in p[1] and a little-endian 16-bit operand in
  * p[2..3].  They differ only in the operator and its clamp.
  *
- * The TU is split around func_8007AC80 (the multiply), whose C body is not
- * yet byte-exact: every candidate reproduces all 23 retail instructions but
- * lands the product in $a0 instead of retail's $v1.  The two orderings are
- * coupled -- writing `op * cell` yields retail's `mflo $v1` but reverses the
- * `mult` operands, and `cell * op` yields retail's `mult` order but `mflo
- * $a0`.  Since file-scope INCLUDE_ASM is emitted ahead of every compiled
- * body, the two functions preceding it stay in the asm segment too.
+ * The TU is split around func_8007AC80 (the multiply), which sits in its own
+ * file, mainasm_B190.c, between this TU and mainc18_q2.  The split dates from
+ * when its C was not byte-exact; it now matches there under the same CDK
+ * preset (see the note on its body for the $v1 product register).
  */
 
 

@@ -28,16 +28,25 @@ int main(void) {
     assert((uintptr_t)flags<=UINT32_MAX);
     D_800AFB20[0]=(uint32_t)(uintptr_t)flags;D_800AFB20[1]=0x0076bcf0;
     wr(NULL,0x800afb20,4,0x80180000);wr(NULL,0x800afb24,4,0x80190000);
-    const unsigned values[]={0,1,127,216,255};
-    for(unsigned index=0;index<256;index++)for(unsigned c=0;c<4;c++)
+    const uint32_t values[]={0,1,127,216,255,256,512,2048,65535,65536,0x12345678u,0x80000000u,0xffffff80u,0xffffffffu};
+    const int32_t components[]={-1,0,1,2,3,4};
+    const uint32_t patterns[]={0,0xffffffffu,0xa5b6c7d8u};
+    unsigned cases=0;
+    for(unsigned pattern=0;pattern<3;pattern++)
+    for(unsigned index=0;index<256;index++)for(unsigned ci=0;ci<6;ci++)
     for(unsigned v=0;v<sizeof(values)/sizeof(values[0]);v++) {
-        for(unsigned j=0;j<256;j++)flags[j]=0xa5b6c7d8u^j;
+        int32_t c=components[ci];
+        cases++;
+        for(unsigned j=0;j<256;j++)flags[j]=patterns[pattern]^j;
         memcpy(ram+0x180000,flags,sizeof(flags));
         assert(func_80092424(index,c)==run(0x80092424,index,c,0));
         func_800924D4(index,c,values[v]);run(0x800924d4,index,c,values[v]);
-        assert(!memcmp(ram+0x180000,flags,sizeof(flags)));
-        assert(func_80092424(index,c)==values[v]);
+        if (memcmp(ram+0x180000,flags,sizeof(flags))) {
+            fprintf(stderr,"COLLISION FLAGS FAIL index=%u component=%d value=0x%x pattern=0x%x\n",index,c,values[v],patterns[pattern]);
+            return 1;
+        }
+        assert(func_80092424(index,c)==((c>=0 && c<4)?(values[v]&0xffu):0));
         assert(D_800AFB20[1]==0x0076bcf0);
     }
-    puts("Collision flag native/retail differential: PASS (5120 cases)");
+    printf("Collision flag native/retail differential: PASS (%u cases)\n",cases);
 }

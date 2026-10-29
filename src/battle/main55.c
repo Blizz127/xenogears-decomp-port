@@ -38,9 +38,68 @@ u32 func_8009A7E4(u8 idx) {
 }
 
 #ifndef XENO_PC_PORT
-INCLUDE_ASM("asm/battle/nonmatchings/main55", func_8009A854);
-INCLUDE_ASM("asm/battle/nonmatchings/main55", func_8009A9D0);
+/* func_8009A854.s, byte-exact: copy entry a0's bytes +0xC/+0xB/+0xA (16-byte
+ * stride at D_800C34B0+0x54F8) into the party slot whose id matches its +6
+ * byte (the last match wins; no match keeps a1), record a0 in the slot,
+ * mirror +3 into g_GameState+0x2286[a0], then patch every type-4 actor
+ * among the first three.  Retail stores +0xB and the slot byte twice.  The
+ * loop stores are pointer sums with the shift, *(p + (s << 3) + 4): with
+ * `s * 8`, or as p[(s << 3) + 4], the loop's address adds come out index
+ * first. */
+void func_8009A854(u8 a0, u8 a1) {
+    u8* e = D_800C34B0 + (a0 * 16 + 0x54F8);
+    u8 id = e[6];
+    u8 s;
+    u8 i;
+
+    if (g_GameState[0x502] == id) {
+        a1 = 0;
+    }
+    if (g_GameState[0x50A] == id) {
+        a1 = 1;
+    }
+    if (g_GameState[0x512] == id) {
+        a1 = 2;
+    }
+    if (g_GameState[0x51A] == id) {
+        a1 = 3;
+    }
+    s = a1;
+    g_GameState[(s << 3) + 0x500] = e[0xC];
+    g_GameState[(s << 3) + 0x4FF] = e[0xB];
+    g_GameState[(s << 3) + 0x4FE] = e[0xA];
+    g_GameState[(s << 3) + 0x4FF] = e[0xB];
+    g_GameState[0x56B + s] = a0;
+    g_GameState[0x2286 + a0] = e[3];
+    g_GameState[0x56B + s] = a0;
+    for (i = 0; i < 3; i++) {
+        u8* p = D_800C34B0 + i * 0x170;
+
+        if (p[0x56] == 4) {
+            *(p + (s << 3) + 4) = e[0xC];
+            *(p + (s << 3) + 3) = e[0xB];
+            *(p + (s << 3) + 2) = e[0xA];
+            *(p + (s << 3) + 3) = e[0xB];
+            *(p + s + 0x6F) = a0;
+        }
+    }
+}
 #endif
+extern int rand(void);
+extern void func_8009BE0C(void);
+
+/* Byte-exact under gcc 2.6.3 (BattleGcc263); the port compiles the same
+ * body. */
+/* func_8009A9D0.s: clear the +0x5FC2 mode byte; on a 50% rand() roll run
+ * func_8009BE0C and return 1, else return 0. */
+u32 func_8009A9D0(void) {
+    D_800C34B0[0x5FC2] = 0;
+    if ((s32)(rand() % 100) < 0x32) {
+        func_8009BE0C();
+        return 1;
+    }
+    return 0;
+}
 #ifndef XENO_PC_PORT
 extern u8* D_800C34B0;
 #endif
@@ -56,7 +115,10 @@ void func_8009AA44(u8 idx) {
     D_800C34B0[0x5FC2] = 0;
     (D_800C34B0 + off)[0x15A] |= 1;
     {
-        u8* p = D_800C34B0 + off;
+        /* Copying the pointer to a local first keeps retail's addu
+         * operand order under gcc 2.6.3. */
+        u8* base = D_800C34B0;
+        u8* p = base + off;
 
         if (p[0x15A] & 0x80) {
             if (*(u16*)(p + 0x126) & 0x10) {
@@ -75,9 +137,10 @@ extern u8* D_800C34B0;
 #endif
 
 
-/* func_8009AB00.s */
+/* func_8009AB00.s (local copy of the pointer: see func_8009AA44) */
 void func_8009AB00(u8 index) {
-    u8* p = D_800C34B0 + index * 0x170;
+    u8* base = D_800C34B0;
+    u8* p = base + index * 0x170;
 
     p[0x15A] &= 0xFE;
 }
@@ -127,14 +190,4 @@ void func_8009A854(u32 a0, u32 a1) {
     }
 }
 
-/* func_8009A9D0.s: clear the +0x5FC2 mode byte; on a 50% rand() roll run
- * func_8009BE0C and return 1, else return 0. */
-u32 func_8009A9D0(void) {
-    D_800C34B0[0x5FC2] = 0;
-    if ((s32)(rand() % 100) < 0x32) {
-        func_8009BE0C();
-        return 1;
-    }
-    return 0;
-}
 #endif /* XENO_PC_PORT */

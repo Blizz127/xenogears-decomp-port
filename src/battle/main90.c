@@ -32,8 +32,103 @@ void func_800B6518(u8* obj) {
     func_800223B0(obj, angle);
 }
 
-INCLUDE_ASM("asm/battle/nonmatchings/main90", func_800B65B0);
-INCLUDE_ASM("asm/battle/nonmatchings/main90", func_800B6808);
+#include "psyq/libgte.h"
+extern void func_80021B04(SVECTOR* v, s16 len, s16 a2, s16 a3);
+#include "psyq/abs.h"
+
+/* Steer the velocity toward the +0xA0 target: the 12-bit wrapped yaw/pitch
+ * deltas are clamped to +-(p[0] * 4) (the port body below describes it in
+ * full).  diff/step are s16: an s32 step lets jump1 hoist the else arm and
+ * CSE then negates the step copy (negu a3,a3 instead of retail's a3,a1). */
+void func_800B65B0(u8* obj, u8* p) {
+    SVECTOR aim;
+    SVECTOR cur;
+    VECTOR d;
+    VECTOR sq;
+    VECTOR e;
+    SVECTOR len;
+    MATRIX m;
+    VECTOR out;
+    s16 flat;
+    s32 speed;
+    s32 limit;
+    s16 diff;
+    s16 step;
+
+    d.vx = *(s16*)(obj + 0xA0) - *(s16*)(obj + 0x2);
+    d.vy = *(s16*)(obj + 0xA2) - *(s16*)(obj + 0x6);
+    d.vz = *(s16*)(obj + 0xA4) - *(s16*)(obj + 0xA);
+    Square0(&d, &sq);
+    flat = SquareRoot0(sq.vx + sq.vz);
+    aim.vy = -ratan2(d.vz, d.vx);
+    aim.vz = ratan2(d.vy, flat);
+    aim.vx = 0;
+    e.vx = *(s32*)(obj + 0xC) >> 7;
+    e.vy = *(s32*)(obj + 0x10) >> 7;
+    e.vz = *(s32*)(obj + 0x14) >> 7;
+    Square0(&e, &sq);
+    speed = SquareRoot0(sq.vy + sq.vx + sq.vz);
+    flat = SquareRoot0(sq.vx + sq.vz);
+    cur.vy = -ratan2(e.vz, e.vx);
+    cur.vz = ratan2(e.vy, flat);
+    cur.vx = 0;
+    limit = p[0] * 4;
+    diff = (s16)(aim.vy - cur.vy) << 20 >> 20;
+    step = diff;
+    if (abs(diff) > limit) {
+        if (diff < 0) {
+            step = -limit;
+        } else {
+            step = limit;
+        }
+    }
+    cur.vy += step;
+    diff = (s16)(aim.vz - cur.vz) << 20 >> 20;
+    step = diff;
+    if (abs(diff) > limit) {
+        if (diff < 0) {
+            step = -limit;
+        } else {
+            step = limit;
+        }
+    }
+    cur.vz += step;
+    func_80021B04(&len, speed, 0, 0);
+    RotMatrix(&cur, &m);
+    ApplyMatrix(&m, &len, &out);
+    *(s32*)(obj + 0xC) = out.vx << 7;
+    *(s32*)(obj + 0x10) = out.vy << 7;
+    *(s32*)(obj + 0x14) = out.vz << 7;
+}
+
+/* Point the object's velocity (+0xC/+0x10/+0x14, << 7) at its +0xA0 target:
+ * yaw/pitch from ratan2 over the integer-position delta (the yaw is also
+ * stored at +0x32), magnitude (+0x18 << 9) >> 16 rotated by RotMatrix. */
+void func_800B6808(u8* obj) {
+    SVECTOR rot;
+    VECTOR d;
+    VECTOR sq;
+    SVECTOR len;
+    MATRIX m;
+    VECTOR out;
+    s32 flat;
+
+    d.vx = *(s16*)(obj + 0xA0) - *(s16*)(obj + 0x2);
+    d.vy = *(s16*)(obj + 0xA2) - *(s16*)(obj + 0x6);
+    d.vz = *(s16*)(obj + 0xA4) - *(s16*)(obj + 0xA);
+    Square0(&d, &sq);
+    flat = SquareRoot0(sq.vx + sq.vz);
+    rot.vy = -ratan2(d.vz, d.vx);
+    rot.vz = ratan2(d.vy, flat);
+    rot.vx = 0;
+    *(s16*)(obj + 0x32) = rot.vy;
+    func_80021B04(&len, (*(s32*)(obj + 0x18) << 9) >> 16, 0, 0);
+    RotMatrix(&rot, &m);
+    ApplyMatrix(&m, &len, &out);
+    *(s32*)(obj + 0xC) = out.vx << 7;
+    *(s32*)(obj + 0x10) = out.vy << 7;
+    *(s32*)(obj + 0x14) = out.vz << 7;
+}
 #endif
 
 

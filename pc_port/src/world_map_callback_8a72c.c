@@ -40,6 +40,7 @@
 
 #include "common.h"
 #include "psx_memory.h"
+#include "world_map_retail_trig.h"
 #include "world_map_callback_8a72c.h"
 #include "world_map_animation_guard.h"
 #include "world_map_common_tail.h"
@@ -56,8 +57,6 @@
 
 extern void func_800245D8(void* object, s16 animation);
 extern s32 wm_80093978(s32 x, s32 z);
-extern long rcos(long a);
-extern long rsin(long a);
 
 /* ------------------------------------------------------------------ */
 /* Guest layout                                                        */
@@ -145,8 +144,8 @@ static void wm_8a72c_native_245d8(u32 object_bits, s16 animation)
 #define A72C_CALL_941C4(a, b, o, g) wm_800941C4((a), (b), (o), (g))
 #define A72C_CALL_8BEC8(o)        wm_8008BEC8(o)
 #define A72C_CALL_93978(x, z)     wm_80093978((x), (z))
-#define A72C_CALL_RCOS(a)         rcos(a)
-#define A72C_CALL_RSIN(a)         rsin(a)
+#define A72C_CALL_RCOS(a)         wm_retail_rcos((int)(a))
+#define A72C_CALL_RSIN(a)         wm_retail_rsin((int)(a))
 #define A72C_CALL_74794(t, p)     wm_80074794((t), (p))
 #endif
 

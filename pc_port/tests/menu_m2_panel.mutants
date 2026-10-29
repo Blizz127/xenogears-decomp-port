@@ -1,0 +1,8 @@
+d81c-skip	func_801CD81C	if (glyph != 0xFFFF) {	if (glyph != 0xFFFE) {
+d81c-clut	func_801CD81C	face->clut = g_SystemPalette1;	face->clut = g_SystemPalette2;
+d81c-ywrap	func_801CD81C	(u16)(*(u16*)&yTable[16] + rowOffset)	(*(u16*)&yTable[16] + rowOffset)
+d81c-xhalf	func_801CD81C	func_801E920C(face, *(u16*)&xTable[16],	func_801E920C(face, xTable[16],
+dc6c-first	func_801CDC6C	firstDigit = 6;	firstDigit = 7;
+dc6c-compact	func_801CDC6C	g_Menu->renderContext, (u32)built * 8 + xTable[13],	g_Menu->renderContext, (u32)i * 8 + xTable[13],
+dc6c-mporder	func_801CDC6C	func_801C80B8(g_GameState.characters[charId].maxMp);	func_801C80B8(g_GameState.characters[charId].mp);
+dc6c-mpcolumn	func_801CDC6C	g_Menu->renderContext, (u32)i * 8 + xTable[14],	g_Menu->renderContext, (u32)built * 8 + xTable[14],

@@ -1,0 +1,25 @@
+--- a/src/psx/LIBGTE.C
++++ b/src/psx/LIBGTE.C
+@@ -829,9 +829,19 @@
+ 	originalTranslation[0] = m0->t[0];
+ 	originalTranslation[1] = m0->t[1];
+ 	originalTranslation[2] = m0->t[2];
+-	m2->t[0] = transformedTranslation.vx + originalTranslation[0];
+-	m2->t[1] = transformedTranslation.vy + originalTranslation[1];
+-	m2->t[2] = transformedTranslation.vz + originalTranslation[2];
++	/* _xeno_compmatrix_translation_overflow: retail uses trapping ADD at
++	 * 80049458..80049460, before any translation store. Preserve the matrix
++	 * and GTE effects already performed, and let the typed caller refuse an
++	 * overflowing composition instead of invoking signed C overflow. */
++	int64_t tx = (int64_t)transformedTranslation.vx + originalTranslation[0];
++	int64_t ty = (int64_t)transformedTranslation.vy + originalTranslation[1];
++	int64_t tz = (int64_t)transformedTranslation.vz + originalTranslation[2];
++	if (tx < INT32_MIN || tx > INT32_MAX || ty < INT32_MIN || ty > INT32_MAX ||
++	    tz < INT32_MIN || tz > INT32_MAX)
++		return NULL;
++	m2->t[0] = (int32_t)tx;
++	m2->t[1] = (int32_t)ty;
++	m2->t[2] = (int32_t)tz;
+ 
+ 	return m2;
+ }

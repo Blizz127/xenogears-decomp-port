@@ -1,0 +1,5 @@
+36e0-width	func_801D36E0	        width = 0x60;	        width = 0x5F;
+36e0-parity	func_801D36E0	        parity = (u8)(g_Menu->pManager->currentCharacterIDs[sl] & 1);	        parity = (u8)(g_Menu->pManager->currentCharacterIDs[sl] & 2);
+36e0-x	func_801D36E0	        x = (u16)(*(s32*)(D_801EA17C + st * 4) - 0x24);	        x = (*(s32*)(D_801EA17C + st * 4) - 0x24);
+4f2c-clut	func_801D4F2C	        pFace->clut = g_SystemPalette2;	        pFace->clut = g_SystemPalette1;
+4f2c-y	func_801D4F2C	(u16)((u16)D_801E9B5C + y)	(u16)((u16)D_801E9B58 + y)

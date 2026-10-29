@@ -22,24 +22,34 @@ void PsyX_SetFastForwardSpeed(int multiplier)
     SDL_AtomicSet(&s_xenoFastForwardSpeed, multiplier);
 }
 
-void PsyX_SetSpeedMultiplier(int multiplier)
+/* Every speed change is logged with the thing that asked for it:
+ *   [Psy-X] speed: fast-forward on (source: F6)
+ *   [Psy-X] speed: 3x (source: F7)
+ * `source` is one of F6, Backspace, L3, R3, dev-menu, F7, focus-lost, config,
+ * console, env, api.  Nothing here is rate-limited (the input trace is, and
+ * once hid the events that changed speed). */
+void PsyX_SetSpeedMultiplierFrom(int multiplier, const char* source)
 {
     if (multiplier < 1) multiplier = 1;
     if (multiplier > 5) multiplier = 5;
     if (SDL_AtomicSet(&s_xenoSpeed, multiplier) != multiplier) {
         PsyX_SPUAL_RefreshHostSpeed();
-        eprintinfo("Game speed: %dx\n", PsyX_GetSpeedMultiplier());
+        eprintinfo("speed: %dx (source: %s)\n", multiplier, source ? source : "unknown");
     }
 }
 
-void PsyX_SetFastForwardHeld(int held)
+void PsyX_SetFastForwardHeldFrom(int held, const char* source)
 {
     held = held != 0;
     if (SDL_AtomicSet(&s_xenoFastForwardHeld, held) != held) {
         PsyX_SPUAL_RefreshHostSpeed();
-        eprintinfo("Game speed: %dx\n", PsyX_GetSpeedMultiplier());
+        eprintinfo("speed: fast-forward %s (source: %s)\n", held ? "on" : "off",
+            source ? source : "unknown");
     }
 }
+
+void PsyX_SetSpeedMultiplier(int multiplier) { PsyX_SetSpeedMultiplierFrom(multiplier, "api"); }
+void PsyX_SetFastForwardHeld(int held) { PsyX_SetFastForwardHeldFrom(held, "api"); }
 
 static void PsyX_InitialiseSpeed()
 {
@@ -49,6 +59,6 @@ static void PsyX_InitialiseSpeed()
         multiplier = speed[0] - '0';
     else if (speed)
         eprintwarn("XENO_SPEED must be 1, 2, 3, 4 or 5; using 1x\n");
-    PsyX_SetFastForwardHeld(0);
-    PsyX_SetSpeedMultiplier(multiplier);
+    PsyX_SetFastForwardHeldFrom(0, "init");
+    PsyX_SetSpeedMultiplierFrom(multiplier, "env");
 }

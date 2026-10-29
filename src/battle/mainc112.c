@@ -2,7 +2,6 @@
 
 
 #ifndef XENO_PC_PORT
-INCLUDE_ASM("asm/battle/nonmatchings/mainc112", func_800BAF48);
 extern void func_800B14CC(u32 skip);
 extern u8 D_800C3EB0[];
 
@@ -13,6 +12,48 @@ typedef struct {
     u8* tasks[11];
     s32 flags[3];
 } BattleTaskTable;
+
+extern void func_800BC404(u32 v);
+extern void func_800B8D7C(void);
+extern void func_800245D8(void* object, s16 animation);
+extern void func_800BE790(void);
+extern void func_800BADD4(u32 i);
+extern void func_800BB760(u32 i);
+extern s32 g_NumTimerWorkListEntries[];
+extern s32 D_800C35D8[];
+
+/* Retire party slot `slot`: flush its command mask (func_800BC404), play
+ * animation 0x16 on its task and pump frames (func_800BE790) while the
+ * task's +0x9E is set and its +0xAF still reads 0x16, wait until the timer
+ * list is back to its entry count, release the slot (func_800BADD4,
+ * func_800BB760) and wait for D_800C35D8 to reach 0.
+ * The timer-list count is declared as an array: for a small-data scalar
+ * the CDK cc1 emits a `lw` macro, where retail splits %hi/%lo and keeps
+ * the %hi in s0 across the wait loop. */
+void func_800BAF48(u32 slot) {
+    u8* actor;
+    s32 count;
+
+    func_800BC404(1 << slot);
+    func_800BC404(0);
+    count = g_NumTimerWorkListEntries[0];
+    actor = ((BattleTaskTable*)D_800C3EB0)->tasks[slot];
+    func_800B8D7C();
+    func_800245D8(actor, 0x16);
+    while (*(s16*)(actor + 0x9E) != 0 && *(s8*)(actor + 0xAF) == 0x16) {
+        func_800BE790();
+    }
+    while (g_NumTimerWorkListEntries[0] != count) {
+        func_800BE790();
+    }
+    func_800BADD4(slot);
+    func_800BE790();
+    func_800BE790();
+    func_800BB760(slot);
+    while (D_800C35D8[0] != 0) {
+        func_800BE790();
+    }
+}
 
 /* Free every task in the table except `skip` whose +0x48 is clear (owner
  * +0x6C's +0xC callback), zeroing its slot and flag. */
@@ -64,7 +105,37 @@ void func_800BB13C(u8* task) {
     }
 }
 
-INCLUDE_ASM("asm/battle/nonmatchings/mainc112", func_800BB248);
+#include "psyq/libgte.h"
+extern s32 func_800AA600(s32 index);
+extern MATRIX D_800D30BC;
+extern s32 D_80050100;
+
+/* Work callback: cache the sprite's (task +4) D_800D3368 actor value from
+ * func_800AA600 at +0x36 (+0x38 = half of it), then project the integer part
+ * of its 16.16 position (+0, +4, +8) through D_800D30BC and store the OT
+ * depth (>> D_80050100, + sprite +0x30; 0 when flag bit 15 is set) at +0x2E.
+ * sxy doubles as RotTransPers' interpolation output. */
+void func_800BB248(u8* task) {
+    SVECTOR v;
+    long sxy;
+    long flag;
+    u8* o = *(u8**)(task + 4);
+    u32 hi = *(u32*)(o + 0xA8) >> 30;
+    s32 z;
+
+    *(s16*)(o + 0x36) = func_800AA600(((*(u32*)(o + 0xAC) & 3) << 2) | hi);
+    *(s16*)(o + 0x38) = *(u16*)(o + 0x36) / 2;
+    v.vx = *(s32*)(o + 0) >> 16;
+    v.vy = *(s32*)(o + 4) >> 16;
+    v.vz = *(s32*)(o + 8) >> 16;
+    SetRotMatrix(&D_800D30BC);
+    SetTransMatrix(&D_800D30BC);
+    z = (RotTransPers(&v, &sxy, &sxy, &flag) >> D_80050100) + *(s16*)(o + 0x30);
+    if (flag & 0x8000) {
+        z = 0;
+    }
+    *(s16*)(o + 0x2E) = z;
+}
 extern void WorkListRemoveTask(void *pTask);
 extern void TimerWorkListRemoveTask(void *pTask);
 extern void HeapFree(void *pMem);
@@ -77,7 +148,101 @@ void func_800BB314(u8 *p) {
     HeapFree(p);
 }
 
-INCLUDE_ASM("asm/battle/nonmatchings/mainc112", func_800BB350);
+extern u32 WorkListsAddTasks(u32 a0, u32 a1, void* a2, void* a3, void* a4);
+extern void func_80023804(void* pSpriteData);
+extern void func_800239A0(void* pSpriteData);
+extern void SpriteSetScale(void* object, short scale);
+extern void func_800BB314(u8* p);
+/* Read and written through casts so they are plain (not in-struct) fixed
+ * accesses; that lets them schedule past the sprite's field stores, as retail. */
+extern s8 D_800591AC__s[] asm("D_800591AC");
+extern s8 D_800591A8__s[] asm("D_800591A8");
+extern u8 D_8006BE10[];
+
+typedef struct {
+    u8 pad0[8];
+    s32 unk8;
+    s16 unkC;
+} B350Anim;
+
+typedef struct {
+    s32 x;              /* 0x00 */
+    s32 y;              /* 0x04 */
+    s32 z;              /* 0x08 */
+    u8 pad0C[0x18];
+    u8* unk24;          /* 0x24 */
+    u8 pad28[0xE];
+    u16 unk36;          /* 0x36 */
+    u16 unk38;          /* 0x38 */
+    u8 pad3A[2];
+    u32 unk3C;          /* 0x3C */
+    u32 unk40;          /* 0x40 */
+    u8 pad44[4];
+    s32 unk48;          /* 0x48 */
+    s32 unk4C;          /* 0x4C */
+    u8 pad50[0x1C];
+    u8* unk6C;          /* 0x6C */
+    u8 pad70[0xC];
+    B350Anim* unk7C;    /* 0x7C */
+    u8 pad80[2];
+    u16 unk82;          /* 0x82 */
+    u8 pad84[0x24];
+    u32 unkA8_0 : 1;    /* 0xA8 */
+    u32 unkA8_1 : 29;
+    u32 slotLo : 2;     /* battle slot, low two bits */
+    u32 slotHi : 2;     /* 0xAC: battle slot, high two bits */
+    u32 unkAC_2 : 30;
+} B350Sprite;
+
+/* Create the actor for party slot `slot` when its task-table entry
+ * (D_800C3EB0 + 0x8C8C) is empty: a 0x19C-byte work/timer task (callbacks
+ * func_800BB13C / func_800BB248 / func_800BB314) whose sprite at +0x38 takes
+ * its x/z from the slot's 0x1C-byte record, its scale from func_800AA600 and
+ * the 4-bit slot in the +0xA8/+0xAC bitfields; the sprite and task go into the
+ * table's +0x8C8C and +0x8CB8 rows.  The heap flag D_800591AC is held at 0
+ * around the allocation. */
+void func_800BB350(u32 slot) {
+    u8* task;
+    B350Sprite* spr;
+    u8 saved;
+    u8* rec;
+
+    if (((BattleTaskTable*)D_800C3EB0)->tasks[slot] == NULL) {
+        saved = *(u8*)D_800591AC__s;
+        *(u8*)D_800591AC__s = 0;
+        task = (u8*)WorkListsAddTasks(0x19C, 0, func_800BB13C, func_800BB248, func_800BB314);
+        spr = (B350Sprite*)(task + 0x38);
+        spr->unk6C = task;
+        *(B350Sprite**)(task + 4) = spr;
+        *(B350Sprite**)(task + 0x20) = spr;
+        func_80023804(spr);
+        func_800239A0(spr);
+        spr->unk40 = (spr->unk40 & 0xFFFE1FFF) | 0x8000;
+        spr->unk6C = task;
+        spr->unk3C &= ~3;
+        spr->unkA8_0 = 0;
+        spr->unk7C->unk8 = 0;
+        spr->unk7C->unkC = 0;
+        spr->unk82 = *(u16*)D_800591A8__s;
+        rec = D_800C3EB0 + slot * 0x1C;
+        *(s32*)(task + 0x38) = *(u16*)(rec + 0xE) << 16; /* spr->x, addressed off the task as retail */
+        spr->z = *(u16*)(rec + 0x10) << 16;
+        spr->y = 0;
+        spr->unk36 = func_800AA600(slot);
+        spr->unk82 = 0x2000;
+        spr->unk38 = spr->unk36 >> 1;
+        SpriteSetScale(spr, 0x2000);
+        spr->unk24 = D_8006BE10;
+        ((BattleTaskTable*)D_800C3EB0)->tasks[slot] = (u8*)spr;
+        ((BattleTaskTable*)D_800C3EB0)->flags[slot] = (s32)task;
+        spr->unk4C = 0;
+        spr->unk48 = 0;
+        *(u8*)D_800591AC__s = saved;
+        spr->slotLo = slot;
+        spr->slotHi = slot >> 2;
+    }
+}
+
 typedef struct { s16 x, y; } Pos;
 typedef struct Task {
     u8 pad0[0xC];
@@ -86,7 +251,7 @@ typedef struct Task {
     s32 id;
 } Task;
 extern void func_800A979C(s32, s16, s16, s32, s16);
-extern void func_800BB350(s32);
+extern void func_800BB350(u32);
 extern u16 D_800C3666[];
 extern Pos D_800C3668[];
 extern u8 D_800C3CB8[];
@@ -175,11 +340,13 @@ extern u8 D_800C3CB8[];
 extern void func_800A9540(u32 v);
 extern void func_800BB620(u8* p);
 extern void TimerWorkListSetTaskCallback(void* pTask, void* callback);
+#ifndef XENO_PC_PORT /* port: lifted body in the h-frontier block */
 void func_800BB690(u8* p) {
     func_800A9540(*(u32*)(p + 0x1C));
     D_800C3CB8[0] = D_800C3CB8[0] + 1;
     TimerWorkListSetTaskCallback(p, func_800BB620);
 }
+#endif
 
 #ifdef XENO_PC_PORT
 #include "battle_host_guest.h"
@@ -310,6 +477,7 @@ void func_800BB13C(u8* task) {
  * (+2, +6, +0xA) position through the D_800D30BC matrix and store the
  * OT depth (>> D_80050100, + actor +0x30; 0 when the flag bit 15 is set)
  * at +0x2E. */
+#ifndef XENO_PC_PORT /* port: lifted body in the h-frontier block */
 void func_800BB248(u8* task) {
     u32 actor = *(u32*)(task + 4);
     u32 slot = ((BG_U32(actor + 0xAC) & 3) << 2) | (BG_U32(actor + 0xA8) >> 30);
@@ -337,6 +505,7 @@ void func_800BB248(u8* task) {
     }
     BG_U16(actor + 0x2E) = (u16)z;
 }
+#endif
 
 /* func_800BB314.s: free callback of a slot actor task: unlink its work and
  * timer entries and free the block. */
@@ -466,3 +635,119 @@ void func_800BB620(u8* task) {
     }
 }
 #endif
+
+#ifdef XENO_PC_PORT /* h-frontier lifted bodies */
+/* Instruction-faithful port bodies (native-only frontier), generated by
+ *   tools/scripts/battle_lift_asm.py asm/battle/matchings/<tu>/<fn>.s --args N [--void] --jal-service
+ * (include/battle_lift.h; every call goes through the interpreter's own
+ * jal path, so each callee gets the binding an interpreted jal gets).  The
+ * matched C above stays the matching build's. */
+/* All calls use bl_jal; keep the TU's existing host GTE declarations. */
+#define BL_NO_GTE
+#include "battle_lift.h"
+#undef BL_NO_GTE
+
+/* func_800BB248.s (51 instructions; --args 1 --void), frontier step5.  Callees through the jal service: RotTransPers, SetRotMatrix, SetTransMatrix, func_800AA600. */
+void func_800BB248(u32 arg0) {
+    static const char FN[] = "func_800BB248";
+    u32 r_at = 0, r_v0 = 0, r_v1 = 0, r_a0 = 0, r_a1 = 0, r_a2 = 0, r_a3 = 0, r_t0 = 0, r_t1 = 0, r_t2 = 0, r_t3 = 0, r_t4 = 0, r_t5 = 0, r_t6 = 0, r_t7 = 0, r_s0 = 0, r_s1 = 0, r_s2 = 0, r_s3 = 0, r_s4 = 0, r_s5 = 0, r_s6 = 0, r_s7 = 0, r_t8 = 0, r_t9 = 0, r_k0 = 0, r_k1 = 0, r_gp = 0, r_sp = 0, r_fp = 0, r_ra = 0;
+    u32 hi = 0, lo = 0, bl_saved;
+    r_sp = bl_enter(FN, 0x30u, &bl_saved);
+    r_a0 = arg0;
+    r_sp = r_sp + 0xFFFFFFD0u; /* 800BB248 addiu $sp, $sp, -0x30 */
+    bl_sw(r_sp + 0x28u, r_ra); /* 800BB24C sw $ra, 0x28($sp) */
+    bl_sw(r_sp + 0x24u, r_s1); /* 800BB250 sw $s1, 0x24($sp) */
+    bl_sw(r_sp + 0x20u, r_s0); /* 800BB254 sw $s0, 0x20($sp) */
+    r_s1 = bl_lw(r_a0 + 0x4u); /* 800BB258 lw $s1, 0x4($a0) */
+    ; /* 800BB25C nop  */
+    r_v0 = bl_lw(r_s1 + 0xA8u); /* 800BB260 lw $v0, 0xA8($s1) */
+    r_a0 = bl_lw(r_s1 + 0xACu); /* 800BB264 lw $a0, 0xAC($s1) */
+    r_v0 = r_v0 >> 30; /* 800BB268 srl $v0, $v0, 30 */
+    r_a0 = r_a0 & 0x3u; /* 800BB26C andi $a0, $a0, 0x3 */
+    r_a0 = r_a0 << 2; /* 800BB270 sll $a0, $a0, 2 */
+    /* 800BB274 jal func_800AA600 */
+    r_a0 = r_a0 | r_v0;
+    bl_jal(FN, 0x800AA600u, r_a0, r_a1, r_a2, r_a3, r_sp, &r_v0, &r_v1); /* func_800AA600 */
+    r_s0 = 0x800D0000u; /* 800BB27C lui $s0, %hi(D_800D30BC) */
+    bl_sh(r_s1 + 0x36u, r_v0); /* 800BB280 sh $v0, 0x36($s1) */
+    r_v0 = bl_lhu(r_s1 + 0x36u); /* 800BB284 lhu $v0, 0x36($s1) */
+    r_v1 = bl_lh(r_s1 + 0x2u); /* 800BB288 lh $v1, 0x2($s1) */
+    r_v0 = r_v0 >> 1; /* 800BB28C srl $v0, $v0, 1 */
+    bl_sh(r_s1 + 0x38u, r_v0); /* 800BB290 sh $v0, 0x38($s1) */
+    bl_sh(r_sp + 0x10u, r_v1); /* 800BB294 sh $v1, 0x10($sp) */
+    r_v0 = bl_lh(r_s1 + 0x6u); /* 800BB298 lh $v0, 0x6($s1) */
+    r_s0 = r_s0 + 0x30BCu; /* 800BB29C addiu $s0, $s0, %lo(D_800D30BC) */
+    bl_sh(r_sp + 0x12u, r_v0); /* 800BB2A0 sh $v0, 0x12($sp) */
+    r_v0 = bl_lh(r_s1 + 0xAu); /* 800BB2A4 lh $v0, 0xA($s1) */
+    r_a0 = r_s0 + 0u; /* 800BB2A8 addu $a0, $s0, $zero */
+    /* 800BB2AC jal SetRotMatrix */
+    bl_sh(r_sp + 0x14u, r_v0);
+    bl_jal(FN, 0x80049EFCu, r_a0, r_a1, r_a2, r_a3, r_sp, &r_v0, &r_v1); /* SetRotMatrix */
+    /* 800BB2B4 jal SetTransMatrix */
+    r_a0 = r_s0 + 0u;
+    bl_jal(FN, 0x80049F8Cu, r_a0, r_a1, r_a2, r_a3, r_sp, &r_v0, &r_v1); /* SetTransMatrix */
+    r_a0 = r_sp + 0x10u; /* 800BB2BC addiu $a0, $sp, 0x10 */
+    r_a1 = r_sp + 0x18u; /* 800BB2C0 addiu $a1, $sp, 0x18 */
+    r_a2 = r_a1 + 0u; /* 800BB2C4 addu $a2, $a1, $zero */
+    /* 800BB2C8 jal RotTransPers */
+    r_a3 = r_sp + 0x1Cu;
+    bl_jal(FN, 0x8004A64Cu, r_a0, r_a1, r_a2, r_a3, r_sp, &r_v0, &r_v1); /* RotTransPers */
+    r_v1 = 0x80050000u; /* 800BB2D0 lui $v1, %hi(D_80050100) */
+    r_v1 = bl_lw(r_v1 + 0x100u); /* 800BB2D4 lw $v1, %lo(D_80050100)($v1) */
+    r_a0 = bl_lh(r_s1 + 0x30u); /* 800BB2D8 lh $a0, 0x30($s1) */
+    r_v0 = BL_SRA(r_v0, r_v1); /* 800BB2DC srav $v0, $v0, $v1 */
+    r_v1 = bl_lw(r_sp + 0x1Cu); /* 800BB2E0 lw $v1, 0x1C($sp) */
+    ; /* 800BB2E4 nop  */
+    r_v1 = r_v1 & 0x8000u; /* 800BB2E8 andi $v1, $v1, 0x8000 */
+    /* 800BB2EC beqz $v1, .L800BB2F8 */
+    { int c_ = (r_v1 == 0); r_v0 = r_v0 + r_a0; if (c_) goto L_800BB2F8; }
+    r_v0 = 0u + 0u; /* 800BB2F4 addu $v0, $zero, $zero */
+L_800BB2F8:
+    bl_sh(r_s1 + 0x2Eu, r_v0); /* 800BB2F8 sh $v0, 0x2E($s1) */
+    r_ra = bl_lw(r_sp + 0x28u); /* 800BB2FC lw $ra, 0x28($sp) */
+    r_s1 = bl_lw(r_sp + 0x24u); /* 800BB300 lw $s1, 0x24($sp) */
+    r_s0 = bl_lw(r_sp + 0x20u); /* 800BB304 lw $s0, 0x20($sp) */
+    r_sp = r_sp + 0x30u; /* 800BB308 addiu $sp, $sp, 0x30 */
+    /* 800BB30C jr $ra */
+    ; goto bl_exit;
+bl_exit:
+    bl_leave(bl_saved);
+    (void)hi; (void)lo; (void)r_at; (void)r_v1; (void)r_k0; (void)r_k1; (void)r_gp; (void)r_ra;
+    (void)r_v0;
+}
+
+/* func_800BB690.s (20 instructions; --args 1 --void), frontier step11.  Callees through the jal service: TimerWorkListSetTaskCallback, func_800A9540. */
+void func_800BB690(u32 arg0) {
+    static const char FN[] = "func_800BB690";
+    u32 r_at = 0, r_v0 = 0, r_v1 = 0, r_a0 = 0, r_a1 = 0, r_a2 = 0, r_a3 = 0, r_t0 = 0, r_t1 = 0, r_t2 = 0, r_t3 = 0, r_t4 = 0, r_t5 = 0, r_t6 = 0, r_t7 = 0, r_s0 = 0, r_s1 = 0, r_s2 = 0, r_s3 = 0, r_s4 = 0, r_s5 = 0, r_s6 = 0, r_s7 = 0, r_t8 = 0, r_t9 = 0, r_k0 = 0, r_k1 = 0, r_gp = 0, r_sp = 0, r_fp = 0, r_ra = 0;
+    u32 hi = 0, lo = 0, bl_saved;
+    r_sp = bl_enter(FN, 0x18u, &bl_saved);
+    r_a0 = arg0;
+    r_sp = r_sp + 0xFFFFFFE8u; /* 800BB690 addiu $sp, $sp, -0x18 */
+    bl_sw(r_sp + 0x10u, r_s0); /* 800BB694 sw $s0, 0x10($sp) */
+    r_s0 = r_a0 + 0u; /* 800BB698 addu $s0, $a0, $zero */
+    bl_sw(r_sp + 0x14u, r_ra); /* 800BB69C sw $ra, 0x14($sp) */
+    r_a0 = bl_lw(r_s0 + 0x1Cu); /* 800BB6A0 lw $a0, 0x1C($s0) */
+    /* 800BB6A4 jal func_800A9540 */
+    ;
+    bl_jal(FN, 0x800A9540u, r_a0, r_a1, r_a2, r_a3, r_sp, &r_v0, &r_v1); /* func_800A9540 */
+    r_v1 = 0x800C0000u; /* 800BB6AC lui $v1, %hi(D_800C3CB8) */
+    r_a0 = r_s0 + 0u; /* 800BB6B0 addu $a0, $s0, $zero */
+    r_a1 = 0x800C0000u; /* 800BB6B4 lui $a1, %hi(func_800BB620) */
+    r_v0 = bl_lbu(r_v1 + 0x3CB8u); /* 800BB6B8 lbu $v0, %lo(D_800C3CB8)($v1) */
+    r_a1 = r_a1 + 0xFFFFB620u; /* 800BB6BC addiu $a1, $a1, %lo(func_800BB620) */
+    r_v0 = r_v0 + 0x1u; /* 800BB6C0 addiu $v0, $v0, 0x1 */
+    /* 800BB6C4 jal TimerWorkListSetTaskCallback */
+    bl_sb(r_v1 + 0x3CB8u, r_v0);
+    bl_jal(FN, 0x8001CD6Cu, r_a0, r_a1, r_a2, r_a3, r_sp, &r_v0, &r_v1); /* TimerWorkListSetTaskCallback */
+    r_ra = bl_lw(r_sp + 0x14u); /* 800BB6CC lw $ra, 0x14($sp) */
+    r_s0 = bl_lw(r_sp + 0x10u); /* 800BB6D0 lw $s0, 0x10($sp) */
+    r_sp = r_sp + 0x18u; /* 800BB6D4 addiu $sp, $sp, 0x18 */
+    /* 800BB6D8 jr $ra */
+    ; goto bl_exit;
+bl_exit:
+    bl_leave(bl_saved);
+    (void)hi; (void)lo; (void)r_at; (void)r_v1; (void)r_k0; (void)r_k1; (void)r_gp; (void)r_ra;
+    (void)r_v0;
+}
+#endif /* XENO_PC_PORT h-frontier */

@@ -43,9 +43,9 @@ void func_8007AA1C(u8** ppBoard, u8 index) {
 }
 #endif /* BATTLE_SUB(1) */
 /* func_8007AA60.s: u8 multiply of board operand into battle table cell, saturate at 0xFF */
-/* Not yet byte-matching: the matching build assembles retail bytes for
- * this function from its own asm segment (see config/battle.yaml).  The
- * body below is kept for the port and the differential harnesses. */
+/* The byte-matching C is in src/battle/mainasm_AF70.c (its own asm
+ * segment, see config/battle.yaml).  The body below is the port arm, kept
+ * for the port and the differential harnesses. */
 #ifdef XENO_PC_PORT
 void func_8007AA60(u8** ppBoard, u8 index) {
     u8* p = *ppBoard;
@@ -53,8 +53,8 @@ void func_8007AA60(u8** ppBoard, u8 index) {
     u8* q = row + p[1];
     s32 prod = p[2] * *q;
     u8 value = prod;
-    /* NOT YET EXACT: retail emits `mult cell,p[2]`; every source operand
-     * order/cast tried here yields `mult p[2],cell` (1 word, right size). */
+    /* The byte-matching form (mainasm_AF70.c) multiplies cell * p[2] and
+     * stores through `*q = prod = value`; this arm keeps the host order. */
 
     /* The threshold test truncates the product to a signed halfword first. */
     if ((s32)(s16)prod >= 0x100) {

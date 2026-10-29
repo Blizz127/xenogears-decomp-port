@@ -1,0 +1,47 @@
+--- a/src/PsyX_main.cpp
++++ b/src/PsyX_main.cpp
+@@ -895,6 +895,10 @@
+ /* _xeno_rendered_clip_track */
+ extern "C" void PsyX_XenoRenderedClipReset(void);
+ 
++/* _xeno_present_displayed_after_vram: nonzero when the last present showed
++ * the DISPENV area straight from VRAM (no scene was drawn that vblank). */
++static int g_xenoLastPresentFromVRAM = 0;
++
+ /* _xeno_gpu_trace */
+ extern "C" int PsyX_GpuTraceOn(void);
+ extern int g_xeno_swap_index;
+@@ -940,6 +944,7 @@
+ 	PsyX_RecordPresentedFrame();
+ 	PsyX_HostToolbarDraw();
+ 	GR_SwapWindow();
++	g_xenoLastPresentFromVRAM = 1; /* _xeno_present_displayed_after_vram */
+ 	return 1;
+ }
+ 
+@@ -963,6 +968,25 @@
+ 	
+ 	GR_StoreFrameBuffer(activeDispEnv.disp.x, activeDispEnv.disp.y, activeDispEnv.disp.w, activeDispEnv.disp.h);
+ 
++	/* _xeno_present_displayed_after_vram: a scene present shows the buffer
++	 * just drawn, one vblank ahead of the PSX, which scans out the DISPENV
++	 * area.  In a steady double-buffer flip that is the same picture a frame
++	 * early.  On the first scene after VRAM-only presents it is not: the game
++	 * draws into the hidden buffer while the display stays on the one it was
++	 * showing (field return from the attract STR: a black fade-start frame
++	 * drawn at (0,256) under PutDispEnv(0,0), cleared and redrawn before it
++	 * is ever flipped to).  Keep the capture above (it is the VRAM contents),
++	 * but show what the display scans out at this vblank. */
++	if (g_xenoLastPresentFromVRAM &&
++		(activeDispEnv.disp.x != currentDispEnv.disp.x ||
++		 activeDispEnv.disp.y != currentDispEnv.disp.y))
++	{
++		GR_PresentVRAMDisplay(currentDispEnv.disp.x, currentDispEnv.disp.y,
++			currentDispEnv.disp.w, currentDispEnv.disp.h,
++			currentDispEnv.isrgb24, !g_GPUDisabledState);
++	}
++	g_xenoLastPresentFromVRAM = 0;
++
+ 	PsyX_RecordPresentedFrame();
+ 	PsyX_HostToolbarDraw();
+ 	GR_SwapWindow();

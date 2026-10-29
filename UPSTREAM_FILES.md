@@ -2,16 +2,16 @@
 
 These files include work from [ladysilverberg/xenogears-decomp](https://github.com/ladysilverberg/xenogears-decomp) by its contributors. That project has not published a license, so all rights in that work remain with its authors. It is included here with credit, is not covered by this repository's MIT license, and is being re-derived independently; each file leaves this list when its upstream-authored parts are replaced.
 
-147 files are listed. Every other file in this repository is original work under the MIT license in [LICENSE](LICENSE), except the third-party components named in [CREDITS.md](CREDITS.md).
+148 files are listed. Every other file in this repository is original work under the MIT license in [LICENSE](LICENSE), except the third-party components named in [CREDITS.md](CREDITS.md).
 
 ## How this list was made
 
-From the git history of the source branch (`claude/r6-launcher-fmv` at `23250136`), a file is listed when either:
+From the git history of the private source tree at commit `d64e54d2` (the previous snapshot was made at `23250136`), a file is listed when either:
 
 - an upstream contributor appears in the file's history (`git log --follow --format=%an`), or
 - `git blame -w -M -C` attributes at least one of its non-blank lines to an upstream contributor. This also catches upstream code that was moved or copied into a new file.
 
-The "Upstream lines" column is that blame count at the snapshot, 16,828 lines in all. A 0 means the file's history has upstream commits but blame gives no current line to an upstream author. Those files are listed anyway, to be safe. The owner's commits (`blizz`, `Blizz127`) count as original work. Author names are the ones recorded in git.
+The "Upstream lines" column is that blame count at the snapshot, 16,756 lines in all. A 0 means the file's history has upstream commits but blame gives no current line to an upstream author. Those files are listed anyway, to be safe. The owner's commits (`blizz`, `Blizz127`) count as original work. Author names are the ones recorded in git.
 
 ## Decompiled game code (`src/`)
 
@@ -22,7 +22,7 @@ The "Upstream lines" column is that blame count at the snapshot, 16,828 lines in
 | `src/field/dialogue/text_box.c` | ladysilverberg, Nora Strong | 155 |
 | `src/field/dialogue/text_box_render.c` | ladysilverberg, Nora Strong | 165 |
 | `src/field/effects/distortion.c` | ladysilverberg, Nora Strong | 25 |
-| `src/field/effects/fade.c` | ladysilverberg, Nora Strong | 94 |
+| `src/field/effects/fade.c` | ladysilverberg, Nora Strong | 85 |
 | `src/field/effects/fade_render.c` | ladysilverberg, Nora Strong | 58 |
 | `src/field/effects/particles.c` | ladysilverberg, Nora Strong | 496 |
 | `src/field/game_logic/gold.c` | ladysilverberg, Nora Strong | 40 |
@@ -30,17 +30,17 @@ The "Upstream lines" column is that blame count at the snapshot, 16,828 lines in
 | `src/field/main/init.c` | ladysilverberg | 42 |
 | `src/field/main/input_script_handlers.c` | ladysilverberg, Nora Strong | 30 |
 | `src/field/main/main.c` | ladysilverberg | 35 |
-| `src/field/main/misc.c` | ladysilverberg, Aku Kotkavuo, Valentin Robert | 652 |
+| `src/field/main/misc.c` | ladysilverberg, Aku Kotkavuo, Valentin Robert | 665 |
 | `src/field/main/misc10.c` | ladysilverberg, Nora Strong | 25 |
-| `src/field/main/misc11.c` | ladysilverberg, Akshay Gopinath, Nora Strong | 677 |
-| `src/field/main/misc2.c` | ladysilverberg | 187 |
+| `src/field/main/misc11.c` | ladysilverberg, Akshay Gopinath, Nora Strong | 681 |
+| `src/field/main/misc2.c` | ladysilverberg | 186 |
 | `src/field/main/misc3.c` | ladysilverberg | 50 |
 | `src/field/main/misc4.c` | ladysilverberg | 270 |
-| `src/field/main/misc5.c` | ladysilverberg, Nora Strong | 204 |
-| `src/field/main/misc6.c` | ladysilverberg, Akshay Gopinath, Nora Strong | 546 |
-| `src/field/main/misc7.c` | ladysilverberg, Nora Strong | 419 |
+| `src/field/main/misc5.c` | ladysilverberg, Nora Strong | 202 |
+| `src/field/main/misc6.c` | ladysilverberg, Akshay Gopinath, Nora Strong | 551 |
+| `src/field/main/misc7.c` | ladysilverberg, Nora Strong | 344 |
 | `src/field/main/misc8.c` | ladysilverberg, Nora Strong | 90 |
-| `src/field/main/misc9.c` | ladysilverberg, Nora Strong | 163 |
+| `src/field/main/misc9.c` | ladysilverberg, Nora Strong | 161 |
 | `src/field/party/stats.c` | ladysilverberg, Akshay Gopinath, Nora Strong | 147 |
 | `src/field/scripts/variable_handlers.c` | ladysilverberg, Nora Strong | 223 |
 | `src/field/scripts/virtual_machine.c` | ladysilverberg, Nora Strong | 341 |
@@ -67,7 +67,7 @@ The "Upstream lines" column is that blame count at the snapshot, 16,828 lines in
 | `src/slus_006.64/system/system.c` | ladysilverberg | 82 |
 | `src/slus_006.64/system/temp1.c` | ladysilverberg | 37 |
 | `src/slus_006.64/system/temp1b.c` | ladysilverberg | 8 |
-| `src/slus_006.64/system/temp1e.c` | ladysilverberg | 13 |
+| `src/slus_006.64/system/temp1e.c` | ladysilverberg | 12 |
 | `src/slus_006.64/system/temp2.c` | ladysilverberg | 23 |
 | `src/slus_006.64/system/temp3.c` | ladysilverberg | 239 |
 | `src/slus_006.64/system/work_list.c` | ladysilverberg, Nora Strong | 263 |
@@ -135,7 +135,7 @@ The "Upstream lines" column is that blame count at the snapshot, 16,828 lines in
 | `Dockerfile` | Nora Strong | 7 |
 | `Makefile` | ladysilverberg, devperson7, James Brown, Jonathan Peros, Nora Strong | 82 |
 | `disc/.gitkeep` | ladysilverberg | 0 |
-| `gears.toml` | ladysilverberg, Nora Strong | 67 |
+| `gears.toml` | ladysilverberg, Nora Strong | 69 |
 | `requirements.txt` | ladysilverberg, Nora Strong | 5 |
 
 ## Tools (`tools/`)
@@ -157,7 +157,7 @@ The "Upstream lines" column is that blame count at the snapshot, 16,828 lines in
 | `tools/scripts/cdrom/fs.py` | Kat, Nora Strong | 114 |
 | `tools/scripts/extract_overlays.py` | ladysilverberg, Kat, Nora Strong | 38 |
 | `tools/scripts/ghidra_import_splat_symbols.py` | ladysilverberg, Kat, Nora Strong | 45 |
-| `tools/scripts/overlays.yaml` | Nora Strong | 100 |
+| `tools/scripts/overlays.yaml` | Nora Strong | 97 |
 | `tools/scripts/psx/__init__.py` | ladysilverberg, Nora Strong | 0 |
 | `tools/scripts/psx/lzss.py` | Kat, Nora Strong | 27 |
 | `tools/scripts/psx/overlay.py` | Kat, Nora Strong | 70 |
@@ -176,8 +176,9 @@ The "Upstream lines" column is that blame count at the snapshot, 16,828 lines in
 | `pc_port/src/game_overrides.c` | ladysilverberg | 2 |
 | `pc_port/src/retail_leaf_adapters.c` | ladysilverberg | 3 |
 | `pc_port/src/walkmesh_dump.c` | ladysilverberg | 3 |
-| `pc_port/src/work_list_port.c` | ladysilverberg | 24 |
+| `pc_port/src/work_list_port.c` | ladysilverberg | 19 |
 | `pc_port/src/world_map_init.c` | ladysilverberg | 3 |
+| `pc_port/tests/battling_unavailable_test.c` | ladysilverberg | 2 |
 | `pc_port/tests/change_field_handler_prod_test.c` | ladysilverberg | 1 |
 | `pc_port/tests/field_gear_board_retail_test.c` | ladysilverberg | 3 |
 | `pc_port/tests/field_gear_dispatch_test.c` | ladysilverberg | 3 |

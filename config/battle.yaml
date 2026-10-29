@@ -63,14 +63,49 @@ segments:
       # dispatch tables) exactly as the other overlays do; modelling it as
       # `data` would make gears place it after .text and move every byte.
       - [0x0, rodata]
+      - [0x4, .rodata, main2]        # jtbl_8006FAF4 (func_800745EC)
+      - [0x18, rodata]
       # Compiler-emitted switch tables of byte-exact C bodies live in the C
       # object's .rodata and are placed at their retail table address (as field
       # does).  Tables belonging to bodies that are still retail assembly stay
       # in the assembled data, where `jlabel` exports their .L targets.
+      - [0x48, .rodata, main12]      # jtbl_8006FB38 (func_800793F0)
       - [0x8C, .rodata, main14]      # jtbl_8006FB7C + jtbl_8006FBDC
-      - [0x14C, rodata]
+      - [0x14C, .rodata, main31]     # jtbl_8006FC3C (func_8007EF6C) + jtbl_8006FE0C (func_8007F8C0)
+      - [0x38C, .rodata, main34_q1]  # jtbl_8006FE7C (func_80080160, 101 entries)
       - [0x520, .rodata, main35_p1]  # jtbl_80070010 (func_8008115C)
-      - [0x540, rodata]
+      - [0x540, .rodata, mainasm_11828]  # jtbl_80070030..jtbl_80070070 (func_80081318, func_80081504, func_800816F8)
+      - [0x5A0, .rodata, main35_p2]  # jtbl_80070090..jtbl_800701F0 (func_800820A4 .. func_80083748)
+      - [0x720, .rodata, mainasm_15050]  # jtbl_80070210 (func_80084B40)
+      - [0x740, .rodata, main35_p4]  # jtbl_80070230 (func_80085084)
+      - [0x760, .rodata, mainasm_15898]  # jtbl_80070250 (func_80085618)
+      - [0x790, .rodata, mainasm_163C4]  # jtbl_80070280 (func_80085EB4)
+      - [0x7C4, rodata]              # zero pad before main38_p2's 8-aligned tables
+      - [0x7C8, .rodata, main38_p2]  # jtbl_800702B8, jtbl_800702F0 (func_800861D0)
+      - [0x824, .rodata, main46]     # jtbl_80070314 (func_8008B478)
+      - [0x83C, .rodata, main47]     # jtbl_8007032C (func_8008BED8)
+      - [0x854, .rodata, main48]     # jtbl_80070344 (func_8008C81C)
+      - [0x880, .rodata, main51]     # jtbl_80070370 (func_80094EE4) .. jtbl_800703A0 (func_80096018)
+      - [0x8D0, .rodata, main52]     # jtbl_800703C0 + jtbl_800703E8 (func_80097964)
+      - [0x920, .rodata, main53]     # jtbl_80070410 (func_80098D2C)
+      - [0x938, .rodata, main57]     # jtbl_80070428 (func_8009AFD8)
+      - [0x988, .rodata, main58]     # jtbl_80070478 (func_8009B684) + jtbl_800704A0 (func_8009BAC4)
+      - [0x9DC, .rodata, main64]     # jtbl_800704CC (func_8009E788)
+      - [0xA24, .rodata, main65]     # jtbl_80070514 + jtbl_8007053C (func_800A0838)
+      - [0xA64, .rodata, main70]     # jtbl_80070554 (func_800A6884)
+      - [0xA78, rodata]
+      - [0xC6C, .rodata, main72_p3]  # jtbl_8007075C + jtbl_80070784 (func_800AE2A4)
+      - [0xCAC, .rodata, main74]     # jtbl_8007079C (func_800B026C) + jtbl_800707C4 (func_800B12D0)
+      - [0xCEC, .rodata, main77]     # jtbl_800707DC (func_800B1F6C, 29 entries)
+      - [0xD60, .rodata, mainc83]    # jtbl_80070850 (func_800B3F04)
+      - [0xF0C, .rodata, mainc99]    # jtbl_800709FC (func_800B7870)
+      - [0xF20, .rodata, main101]    # jtbl_80070A10 (func_800B8098)
+      - [0xF38, .rodata, mainc108]   # jtbl_80070A28 (func_800B9284), jtbl_80070A48 (func_800B9508)
+      - [0xF8C, rodata]              # zero pad (SUBALIGN 4)
+      - [0xF90, .rodata, mainl110]   # jtbl_80070A80 (func_800B9C78), pad, jtbl_80070AB8 (func_800B9F78)
+      - [0xFEC, .rodata, mainc118]  # jtbl_80070ADC (func_800BD3AC)
+      - [0x1018, .rodata, mainc134]  # jtbl_80070B08/B50/B80 (func_800BFE48) + jtbl_80070BB0 (func_800C0564)
+      - [0x1124, .rodata, main135]   # jtbl_80070C14 + jtbl_80070E04 (func_800C11CC)
       - [0x133C, c, mainasm_133C]
       # The retail overlay interleaves still-assembly functions with C runs.
       # INCLUDE_ASM expands to a file-scope __asm__ block and cc1 emits every
@@ -82,7 +117,9 @@ segments:
       # src/battle/main{,2..61}.c (plus mainl* for the addiu-flavoured li TUs); each entry starts where the previous C run
       # ended and ends where its own C run ends.
       - [0x1450, c, main]
-      - [0x1FF0, c, main2]
+      - [0x1FF0, c, mainasm_1FF0]
+      - [0x28F0, c, mainasm_28F0]  # func_800723E0 (gcc 2.7.2)
+      - [0x2A3C, c, main2]
       - [0x6A54, c, main3]
       - [0x6F20, c, main4]
       - [0x7010, c, main5]
@@ -95,31 +132,31 @@ segments:
       - [0x967C, c, main12]
       - [0x9E58, c, main13]
       - [0xA3E8, c, main14]
-      # retail bytes: 8007A874 (C body not yet matching)
+      # matched C: 8007A874
       - [0xAD84, c, mainasm_AD84]
       - [0xADC4, c, mainc15]
       # retail bytes: 8007A92C, 8007A968 (C body not yet matching)
       - [0xAE3C, c, mainasm_AE3C]
       - [0xAEB8, c, main16]
       - [0xAEE0, c, main17_q1]
-      # retail bytes: 8007AA60 (C body not yet matching)
+      # matched C: 8007AA60
       - [0xAF70, c, mainasm_AF70]
       - [0xAFC8, c, main17_q2]
       - [0xB0E8, c, mainc18_q1]
-      # retail bytes: 8007AC80 (C body not yet matching)
+      # matched C: 8007AC80
       - [0xB190, c, mainasm_B190]
       - [0xB1EC, c, mainc18_q2]
       - [0xB348, c, main19_q1]
-      # retail bytes: 8007AEF0 (C body not yet matching)
+      # matched C: 8007AEF0
       - [0xB400, c, mainasm_B400]
       - [0xB46C, c, main19_q2]
       - [0xB7D0, c, main20]
       - [0xB934, c, main21]
       - [0xBE9C, c, main22_q1]
-      # retail bytes: 8007BA04, 8007BA44 (C body not yet matching)
+      # matched C: 8007BA04, 8007BA44
       - [0xBF14, c, mainasm_BF14]
       - [0xBF98, c, main22_q2]
-      # retail bytes: 8007BAE8 (C body not yet matching)
+      # matched C: 8007BAE8
       - [0xBFF8, c, mainasm_BFF8]
       - [0xC03C, c, main23]
       - [0xC194, c, main24]
@@ -127,15 +164,15 @@ segments:
       # retail bytes: 8007D0CC (C body not yet matching)
       - [0xD5DC, c, mainasm_D5DC]
       - [0xD658, c, mainc25_q2]
-      # retail bytes: 8007D1A8 (C body not yet matching)
+      # matched C: 8007D1A8
       - [0xD6B8, c, mainasm_D6B8]
       - [0xD6EC, c, main26]
-      # retail bytes: 8007D344, 8007D478, 8007D5B0, 8007D610 (C body not yet matching)
+      # retail bytes: 8007D344, 8007D478 (C body not yet matching); matched C: 8007D5B0, 8007D610
       - [0xD854, c, mainasm_D854]
       - [0xDBB8, c, main27]
       - [0xDDD0, c, main28]
       - [0xEBB0, c, mainc29_q1]
-      # retail bytes: 8007E740 (C body not yet matching)
+      # matched C: 8007E740
       - [0xEC50, c, mainasm_EC50]
       - [0xEC90, c, mainc29_q2]
       - [0xECF4, c, main30]
@@ -143,41 +180,45 @@ segments:
       - [0x10248, c, main32]
       - [0x1034C, c, main33]
       - [0x10670, c, main34_q1]
-      # retail bytes: 80080AE4 (C body not yet matching)
+      # matched C: 80080AE4
       - [0x10FF4, c, mainasm_10FF4]
       - [0x11074, c, main34_q2]
       - [0x111A4, c, main35_p1]
-      - [0x11828, c, main35_p2]
-      # retail bytes: 800841E0 (C body not yet matching)
+      - [0x11828, c, mainasm_11828]
+      - [0x12068, c, mainasm_12068]  # func_80081B58 (gcc 2.6.3)
+      - [0x125B4, c, main35_p2]
+      # matched C: 800841E0
       - [0x146F0, c, mainasm_146F0]
       - [0x14A58, c, main35_p3_q1]
-      # retail bytes: 80084750, 80084854 (C body not yet matching)
+      # retail bytes: 80084854 (C body not yet matching); matched C: 80084750
       - [0x14C60, c, mainasm_14C60]
       - [0x14F8C, c, main35_p3_q2]
-      # retail bytes: 80084B40 (C body not yet matching)
+      # matched C: 80084B40
       - [0x15050, c, mainasm_15050]
-      - [0x15238, c, main35_p4]
+      # matched C: 80084D28 (gcc 2.6.3); retail bytes: 80084DE4 (C body not yet matching)
+      - [0x15238, c, mainasm_15238]
+      - [0x15594, c, main35_p4]
       # retail bytes: 80085388, 80085454, 80085618, 80085AC4 (C body not yet matching)
       - [0x15898, c, mainasm_15898]
       - [0x16068, c, main36_p2]
       - [0x161DC, c, main37_q1]
-      # retail bytes: 80085D34 (C body not yet matching)
+      # matched C: 80085D34
       - [0x16244, c, mainasm_16244]
       - [0x16388, c, main37_q2]
       # retail bytes: 80085EB4 (C body not yet matching)
       - [0x163C4, c, mainasm_163C4]
       - [0x16538, c, main38_p2]
       - [0x17F48, c, main39]
-      # retail bytes: 8008860C, 8008887C, 80088990 (C body not yet matching)
+      # retail bytes: 8008860C, 80088990 (C body not yet matching); matched C: 8008887C
       - [0x18B1C, c, mainasm_18B1C]
       - [0x19090, c, main40_p2]
       - [0x1A060, c, main41]
       - [0x1A1DC, c, main42]
       - [0x1A8FC, c, main43]
-      # retail bytes: 8008AAA0 (C body not yet matching)
+      # matched C: 8008AAA0
       - [0x1AFB0, c, mainasm_1AFB0]
       - [0x1B05C, c, main44]
-      # retail bytes: 8008AC50 (C body not yet matching)
+      # matched C: 8008AC50
       - [0x1B160, c, mainasm_1B160]
       - [0x1B198, c, main45]
       - [0x1B734, c, main46]
@@ -210,15 +251,17 @@ segments:
       # retail bytes: 800AA898 (C body not yet matching)
       - [0x3ADA8, c, mainasm_3ADA8]
       - [0x3AE44, c, main72_p2]
-      # retail bytes: 800AE1BC, 800AE220 (C body not yet matching)
+      # matched C: 800AE1BC, 800AE220
       - [0x3E6CC, c, mainasm_3E6CC]
       - [0x3E7B4, c, main72_p3]
       - [0x3F408, c, main73_p1]
-      # retail bytes: 800AF400 (C body not yet matching)
+      # matched C: 800AF400
       - [0x3F910, c, mainasm_3F910]
       - [0x3F948, c, main73_p2]
       - [0x40604, c, main74]
-      - [0x419DC, c, main75]
+      # matched C: 800B14CC (non-CDK: 2.7.2 and 2.6.3 give the same code; Default; main75's func_800B15D8 is CDK code)
+      - [0x419DC, c, mainasm_419DC]
+      - [0x41AE8, c, main75]
       - [0x41BB4, c, mainc76]
       - [0x41C30, c, main77]
       - [0x43868, c, mainc78]
@@ -271,7 +314,7 @@ segments:
       - [0x4F128, c, mainc123]
       - [0x4F25C, c, mainc124]
       - [0x4F33C, c, main125_q1]
-      # retail bytes: 800BEEB4, 800BEF24, 800BEF8C, 800BEFF4 (C body not yet matching)
+      # matched C: 800BEEB4, 800BEF24, 800BEF8C, 800BEFF4
       - [0x4F3C4, c, mainasm_4F3C4]
       - [0x4F5C4, c, main125_q2]
       - [0x4F5D4, c, mainc126]

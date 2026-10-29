@@ -12,6 +12,7 @@
 
 /* backend stubs needed by xg_plat_config.c */
 void xg_plat_timing_set_speed(int m) { (void)m; }
+void xg_plat_timing_set_speed_from(int m, const char* s) { (void)m; (void)s; }
 void xg_plat_timing_set_fast_forward_speed(int m) { (void)m; }
 int xg_plat_audio_set_user_volume(int p) { (void)p; return 0; }
 const char* xg_plat_input_button_name(XgPlatButton b) { (void)b; return "x"; }

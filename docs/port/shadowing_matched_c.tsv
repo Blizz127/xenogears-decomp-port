@@ -66,38 +66,66 @@ func_80039C4C	port arm spanning the body in src/slus_006.64/system/sound.c	func_
 func_80039C8C	port arm spanning the body in src/slus_006.64/system/sound.c	func_80039C8C
 func_8003A14C	port arm in src/slus_006.64/system/sound.c	func_8003A14C
 func_8003E1F8	port arm in src/slus_006.64/system/sound.c	func_8003E1F8
+func_80070F40	pc_port MIPS-runtime launcher func_80070F40 (pc_port/src/battle_mips_runtime.c; interprets the retail body)	func_80070F40
 func_800716D8	generated logging stub (matched C not linked)	func_800716D8
+func_80071964	port arm in src/battle/main.c	func_80071964
 func_80071FEC	pc_port body wm_80071FEC (pc_port/src/world_map_helper_71fec.c)	wm_80071FEC
 func_800721E4	pc_port body wm_800721E4 (pc_port/src/world_map_mode9_lifecycle.c)	wm_800721E4
+func_800728B8	opt-in native caller (pc_port/src/battle_optional_strips_host.inc; complete scoped AddPrim)	battle_optional_strips_link
+func_80073538	opt-in native caller (pc_port/src/battle_party_hud_host.inc; child calls retain individual conversion gates)	battle_party_hud_run
 func_8007369C	pc_port body wm_8007369C (pc_port/src/world_map_init.c)	wm_8007369C
+func_80073F08	opt-in native caller (pc_port/src/battle_optional_strips_host.inc; complete scoped AddPrim)	battle_optional_strips_run
+func_80073FB8	opt-in native caller (pc_port/src/battle_status_packets_host.inc; existing strip body and exact AddPrim sites)	battle_status_packets_run
+func_80074AB8	opt-in native caller (pc_port/src/battle_hud_strips_host.inc; existing gated strip and AddPrim bodies)	battle_hud_strips_run
 func_80074F04	pc_port body wm_80074F04 (pc_port/src/world_map_mode811_lifecycle.c)	wm_80074F04
+func_80074F70	opt-in native window caller (pc_port/src/battle_window_render_host.inc; scoped AddPrim and typed guarded 34888)	battle_window_render_run
+func_8007500C	opt-in native packet body (pc_port/src/battle_panel_packets_host.inc; exact quad and AddPrim child edges)	battle_panel_packets_run
 func_800750DC	pc_port body wm_800750DC (pc_port/src/world_map_mode811_lifecycle.c)	wm_800750DC
 func_80075228	pc_port body wm_80075228 (pc_port/src/world_map_common_tail.c)	wm_80075228
 func_80075D4C	port arm in src/movie/main.c	func_80075D4C
 func_800762FC	pc_port body wm_800762FC (pc_port/src/world_map_helper_762fc.c)	wm_800762FC
+func_80076418	opt-in native caller (pc_port/src/battle_phase_chain_host.inc; external children retain conversion gates)	battle_phase_main_chain
+func_800764B4	opt-in native caller (pc_port/src/battle_phase_chain_host.inc; external children retain conversion gates)	battle_phase_initial_chain
+func_800764EC	opt-in native caller (pc_port/src/battle_phase_chain_host.inc; external children retain conversion gates)	battle_phase_alternate_chain
+func_80076544	opt-in native caller (pc_port/src/battle_phase_chain_host.inc; external children retain conversion gates)	battle_phase_select
+func_800765C4	port arm in src/battle/main3.c	func_800765C4
 func_800767D4	pc_port body wm_800767D4 (pc_port/src/world_map_state_vertical_8f690.c)	wm_800767D4
 func_80076858	pc_port body wm_80076858 (pc_port/src/world_map_helper_76858.c)	wm_80076858
 func_80076A10	generated logging stub (matched C not linked)	func_80076A10
-func_80076B68	generated logging stub (matched C not linked)	func_80076B68
-func_80076BF0	generated logging stub (matched C not linked)	func_80076BF0
+func_80076AC8	opt-in native caller (pc_port/src/battle_primitive_style_host.inc; complete scoped SDK setters)	battle_primitive_style_setup
+func_80076B68	opt-in native finisher at exact 80088B80 sites (pc_port/src/battle_line_display_host.inc)	battle_line_finish20
+func_80076BF0	opt-in native finisher at exact 80088B80 site (pc_port/src/battle_line_display_host.inc)	battle_line_finish40
+func_80076C34	opt-in native caller (pc_port/src/battle_primitive_style_host.inc; complete scoped SDK setters)	battle_primitive_style_tint
+func_80076C78	opt-in native packet body (pc_port/src/battle_panel_packets_host.inc; exact quad and AddPrim child edges)	battle_panel_packets_quad
 func_80076DA4	pc_port body wm_80076DA4 (pc_port/src/world_map_callback_827ec.c)	wm_80076DA4
 func_80076F54	pc_port body wm_80076F54 (pc_port/src/world_map_callback_827ec.c)	wm_80076F54
 func_800771D8	pc_port body wm_800771D8 (pc_port/src/world_map_callback_827ec.c)	wm_800771D8
 func_80077480	pc_port body wm_80077480 (pc_port/src/world_map_mode811_lifecycle.c)	wm_80077480
 func_80077CC0	pc_port body wm_80077CC0 (pc_port/src/world_map_mode9_lifecycle.c)	wm_80077CC0
+func_80078508	port arm in src/battle/main8.c	func_80078508
+func_800785D4	port arm in src/battle/main8.c	func_800785D4
+func_80078658	port arm in src/battle/main8.c	func_80078658
 func_80078D24	pc_port body wm_80078D24 (pc_port/src/world_map_mode10_lifecycle.c)	wm_80078D24
 func_8007A8AC	pc_port body wm_8007A8AC (pc_port/src/world_map_mode14_lifecycle.c)	wm_8007A8AC
+func_8007A92C	port arm in src/battle/main16.c	func_8007A92C
+func_8007A968	port arm in src/battle/main16.c	func_8007A968
 func_8007A9B4	pc_port body wm_8007A9B4 (pc_port/src/world_map_callback_7a9b4.c)	wm_8007A9B4
+func_8007AA60	port arm in src/battle/main17.c	func_8007AA60
 func_8007AD34	pc_port body wm_8007AD34 (pc_port/src/world_map_callback_7ad34.c)	wm_8007AD34
+func_8007B424	port arm in src/battle/main21.c	func_8007B424
 func_8007C260	pc_port body wm_8007C260 (pc_port/src/world_map_mode12_lifecycle.c)	wm_8007C260
 func_8007C724	pc_port body wm_8007C724 (pc_port/src/world_map_callback_7c724.c)	wm_8007C724
+func_8007D0CC	port arm in src/battle/mainc25.c	func_8007D0CC
 func_8007D1A8	port arm in src/battle/mainc25.c	func_8007D1A8
+func_8007D344	port arm in src/battle/main27.c	func_8007D344
+func_8007D478	port arm in src/battle/main27.c	func_8007D478
 func_8007D5B0	port arm in src/battle/main27.c	func_8007D5B0
 func_8007D610	port arm in src/battle/main27.c	func_8007D610
 func_8007D690	pc_port body wm_8007D690 (pc_port/src/world_map_callback_7d600.c)	wm_8007D690
 func_8007DCE0	pc_port body wm_8007DCE0 (pc_port/src/world_map_mode15_lifecycle.c)	wm_8007DCE0
 func_8007E450	pc_port body wm_8007E450 (pc_port/src/world_map_callback_7e450.c)	wm_8007E450
 func_8007E740	port arm in src/battle/mainc29.c	func_8007E740
+func_8007FBE0	port arm in src/battle/main31.c	func_8007FBE0
 func_80080218	pc_port body wm_80080218 (pc_port/src/world_map_mode13_lifecycle.c)	wm_80080218
 func_8008032C	pc_port body wm_8008032C (pc_port/src/world_map_callback_8032c.c)	wm_8008032C
 func_80080578	pc_port body wm_80080578 (pc_port/src/world_map_callback_80578.c)	wm_80080578
@@ -112,30 +140,56 @@ func_800827C8	pc_port body wm_800827C8 (pc_port/src/world_map_callback_827c8.c)	
 func_800834D8	pc_port body wm_800834D8 (pc_port/src/world_map_callback_834d0.c)	wm_800834D8
 func_800837DC	pc_port body wm_800837DC (pc_port/src/world_map_mode18_lifecycle.c)	wm_800837DC
 func_800838E8	pc_port body wm_800838E8 (pc_port/src/world_map_callback_838e8.c)	wm_800838E8
+func_800841E0	port arm in src/battle/target_list_impl.inc (included by src/battle/main35.c)	func_800841E0
+func_80084750	port arm in src/battle/main35.c	func_80084750
 func_80084818	pc_port body wm_80084818 (pc_port/src/world_map_teardown_7299c.c)	wm_80084818
+func_80084854	port arm in src/battle/main35.c	func_80084854
 func_800848B4	pc_port body wm_800848B4 (pc_port/src/world_map_helper_848b4.c)	wm_800848B4
+func_80084B40	port arm in src/battle/target_ui_impl.inc (included by src/battle/main35.c)	func_80084B40
 func_80084D00	pc_port body wm_80084D00 (pc_port/src/world_map_helper_84d00.c)	wm_80084D00
+func_80085388	port arm in src/battle/main36.c	func_80085388
+func_80085454	port arm in src/battle/main36.c	func_80085454
 func_800855C8	port arm in src/field/main/misc8.c	func_800855C8
+func_80085618	port arm in src/battle/main36.c	func_80085618
+func_80085AC4	port arm in src/battle/main36.c	func_80085AC4
 func_80085D34	port arm in src/battle/main37.c	func_80085D34
+func_80085EB4	port arm in src/battle/main38.c	func_80085EB4
 func_80086124	pc_port body wm_80086124 (pc_port/src/world_map_helper_86124.c)	wm_80086124
 func_80086568	pc_port body wm_80086568 (pc_port/src/world_map_mode811_lifecycle.c)	wm_80086568
 func_800866C8	pc_port body wm_800866C8 (pc_port/src/world_map_helper_86124.c)	wm_800866C8
 func_80087734	pc_port body wm_80087734 (pc_port/src/world_map_callback_87734.c)	wm_80087734
 func_800879E0	pc_port body wm_800879E0 (pc_port/src/world_map_resume_initializers.c)	wm_800879E0
+func_80087AF0	port arm in src/battle/main39.c	func_80087AF0
 func_80087B5C	port arm spanning the body in src/field/main/misc.c	func_80087B5C
+func_80087EDC	port arm in src/battle/main39.c	func_80087EDC
 func_80087F60	pc_port body wm_80087F60 (pc_port/src/world_map_resume_initializers.c)	wm_80087F60
 func_80088198	port arm in src/field/main/misc.c	func_80088198
+func_800881B8	port arm in src/battle/main39.c	func_800881B8
+func_800883AC	port arm in src/battle/main39.c	func_800883AC
+func_80088490	port arm in src/battle/main39.c	func_80088490
+func_8008860C	port arm in src/battle/main40.c	func_8008860C
+func_8008887C	port arm in src/battle/mainasm_18B1C.c; wrapping/DIV repair and exact typed binding at 80088C38	battle_func_8008887C
+func_80088990	port arm in src/battle/main40.c; exact typed void binding at 80088C54 in battle_line_display_host.inc	func_80088990
+func_80088B80	opt-in complete native caller (pc_port/src/battle_line_display_host.inc; actual typed services)	battle_line_display_run
 func_80088FF4	pc_port body wm_80088FF4 (pc_port/src/world_map_mode811_lifecycle.c)	wm_80088FF4
 func_80089038	port arm in src/battle/main40.c	func_80089038
 func_80089110	port arm in src/battle/main40.c	func_80089110
 func_80089128	pc_port body wm_80089128 (pc_port/src/world_map_helper_86124.c)	wm_80089128
+func_800891E4	port arm in src/battle/main40.c	func_800891E4
 func_80089348	port arm in src/battle/main40.c	func_80089348
+func_8008946C	port arm in src/battle/main40.c	func_8008946C
 func_800894C8	pc_port body wm_800894C8 (pc_port/src/world_map_common_tail.c)	wm_800894C8
+func_8008963C	port arm in src/battle/main40.c	func_8008963C
 func_800897CC	port arm in src/battle/main40.c	func_800897CC
+func_800898F0	port arm in src/battle/main40.c	func_800898F0
+func_80089CCC	port arm in src/battle/main42.c	func_80089CCC
 func_80089FD0	port arm spanning the body in src/field/main/misc.c	func_80089FD0
+func_8008A144	port arm in src/battle/main42.c	func_8008A144
 func_8008A148	port arm in src/field/main/misc.c	func_8008A148
 func_8008A274	generated logging stub (matched C not linked)	func_8008A274
+func_8008A3EC	port arm in src/battle/main43.c	func_8008A3EC
 func_8008A52C	pc_port body wm_8008A52C (pc_port/src/world_map_resume_initializers.c)	wm_8008A52C
+func_8008A684	port arm in src/battle/main43.c	func_8008A684
 func_8008AA40	port arm spanning the body in src/battle/main43.c	func_8008AA40
 func_8008AB94	generated logging stub (matched C not linked)	func_8008AB94
 func_8008ABB8	generated logging stub (matched C not linked)	func_8008ABB8
@@ -152,6 +206,7 @@ func_8008DE9C	pc_port body wm_8008DE9C (pc_port/src/world_map_resume_initializer
 func_8008DFF4	pc_port body wm_8008DFF4 (pc_port/src/world_map_helper_8dff4.c)	wm_8008DFF4
 func_8008E034	pc_port body wm_8008E034 (pc_port/src/world_map_helper_8e034.c)	wm_8008E034
 func_8008EFE4	port arm spanning the body in src/field/main/misc.c	func_8008EFE4
+func_8008FAD8	opt-in native caller (pc_port/src/battle_window_open_host.inc; renderer retains its conversion gate)	battle_window_open_run
 func_800907C4	pc_port body wm_800907C4 (pc_port/src/world_map_resume_initializers.c)	wm_800907C4
 func_80090A18	pc_port body wm_80090A18 (pc_port/src/world_map_helper_90a84.c)	wm_80090A18
 func_80091430	pc_port body wm_80091430 (pc_port/src/world_map_callback_91430.c)	wm_80091430
@@ -176,62 +231,150 @@ func_80097770	pc_port body wm_80097770 (pc_port/src/world_map_helper_97770.c)	wm
 func_8009795C	port arm in src/battle/main.c	func_8009795C
 func_80097D64	pc_port body wm_80097D64 (pc_port/src/world_map_teardown_7299c.c)	wm_80097D64
 func_800984EC	port arm spanning the body in src/field/main/misc7.c	func_800984EC
+func_80099FB0	port arm in src/battle/main53.c	func_80099FB0
+func_8009A258	port arm in src/battle/main54.c	func_8009A258
+func_8009A2D4	port arm in src/battle/main54.c	func_8009A2D4
+func_8009A854	port arm in src/battle/main55.c	func_8009A854
+func_8009AB38	port arm in src/battle/main56.c	func_8009AB38
+func_8009AC48	port arm in src/battle/main56.c	func_8009AC48
+func_8009ADA0	port arm in src/battle/main56.c	func_8009ADA0
+func_8009AFD8	port arm in src/battle/main57.c	func_8009AFD8
+func_8009B104	port arm in src/battle/main58.c	func_8009B104
+func_8009B1E4	port arm in src/battle/main58.c	func_8009B1E4
+func_8009B46C	port arm in src/battle/main58.c	func_8009B46C
+func_8009B684	port arm in src/battle/main58.c	func_8009B684
+func_8009BAC4	port arm in src/battle/main58.c	func_8009BAC4
+func_8009BD94	port arm in src/battle/main58.c	func_8009BD94
+func_8009BE0C	port arm in src/battle/main58.c	func_8009BE0C
+func_8009C050	port arm in src/battle/main58.c	func_8009C050
+func_8009C134	port arm in src/battle/main59.c	func_8009C134
+func_8009C198	port arm in src/battle/main59.c	func_8009C198
+func_8009C4B4	port arm in src/battle/main59.c	func_8009C4B4
+func_8009C9C4	port arm in src/battle/main59.c	func_8009C9C4
 func_8009CA90	port arm in src/battle/main59.c	func_8009CA90
+func_8009CBC4	port arm in src/battle/main60.c	func_8009CBC4
+func_8009D3A0	port arm in src/battle/main61.c	func_8009D3A0
 func_8009D948	port arm in src/battle/main61.c	func_8009D948
+func_8009DA04	port arm in src/battle/main61.c	func_8009DA04
+func_8009DB54	port arm in src/battle/main61.c	func_8009DB54
+func_8009DBFC	port arm in src/battle/main61.c	func_8009DBFC
+func_8009E278	port arm in src/battle/main62.c	func_8009E278
+func_8009E2EC	port arm in src/battle/main62.c	func_8009E2EC
+func_8009E5C8	port arm in src/battle/main64.c	func_8009E5C8
+func_8009E788	port arm in src/battle/main64.c	func_8009E788
+func_8009E868	port arm in src/battle/main64.c	func_8009E868
+func_8009EF3C	lifted port arm (battle_lift.h) in src/battle/main64.c	func_8009EF3C
+func_8009F1C4	lifted port arm (battle_lift.h) in src/battle/main64.c	func_8009F1C4
 func_8009F5B0	port arm in src/battle/main.c	func_8009F5B0
+func_800A0838	port arm in src/battle/main65.c	func_800A0838
 func_800A2330	generated logging stub (matched C not linked)	func_800A2330
 func_800A23E8	generated logging stub (matched C not linked)	func_800A23E8
 func_800A2D5C	port arm in src/battle/main67.c	func_800A2D5C
 func_800A2E88	port arm in src/battle/main67.c	func_800A2E88
+func_800A2F94	port arm in src/battle/main67.c	func_800A2F94
+func_800A2FD8	port arm in src/battle/main67.c	func_800A2FD8
+func_800A32D8	port arm in src/battle/main67.c	func_800A32D8
+func_800A3640	port arm in src/battle/main68.c	func_800A3640
+func_800A3E98	port arm in src/battle/main68.c	func_800A3E98
+func_800A4348	port arm in src/battle/main68.c	func_800A4348
+func_800A43F8	port arm in src/battle/main68.c	func_800A43F8
+func_800A44C0	port arm in src/battle/main68.c	func_800A44C0
+func_800A4654	port arm in src/battle/main68.c	func_800A4654
+func_800A48EC	port arm in src/battle/main68.c	func_800A48EC
+func_800A4B3C	port arm in src/battle/main68.c	func_800A4B3C
 func_800A579C	generated logging stub (matched C not linked)	func_800A579C
 func_800A5870	generated logging stub (matched C not linked)	func_800A5870
 func_800A5914	generated logging stub (matched C not linked)	func_800A5914
 func_800AA760	port arm spanning the body in src/battle/main70.c	func_800AA760
+func_800AA898	port arm in src/battle/main72.c	func_800AA898
 func_800AA934	generated logging stub (matched C not linked)	func_800AA934
 func_800AE1BC	port arm in src/battle/main72.c	func_800AE1BC
 func_800AE220	port arm in src/battle/main72.c	func_800AE220
+func_800AE2A4	lifted port arm (battle_lift.h) in src/battle/main72.c	func_800AE2A4
 func_800AEEF8	port arm in src/battle/main73.c	func_800AEEF8
 func_800AF180	port arm in src/battle/main73.c	func_800AF180
 func_800AF270	port arm in src/battle/main73.c	func_800AF270
 func_800AF2C4	port arm in src/battle/main73.c	func_800AF2C4
 func_800AF400	port arm in src/battle/main73.c	func_800AF400
+func_800AF438	port arm in src/battle/main73.c	func_800AF438
+func_800AF518	port arm in src/battle/main73.c	func_800AF518
+func_800AFD98	port arm in src/battle/main73.c	func_800AFD98
+func_800AFF9C	lifted port arm (battle_lift.h) in src/battle/main73.c	func_800AFF9C
 func_800B0060	generated logging stub (matched C not linked)	func_800B0060
 func_800B00F4	port arm in src/battle/main74.c	func_800B00F4
 func_800B0164	port arm in src/battle/main74.c	func_800B0164
+func_800B0D70	port arm in src/battle/main74.c	func_800B0D70
+func_800B0FF4	port arm in src/battle/main74.c	func_800B0FF4
+func_800B10EC	port arm in src/battle/main74.c	func_800B10EC
+func_800B12D0	port arm in src/battle/main74.c	func_800B12D0
+func_800B136C	port arm in src/battle/main74.c	func_800B136C
+func_800B14CC	port arm in src/battle/main75.c	func_800B14CC
+func_800B15D8	port arm in src/battle/main75.c	func_800B15D8
 func_800B168C	port arm in src/battle/main.c	func_800B168C
 func_800B16A4	port arm in src/battle/main.c	func_800B16A4
 func_800B1EA0	port arm in src/battle/main77.c	func_800B1EA0
+func_800B1F0C	port arm in src/battle/anim_render_index15.inc (included by pc_port/src/game_overrides.c)	func_800B1F0C
+func_800B1F6C	port arm in src/battle/anim_render_index15.inc (included by pc_port/src/game_overrides.c)	func_800B1F6C
+func_800B2AEC	pc_port body func_800B2AEC (pc_port/src/game_overrides.c)	func_800B2AEC
 func_800B3348	port arm in src/battle/main.c	func_800B3348
 func_800B3350	port arm in src/battle/main.c	func_800B3350
 func_800B3B6C	port arm spanning the body in src/battle/mainl81.c	func_800B3B6C
+func_800B5854	port arm in src/battle/mainc84.c	func_800B5854
+func_800B5DF4	port arm in src/battle/main87.c	func_800B5DF4
 func_800B5FBC	port arm in src/battle/main87.c	func_800B5FBC
+func_800B6004	port arm in src/battle/main87.c	func_800B6004
 func_800B61B0	port arm in src/battle/main87.c	func_800B61B0
 func_800B61F8	port arm in src/battle/main87.c	func_800B61F8
 func_800B626C	port arm in src/battle/main87.c	func_800B626C
+func_800B62C8	port arm in src/battle/main87.c	func_800B62C8
+func_800B6464	port arm in src/battle/mainc89.c	func_800B6464
 func_800B6518	port arm in src/battle/main90.c	func_800B6518
+func_800B65B0	port arm in src/battle/main90.c	func_800B65B0
+func_800B6808	port arm in src/battle/main90.c	func_800B6808
+func_800B8068	port arm in src/battle/mainc100.c	func_800B8068
 func_800B8354	generated logging stub (matched C not linked)	func_800B8354
 func_800B89F4	port arm in src/battle/main.c	func_800B89F4
 func_800B8D7C	generated logging stub (matched C not linked)	func_800B8D7C
 func_800B9258	port arm spanning the body in src/battle/mainc107.c	func_800B9258
 func_800B9B30	port arm spanning the body in src/battle/mainc108.c	func_800B9B30
 func_800B9B54	generated logging stub (matched C not linked)	func_800B9B54
+func_800B9C78	port arm in src/battle/mainl110.c	func_800B9C78
 func_800BA59C	port arm in src/battle/mainl110.c	func_800BA59C
+func_800BA614	port arm in src/battle/mainl110.c	func_800BA614
+func_800BA768	port arm in src/battle/mainl110.c	func_800BA768
 func_800BA8F4	pc_port body func_800BA8F4 (pc_port/src/game_overrides.c)	func_800BA8F4
+func_800BA984	port arm in src/battle/main111.c	func_800BA984
+func_800BAB0C	port arm in src/battle/main111.c	func_800BAB0C
 func_800BAC50	port arm in src/battle/main111.c	func_800BAC50
+func_800BACBC	port arm in src/battle/main111.c	func_800BACBC
+func_800BADD4	port arm in src/battle/main111.c	func_800BADD4
 func_800BAF40	port arm in src/battle/main.c	func_800BAF40
+func_800BAF48	port arm in src/battle/mainc112.c	func_800BAF48
 func_800BB080	port arm in src/battle/mainc112.c	func_800BB080
 func_800BB13C	port arm in src/battle/mainc112.c	func_800BB13C
+func_800BB248	port arm in src/battle/mainc112.c	func_800BB248
 func_800BB314	port arm in src/battle/mainc112.c	func_800BB314
+func_800BB350	port arm in src/battle/mainc112.c	func_800BB350
 func_800BB540	port arm in src/battle/mainc112.c	func_800BB540
 func_800BB620	port arm in src/battle/mainc112.c	func_800BB620
 func_800BB6E0	port arm in src/battle/mainc113.c	func_800BB6E0
 func_800BB760	port arm in src/battle/mainc113.c	func_800BB760
 func_800BC2F0	generated logging stub (matched C not linked)	func_800BC2F0
 func_800BC460	generated logging stub (matched C not linked)	func_800BC460
+func_800BCD98	port arm in src/battle/mainc118.c	func_800BCD98
+func_800BCEAC	port arm in src/battle/mainc118.c	func_800BCEAC
 func_800BCFAC	port arm in src/battle/mainc118.c	func_800BCFAC
 func_800BD024	port arm in src/battle/mainc118.c	func_800BD024
+func_800BD098	port arm in src/battle/mainc118.c	func_800BD098
+func_800BD1FC	port arm in src/battle/mainc118.c	func_800BD1FC
+func_800BD2E4	port arm in src/battle/mainc118.c	func_800BD2E4
+func_800BD3AC	port arm in src/battle/mainc118.c	func_800BD3AC
+func_800BD7A0	port arm in src/battle/mainc118.c	func_800BD7A0
+func_800BD810	port arm in src/battle/mainc118.c	func_800BD810
 func_800BD974	port arm in src/battle/mainc118.c	func_800BD974
+func_800BDA1C	port arm in src/battle/mainc118.c	func_800BDA1C
 func_800BDB08	port arm in src/battle/mainc118.c	func_800BDB08
+func_800BDB74	port arm in src/battle/mainc118.c	func_800BDB74
 func_800BDCF8	generated logging stub (matched C not linked)	func_800BDCF8
 func_800BDCF8	port arm in src/battle/mainc118.c	func_800BDCF8
 func_800BDD34	port arm in src/battle/main.c	func_800BDD34
@@ -240,11 +383,19 @@ func_800BE6E8	port arm in src/battle/mainc122.c	func_800BE6E8
 func_800BEDE8	port arm spanning the body in src/battle/mainc124.c	func_800BEDE8
 func_800BEEB4	port arm in src/battle/main125.c	func_800BEEB4
 func_800BEF24	port arm in src/battle/main125.c	func_800BEF24
+func_800BEF8C	port arm in src/battle/main125.c	func_800BEF8C
 func_800BEFF4	port arm in src/battle/main125.c	func_800BEFF4
+func_800BF2B8	port arm in src/battle/mainc126.c	func_800BF2B8
 func_800BF720	port arm spanning the body in src/battle/main128.c	func_800BF720
+func_800BF85C	port arm in src/battle/mainc131.c	func_800BF85C
+func_800BF8CC	port arm in src/battle/mainc131.c	func_800BF8CC
 func_800BFBA0	generated logging stub (matched C not linked)	func_800BFBA0
+func_800BFC80	port arm in src/battle/mainl133.c	func_800BFC80
 func_800BFD88	generated logging stub (matched C not linked)	func_800BFD88
 func_800BFDA8	port arm in src/battle/mainc134.c	func_800BFDA8
+func_800BFE48	port arm in src/battle/mainc134.c	func_800BFE48
+func_800C0314	port arm in src/battle/mainc134.c	func_800C0314
+func_800C0564	port arm in src/battle/mainc134.c	func_800C0564
 func_800C06E4	port arm in src/battle/mainc134.c	func_800C06E4
 func_800C0758	port arm in src/battle/mainc134.c	func_800C0758
 func_800C07CC	port arm in src/battle/mainc134.c	func_800C07CC

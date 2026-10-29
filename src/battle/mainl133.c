@@ -2,7 +2,44 @@
 
 
 #ifndef XENO_PC_PORT
-INCLUDE_ASM("asm/battle/nonmatchings/mainl133", func_800BFC80);
+extern u8* g_TimerWorkList__a[] asm("g_TimerWorkList");
+extern u8 D_8006BE10[];
+
+u8* func_800BFC80__ret(u8* sprite, s32 index, s32 mode) asm("func_800BFC80");
+
+/* Walk g_TimerWorkList for the timer tasks of `sprite`'s owner (+0x6C) whose
+ * +0x14 id matches the owner's +0x10 (bit 29 set) and whose child uses the
+ * D_8006BE10 handler.  Mode 0 returns the child with +0xAF == index; mode 1
+ * runs that child owner's +0xC callback; mode 2 runs it for every such child.
+ * Returns NULL otherwise.  Defined under an asm name because this TU's caller
+ * keeps the void prototype below. */
+u8* func_800BFC80__ret(u8* sprite, s32 index, s32 mode) {
+    u8* t;
+    u8* owner;
+    u8* child;
+
+    t = g_TimerWorkList__a[0];
+    owner = *(u8**)(sprite + 0x6C);
+    while (t != NULL) {
+        if (*(u8**)(t + 0) == owner
+            && (*(u32*)(t + 0x14) & 0x1FFFFFFF) == (*(u32*)(owner + 0x10) & 0x1FFFFFFF)
+            && ((*(u32*)(t + 0x14) >> 29) & 1)) {
+            child = *(u8**)(t + 4);
+            if (*(u8**)(child + 0x24) == D_8006BE10) {
+                if (mode == 2) {
+                    (*(void (**)(u8*))(*(u8**)(child + 0x6C) + 0xC))(*(u8**)(child + 0x6C));
+                } else if (*(s8*)(child + 0xAF) == index) {
+                    if (mode == 0) {
+                        return child;
+                    }
+                    (*(void (**)(u8*))(*(u8**)(child + 0x6C) + 0xC))(*(u8**)(child + 0x6C));
+                }
+            }
+        }
+        t = *(u8**)(t + 0x18);
+    }
+    return NULL;
+}
 #endif
 
 

@@ -19,9 +19,9 @@ extern u8 D_800D2CB0[];
 
 /* func_8007D0CC.s: row[p[1]] = D_800D2CB0[i] for first i<48 with
  * D_800D2CE0[i] == p[2] (0 if none). */
-/* Not yet byte-matching: the matching build assembles retail bytes for
- * this function from its own asm segment (see config/battle.yaml).  The
- * body below is kept for the port and the differential harnesses. */
+/* The retail build compiles this function's byte-exact C in
+ * mainasm_D5DC.c.  The body below is kept for the port and the
+ * differential harnesses. */
 #ifdef XENO_PC_PORT
 void func_8007D0CC(u8 **pp, s32 idx) {
     u8 *p = *pp;
@@ -62,9 +62,9 @@ void func_8007D148(u8** ppBoard, u8* dst, u8 idx, u8 off) {
 }
 #endif /* BATTLE_SUB(2) */
 /* func_8007D1A8.s */
-/* Not yet byte-matching: the matching build assembles retail bytes for
- * this function from its own asm segment (see config/battle.yaml).  The
- * body below is kept for the port and the differential harnesses. */
+/* The retail build compiles this function's byte-exact C in
+ * mainasm_D6B8.c.  The body below is kept for the port and the
+ * differential harnesses. */
 #ifdef XENO_PC_PORT
 void func_8007D1A8(u8** ppBoard, u8 index) {
     u8* p = *ppBoard;

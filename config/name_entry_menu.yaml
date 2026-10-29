@@ -1,0 +1,61 @@
+name: Name Entry Menu Overlay (menu mode 3, "Enter Name"; archive dir 0x10 file 8)
+sha1: 04ddcfcf185ef46d116290c90c4ecdf58b0ed184
+options:
+  basename: name_entry_menu.bin
+  target_path: disc/name_entry_menu.bin
+  base_path: ../
+  platform: psx
+  compiler: PSYQ
+
+  asm_path: asm/name_entry_menu
+  src_path: src/name_entry_menu
+  build_path: build/
+
+  ld_script_path: linker/name_entry_menu.ld
+
+  find_file_boundaries: False
+  gp_value: 0x80059170
+  global_vram_start: 0x80010000
+
+  o_as_suffix: False
+  use_legacy_include_asm: False
+
+  asm_function_macro: glabel
+  asm_jtbl_label_macro: jlabel
+  asm_data_macro: dlabel
+
+  section_order: [".rodata", ".text", ".data", ".bss"]
+
+  symbol_addrs_path:
+    - config/symbol_addrs.name_entry_menu.txt
+    - config/symbol_addrs.slus_006.64.txt
+  reloc_addrs_path:
+    - configs/reloc_addrs.name_entry_menu.txt
+
+  undefined_funcs_auto_path: linker/undefined_funcs_auto.name_entry_menu.txt
+  undefined_syms_auto_path: linker/undefined_syms_auto.name_entry_menu.txt
+
+  extensions_path: tools/splat_ext
+
+  subalign: 4
+
+  string_encoding: ASCII
+  data_string_encoding: ASCII
+  rodata_string_guesser_level: 2
+  data_string_guesser_level: 2
+  ld_bss_is_noload: true
+segments:
+  - name: name_entry_menu
+    type: code
+    start: 0x0
+    vram: 0x801c5000
+    bss_size: 0x20000 # same allowance as member_change_menu
+    align: 4
+    subalign: 4
+    subsegments:
+      - [0x0, .rodata, main/misc]    # "BISLPS-00800" + jump table of func_801CB33C
+      - [0x40, c, main/misc]
+      - [0x6EA0, data]
+      - { vram: 0x801CC134, type: bss }
+  - [0x7134, databin]
+  - [0x7800]

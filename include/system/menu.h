@@ -537,7 +537,11 @@ typedef struct {
     /* 0x4E0  */ MenuString unk4E0[4];
     /* 0x6E0  */ MenuString unk6E0[8];
     /* 0xAE0  */ MenuString unkAE0[6];
-    /* 0xDE0  */ u8 unkDE0[0x300];
+#ifdef XENO_PC_PORT
+    /* 0xDE0  */ MenuString unkDE0[6]; // Card-screen labels (func_801D9F34)
+#else
+    /* 0xDE0  */ u8 unkDE0[0x300]; // 6 MenuStrings (0x80 each on the PSX)
+#endif
     /* 0x10E0 */ MenuString itemMenuStrings[8];
     /* 0x14E0 */ u8 unk14E0[0x900];
     /* 0x1DE0 */ MenuString* unk1DE0[4];

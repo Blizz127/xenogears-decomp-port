@@ -28,6 +28,8 @@
  * are not rolled back; callers must propagate failure, not resume as
  * if the guest helper succeeded. This does not bound a callee's own frames.
  */
+int PcPort_BattleMipsCallJal(uint32_t target, const uint32_t *args, unsigned argc,
+                            uint32_t *v0, uint32_t *v1);
 int PcPort_BattleMipsCallGuest(uint32_t target, const uint32_t *args,
                               unsigned argc, uint32_t *result);
 
