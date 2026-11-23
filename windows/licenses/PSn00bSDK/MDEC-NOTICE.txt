@@ -1,0 +1,13 @@
+PSn00bSDK MDEC library (low-level MDEC/DMA API)
+(C) 2022-2023 spicyjpeg - MPL licensed
+
+The opening movie decoder uses the standard 64-entry MDEC quantization
+matrix. The entries in its s_iq table match the published PSn00bSDK
+libpsn00b/psxpress/mdec.c default luma quantization table. That source
+describes the entries as the MPEG-1 matrix in zigzag order with a DC
+coefficient of 2.
+
+The covered port source, boot_str.c, is provided with the PSn00bSDK source
+notice and the Mozilla Public License 2.0.
+
+Upstream source: https://github.com/Lameguy64/PSn00bSDK/blob/5d9aa2d3dfc7d6e51c2eb942ab4cdbae5571a40a/libpsn00b/psxpress/mdec.c

@@ -1,0 +1,51 @@
+diff --git a/src/PsyX_main.cpp b/src/PsyX_main.cpp
+--- a/src/PsyX_main.cpp
++++ b/src/PsyX_main.cpp
+@@ -392,6 +392,8 @@
+ }
+ 
+ FILE* g_logStream = NULL;
++#define XENO_LOG_CAP_BYTES (4u * 1024u * 1024u)
++static unsigned g_xenoLogBytes = 0;
+ 
+ // intialise logging
+ void PsyX_Log_Initialise()
+@@ -399,10 +401,24 @@
+ 	char appLogFilename[128];
+ 	sprintf(appLogFilename, "%s.log", g_appNameStr);
+ 
+-	g_logStream = fopen(appLogFilename, "wb");
++	/* _xeno_log_append: append, line-buffered, capped.  The port's stderr
++	 * mirror (pc_port/src/port_log.c) rotates the previous runs and appends
++	 * to this same file, so both writers must be O_APPEND and ordered. */
++	g_logStream = fopen(appLogFilename, "ab");
+ 
+ 	if (!g_logStream)
++	{
+ 		eprinterr("Error - cannot create log file '%s'\n", appLogFilename);
++	}
++	else
++	{
++		/* Without the port's rotation an old log would grow for ever. */
++		fseek(g_logStream, 0, SEEK_END);
++		if (ftell(g_logStream) > (long)XENO_LOG_CAP_BYTES)
++			g_logStream = freopen(appLogFilename, "wb", g_logStream);
++		if (g_logStream)
++			setvbuf(g_logStream, NULL, _IOLBF, 0);
++	}
+ }
+ 
+ void PsyX_Log_Finalise()
+@@ -566,8 +582,10 @@
+ 	printf(pTempBuffer);
+ #endif
+ 
+-	if(g_logStream)
+-		fprintf(g_logStream, pTempBuffer);
++	if (g_logStream && g_xenoLogBytes < XENO_LOG_CAP_BYTES) {
++		int w = fprintf(g_logStream, "%s", pTempBuffer);
++		if (w > 0) g_xenoLogBytes += (unsigned)w;
++	}
+ }
+ 
+ void PsyX_Log(const char* fmt, ...)

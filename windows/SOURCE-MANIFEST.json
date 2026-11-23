@@ -1,0 +1,455 @@
+{
+  "build": "xeno-r7.21-win1-3b0d1c031b",
+  "files": {
+    "CREDITS.md": {
+      "bytes": 958,
+      "origin": "Source snapshot documentation",
+      "purpose": "Attribution covering the included third-party material.",
+      "sha256": "d24ea0dcbc92e1527b3a8c9aced3b97686f119da2e141268310053b24ddf78e1"
+    },
+    "LICENSE": {
+      "bytes": 1407,
+      "origin": "Original public project license",
+      "purpose": "License for original project work.",
+      "sha256": "3d635d017fe807a4057a2142ed20cbde264747da08a1566de906d6fa904d93a9"
+    },
+    "NOTICE.md": {
+      "bytes": 766,
+      "origin": "Snapshot documentation",
+      "purpose": "Explain the source coverage and distribution.",
+      "sha256": "ec20526dea395a4a755683c177c9f3c31dbf413d2288026123df10327caba803"
+    },
+    "README.md": {
+      "bytes": 1069,
+      "origin": "Snapshot documentation",
+      "purpose": "Explain the source coverage and distribution.",
+      "sha256": "5e76eb8a796755edcc3b32c57ac4336aa1b3597028f588e7fb22549d65d3eb23"
+    },
+    "licenses/PSn00bSDK/MDEC-NOTICE.txt": {
+      "bytes": 633,
+      "origin": "MPL-2.0 license or attribution for the port movie decoder",
+      "purpose": "Required attribution of standard MDEC matrix.",
+      "sha256": "eaabab7883a37e644f700076c8ffdeb650b1f939406eacfd74a187052ad3b788"
+    },
+    "licenses/PSn00bSDK/MPL-2.0.txt": {
+      "bytes": 16726,
+      "origin": "MPL-2.0 license or attribution for the port movie decoder",
+      "purpose": "Required MPL-2.0 license.",
+      "sha256": "fab3dd6bdab226f1c08630b1dd917e11fcb4ec5e1e020e2c16f83a0a13863e85"
+    },
+    "licenses/PSn00bSDK/NOTICE.txt": {
+      "bytes": 833,
+      "origin": "MPL-2.0 license or attribution for the port movie decoder",
+      "purpose": "Required decoder attribution.",
+      "sha256": "c56dbc863c7f1a40d21a1074a94d5c8f727ee02088b691a6d1a0b511f8bb269d"
+    },
+    "licenses/PsyCross-MIT.txt": {
+      "bytes": 1074,
+      "origin": "MIT license for source patch context",
+      "purpose": "PsyCross upstream MIT license.",
+      "sha256": "fa03bfe5810413a38d363e003472bd9e7b36384ac5f82ad8d7c902fd83b51539"
+    },
+    "pc_port/config.example.ini": {
+      "bytes": 2540,
+      "origin": "Project original, verified owner path history and moved/copied-line attribution",
+      "purpose": "Host configuration example.",
+      "sha256": "99d4067ed2c331192fc5c7dfde42be8688a8779f0ee9ddca7f37694535cef529",
+      "sourceAuthors": [
+        "Blizz127"
+      ],
+      "sourceBlob": "885549bfc620fbd1994594c5432a9cf77304bd59"
+    },
+    "pc_port/font_data/README.md": {
+      "bytes": 1135,
+      "origin": "Project original, verified owner path history and moved/copied-line attribution",
+      "purpose": "Public-domain Jiskan font provenance and release exclusions.",
+      "sha256": "33fef6c3d8077892dad59603ffa1bbb07c6f5e257dc64b53cc38694fc71a0618",
+      "sourceAuthors": [
+        "Blizz127"
+      ],
+      "sourceBlob": "cdd84ea8388f16250b27ebb6673abeb504659c56"
+    },
+    "pc_port/include/xg_plat/audio.h": {
+      "bytes": 1044,
+      "origin": "Project original, verified owner path history and moved/copied-line attribution",
+      "purpose": "Host audio interface.",
+      "sha256": "9bf54fada81f6a277a61b477a71e278ab7a03309239a91bf6c2669b28241a863",
+      "sourceAuthors": [
+        "Blizz127"
+      ],
+      "sourceBlob": "b9d312936694e7f7af5021d7c5312feb15da6b0b"
+    },
+    "pc_port/include/xg_plat/config.h": {
+      "bytes": 2541,
+      "origin": "Project original, verified owner path history and moved/copied-line attribution",
+      "purpose": "Host platform settings interface.",
+      "sha256": "70e0f51b199615bec7838c0de8bd2668856403c267d64f4b8a18b2b6fdca6efa",
+      "sourceAuthors": [
+        "Blizz127"
+      ],
+      "sourceBlob": "2f4834bd6c3ffc46949a29e02c4741a8a2b78abc"
+    },
+    "pc_port/include/xg_plat/disc.h": {
+      "bytes": 3398,
+      "origin": "Project original, verified owner path history and moved/copied-line attribution",
+      "purpose": "Host disc-path declarations.",
+      "sha256": "8620969164ff5065165e8502bd2536393f71d58321d71042e765bfafae74bb9d",
+      "sourceAuthors": [
+        "Blizz127"
+      ],
+      "sourceBlob": "f9d9e55b2d56e350176cc901d13827b762d40864"
+    },
+    "pc_port/include/xg_plat/input.h": {
+      "bytes": 2231,
+      "origin": "Project original, verified owner path history and moved/copied-line attribution",
+      "purpose": "Host input interface.",
+      "sha256": "5084ba3e9f63035ae1d6247885e9193295ab1121bd297f542fe0fb7395870000",
+      "sourceAuthors": [
+        "Blizz127"
+      ],
+      "sourceBlob": "3adbe9ea032e85951d1d7570ed0acba186fe6fd7"
+    },
+    "pc_port/include/xg_plat/mods.h": {
+      "bytes": 5151,
+      "origin": "Project original, verified owner path history and moved/copied-line attribution",
+      "purpose": "Host mod search interface.",
+      "sha256": "2775efa087640e7b9bafae41dbd0754635723de6572cba825cfbf26342cf7bab",
+      "sourceAuthors": [
+        "Blizz127"
+      ],
+      "sourceBlob": "3a16048a481c06d4f69f1b9370ccf4e1b0df46ed"
+    },
+    "pc_port/include/xg_plat/renderer.h": {
+      "bytes": 2417,
+      "origin": "Project original, verified owner path history and moved/copied-line attribution",
+      "purpose": "Host renderer interface.",
+      "sha256": "4fd54da10fcbdaf53ca8cd9f7a84de2d7de3a4a5cd3becad2f0ed061511061ff",
+      "sourceAuthors": [
+        "Blizz127"
+      ],
+      "sourceBlob": "192e895425db01bc288b98e416b59a115cddb20f"
+    },
+    "pc_port/include/xg_plat/timing.h": {
+      "bytes": 1464,
+      "origin": "Project original, verified owner path history and moved/copied-line attribution",
+      "purpose": "Host timing interface.",
+      "sha256": "6f4ba35dfd6c1be5d6d3cacaed50308d3ceab1c49f56f0deccaeee0fe22175d8",
+      "sourceAuthors": [
+        "Blizz127"
+      ],
+      "sourceBlob": "bf5374dd0210f9aa584784095239105f0e4c7c63"
+    },
+    "pc_port/patches/psycross_keyboard_tap_latch.patch": {
+      "bytes": 3505,
+      "origin": "Project port changes to MIT-licensed PsyCross",
+      "purpose": "MIT PsyCross keyboard latch correction; no game code.",
+      "sha256": "120790346578af8ccfebf701a84104764bdfe5977af63047e4a6662722afaf69",
+      "sourceAuthors": [
+        "Blizz127",
+        "blizz"
+      ],
+      "sourceBlob": "77edabedfbe056a1445365ef0e04addccddf16f3"
+    },
+    "pc_port/patches/psycross_log_append.patch": {
+      "bytes": 1447,
+      "origin": "Project port changes to MIT-licensed PsyCross",
+      "purpose": "MIT PsyCross host log file open-mode handling.",
+      "sha256": "7dc02035d28996ddb9893bfae2d065989911f6ae5ac5cad3615c10c92a4e728c",
+      "sourceAuthors": [
+        "Blizz127"
+      ],
+      "sourceBlob": "42364432862ac8c871d996a45cf5a09e2abcfc3e"
+    },
+    "pc_port/psycross.lock": {
+      "bytes": 476,
+      "origin": "Project original, verified owner path history and moved/copied-line attribution",
+      "purpose": "One-way pin of the open-source PsyCross dependency.",
+      "sha256": "152fc1fe1135e11882d97313310cd8f97e5314747ac5d877e781e6f4556d8bf8",
+      "sourceAuthors": [
+        "Blizz127"
+      ],
+      "sourceBlob": "77ad48664f90fec6cc6c7338ffe3aa6515b9260e"
+    },
+    "pc_port/src/boot_str.c": {
+      "bytes": 26867,
+      "origin": "Port source with MPL-2.0 PSn00bSDK data and restored notice",
+      "purpose": "Opening-movie host decoder, with source-form MPL notice and credited standard MDEC matrix/VLC table.",
+      "sha256": "8fa6079ef5c27a9be2835c44251cb37981d495f0f8a0eee0e545baf7deac9fec",
+      "upstream": "5d9aa2d3dfc7d6e51c2eb942ab4cdbae5571a40a"
+    },
+    "pc_port/src/boot_str.h": {
+      "bytes": 760,
+      "origin": "Project original, verified owner path history and moved/copied-line attribution",
+      "purpose": "Movie decoder host interface.",
+      "sha256": "3f2050b02749fdc1eb0d60450c7af67bfdb6768689d0196be908d8f2ee9ded1a",
+      "sourceAuthors": [
+        "blizz"
+      ],
+      "sourceBlob": "c1d51fdcb3d4fe830ecf716a2bcc8d868a5df774"
+    },
+    "pc_port/src/disc_check.c": {
+      "bytes": 11201,
+      "origin": "Project original, verified owner path history and moved/copied-line attribution",
+      "purpose": "Host disc size, hash and required-file validation.",
+      "sha256": "8f46e9d8f91aac250a96204fb185ac50efb48ea67b7bbe28132a23172cfc1cb2",
+      "sourceAuthors": [
+        "Blizz127",
+        "blizz"
+      ],
+      "sourceBlob": "4fdf043751398c7aba9607b8c0ad5833095823a7"
+    },
+    "pc_port/src/disc_check.h": {
+      "bytes": 435,
+      "origin": "Project original, verified owner path history and moved/copied-line attribution",
+      "purpose": "Host disc validation API.",
+      "sha256": "0fb9ce5a1742bbf12ef7bb1d7156358ffc883cb884f777862d1e9373bf48ca99",
+      "sourceAuthors": [
+        "Blizz127"
+      ],
+      "sourceBlob": "72cc0b0f8efa5ff77e6e752213f5ff9ca4716ab9"
+    },
+    "pc_port/src/host_thread.h": {
+      "bytes": 1530,
+      "origin": "Project original, verified owner path history and moved/copied-line attribution",
+      "purpose": "Portable host thread handle and primitives.",
+      "sha256": "be5aaa1f06c201363aa03e04731337870ebbaca98c7131f34450aed43749ed58",
+      "sourceAuthors": [
+        "Blizz127"
+      ],
+      "sourceBlob": "f876d0230c7242735c113075f476c40ea9ba5bd4"
+    },
+    "pc_port/src/krom_disc_win_hash.h": {
+      "bytes": 840,
+      "origin": "Project original, verified owner path history and moved/copied-line attribution",
+      "purpose": "Windows file digest helper.",
+      "sha256": "124b3e4cd03fa31c559fbf72dc1db34de3900eda0388284cd69d1a23f58d1d6c",
+      "sourceAuthors": [
+        "Blizz127"
+      ],
+      "sourceBlob": "72112e5920cb0f543baa96d4027568d257afb2a4"
+    },
+    "pc_port/src/krom_jiskan16.inc": {
+      "bytes": 1475688,
+      "origin": "Public-domain Jiskan 16 glyphs, regenerated with two excluded punctuation forms",
+      "purpose": "Regenerated public-domain Jiskan 16 font, with the two disallowed punctuation glyphs blank.",
+      "sha256": "92ef4de521cbaabfec19fc9cb199884d0da39301a73ccb2d00126d4eb936882b"
+    },
+    "pc_port/src/pc_file_io.c": {
+      "bytes": 2107,
+      "origin": "Project original, verified owner path history and moved/copied-line attribution",
+      "purpose": "Read, seek and handle host files.",
+      "sha256": "021adfc03b82fbc9c9c54d223785e3c23599aa77ff000f425c33c631b8b144bb",
+      "sourceAuthors": [
+        "Blizz127"
+      ],
+      "sourceBlob": "8737cb0474c2452762de4c4c10c8276bdc3d1ff2"
+    },
+    "pc_port/src/plat/xg_plat_config.c": {
+      "bytes": 19955,
+      "origin": "Project original, verified owner path history and moved/copied-line attribution",
+      "purpose": "Parse user settings into the host platform configuration.",
+      "sha256": "885529a0c313afb6828419896d5287a5cbc271b8a555fb5a85c13f05810b5e1c",
+      "sourceAuthors": [
+        "Blizz127"
+      ],
+      "sourceBlob": "90155728e94d234c0e66d4985472c08d7b51404f"
+    },
+    "pc_port/src/plat/xg_plat_disc_default.h": {
+      "bytes": 4667,
+      "origin": "Project original, verified owner path history and moved/copied-line attribution",
+      "purpose": "Choose the platform default data location.",
+      "sha256": "ff02d6530d154565f58ab6e29acefceb30e9d4e88aa213fd5a8806f0c14b508c",
+      "sourceAuthors": [
+        "Blizz127",
+        "blizz"
+      ],
+      "sourceBlob": "208e1c449afdf45afab38b1f9e899e6b2b69f695"
+    },
+    "pc_port/src/plat/xg_plat_mods.c": {
+      "bytes": 12825,
+      "origin": "Project original, verified owner path history and moved/copied-line attribution",
+      "purpose": "Locate user-provided host mod files.",
+      "sha256": "b9630390641b47377bdd5d9bcef9412f90800345f507ce50612935fc538ff8ff",
+      "sourceAuthors": [
+        "Blizz127"
+      ],
+      "sourceBlob": "ec1ea8a63218cc3948b174e07ae774dbe456920a"
+    },
+    "pc_port/src/port_log.c": {
+      "bytes": 8001,
+      "origin": "Project original, verified owner path history and moved/copied-line attribution",
+      "purpose": "Host process diagnostics and log-file handling.",
+      "sha256": "adddda8e75b8a23044559a1c76ea5385b16430cdf870242bc117d080c15b64c4",
+      "sourceAuthors": [
+        "Blizz127",
+        "blizz"
+      ],
+      "sourceBlob": "307d942cb1ed4388298d66466d7967ee4519155c"
+    },
+    "pc_port/src/quick_checkpoint_file.c": {
+      "bytes": 39916,
+      "origin": "Project original, verified owner path history and moved/copied-line attribution",
+      "purpose": "Read/write the host checkpoint file and its versioned sidecars.",
+      "sha256": "3299d3cf5d044b1d7df1a952e144c369893675e1b7558a75dcbfc8cf168880ec",
+      "sourceAuthors": [
+        "Blizz127"
+      ],
+      "sourceBlob": "170ab2dc4d6195c6063231e17e3e49c03cead60c"
+    },
+    "pc_port/src/quick_checkpoint_file.h": {
+      "bytes": 3206,
+      "origin": "Project original, verified owner path history and moved/copied-line attribution",
+      "purpose": "Host-side checkpoint data container and file interface.",
+      "sha256": "190aa7711e40a2231225c838814f466f13248051ade4db5ded217e29e8e809f0",
+      "sourceAuthors": [
+        "Blizz127"
+      ],
+      "sourceBlob": "5e6781517a8c25c16e27165a07190ff7772322eb"
+    },
+    "pc_port/src/save_file_io.h": {
+      "bytes": 559,
+      "origin": "Project original, verified owner path history and moved/copied-line attribution",
+      "purpose": "Native disk file handling for save output.",
+      "sha256": "a7322bb16237bfafce93f29ca2799e9d138afe3538d7ae4938424e2f780517eb",
+      "sourceAuthors": [
+        "Blizz127"
+      ],
+      "sourceBlob": "a9bd1050a7a2073d64d4967a4b87cf0d61916c87"
+    },
+    "pc_port/src/win32_clock.h": {
+      "bytes": 555,
+      "origin": "Project original, verified owner path history and moved/copied-line attribution",
+      "purpose": "Windows monotonic timer using the host OS API.",
+      "sha256": "08ef5cccbd03424100606f9b6bf082866fa59765a00928263b343d22c1ee594c",
+      "sourceAuthors": [
+        "Blizz127"
+      ],
+      "sourceBlob": "26f9e47fb85978b97982e7040906b23d3142d546"
+    },
+    "pc_port/src/win_exe_dir.h": {
+      "bytes": 931,
+      "origin": "Project original, verified owner path history and moved/copied-line attribution",
+      "purpose": "Resolve the Windows executable directory.",
+      "sha256": "595b59202d38fbbbe6222607ca60dba9567bdb21d58ff5a0d1a503fd9fe5bfad",
+      "sourceAuthors": [
+        "Blizz127"
+      ],
+      "sourceBlob": "5451769848ac541ad6dc83a98ff6a0c4b2831c9b"
+    },
+    "pc_port/src/win_launcher_data.h": {
+      "bytes": 1200,
+      "origin": "Project original, verified owner path history and moved/copied-line attribution",
+      "purpose": "Read the native launcher data location from local settings.",
+      "sha256": "70d4784bfe703b292851556bcece7853c58df1d0f02e30b8d3be262b33e286a4",
+      "sourceAuthors": [
+        "Blizz127"
+      ],
+      "sourceBlob": "db7ee9574779d258b750525a589428fa90dafa4a"
+    },
+    "pc_port/tools/coff_data_records.cpp": {
+      "bytes": 4426,
+      "origin": "Project original, verified owner path history and moved/copied-line attribution",
+      "purpose": "LLVM-based COFF symbol and section inspection.",
+      "sha256": "dafd85699227e11eb4bbec5dbe1fe7a50da7d98114adf155e3416d34f53bff83",
+      "sourceAuthors": [
+        "Blizz127"
+      ],
+      "sourceBlob": "1a3bf79fc07daca68d2e5b9bdb36d8bd044b09bd"
+    },
+    "pc_port/tools/gen_jiskan16.py": {
+      "bytes": 2074,
+      "origin": "Project original, verified owner path history and moved/copied-line attribution",
+      "purpose": "Generation tool for the open fallback font.",
+      "sha256": "798be61d28b0bf0144f18a313bff536ff7854c43f8a76006f95492889648e596",
+      "sourceAuthors": [
+        "Blizz127"
+      ],
+      "sourceBlob": "650e1706c6da1120a3906bcb24b65d8022322d14"
+    },
+    "pc_port/tools/generate_win32_binding_sizes.py": {
+      "bytes": 5283,
+      "origin": "Project original, verified owner path history and moved/copied-line attribution",
+      "purpose": "COFF evidence verifier for generated Windows host bindings.",
+      "sha256": "f91d9b545031336e1845354c8fde84535a2e77c1dcc313d638ab13220eb5e9bb",
+      "sourceAuthors": [
+        "Blizz127"
+      ],
+      "sourceBlob": "33428fe961b6d1ae962d1bc954db60c516c54cdc"
+    },
+    "pc_port/tools/win64/battle_binding_audit.py": {
+      "bytes": 5324,
+      "origin": "Project original, verified owner path history and moved/copied-line attribution",
+      "purpose": "Check COFF binding address aliases against inspected PE facts.",
+      "sha256": "ac52ea869f445c5af17a8e582856b0d66963b20b60019dc372bd22594e30f4d7",
+      "sourceAuthors": [
+        "Blizz127"
+      ],
+      "sourceBlob": "d009530ac1760450ec0d8d9ae0c1b96d92a6b813"
+    },
+    "pc_port/tools/win64/battle_function_audit.py": {
+      "bytes": 4944,
+      "origin": "Project original, verified owner path history and moved/copied-line attribution",
+      "purpose": "Inspect Windows function exports and code addresses.",
+      "sha256": "226fbfcd76d206e81e530ba12ec320658c8099db492dd7ea5f3aac7ffc4aa801",
+      "sourceAuthors": [
+        "Blizz127"
+      ],
+      "sourceBlob": "bdf85a475b25e350153e05bd12ea331bcd1a09a5"
+    },
+    "pc_port/tools/win64/build_game.py": {
+      "bytes": 9839,
+      "origin": "Project original, verified owner path history and moved/copied-line attribution",
+      "purpose": "Clang Windows build driver and generated artifact verification.",
+      "sha256": "7140aae5642c232fcbd1ed59334abe33ffebed41065893412e22e8a74f299f24",
+      "sourceAuthors": [
+        "Blizz127"
+      ],
+      "sourceBlob": "2930cb261864c51a97274d80521d121643b240a1"
+    },
+    "pc_port/tools/win64/build_psycross.py": {
+      "bytes": 5272,
+      "origin": "Project original, verified owner path history and moved/copied-line attribution",
+      "purpose": "Build pinned PsyCross as a Windows target.",
+      "sha256": "769078457034776f88aff8dd09dc170ae90257c67a813c468f7b9a644d80759e",
+      "sourceAuthors": [
+        "Blizz127"
+      ],
+      "sourceBlob": "168a6ff89386bbe24eae07ae85e3af053e1fac54"
+    },
+    "pc_port/tools/win64/pe_compact.py": {
+      "bytes": 4086,
+      "origin": "Project original, verified owner path history and moved/copied-line attribution",
+      "purpose": "Validate and compact AMD64 PE executable structure.",
+      "sha256": "58ffc8d8684238e578a79214eee5399b5a5521030ff8d44384e26a2a86c0370e",
+      "sourceAuthors": [
+        "Blizz127"
+      ],
+      "sourceBlob": "c18c33e2b6f9f66400c73f11549dd7e790e6e3c5"
+    },
+    "pc_port/tools/win64/pe_link.py": {
+      "bytes": 9478,
+      "origin": "Project original, verified owner path history and moved/copied-line attribution",
+      "purpose": "COFF/PE native link, section assembly and reproducibility.",
+      "sha256": "b282da4995b2cf5be8accc0ade8c5c7e0e1e7c6afa7355d74c22e722fae7438c",
+      "sourceAuthors": [
+        "Blizz127"
+      ],
+      "sourceBlob": "4a6987d399de9b9c21c050750e6b16ab705f38d3"
+    },
+    "prepare-data/README.txt": {
+      "bytes": 1133,
+      "origin": "Independent disc preparation tool for the user-owned US Disc 1",
+      "purpose": "Supported input and usage on the two target platforms.",
+      "sha256": "a84b45134ae16a5a9dd74ccea3709c7b3bb0cdfd8d445addebdc6ff3bc7c8448"
+    },
+    "prepare-data/prepare.py": {
+      "bytes": 5552,
+      "origin": "Independent disc preparation tool for the user-owned US Disc 1",
+      "purpose": "Original standard-library extraction utility using verified file hashes and measured extents.",
+      "sha256": "21a8a1818c1293db9ee1169c85d90958afa57340ed3dad479a56fac4baff3c80"
+    }
+  },
+  "frozenSourceCommit": "3b0d1c031bcbfad163afb8fbdb5207a449dad1ef",
+  "platform": "windows",
+  "standaloneReproduction": false
+}

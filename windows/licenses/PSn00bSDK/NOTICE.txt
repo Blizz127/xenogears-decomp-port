@@ -1,0 +1,13 @@
+PSn00bSDK MDEC library (alternate VLC decompressor and support code)
+(C) 2022 spicyjpeg - MPL licensed
+
+The game executable incorporates the compressed variable-length-code lookup
+table from PSn00bSDK in its opening movie decoder. Source for the covered
+port file is provided in pc_port/src/boot_str.c within this source tree. The header is
+updated to retain the upstream attribution. The compiled implementation is
+identical to the source used for both r7.21 executable builds.
+
+Mozilla Public License, version 2.0, applies to the covered file.
+The complete license text is in MPL-2.0.txt.
+Upstream source: https://github.com/Lameguy64/PSn00bSDK/blob/5d9aa2d3dfc7d6e51c2eb942ab4cdbae5571a40a/libpsn00b/psxpress/vlc2.c
+Upstream license: https://github.com/Lameguy64/PSn00bSDK/blob/5d9aa2d3dfc7d6e51c2eb942ab4cdbae5571a40a/LICENSE.md
