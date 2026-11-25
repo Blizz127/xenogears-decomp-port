@@ -1,5 +1,16 @@
 # Source branch after v0.7.82-source
 
+## Fonts, heap services, sequencer controls and field variables
+
+This update adds 137 independently authored host functions and 17 standalone synthetic test suites. The shared source tree now contains 282 entry points.
+
+- Font services position text, choose glyph sizes and palettes, write sprite packets and link them for drawing. Diagnostics forward native variadic arguments on Windows and Linux.
+- Heap services maintain compact allocation headers, split and consolidate space, manage delayed frees and resolve diagnostic symbols. The standalone test maps a small arena below 4 GiB to exercise the original 32-bit next-block representation.
+- Sound services change sequencer settings, manage voices, apply envelope and mixer controls, queue transfers and coordinate IRQ allocation. Their fixtures provide the audio services needed to exercise ordering and state changes.
+- Field scripts perform arithmetic, bit operations, shifts and random variable assignment. The fixtures cover signed values, cursor wrap and operand services that change the active actor.
+
+The private Linux and Windows builds linked these entry points from the files listed in the shared source catalog. The tests in this tree run without retail software or a BIOS.
+
 ## Party recovery and bitwise script commands
 
 This source update adds ten functions in three files, bringing the public

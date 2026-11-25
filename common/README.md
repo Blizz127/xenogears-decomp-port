@@ -1,12 +1,10 @@
 # Independent host functions
 
-These 79 C include files supply 145 named functions used by the PC port. The functions cover field scripts, graphics, cameras, dialogue, party state, controller input, archives and sound. Host translation units supply the game types and services that the fragments call. Building the full game also requires integration code outside this source release.
+These 105 C include files supply 282 named functions used by the PC port. The functions cover field scripts, graphics, cameras, dialogue, party state, controller input, archives, fonts, heap management and sound. Host translation units supply the game types and services that the fragments call. Building the full game also requires integration code outside this source release.
 
 The project derived these implementations from observed game behavior and the port's calling conventions. It compared the replacements against original behavior and checked which source files supplied the compiled functions. Coverage varies by function. Some edge cases were exercised through focused tests.
 
-The table lists all published entry points and file SHA-256 values. The
-three newest fragments match the private Linux `d2250a55` and Windows
-`611d96f6` sources.
+The table lists the reviewed entry points and SHA-256 of each source file.
 
 | File | Entry points | SHA-256 |
 | --- | --- | --- |
@@ -47,6 +45,7 @@ three newest fragments match the private Linux `d2250a55` and Windows
 | [field_restore_vram.inc](pc_port/src/cleanroom/field_restore_vram.inc) | `func_80078C5C` | `3f9b542e14899d75419c7067725855dc4aa5f661a47ce49b32ae6cd75613d4a1` |
 | [field_script_animate_door.inc](pc_port/src/cleanroom/field_script_animate_door.inc) | `func_80093E30` | `dbbb237a010caa8e02aa81317164a096a51409190cab5ff220d04e2ede5fd944` |
 | [field_script_arguments.inc](pc_port/src/cleanroom/field_script_arguments.inc) | `FieldScriptArgument1`, `FieldScriptArgument2`, `FieldScriptArgument3`, `FieldScriptArgument4`, `FieldScriptArgument5`, `FieldScriptArgument6`, `FieldScriptArgument7`, `FieldScriptArgument8` | `51d159914b5aefe41dd1ce3ea87abbb62474dcb512f61ea7fa7651b8cdfca54b` |
+| [field_script_arithmetic_variables.inc](pc_port/src/cleanroom/field_script_arithmetic_variables.inc) | `FieldScriptVMHandlerVariableAdd`, `FieldScriptVMHandlerVariableDiv`, `FieldScriptVMHandlerVariableMul`, `FieldScriptVMHandlerVariableSub` | `3787945ea3b1774619ac4da690ebd2c63f4836cbbc3c41635d17e85f293fff02` |
 | [field_script_bitwise_variables.inc](pc_port/src/cleanroom/field_script_bitwise_variables.inc) | `FieldScriptVMHandlerVariableAssign`, `FieldScriptVMHandlerVariableAND`, `FieldScriptVMHandlerVariableOR`, `FieldScriptVMHandlerVariableXOR` | `3031abbe4a65c671169e839db85f93891405c9bd3e6743c2de092846341bff6c` |
 | [field_script_branch_on_clear_bit.inc](pc_port/src/cleanroom/field_script_branch_on_clear_bit.inc) | `func_8008D780` | `9cce832355f5300c1900a6b18bd0a16b2074b4089253b2a7acc45de5b14cda6f` |
 | [field_script_camera_destination_metrics.inc](pc_port/src/cleanroom/field_script_camera_destination_metrics.inc) | `func_80090E70` | `a217c6ead4ba0ac3d3f4fc0bdfb0d10e5c7790063f3e998043d5916ed24ba133` |
@@ -57,6 +56,7 @@ three newest fragments match the private Linux `d2250a55` and Windows
 | [field_script_dismiss_actor_window.inc](pc_port/src/cleanroom/field_script_dismiss_actor_window.inc) | `func_8009BE9C` | `265370315c2bd756c0ae3ba706cbe998878782dd144ddb64830161926a08fc95` |
 | [field_script_move_absolute_xz.inc](pc_port/src/cleanroom/field_script_move_absolute_xz.inc) | `func_80099980` | `6fd3ca7b8e96cf8f357156dd0a79f1ab145778d460322642fd83994f03b1d5ba` |
 | [field_script_move_retained.inc](pc_port/src/cleanroom/field_script_move_retained.inc) | `func_80098C3C` | `63436cb49be0a8ee3221ec03f0d1229bb99b1d08c5764b2d647ee3901b52f38f` |
+| [field_script_random_variables.inc](pc_port/src/cleanroom/field_script_random_variables.inc) | `FieldScriptVMHandlerMulVariableWithRand`, `FieldScriptVMHandlerRandVariable`, `func_8009CF70` | `ee6b7861e5558f30f6015366147f7c56d9b745172cae64b28ae77820dcd54fbe` |
 | [field_script_record_gear_map.inc](pc_port/src/cleanroom/field_script_record_gear_map.inc) | `func_8009FD10` | `8ff7a2e74d897ec0ea629ce9b256ef72bba2b91c54314521f3bf62c062e42dc4` |
 | [field_script_reset_slots.inc](pc_port/src/cleanroom/field_script_reset_slots.inc) | `func_800A19B0` | `de3c6e0d5c48d43691a1df602f3e9977ae7ef22c5d5101deb0dbfc2d05ec3df5` |
 | [field_script_resolve_actor.inc](pc_port/src/cleanroom/field_script_resolve_actor.inc) | `func_8009CD7C` | `43a799323e3ee142760b7f9ee4e0af794365d6479a4e834043b14d7cafef48bb` |
@@ -69,9 +69,21 @@ three newest fragments match the private Linux `d2250a55` and Windows
 | [field_script_slot.inc](pc_port/src/cleanroom/field_script_slot.inc) | `func_800A1A8C` | `f386dc05565be3dd435b157421924420b5d3d275edd13173f80780eb79f3cafa` |
 | [field_script_unary_variables.inc](pc_port/src/cleanroom/field_script_unary_variables.inc) | `FieldScriptVMHandlerVariableSetFalse`, `FieldScriptVMHandlerVariableSetTrue`, `FieldScriptVMHandlerIncVariable`, `FieldScriptVMHandlerDecVariable` | `3448ebc99a4946eb4eac63e4d30ef5fcf0581d7c0a155fd2b8c2d36fc383c09b` |
 | [field_script_update_idle_facing.inc](pc_port/src/cleanroom/field_script_update_idle_facing.inc) | `func_8009F4CC` | `d9ec4b73643f78f1eaef3f50f46c5ff4d03ddb5350fc3b2b0cab3dd81bf8598b` |
+| [field_script_variable_shifts.inc](pc_port/src/cleanroom/field_script_variable_shifts.inc) | `FieldScriptVMHandlerLShiftVariable`, `FieldScriptVMHandlerRShiftVariable`, `FieldScriptVMHandlerVariableSetBit`, `FieldScriptVMHandlerVariableUnsetBit` | `b6acd2d9eee83f55fd56b48a80735318ab3e73c11afcd6f7405d7d9137834dfc` |
 | [field_swap_render_context.inc](pc_port/src/cleanroom/field_swap_render_context.inc) | `FieldSwapRenderContext` | `5197988435536018fb798be941b96644e30defc089b810fbce4cae72f1d887c7` |
 | [field_text_box_has_visible_portrait.inc](pc_port/src/cleanroom/field_text_box_has_visible_portrait.inc) | `func_8009C538` | `8ef9817be1b6ee0311cae12d3e7b3bdc31c1ea46bcc7eb465ad368231b834827` |
 | [field_zoom_fade_colors.inc](pc_port/src/cleanroom/field_zoom_fade_colors.inc) | `func_800A5600` | `2c217c0da4815524faf3f75484fb863680151e672631bb727f873e71d5b4d051` |
+| [font_controls.inc](pc_port/src/cleanroom/font_controls.inc) | `FontGetCurLetterCount`, `FontGetCurLetterX`, `FontGetCurLetterY`, `FontGetDefaultLetterHeight`, `FontGetDefaultLetterWidth`, `FontGetFlags`, `FontGetLetterFlags`, `FontRemoveFlag`, `FontRemoveLetterFlag`, `FontResetLetterRendering`, `FontRestoreCurrentPositions`, `FontSetColor`, `FontSetCurLetterX`, `FontSetCurLetterY`, `FontSetFlag`, `FontSetLetterFlag`, `FontSetLetterWidth`, `FontSetPositionsByOffset`, `FontSetRowHeight`, `FontStoreCurrentPositions`, `func_8003708C` | `afa5075704fdda64ef04cd9ee60be7db67b38a428031dc15f9dfb84047dd8603` |
+| [font_draw_letters.inc](pc_port/src/cleanroom/font_draw_letters.inc) | `FontDrawLetters` | `287c65b7f59c0f9b993c00c917b66d401349e7e6ae30ccf12eb869cdbcb65df7` |
+| [font_glyph.inc](pc_port/src/cleanroom/font_glyph.inc) | `FontAddLetterPrimitive` | `f44c8e67dbf43db4f2dc5ea5b32a0ea9fab48b47529faec955756fe033f347e3` |
+| [font_resource_binding.inc](pc_port/src/cleanroom/font_resource_binding.inc) | `func_8003747C` | `5f64424d7a84633f24bfc3e5aff5bb14d444384a718a7fdd5a6eea38b2a33ee6` |
+| [font_services.inc](pc_port/src/cleanroom/font_services.inc) | `FontFree`, `FontPrintf` | `a72a0eaf1a4e60f06085e3d2928e4da2747b0a818a961901c5667f011a4d70a5` |
+| [heap_debug_services.inc](pc_port/src/cleanroom/heap_debug_services.inc) | `HeapGetSymbolNameFromAddress`, `HeapLoadSymbols`, `HeapPrintf` | `8ce8f91b68744cd929c9e47f15d36ed6739d4c769f245797e1e4f0ea0275bc35` |
+| [heap_insert_block.inc](pc_port/src/cleanroom/heap_insert_block.inc) | `HeapInsertAlloc` | `3d09f3260304900fd7e25a3b74ce9f6953f130ca612677e1ea575dd1dbd84ee1` |
+| [heap_list_sweeps.inc](pc_port/src/cleanroom/heap_list_sweeps.inc) | `HeapConsolidate`, `HeapForceFreeAllBlocks`, `HeapFreeAllBlocks`, `HeapFreeAllDelayedBlocks`, `HeapFreeBlocksWithFlag`, `HeapTickDelayedFree` | `e9ddb90f555c29ee0cfcda3dc96041cbd18fc60410c84cb877a864dbab80db59` |
+| [heap_metadata.inc](pc_port/src/cleanroom/heap_metadata.inc) | `HeapChangeCurrentUser`, `HeapGetAllocInformation`, `HeapGetBlockSourceAddress`, `HeapGetBlockUser`, `HeapGetCurrentUser`, `HeapIsBlockPinned`, `HeapPinBlock`, `HeapSetCurrentContentType`, `HeapSetCurrentUser`, `HeapToggleErrorHandler`, `HeapUnpinBlockCopy`, `func_800318F0` | `dbe57a81eaabd83a3da011ce7c880ed211959f390cbd8980af12a721ab873cf7` |
+| [heap_queries.inc](pc_port/src/cleanroom/heap_queries.inc) | `HeapGetLargestFreeBlockSize`, `HeapGetTotalFreeSize`, `HeapWalkUntilEnd` | `bc660cdbdf2331047fe62d2e2bf0b472742e549fc1c170c056b22cbf98c76311` |
+| [heap_service_controls.inc](pc_port/src/cleanroom/heap_service_controls.inc) | `HeapAllocSound`, `HeapCalloc`, `HeapForceFree`, `HeapInit`, `HeapRelocate`, `HeapReset` | `65aa7e7aeff88af991cb5d4ff1f445da1e24f3d7d0207b083f567467a0abe754` |
 | [menu_gfx_environment.inc](pc_port/src/cleanroom/menu_gfx_environment.inc) | `MenuInitializeGfxEnvironment`, `MenuInitializeGfxEnvironments` | `d07d4157202d023387ac1425643297d2229c5156b666dc54ca9ba6a2de41a70e` |
 | [party_skin_initializers.inc](pc_port/src/cleanroom/party_skin_initializers.inc) | `GamePartyCharactersInitializeSkins`, `GamePartyGearsInitializeSkins` | `2a7f2310844b3f5dd7eee9ff810f844d6950e5d3e40b940170cb679a65025769` |
 | [party_stream_sync.inc](pc_port/src/cleanroom/party_stream_sync.inc) | `GamePartySyncStreamedData` | `d01704ed86f76cb900821b479a5c668b3a3578b37e7e96cc98a6e7a83546acc9` |
@@ -79,14 +91,26 @@ three newest fragments match the private Linux `d2250a55` and Windows
 | [sound_apply_volume_settings.inc](pc_port/src/cleanroom/sound_apply_volume_settings.inc) | `SoundApplyVolumeSettings` | `3c05681d568315a9d3b6e6132311286f98db1b32853f2e52701abf2f27abda5c` |
 | [sound_calculate_audio_manager_size.inc](pc_port/src/cleanroom/sound_calculate_audio_manager_size.inc) | `SoundCalculateAudioManagerSize` | `2c0ffc6ab1c37c4588c8131ad814f9c5ae9ad331d6c30648c00f1e16ef7e55f4` |
 | [sound_manager_init_cd.inc](pc_port/src/cleanroom/sound_manager_init_cd.inc) | `SoundSetCdAttr`, `SoundInitializeAudioManager` | `6774b6f2dd93ea37d8a939e06eb30a2b159a4c641b5430bcdccadfafd32dc168` |
+| [sound_mixer_controls.inc](pc_port/src/cleanroom/sound_mixer_controls.inc) | `func_80037F44`, `func_80037F88`, `func_80038624`, `func_8003869C`, `func_80038824`, `func_800388D4`, `func_8003890C` | `6ce8c48f47a72f5e581c915040ba49441a719ecc4888034b5149e27c3b305dbf` |
+| [sound_reset_sequence.inc](pc_port/src/cleanroom/sound_reset_sequence.inc) | `SoundReset` | `227b2da46fc5c8aca507aa17d0476f55e3e81aff6e37e749069f7dcc554f4676` |
 | [sound_reverb_controls.inc](pc_port/src/cleanroom/sound_reverb_controls.inc) | `SoundInitiateReverbWorkAreaTransfer`, `SoundSetReverbModeWithAllocation` | `166a1d10d4f9d439089d78f6779bbdb87085f7027ab7ffd489e8f1ccc505e1d6` |
 | [sound_script_active_flag800.inc](pc_port/src/cleanroom/sound_script_active_flag800.inc) | `SoundScriptClearActiveFlag800`, `SoundScriptSetActiveFlag800` | `04b3ba4e368046682e66cae639bb35ce67a3e932741565ac1078e40899ef511f` |
+| [sound_script_cursor_ops.inc](pc_port/src/cleanroom/sound_script_cursor_ops.inc) | `SoundScriptDefaultHandler`, `SoundScriptDefaultSkip3`, `SoundScriptNop`, `SoundScriptNop2`, `SoundScriptNop3`, `SoundScriptNop4`, `SoundScriptNop5`, `SoundScriptSkip3` | `1f9954baa4ba3d7fa26c288b68497c74687d021aa631afcffac59891fc8e462e` |
+| [sound_script_envelope_ops.inc](pc_port/src/cleanroom/sound_script_envelope_ops.inc) | `SoundScriptSetAdsrDRAndSR`, `SoundScriptSetAttackMode`, `SoundScriptSetDecayTime`, `SoundScriptSetRelease`, `SoundScriptSetReleaseMode`, `SoundScriptSetSustainLevel`, `SoundScriptSetSustainMode` | `085e45d16475deb6efe5f941922287d75c35ba8726edcbef4d7978f4a3649dcc` |
 | [sound_script_note_parameters.inc](pc_port/src/cleanroom/sound_script_note_parameters.inc) | `SoundScriptFermata`, `SoundScriptSetAttackTime`, `SoundScriptSetOctave`, `SoundScriptSetSustain` | `67289b2ae988ea3e482f72e436c6d3372c920e0869307dd25fe125778a381e8a` |
 | [sound_script_pitch_controls.inc](pc_port/src/cleanroom/sound_script_pitch_controls.inc) | `SoundScriptAddUnk6E`, `SoundScriptLowerOctave`, `SoundScriptRaiseOctave`, `SoundScriptSetUnk74` | `ad51c3747692a1335499baf454b810a7e7c26b88ba11c3ab7a7f59a7d2b23e47` |
+| [sound_script_state_ops.inc](pc_port/src/cleanroom/sound_script_state_ops.inc) | `SoundScriptAddManagerUnk1a`, `SoundScriptCallE5BC`, `SoundScriptClearUnkCEAndF6`, `SoundScriptClearUnkCEAndUnk116`, `SoundScriptSetManagerUnk1a`, `SoundScriptSetUnkCEAndF6`, `SoundScriptSetUnkCEAndUnk116`, `SoundScriptSetUnkCEAndUnk136` | `c5f73447fb5c2a6785df80e87702c2eb3f42cc56a4b5ead21dc2ac2eded1db9c` |
+| [sound_script_voice_flags.inc](pc_port/src/cleanroom/sound_script_voice_flags.inc) | `SoundScriptClearUnk04Bit1`, `SoundScriptPercussionOff`, `SoundScriptSetUnk62`, `SoundScriptSetUnk6E`, `SoundScriptSetVoiceFlags2000AndMode`, `SoundScriptSetVoiceFlags2000ClearMode`, `SoundScriptSetVoiceFlags4000ClearMode`, `SoundScriptToggleUnk04Bit2` | `fd66956ae4bb645a8499724bc3950a98872eec2dbab6b6ed0520f6e452c039c8` |
+| [sound_sequencer_control_services.inc](pc_port/src/cleanroom/sound_sequencer_control_services.inc) | `func_80039748`, `func_80039D2C`, `func_80039E18`, `func_80039EC4`, `func_8003AFA0` | `02662387941e7cc369cb36b105a8bac5accf7f48fc85a50edb27a40dba69bc97` |
+| [sound_spu_irq_allocator.inc](pc_port/src/cleanroom/sound_spu_irq_allocator.inc) | `SoundSetSpuIrqCallback`, `SoundSpuIRQHandler`, `SoundSpuMemoryFreeBlock` | `0f8bf97a90b5b2650c33bda7f50b57d2184bc2e0a14b73ddb6b5ba0f7b046edf` |
 | [sound_spu_memory_get_free_block.inc](pc_port/src/cleanroom/sound_spu_memory_get_free_block.inc) | `SoundSpuMemoryGetFreeBlock` | `a2bcd3dae53a73413f39849347c4729b795a8c679829cee014e70266d7b08a7c` |
 | [sound_spu_memory_initialize.inc](pc_port/src/cleanroom/sound_spu_memory_initialize.inc) | `SoundSpuMemoryInitialize` | `5ee5fb4f443c78398f0e2ebcf4d0c1dbfabae142b194b2b4f4920410fddeafda` |
+| [sound_spu_voice_envelope.inc](pc_port/src/cleanroom/sound_spu_voice_envelope.inc) | `SoundSetVoiceAdsrAttackModeAndRate`, `SoundSetVoiceAdsrDecayShift`, `SoundSetVoiceAdsrSustainLevel`, `SoundSetVoiceAdsrSustainRateAndDirection` | `f2627b091737010a3be76ebfb2d2b88adf7752cc49ec9ad91ef45dec19041664` |
+| [sound_spu_voice_registers.inc](pc_port/src/cleanroom/sound_spu_voice_registers.inc) | `SoundSetReverbVoices`, `SoundSetVoiceKeyOn`, `SoundSetVoicePitch`, `SoundSetVoiceStartAddress`, `SoundSetVoiceVolume` | `1dadc4095e06f372f79146fd13193a3496b4542b26dcea9b118c7d16ddd51afb` |
 | [sound_transfer_controls.inc](pc_port/src/cleanroom/sound_transfer_controls.inc) | `SoundQueueSpuWriteCommand`, `SoundTransferQueueSync`, `SoundWdsSetTransferParamters` | `a2a79d14183e1510ee3306fbc01bd3c9ac1c887398d2a502a0cd66b0b5406007` |
+| [sound_transfer_reserved_ops.inc](pc_port/src/cleanroom/sound_transfer_reserved_ops.inc) | `SoundQueueSpuReadCommand`, `SoundUnkDebugNoReturn_8003F4BC`, `func_8003977C`, `func_80039D24`, `func_8003A2D4`, `func_8003A2DC`, `func_8003BC58`, `func_8003BC7C`, `func_8003BDF4` | `37a37288655f831dce9491d3983ffe55ff48c1dec3cfa07846b49fcb1f4d4d8d` |
 | [sound_voice_channel_lifecycle.inc](pc_port/src/cleanroom/sound_voice_channel_lifecycle.inc) | `SoundAssignVoiceToChannelAndPlay`, `SoundAssignVoiceToChannelAndStop`, `SoundReleaseVoiceFromChannel`, `SoundStopVoiceOnChannel` | `374ff896f7b760ce0283b4a3fd76bff7fa5d3db092bdbb9827b4930e1e2975fc` |
+| [sound_voice_management.inc](pc_port/src/cleanroom/sound_voice_management.inc) | `SoundAbortAllVoices`, `SoundAbortVoiceOnChannel`, `SoundAssignVoiceToChannel`, `SoundReleaseAllVoices` | `2a09fffbc6e1a62c30a0376911a26677a83565d929c51c4741810ccb00508a67` |
 | [text_box_lifecycle.inc](pc_port/src/cleanroom/text_box_lifecycle.inc) | `func_8007FFE8`, `func_800805F4` | `14208792ae3b43ba143fd811b898908ace25e56406572afe60322eb4670622e8` |
 | [text_box_windows.inc](pc_port/src/cleanroom/text_box_windows.inc) | `func_8007E114`, `func_800807B4` | `1a15fbee1f895cc8e70dd05a62a7a8b905ccb531e3b432d00a5862b049e49f5d` |
 
@@ -130,6 +154,20 @@ for suite in sound_script_active_flags sound_script_note_parameters sound_script
     field_input_script_tests field_script_arguments field_script_unary_variables \
     field_party_adjust_vitals field_party_script_vitals field_party_masked_adjust \
     field_party_restore_vitals field_script_bitwise_variables
+do
+    bash "common/pc_port/tests/$suite/run.sh" || exit 1
+done
+```
+
+The heap, font, sequencer and field-variable fixtures can be run from the repository root with GCC or Clang. Each uses synthetic inputs and checks both optimized and unoptimized builds as well as undefined-behavior instrumentation.
+
+```sh
+for suite in field_script_arithmetic_variables field_script_random_variables field_script_variable_shifts \
+    font heap_native_services sound_mixer_controls \
+    sound_reset_sequence sound_script_cursor_ops sound_script_envelope_ops \
+    sound_script_state_ops sound_script_voice_flags sound_sequencer_control_services \
+    sound_spu_irq_allocator sound_spu_voice_envelope sound_spu_voice_registers \
+    sound_transfer_reserved_ops sound_voice_management
 do
     bash "common/pc_port/tests/$suite/run.sh" || exit 1
 done
