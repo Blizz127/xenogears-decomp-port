@@ -1,5 +1,15 @@
 # Source branch after v0.7.82-source
 
+## Menus, field actors, sound and resource services
+
+This source update adds 163 independently written host entry points in 71 source files. The shared catalog now lists 445 entry points.
+
+- The member-change, shop and kernel menu sources handle input, render cursors and windows, and manage party and menu state.
+- Field scripts dispatch actor commands, update camera and rendering state, and resolve script offsets. Archive services handle CD requests, and heap services allocate, release and describe memory.
+- Sound services manage queues, volume, music records and instrument state. Graphics services update line scrolling and load fonts and palettes.
+
+The source catalog records the entry points and SHA-256 of each file. Focused tests exercised these additions with GCC and Clang at two optimization levels and with undefined-behavior instrumentation. The complete game still requires integration code under provenance review.
+
 ## Fonts, heap services, sequencer controls and field variables
 
 This update adds 137 independently authored host functions and 17 standalone synthetic test suites. The shared source tree now contains 282 entry points.
