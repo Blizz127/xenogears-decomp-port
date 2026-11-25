@@ -1,12 +1,12 @@
-# Xenogears r7.21 PC port source
+# Xenogears PC port source
 
-This source checkpoint covers the parts of the Windows and Linux ports cleared
-for redistribution. It includes host file and checkpoint handling, platform
-configuration, the opening-movie decoder and the Windows executable build tools.
-Each platform directory contains a file manifest, source credits and license
-notices. The gameplay code needed to rebuild and distribute the complete
-executables is still under provenance review. Both tested builds are hybrid.
+This release adds 86 independently written C functions for the host port. The shared
+sources cover field scripts, graphics, dialogue, archive and controller services,
+and sound. The Linux and Windows directories contain the previously reviewed
+platform source. Building the complete game still requires code under
+provenance review.
 
+- [Shared native implementations](common/README.md)
 - [Windows x64 source](windows/README.md)
 - [Linux x64 source](linux/README.md)
 - [Changes, gameplay verification and known issues](CHANGELOG.md)

@@ -1,3 +1,32 @@
+# November 25, 2026 · v0.7.81-source
+
+This release adds independently written host C to the reviewed r7.21 source
+snapshot. Recent additions resolve field-script actor selectors, check whether
+an actor is on screen, and initialize field sprite and draw-mode packets. The
+packet initializer ran on room entry during Bart's rescue of Margie. It matched
+the original on all 320 packet bytes and all 35 graphics-service calls in each
+measured initialization.
+
+The private Linux r7.79 client loaded an ordinary memory-card save in Margie's
+chamber. Bart won the first Ramsus fight, received 500 G and rejoined Fei.
+The client crashed at the start of the second scripted battle. Play beyond
+that point remains unverified on that build. The original reference checks
+cover the field initializer and rescue sequence. The battle observation comes
+from the private client. Production executables retain a PS1 CPU interpreter.
+A separate decoder-free build completed the rescue slice.
+
+The Linux r7.81 and Windows r7.80 candidates at development revision
+`552d9417d37875b11462d8b55375d95da05fb44d` contain 82 independent
+replacements in the original 134-function cohort and four in the 93-function
+sound cohort. Across 1,128 frozen ledger rows, the linked-code audit still
+identifies **423 matches on Linux and 422 on Windows**, including two compiled
+functions on each platform that match upstream commented reference bodies.
+These are measured lower bounds. Public game executables await independent
+replacements or redistribution clearance and the native execution gate.
+
+Handheld controller, borderless fullscreen and automatic on-screen keyboard
+checks are all **NOT RUN** for this source release.
+
 # r7.21 source checkpoint
 
 This snapshot includes 36 files for Linux and 50 for Windows.
