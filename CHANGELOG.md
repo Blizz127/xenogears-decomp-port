@@ -1,3 +1,31 @@
+# November 25, 2026 · v0.7.82-source
+
+This checkpoint adds 16 independently written native C functions across
+six fragments. They implement field archive requests, the color update
+during a field fade, sound sequencer commands, and voice-channel ownership
+and playback. Six standalone field and sound regression tests accompany the new code.
+
+On private Linux and Windows builds, Fei and Bart loaded File 06 in
+Stalactite Cave, opened and closed the party menu, and walked again.
+During each of 32 fade calls on each platform, the original Disc 1
+routine produced the same 400 output bytes from that platform's input.
+The original and port playthroughs used opposite render buffers and
+had different polygon positions. Other tested routes include Bart’s
+rescue of Margie and sound playback in the Bledavik inn.
+
+The independent replacement counts are 84 of 134 common functions and
+18 of 93 sound functions. The wider audit of 1,128 rows still finds
+407 linked upstream matches on Linux and 406 on Windows. These totals
+include two functions per platform from upstream commented references.
+Public game executables remain pending provenance clearance and the
+native execution gate. The production game still includes a PS1 CPU
+interpreter. A private decoder-free build won the solo Ramsus battle.
+The following scripted Gear sequence still crashes on the tested
+corrected Linux build.
+
+Owner device checks for controller input, borderless fullscreen and
+the automatic on-screen keyboard are each **NOT RUN** for this release.
+
 # November 25, 2026 · v0.7.81-source
 
 This release adds independently written host C to the reviewed r7.21 source
