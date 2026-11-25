@@ -1,12 +1,12 @@
 # Independent host functions
 
-These 76 C include files supply 135 named functions used by the PC port. The functions cover field scripts, graphics, cameras, dialogue, party state, controller input, archives and sound. Host translation units supply the game types and services that the fragments call. Building the full game also requires integration code outside this source release.
+These 79 C include files supply 145 named functions used by the PC port. The functions cover field scripts, graphics, cameras, dialogue, party state, controller input, archives and sound. Host translation units supply the game types and services that the fragments call. Building the full game also requires integration code outside this source release.
 
 The project derived these implementations from observed game behavior and the port's calling conventions. It compared the replacements against original behavior and checked which source files supplied the compiled functions. Coverage varies by function. Some edge cases were exercised through focused tests.
 
 The table lists all published entry points and file SHA-256 values. The
-five most recent fragments match the private Linux `9feccf16` and Windows
-`e7707aa9` sources.
+three newest fragments match the private Linux `d2250a55` and Windows
+`611d96f6` sources.
 
 | File | Entry points | SHA-256 |
 | --- | --- | --- |
@@ -39,12 +39,15 @@ five most recent fragments match the private Linux `9feccf16` and Windows
 | [field_particle_setup.inc](pc_port/src/cleanroom/field_particle_setup.inc) | `FieldScriptInitializeParticleBank`, `FieldScriptSetParticleBankColor`, `FieldScriptSetParticleBankParameters`, `FieldScriptSetParticleBankPhysics`, `FieldScriptSetParticleBankPosition`, `FieldScriptSetParticleBankScale` | `874735b349abc8903f0b652a0f2e737d2218737e200b0e13a4339a8336712c73` |
 | [field_party_adjust_vitals.inc](pc_port/src/cleanroom/field_party_adjust_vitals.inc) | `FieldPartyMemberIncreaseHp`, `FieldPartyMemberDecreaseHp`, `FieldPartyMemberIncreaseMp`, `FieldPartyMemberDecreaseMp` | `fa6c7e7733947297b90decf92985f18d6a5689b024de87cbc57d51727b5542db` |
 | [field_party_position_variables.inc](pc_port/src/cleanroom/field_party_position_variables.inc) | `func_800A0158` | `d62526b27152a1cc404643f5d2f54bec310edc59498bc98df19ff027ef457983` |
+| [field_party_restore_vitals.inc](pc_port/src/cleanroom/field_party_restore_vitals.inc) | `FieldScriptVMHandlerRestoreHp`, `FieldScriptVMHandlerRestoreMp`, `FieldScriptVMHandlerRestoreCharacterHpAndMp` | `df47fe974ef21d4e2b22746a50d2c8fbaae53e9032c0036e99f60b32b646ea99` |
+| [field_party_script_adjust_amount.inc](pc_port/src/cleanroom/field_party_script_adjust_amount.inc) | `FieldScriptVMHandlerDecreasePartyHp`, `FieldScriptVMHandlerIncreasePartyMp`, `FieldScriptVMHandlerDecreasePartyMp` | `f84a3b680f38832fa20bfded0542e809d66536330543093fd04c6b67dea5010b` |
 | [field_party_script_vitals.inc](pc_port/src/cleanroom/field_party_script_vitals.inc) | `FieldScriptVMHandlerWritePartyMemberHp`, `FieldScriptVMHandlerWritePartyMemberMp`, `FieldScriptVMHandlerSetPartyMemberHp`, `FieldScriptVMHandlerSetPartyMemberMp` | `f3c5dc65fa7f355e013fb602299dc80a31292289f58921c28649872a1b3b87d0` |
 | [field_render_quad.inc](pc_port/src/cleanroom/field_render_quad.inc) | `FieldRenderQuad` | `e7a9bf9cbcb1e4e90dcf2d8f60ee160f61c55b727d614fb938a8627832e8b797` |
 | [field_reset_matrix.inc](pc_port/src/cleanroom/field_reset_matrix.inc) | `func_80070594` | `2fbabc50feed3efa6310a01a7a90855eba3f94eb999e64203036228f1bd01c4e` |
 | [field_restore_vram.inc](pc_port/src/cleanroom/field_restore_vram.inc) | `func_80078C5C` | `3f9b542e14899d75419c7067725855dc4aa5f661a47ce49b32ae6cd75613d4a1` |
 | [field_script_animate_door.inc](pc_port/src/cleanroom/field_script_animate_door.inc) | `func_80093E30` | `dbbb237a010caa8e02aa81317164a096a51409190cab5ff220d04e2ede5fd944` |
 | [field_script_arguments.inc](pc_port/src/cleanroom/field_script_arguments.inc) | `FieldScriptArgument1`, `FieldScriptArgument2`, `FieldScriptArgument3`, `FieldScriptArgument4`, `FieldScriptArgument5`, `FieldScriptArgument6`, `FieldScriptArgument7`, `FieldScriptArgument8` | `51d159914b5aefe41dd1ce3ea87abbb62474dcb512f61ea7fa7651b8cdfca54b` |
+| [field_script_bitwise_variables.inc](pc_port/src/cleanroom/field_script_bitwise_variables.inc) | `FieldScriptVMHandlerVariableAssign`, `FieldScriptVMHandlerVariableAND`, `FieldScriptVMHandlerVariableOR`, `FieldScriptVMHandlerVariableXOR` | `3031abbe4a65c671169e839db85f93891405c9bd3e6743c2de092846341bff6c` |
 | [field_script_branch_on_clear_bit.inc](pc_port/src/cleanroom/field_script_branch_on_clear_bit.inc) | `func_8008D780` | `9cce832355f5300c1900a6b18bd0a16b2074b4089253b2a7acc45de5b14cda6f` |
 | [field_script_camera_destination_metrics.inc](pc_port/src/cleanroom/field_script_camera_destination_metrics.inc) | `func_80090E70` | `a217c6ead4ba0ac3d3f4fc0bdfb0d10e5c7790063f3e998043d5916ed24ba133` |
 | [field_script_camera_point_about_pivot.inc](pc_port/src/cleanroom/field_script_camera_point_about_pivot.inc) | `func_80091318` | `d7b10d9f0c6ce5858bb4bf316337741c127f852e6e2050dc6e61b64dc5a2ed59` |
@@ -125,7 +128,8 @@ holds its critical section from the first attribute read through submission.
 for suite in sound_script_active_flags sound_script_note_parameters sound_script_sequence_controls \
     sound_voice_channel_lifecycle sound_transfer_controls sound_reverb_controls \
     field_input_script_tests field_script_arguments field_script_unary_variables \
-    field_party_adjust_vitals field_party_script_vitals
+    field_party_adjust_vitals field_party_script_vitals field_party_masked_adjust \
+    field_party_restore_vitals field_script_bitwise_variables
 do
     bash "common/pc_port/tests/$suite/run.sh" || exit 1
 done

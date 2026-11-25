@@ -1,9 +1,28 @@
 # Source branch after v0.7.82-source
 
+## Party recovery and bitwise script commands
+
+This source update adds ten functions in three files, bringing the public
+total to 145. The privately linked builds have 365 upstream matches on
+Linux and 364 on Windows.
+
+- Field scripts can restore HP or EP across all eleven characters,
+  including those outside the active party. A separate command restores
+  both values for a single character. Three adjustment commands apply a
+  signed amount to occupied party slots selected by the script’s mask.
+- Field scripts can assign a value to a variable or combine it with
+  another value using AND, OR or XOR. All four commands write a 16-bit
+  result and advance the active script cursor by six. Assignment retains
+  its first destination. The three bitwise operations read the destination
+  again after evaluating the right operand.
+
+Three standalone tests cover these commands using synthetic actors, party
+records and script services.
+
 ## Party HP and EP, field variables and audio services
 
 This update adds 16 shared C functions in five source files. The reviewed
-branch now contains 135 named functions. The private linked audit found
+branch contained 135 named functions at that checkpoint. The private linked audit found
 375 remaining upstream matches on Linux and 374 on Windows. The tagged
 release remains `v0.7.82-source`.
 
