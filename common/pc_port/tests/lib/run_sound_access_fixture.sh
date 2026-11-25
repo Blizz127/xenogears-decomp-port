@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 fixture_file=${1:?expected the standalone sound fixture C file}
+shift
 out=$(mktemp -d)
 trap 'rm -rf -- "$out"' EXIT
 cc=${CC:-cc}
-base=(-std=c11 -Wall -Wextra -Werror)
+base=(-std=c11 -Wall -Wextra -Werror "$@")
 for mode in O0 O2 UBSan access; do
     opts=(-O2)
     instrument=()

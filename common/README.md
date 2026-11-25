@@ -1,12 +1,12 @@
 # Independent host functions
 
-These 71 C include files supply 119 named functions used by the PC port. The functions cover field scripts, graphics, cameras, dialogue, party state, controller input, archives and sound. Host translation units supply the game types and services that the fragments call. Building the full game also requires integration code outside this source release.
+These 76 C include files supply 135 named functions used by the PC port. The functions cover field scripts, graphics, cameras, dialogue, party state, controller input, archives and sound. Host translation units supply the game types and services that the fragments call. Building the full game also requires integration code outside this source release.
 
 The project derived these implementations from observed game behavior and the port's calling conventions. It compared the replacements against original behavior and checked which source files supplied the compiled functions. Coverage varies by function. Some edge cases were exercised through focused tests.
 
 The table lists all published entry points and file SHA-256 values. The
-five most recent fragments match the independently written private source
-at revision `52bb6b88`.
+five most recent fragments match the private Linux `9feccf16` and Windows
+`e7707aa9` sources.
 
 | File | Entry points | SHA-256 |
 | --- | --- | --- |
@@ -37,7 +37,9 @@ at revision `52bb6b88`.
 | [field_matrix_look_at.inc](pc_port/src/cleanroom/field_matrix_look_at.inc) | `FieldMatrixLookAt` | `eaf867a7f458f020f1d009933cf2025f79a7fe37ab9c1a7c366850c0aadfaf0a` |
 | [field_particle_actor_stop.inc](pc_port/src/cleanroom/field_particle_actor_stop.inc) | `FieldParticleActorStop` | `e54d9bc6b3dcbf5d8e89d0ff51778688a094d2ac83e0e99b94e93f5c56061db1` |
 | [field_particle_setup.inc](pc_port/src/cleanroom/field_particle_setup.inc) | `FieldScriptInitializeParticleBank`, `FieldScriptSetParticleBankColor`, `FieldScriptSetParticleBankParameters`, `FieldScriptSetParticleBankPhysics`, `FieldScriptSetParticleBankPosition`, `FieldScriptSetParticleBankScale` | `874735b349abc8903f0b652a0f2e737d2218737e200b0e13a4339a8336712c73` |
+| [field_party_adjust_vitals.inc](pc_port/src/cleanroom/field_party_adjust_vitals.inc) | `FieldPartyMemberIncreaseHp`, `FieldPartyMemberDecreaseHp`, `FieldPartyMemberIncreaseMp`, `FieldPartyMemberDecreaseMp` | `fa6c7e7733947297b90decf92985f18d6a5689b024de87cbc57d51727b5542db` |
 | [field_party_position_variables.inc](pc_port/src/cleanroom/field_party_position_variables.inc) | `func_800A0158` | `d62526b27152a1cc404643f5d2f54bec310edc59498bc98df19ff027ef457983` |
+| [field_party_script_vitals.inc](pc_port/src/cleanroom/field_party_script_vitals.inc) | `FieldScriptVMHandlerWritePartyMemberHp`, `FieldScriptVMHandlerWritePartyMemberMp`, `FieldScriptVMHandlerSetPartyMemberHp`, `FieldScriptVMHandlerSetPartyMemberMp` | `f3c5dc65fa7f355e013fb602299dc80a31292289f58921c28649872a1b3b87d0` |
 | [field_render_quad.inc](pc_port/src/cleanroom/field_render_quad.inc) | `FieldRenderQuad` | `e7a9bf9cbcb1e4e90dcf2d8f60ee160f61c55b727d614fb938a8627832e8b797` |
 | [field_reset_matrix.inc](pc_port/src/cleanroom/field_reset_matrix.inc) | `func_80070594` | `2fbabc50feed3efa6310a01a7a90855eba3f94eb999e64203036228f1bd01c4e` |
 | [field_restore_vram.inc](pc_port/src/cleanroom/field_restore_vram.inc) | `func_80078C5C` | `3f9b542e14899d75419c7067725855dc4aa5f661a47ce49b32ae6cd75613d4a1` |
@@ -62,6 +64,7 @@ at revision `52bb6b88`.
 | [field_script_setup_actor_resource.inc](pc_port/src/cleanroom/field_script_setup_actor_resource.inc) | `func_800A0D3C` | `b07abe723df3deb7a62db14776b256d4bd7b9f6a80c5554e2b90ce312b057366` |
 | [field_script_show_actor.inc](pc_port/src/cleanroom/field_script_show_actor.inc) | `FieldScriptVMHandlerShowActor` | `eccaf3ab4621359cb8482dfdc8a421b1acab527f8c8951c416cd8bc7b9368a43` |
 | [field_script_slot.inc](pc_port/src/cleanroom/field_script_slot.inc) | `func_800A1A8C` | `f386dc05565be3dd435b157421924420b5d3d275edd13173f80780eb79f3cafa` |
+| [field_script_unary_variables.inc](pc_port/src/cleanroom/field_script_unary_variables.inc) | `FieldScriptVMHandlerVariableSetFalse`, `FieldScriptVMHandlerVariableSetTrue`, `FieldScriptVMHandlerIncVariable`, `FieldScriptVMHandlerDecVariable` | `3448ebc99a4946eb4eac63e4d30ef5fcf0581d7c0a155fd2b8c2d36fc383c09b` |
 | [field_script_update_idle_facing.inc](pc_port/src/cleanroom/field_script_update_idle_facing.inc) | `func_8009F4CC` | `d9ec4b73643f78f1eaef3f50f46c5ff4d03ddb5350fc3b2b0cab3dd81bf8598b` |
 | [field_swap_render_context.inc](pc_port/src/cleanroom/field_swap_render_context.inc) | `FieldSwapRenderContext` | `5197988435536018fb798be941b96644e30defc089b810fbce4cae72f1d887c7` |
 | [field_text_box_has_visible_portrait.inc](pc_port/src/cleanroom/field_text_box_has_visible_portrait.inc) | `func_8009C538` | `8ef9817be1b6ee0311cae12d3e7b3bdc31c1ea46bcc7eb465ad368231b834827` |
@@ -72,6 +75,8 @@ at revision `52bb6b88`.
 | [scenario_flags.inc](pc_port/src/cleanroom/scenario_flags.inc) | `FieldScriptCheckScenarioFlagsEqual`, `FieldScriptCheckScenarioFlagsGreaterThan`, `FieldScriptCheckScenarioFlagsLessThan` | `3c35b5e34107715a0e2f33819518e67a55ab68bbcc58c0c8ee5fe9b1b4617140` |
 | [sound_apply_volume_settings.inc](pc_port/src/cleanroom/sound_apply_volume_settings.inc) | `SoundApplyVolumeSettings` | `3c05681d568315a9d3b6e6132311286f98db1b32853f2e52701abf2f27abda5c` |
 | [sound_calculate_audio_manager_size.inc](pc_port/src/cleanroom/sound_calculate_audio_manager_size.inc) | `SoundCalculateAudioManagerSize` | `2c0ffc6ab1c37c4588c8131ad814f9c5ae9ad331d6c30648c00f1e16ef7e55f4` |
+| [sound_manager_init_cd.inc](pc_port/src/cleanroom/sound_manager_init_cd.inc) | `SoundSetCdAttr`, `SoundInitializeAudioManager` | `6774b6f2dd93ea37d8a939e06eb30a2b159a4c641b5430bcdccadfafd32dc168` |
+| [sound_reverb_controls.inc](pc_port/src/cleanroom/sound_reverb_controls.inc) | `SoundInitiateReverbWorkAreaTransfer`, `SoundSetReverbModeWithAllocation` | `166a1d10d4f9d439089d78f6779bbdb87085f7027ab7ffd489e8f1ccc505e1d6` |
 | [sound_script_active_flag800.inc](pc_port/src/cleanroom/sound_script_active_flag800.inc) | `SoundScriptClearActiveFlag800`, `SoundScriptSetActiveFlag800` | `04b3ba4e368046682e66cae639bb35ce67a3e932741565ac1078e40899ef511f` |
 | [sound_script_note_parameters.inc](pc_port/src/cleanroom/sound_script_note_parameters.inc) | `SoundScriptFermata`, `SoundScriptSetAttackTime`, `SoundScriptSetOctave`, `SoundScriptSetSustain` | `67289b2ae988ea3e482f72e436c6d3372c920e0869307dd25fe125778a381e8a` |
 | [sound_script_pitch_controls.inc](pc_port/src/cleanroom/sound_script_pitch_controls.inc) | `SoundScriptAddUnk6E`, `SoundScriptLowerOctave`, `SoundScriptRaiseOctave`, `SoundScriptSetUnk74` | `ad51c3747692a1335499baf454b810a7e7c26b88ba11c3ab7a7f59a7d2b23e47` |
@@ -107,14 +112,20 @@ do
 done
 ```
 
-## Test the sequencer, transfer and script functions
+## Test the sound, script and party functions
 
 These standalone tests supply their own data, game types and services.
 Use Bash and GCC or Clang on Linux. The scripts exercise unoptimized and
-optimized builds and undefined-behavior checks. The instrumented fixtures also check memory access order.
+optimized builds and undefined-behavior checks. Instrumented fixtures check
+which memory accesses and service calls occur, and in which order. The CD
+fixture runs a simulated Windows audio service and checks that the port
+holds its critical section from the first attribute read through submission.
 
 ```sh
-for suite in sound_script_active_flags sound_script_note_parameters sound_script_sequence_controls sound_voice_channel_lifecycle sound_transfer_controls field_input_script_tests field_script_arguments
+for suite in sound_script_active_flags sound_script_note_parameters sound_script_sequence_controls \
+    sound_voice_channel_lifecycle sound_transfer_controls sound_reverb_controls \
+    field_input_script_tests field_script_arguments field_script_unary_variables \
+    field_party_adjust_vitals field_party_script_vitals
 do
     bash "common/pc_port/tests/$suite/run.sh" || exit 1
 done

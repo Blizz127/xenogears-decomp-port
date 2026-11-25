@@ -1,6 +1,31 @@
 # Source branch after v0.7.82-source
 
-The reviewed source branch adds 17 functions across five fragments and
+## Party HP and EP, field variables and audio services
+
+This update adds 16 shared C functions in five source files. The reviewed
+branch now contains 135 named functions. The private linked audit found
+375 remaining upstream matches on Linux and 374 on Windows. The tagged
+release remains `v0.7.82-source`.
+
+- Four field functions adjust current HP or EP (called MP in the C
+  interfaces). Increases store a 16-bit sum and then check it against
+  the roster member’s maximum. A decrease that produces zero or a
+  negative signed result stores one. Four field-script commands move
+  HP and EP between party members and script variables. They advance
+  the script cursor by four, including when the party slot is empty.
+- Four other commands set a variable to true or false, increment it or
+  decrement it. The tests check the script reads, variable writes and
+  cursor advancement.
+- The sound code initializes the audio manager, applies CD reverb and
+  mix attributes, and manages the reverb work area and its transfer.
+  On Windows the port enters the audio critical section before touching
+  shared CD attributes and leaves it after submitting the update. Four new
+  standalone test suites cover party vitals, unary variables and audio.
+  The simulated Windows CD test checks the critical-section boundaries.
+
+## Field transfers, party positions, input and argument readers
+
+The preceding branch update added 17 functions across five fragments and
 five standalone test suites. The tagged v0.7.82-source archive contains
 the previous 102 functions.
 
