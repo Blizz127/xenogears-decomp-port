@@ -1,6 +1,6 @@
 # Xenogears PC port source
 
-This release contains 102 independently written C functions for the host port. The shared
+This source tree contains 119 independently written C functions for the host port. The shared
 sources cover field scripts, graphics, dialogue, archive and controller services,
 and sound. The Linux and Windows directories contain the previously reviewed
 platform source. Building the complete game still requires code under

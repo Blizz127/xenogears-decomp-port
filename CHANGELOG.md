@@ -1,3 +1,29 @@
+# Source branch after v0.7.82-source
+
+The reviewed source branch adds 17 functions across five fragments and
+five standalone test suites. The tagged v0.7.82-source archive contains
+the previous 102 functions.
+
+- Field rendering restores a 256 × 32 strip in VRAM. With the operation
+  enabled, the host disables dithering in the two draw contexts, reads
+  back the strip, sets the color-mask bits on nonzero pixels and uploads
+  the result. The disabled path leaves both contexts untouched.
+- The party-position routine reads three variables for a valid party
+  slot, in order, into the supplied output locations. An invalid slot
+  leaves all three outputs untouched.
+- Field input scripts compare either an exact controller state or
+  overlapping bits. A match advances the script cursor by five bytes.
+  A miss reads a branch destination from the script. Two handlers select
+  which controller state to test.
+- Eight field-script argument readers use separate flag bits to
+  distinguish signed 16-bit literals from variable references.
+- Sound transfer controls submit a write request to the existing queue,
+  set the destination and remaining byte count, and report when the
+  queue has at least six entries pending.
+
+The complete game still requires sources under provenance review. The
+public release remains source-only.
+
 # November 25, 2026 · v0.7.82-source
 
 This checkpoint adds 16 independently written native C functions across

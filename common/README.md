@@ -1,10 +1,12 @@
 # Independent host functions
 
-These 66 C include files supply 102 named functions used by the PC port. The functions cover field scripts, graphics, cameras, dialogue, party state, controller input, archives and sound. Host translation units supply the game types and services that the fragments call. Building the full game also requires integration code outside this source release.
+These 71 C include files supply 119 named functions used by the PC port. The functions cover field scripts, graphics, cameras, dialogue, party state, controller input, archives and sound. Host translation units supply the game types and services that the fragments call. Building the full game also requires integration code outside this source release.
 
 The project derived these implementations from observed game behavior and the port's calling conventions. It compared the replacements against original behavior and checked which source files supplied the compiled functions. Coverage varies by function. Some edge cases were exercised through focused tests.
 
-The new fragments match the source compiled by private Linux revision `fd98680e` and Windows revision `adfd7991`. Both linked executables were checked for the registered replacements. The table gives each fragment’s entry points and exact SHA-256.
+The table lists all published entry points and file SHA-256 values. The
+five most recent fragments match the independently written private source
+at revision `52bb6b88`.
 
 | File | Entry points | SHA-256 |
 | --- | --- | --- |
@@ -30,13 +32,17 @@ The new fragments match the source compiled by private Linux revision `fd98680e`
 | [field_initialize_render_contexts.inc](pc_port/src/cleanroom/field_initialize_render_contexts.inc) | `FieldInitializeRenderContexts` | `cb2bb306e15d087b95fcc4df60fa96b0725c89c311303ba61b66cd80651de1cf` |
 | [field_initialize_scene_sprites.inc](pc_port/src/cleanroom/field_initialize_scene_sprites.inc) | `func_800ABD18` | `7c82f822c1ace57b517cc8d55cc0255b7f89832889a06ad1a4cedad2c3f0d5ca` |
 | [field_initialize_textured_quad.inc](pc_port/src/cleanroom/field_initialize_textured_quad.inc) | `func_8007A7F4` | `e1b7ddbd229179e3dfe60f5705043450c9f088b212c04e06cfa1cd738d134e55` |
+| [field_input_script_tests.inc](pc_port/src/cleanroom/field_input_script_tests.inc) | `FieldScriptCheckControllerInputExact`, `FieldScriptVMCheckControllerInput`, `func_80096178`, `func_800961A0` | `629051f76132b0eab4671f6abde8740544ac34928faf9019085575437a07433e` |
 | [field_load_tim_with_clut.inc](pc_port/src/cleanroom/field_load_tim_with_clut.inc) | `FieldLoadTIMWithClut` | `1b67b4b653296ea8b22ac203687e25d8ae91b5dc9574ea6c91cb40716144636d` |
 | [field_matrix_look_at.inc](pc_port/src/cleanroom/field_matrix_look_at.inc) | `FieldMatrixLookAt` | `eaf867a7f458f020f1d009933cf2025f79a7fe37ab9c1a7c366850c0aadfaf0a` |
 | [field_particle_actor_stop.inc](pc_port/src/cleanroom/field_particle_actor_stop.inc) | `FieldParticleActorStop` | `e54d9bc6b3dcbf5d8e89d0ff51778688a094d2ac83e0e99b94e93f5c56061db1` |
 | [field_particle_setup.inc](pc_port/src/cleanroom/field_particle_setup.inc) | `FieldScriptInitializeParticleBank`, `FieldScriptSetParticleBankColor`, `FieldScriptSetParticleBankParameters`, `FieldScriptSetParticleBankPhysics`, `FieldScriptSetParticleBankPosition`, `FieldScriptSetParticleBankScale` | `874735b349abc8903f0b652a0f2e737d2218737e200b0e13a4339a8336712c73` |
+| [field_party_position_variables.inc](pc_port/src/cleanroom/field_party_position_variables.inc) | `func_800A0158` | `d62526b27152a1cc404643f5d2f54bec310edc59498bc98df19ff027ef457983` |
 | [field_render_quad.inc](pc_port/src/cleanroom/field_render_quad.inc) | `FieldRenderQuad` | `e7a9bf9cbcb1e4e90dcf2d8f60ee160f61c55b727d614fb938a8627832e8b797` |
 | [field_reset_matrix.inc](pc_port/src/cleanroom/field_reset_matrix.inc) | `func_80070594` | `2fbabc50feed3efa6310a01a7a90855eba3f94eb999e64203036228f1bd01c4e` |
+| [field_restore_vram.inc](pc_port/src/cleanroom/field_restore_vram.inc) | `func_80078C5C` | `3f9b542e14899d75419c7067725855dc4aa5f661a47ce49b32ae6cd75613d4a1` |
 | [field_script_animate_door.inc](pc_port/src/cleanroom/field_script_animate_door.inc) | `func_80093E30` | `dbbb237a010caa8e02aa81317164a096a51409190cab5ff220d04e2ede5fd944` |
+| [field_script_arguments.inc](pc_port/src/cleanroom/field_script_arguments.inc) | `FieldScriptArgument1`, `FieldScriptArgument2`, `FieldScriptArgument3`, `FieldScriptArgument4`, `FieldScriptArgument5`, `FieldScriptArgument6`, `FieldScriptArgument7`, `FieldScriptArgument8` | `51d159914b5aefe41dd1ce3ea87abbb62474dcb512f61ea7fa7651b8cdfca54b` |
 | [field_script_branch_on_clear_bit.inc](pc_port/src/cleanroom/field_script_branch_on_clear_bit.inc) | `func_8008D780` | `9cce832355f5300c1900a6b18bd0a16b2074b4089253b2a7acc45de5b14cda6f` |
 | [field_script_camera_destination_metrics.inc](pc_port/src/cleanroom/field_script_camera_destination_metrics.inc) | `func_80090E70` | `a217c6ead4ba0ac3d3f4fc0bdfb0d10e5c7790063f3e998043d5916ed24ba133` |
 | [field_script_camera_point_about_pivot.inc](pc_port/src/cleanroom/field_script_camera_point_about_pivot.inc) | `func_80091318` | `d7b10d9f0c6ce5858bb4bf316337741c127f852e6e2050dc6e61b64dc5a2ed59` |
@@ -71,6 +77,7 @@ The new fragments match the source compiled by private Linux revision `fd98680e`
 | [sound_script_pitch_controls.inc](pc_port/src/cleanroom/sound_script_pitch_controls.inc) | `SoundScriptAddUnk6E`, `SoundScriptLowerOctave`, `SoundScriptRaiseOctave`, `SoundScriptSetUnk74` | `ad51c3747692a1335499baf454b810a7e7c26b88ba11c3ab7a7f59a7d2b23e47` |
 | [sound_spu_memory_get_free_block.inc](pc_port/src/cleanroom/sound_spu_memory_get_free_block.inc) | `SoundSpuMemoryGetFreeBlock` | `a2bcd3dae53a73413f39849347c4729b795a8c679829cee014e70266d7b08a7c` |
 | [sound_spu_memory_initialize.inc](pc_port/src/cleanroom/sound_spu_memory_initialize.inc) | `SoundSpuMemoryInitialize` | `5ee5fb4f443c78398f0e2ebcf4d0c1dbfabae142b194b2b4f4920410fddeafda` |
+| [sound_transfer_controls.inc](pc_port/src/cleanroom/sound_transfer_controls.inc) | `SoundQueueSpuWriteCommand`, `SoundTransferQueueSync`, `SoundWdsSetTransferParamters` | `a2a79d14183e1510ee3306fbc01bd3c9ac1c887398d2a502a0cd66b0b5406007` |
 | [sound_voice_channel_lifecycle.inc](pc_port/src/cleanroom/sound_voice_channel_lifecycle.inc) | `SoundAssignVoiceToChannelAndPlay`, `SoundAssignVoiceToChannelAndStop`, `SoundReleaseVoiceFromChannel`, `SoundStopVoiceOnChannel` | `374ff896f7b760ce0283b4a3fd76bff7fa5d3db092bdbb9827b4930e1e2975fc` |
 | [text_box_lifecycle.inc](pc_port/src/cleanroom/text_box_lifecycle.inc) | `func_8007FFE8`, `func_800805F4` | `14208792ae3b43ba143fd811b898908ace25e56406572afe60322eb4670622e8` |
 | [text_box_windows.inc](pc_port/src/cleanroom/text_box_windows.inc) | `func_8007E114`, `func_800807B4` | `1a15fbee1f895cc8e70dd05a62a7a8b905ccb531e3b432d00a5862b049e49f5d` |
@@ -86,28 +93,28 @@ cc -std=c17 -Wall -Wextra -Werror -O2 -Icommon/pc_port/src/cleanroom common/test
 /tmp/xeno-field-test
 ```
 
-## Test the archive and fade functions
+## Test the field and archive functions
 
 The synthetic archive test checks cache hits, cache misses and game-service
 calls. The fade test checks the color bytes of the active polygons in both
-render contexts. Run the tests from the root of the distribution.
+render contexts. The VRAM and party-position tests exercise mock graphics
+services and variable getters. Run the tests from the root of the distribution.
 
 ```sh
-for test in field_archive_request field_zoom_fade_colors
+for test in field_archive_request field_zoom_fade_colors field_restore_vram field_party_position_variables
 do
     cc -std=c11 -Wall -Wextra -Werror -O2 -Icommon/pc_port/src/cleanroom "common/tests/${test}_test.c" -o "/tmp/xeno-${test}-test" && "/tmp/xeno-${test}-test" || exit 1
 done
 ```
 
-## Test the sound functions
+## Test the sequencer, transfer and script functions
 
-These four standalone tests supply their own data, game types and services.
+These standalone tests supply their own data, game types and services.
 Use Bash and GCC or Clang on Linux. The scripts exercise unoptimized and
-optimized builds and undefined-behavior checks. The three multi-command
-sound fixtures also check memory access order.
+optimized builds and undefined-behavior checks. The instrumented fixtures also check memory access order.
 
 ```sh
-for suite in sound_script_active_flags sound_script_note_parameters sound_script_sequence_controls sound_voice_channel_lifecycle
+for suite in sound_script_active_flags sound_script_note_parameters sound_script_sequence_controls sound_voice_channel_lifecycle sound_transfer_controls field_input_script_tests field_script_arguments
 do
     bash "common/pc_port/tests/$suite/run.sh" || exit 1
 done
