@@ -771,14 +771,11 @@ void func_8001B94C(DRAWENV* pDrawEnv) {
  * from archive index 0x10, file 3 (0x2358 bytes) into g_GameState, then
  * decode the template's 31 character-name records (0x14-byte blocks over
  * the first 0x26C; save-format u16 codes -> glyph pairs via func_80033B34,
- * terminator pair 0x0F,0x00), reset the sound-volume block, and set the
- * two mode bytes.  Retail's volume reset zeroes 20 halfwords DOWNWARD from
- * g_SoundVolumeController+6 -- i.e. the controller's first 8 bytes plus
- * 0x20 bytes of UNNAMED BSS below it (0x8005A3A0-0x8005A3BF, no symbol).
- * The port zeroes the controller part; the unnamed region has no host
- * symbol and is only ever nonzero after a return-to-title flow the port
- * does not have yet (fresh BSS is already zero) -- documented divergence,
- * revisit with the title-return flow. */
+ * terminator pair 0x0F,0x00), reset the battle table and leading sound
+ * controller fields, and set the two mode bytes. */
+#ifdef XENO_PC_PORT
+extern u16 D_8005A3A0[16];
+#endif
 extern void* g_SystemDataEntries;
 extern void func_80033B34(u16* src, u8* dst, s32 count);
 extern void* memmove(u_char* pDst, u_char* pSrc, int size);
@@ -856,6 +853,16 @@ void func_8001B970(void) {
         }
     }
 
+#ifdef XENO_PC_PORT
+    /* Retail 8001BAC4..BADC clears adjacent guest ranges 8005A3A0..A3BF
+     * and 8005A3C0..A3C7. Their native symbols have independent storage. */
+    g_SoundVolumeController.commonAttr.mvol.right = 0;
+    g_SoundVolumeController.commonAttr.mvol.left = 0;
+    g_SoundVolumeController.commonAttr.mask = 0;
+    for (k = 15; k >= 0; --k) {
+        D_8005A3A0[k] = 0;
+    }
+#else
     {
         u16* pVol;
         k = 0x13;
@@ -864,6 +871,7 @@ void func_8001B970(void) {
             *pVol-- = 0;
         }
     }
+#endif
 
     D_800594CC = 6;
     D_8005947C = 0;

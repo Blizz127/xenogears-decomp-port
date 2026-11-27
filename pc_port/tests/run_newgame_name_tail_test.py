@@ -190,12 +190,14 @@ for mode in modes:
     print(f"{mode} PASS", flush=True)
     save("POSITIVE MODES IN PROGRESS")
 
-# Keep negative controls to the two semantic risks of this small repair.
-# Each must compile/link, then fail the full-state output assertion.
+# Each negative control must compile, link and fail its own state assertion.
 base = Path(sources[0]).read_text()
 assert base.count("u8 tmp[48] = {0};") == 1
 assert base.count("        func_80033B34((u16*)tmp, tmp + 24, k / 2);") == 1
+reset_guard = "#ifdef XENO_PC_PORT\n    /* Retail 8001BAC4..BADC"
+assert base.count(reset_guard) == 1
 mutants = {
+    "contiguous-volume-reset": base.replace(reset_guard, "#if 0\n    /* Retail 8001BAC4..BADC", 1),
     "missing-initialization": base.replace("u8 tmp[48] = {0};", "u8 tmp[48];", 1),
     "cleared-between-records": base.replace(
         "        func_80033B34((u16*)tmp, tmp + 24, k / 2);",
@@ -215,7 +217,9 @@ for name, source in mutants.items():
     run(cc + ["-no-pie"] + flags + ["-Wl,--gc-sections", str(obj)] +
         [str(p) for p in objects[1:]] + ["-o", str(binary)], f"{name}.link.log")
     rc = run([str(binary)], f"{name}.log", expected=None)
-    rejected = rc != 0 and "NAME TAIL FAIL native GameState" in (out / f"{name}.log").read_text()
+    expected_failure = ("NAME TAIL FAIL native volume reset extent" if name == "contiguous-volume-reset"
+                        else "NAME TAIL FAIL native GameState")
+    rejected = rc != 0 and expected_failure in (out / f"{name}.log").read_text()
     negatives[name] = {"returncode": rc, "expected_output_failure": rejected,
                        "source_sha256": sha(path)}
     if not rejected:

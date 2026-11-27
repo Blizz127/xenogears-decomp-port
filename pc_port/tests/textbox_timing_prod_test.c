@@ -22,15 +22,18 @@
 
 enum {
     kWindowGlyphX = 0x00,
+    kWindowTextY = 0x06,
     kWindowFlags = 0x10,
     kWindowStringPtr = 0x1C,
     kWindowSpeed = 0x68,
     kBoxWindow = 0x18,
     kBoxSpeed = 0x80,
     kBoxStringEntry = 0xA8,
+    kBoxY = 0xAE,
     kBoxOpenTimer = 0x408,
     kBoxVisibility = 0x40E,
-    kBoxOrder = 0x410
+    kBoxOrder = 0x410,
+    kPlacementY = 0x20
 };
 
 extern void func_80033DF0(void* arg0);
@@ -334,7 +337,7 @@ static s32 open_box(s32 text_speed, s32 dialog_flags)
     /* mode 3 is the fixed-position box path (no actor projection). Its
      * target delta is 0, so setup does not hit the signed-sll of a negative
      * animation offset that mode 2 produces for these dimensions. */
-    return func_8007F8DC(0x20, 0x20, 0, 0, 0x18, 4, 0, 0, 3, 0, dialog_flags);
+    return func_8007F8DC(0x20, kPlacementY, 0, 0, 0x18, 4, 0, 0, 3, 0, dialog_flags);
 }
 
 static void pump_once(void)
@@ -428,6 +431,8 @@ static void test_setup_speed_byte(void)
     init_string_table((const u8*)"ABCD\x02", 6);
     check(open_box(8, 0) == 0, "setup.speed8.opens");
     window = box_window(0);
+    check(*(s16*)(window + kWindowTextY) == kPlacementY, "setup.text.uses.placement.y");
+    check(*(s16*)(box_bytes(0) + kBoxY) == kPlacementY - 8, "setup.frame.starts.above.text");
     check(*(u8*)(box_bytes(0) + kBoxSpeed) == 1, "setup.speed8.byte.is.1");
     check(window_speed(window) == 1, "setup.speed8.window+0x68.is.1");
 

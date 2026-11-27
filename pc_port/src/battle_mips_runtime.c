@@ -2202,6 +2202,9 @@ static int runtime_bridge_hooks(BattleMipsRuntime *runtime, PcPortMipsCpu *cpu,
     return BRIDGE_HOOKS_NONE;
 }
 
+static int battle_prepare_workspaces(BattleMipsRuntime *runtime, PcPortMipsCpu *cpu);
+static int battle_use_field_formation(BattleMipsRuntime *runtime, PcPortMipsCpu *cpu);
+
 static int runtime_bridge_call(void *opaque, PcPortMipsCpu *cpu, uint32_t target)
 {
     BridgeCallCacheSlot *slot;
@@ -2221,6 +2224,11 @@ static int runtime_bridge_call(void *opaque, PcPortMipsCpu *cpu, uint32_t target
      * run_battle_overlay_leaf_bridge_test.sh keeps its injection anchor. */
     if (runtime->force_interpret && target_is_guest_code(target))
         return 0;
+
+    if (target == BATTLE_ENTRY)
+        return battle_prepare_workspaces(runtime, cpu);
+    if (target == 0x80070fc8u)
+        return battle_use_field_formation(runtime, cpu);
 
     /* The renderer callbacks at these sites require native packed data.
      * A guest call without a verified argument adapter cannot enter them. */
@@ -3124,6 +3132,174 @@ static int battle_entry_present(const uint8_t *entry)
     uint8_t digest[sizeof(expected)];
     file1_digest(entry, 4, digest);
     return memcmp(digest, expected, sizeof(expected)) == 0;
+}
+
+/* The opening encounter workspaces are allocated in one phase, then cleared
+ * in a second phase. The remaining battle code consumes their guest pointers. */
+static int battle_prepare_workspaces(BattleMipsRuntime *runtime, PcPortMipsCpu *cpu)
+{
+    static const struct { uint32_t slot, bytes; } workspace[] = {
+        {0x800c3ea4u, 41652u}, {0x800d2d28u, 268u}, {0x800c3eacu, 760u}
+    };
+    const uint32_t resume = 0x80070fc8u;
+    static const uint8_t expected[32] = {
+        0xe6, 0xa2, 0x97, 0x14, 0x81, 0xcc, 0xb5, 0x3d,
+        0xc0, 0xc5, 0x63, 0xb1, 0x55, 0xde, 0xe1, 0x87,
+        0x53, 0xa3, 0x74, 0x50, 0xae, 0xc6, 0xfc, 0xcd,
+        0xe1, 0x46, 0xad, 0x23, 0x08, 0x91, 0x47, 0xe1
+    };
+    uint8_t digest[sizeof(expected)];
+    if (cpu->gpr[29] != BATTLE_STACK_TOP || cpu->gpr[31] != BATTLE_HALT_PC ||
+        cpu->steps != 0 || cpu->next_pc != BATTLE_ENTRY + 4u || cpu->load_valid ||
+        !overlay_leaf_host_ok("func_8008ABB8"))
+        return 0;
+
+    /* The wrapper checks the first word. This partial implementation depends
+     * on the identity of the entire prefix through the last workspace clear. */
+    file1_digest(PSX_ADDR(BATTLE_ENTRY), resume - BATTLE_ENTRY, digest);
+    if (memcmp(expected, digest, sizeof(expected)) != 0)
+        return 0;
+    const ResolvedFunction *clear = find_function(runtime, 0x8003f8e8u);
+    if (!clear || strcmp(clear->name, "bzero") != 0 ||
+        xeno_port_is_generated_stub("func_8008ABB8"))
+        return 0;
+    void *(*allocate)(int32_t, int32_t) = dlsym(RTLD_DEFAULT, "battle_func_8008ABB8");
+    if (!allocate)
+        allocate = dlsym(RTLD_DEFAULT, "func_8008ABB8");
+    if (!allocate)
+        return 0;
+
+    /* The rest of the encounter still runs with a guest stack. Construct its
+     * o32 frame so its epilogue can restore the original caller. */
+    const uint32_t frame = cpu->gpr[29] - 48u;
+    for (unsigned i = 0; i < 4; ++i)
+        if (runtime_write(runtime, frame + 24u + 4u * i, 4, cpu->gpr[16 + i]) != 0)
+            return -1;
+    if (runtime_write(runtime, frame + 40u, 4, cpu->gpr[31]) != 0)
+        return -1;
+    cpu->gpr[29] = frame;
+
+    for (unsigned i = 0; i < sizeof(workspace) / sizeof(workspace[0]); ++i) {
+        cpu->gpr[4] = workspace[i].bytes;
+        cpu->gpr[5] = 0;
+        uint32_t address = PsxMemory_GuestAddr(allocate(workspace[i].bytes, 0));
+        if (runtime_write(runtime, workspace[i].slot, 4, address) != 0)
+            return -1;
+        cpu->gpr[2] = address;
+    }
+    cpu->gpr[3] = 0;  /* high word of the allocator's guest pointer result */
+    for (unsigned i = 0; i < sizeof(workspace) / sizeof(workspace[0]); ++i) {
+        if (runtime_read(runtime, workspace[i].slot, 4, &cpu->gpr[4]) != 0)
+            return -1;
+        cpu->gpr[5] = workspace[i].bytes;
+        if (bridge_module_memory(runtime, cpu, clear) != 1)
+            return -1;
+    }
+
+    /* State observed at the final void call's return. The ordinary bridge
+     * already resumes at ra, so the next phase uses the usual dispatch. */
+    cpu->gpr[1] = workspace[2].slot & 0xffff0000u;
+    cpu->gpr[19] = 1;
+    cpu->gpr[31] = resume;
+    cpu_meter_note_kind(CPU_METER_KIND_GENERIC);
+    return 1;
+}
+
+/* Adopt only the ordinary field-selected record. An archive transition or a
+ * scripted override can call other services before this copy takes place. */
+static int battle_use_field_formation(BattleMipsRuntime *runtime, PcPortMipsCpu *cpu)
+{
+    const uint32_t entry = 0x80070fc8u, resume = 0x80071158u;
+    const uint32_t active_record = 0x8006f9dcu;
+    enum { record_bytes = 32, field_slots = 16 };
+    static const uint8_t expected[32] = {
+        0x1e, 0xc2, 0x51, 0x3d, 0x24, 0x69, 0x9d, 0x09,
+        0x55, 0xaf, 0x4a, 0x53, 0x15, 0x8f, 0xd8, 0x88,
+        0xe0, 0xf6, 0xb1, 0xc0, 0x16, 0x69, 0x20, 0x5f,
+        0x7b, 0xbb, 0xd1, 0xdd, 0xcf, 0x89, 0xbc, 0xa6
+    };
+    if (cpu->next_pc != entry + 4 || cpu->gpr[31] != entry ||
+        cpu->gpr[29] != BATTLE_STACK_TOP - 48 || cpu->gpr[28] != 0x80059170u ||
+        cpu->gpr[19] != 1 || cpu->load_valid || !PcPort_BattleNativeLeafLimit())
+        return 0;
+    uint8_t digest[sizeof(expected)];
+    file1_digest(PSX_ADDR(entry), resume - entry, digest);
+    if (memcmp(digest, expected, sizeof(expected)) != 0)
+        return 0;
+
+    /* Read the field-owned selector and the resident settings through the
+     * same bindings as the rest of the game. The boot sentinel pointer may
+     * also point directly at the port's compact native data symbol. */
+    enum { override, phase, slot, manager, sentinel_pointer, sentinel, reads };
+    struct { uint32_t addr; unsigned size; } input[reads] = {
+        [override] = {0x8005947cu, 1}, [phase] = {0x800594f8u, 1},
+        [slot] = {0x80059508u, 1}, [manager] = {0x80062528u, 4},
+        [sentinel_pointer] = {0x8005917cu, 4}, [sentinel] = {0, 4}
+    };
+    const uint8_t *input_value[reads];
+    for (unsigned i = 0; i < reads; ++i) {
+        if (i == sentinel) {
+            uint32_t token = load_le(input_value[sentinel_pointer], 4);
+            if (!token || (token & 3u) ||
+                (!battle_resident_guest_pointer(token) &&
+                 (uintptr_t)dlsym(RTLD_DEFAULT, "D_80010000") != token))
+                return 0;
+            input[i].addr = token;
+        }
+        input_value[i] = module_memory_pointer(runtime, input[i].addr, input[i].size, 0);
+        if (!input_value[i]) return 0;
+    }
+    if (*input_value[override] || *input_value[phase] ||
+        *input_value[slot] >= field_slots || load_le(input_value[sentinel], 4) != UINT32_MAX)
+        return 0;
+
+    /* These entry flags and the retained sound manager are written before
+     * the original path chooses its record. A sentinel or selector aliasing a
+     * write could change that choice. Validate every span before committing. */
+    struct { uint32_t addr; unsigned size; uint32_t value; } initial[] = {
+        {0x8005959cu, 1, 0}, {0x800c3e29u, 1, UINT8_MAX},
+        {0x800c3e28u, 1, UINT8_MAX}, {0x800d366cu, 1, 0},
+        {0x800c3e54u, 4, load_le(input_value[manager], 4)}
+    };
+    enum { writes = sizeof(initial) / sizeof(initial[0]) };
+    uint8_t *output[writes];
+    for (unsigned i = 0; i < writes; ++i) {
+        output[i] = module_memory_pointer(runtime, initial[i].addr, initial[i].size, 1);
+        if (!output[i]) return 0;
+        for (unsigned j = 0; j < reads; ++j) {
+            uintptr_t a = (uintptr_t)output[i], b = (uintptr_t)input_value[j];
+            if (a <= b ? b - a < initial[i].size : a - b < input[j].size)
+                return 0;
+        }
+    }
+
+    uint32_t selected = 0x800658dcu + *input_value[slot] * record_bytes;
+    const uint8_t *record = module_memory_pointer(runtime, selected, record_bytes, 0);
+    uint8_t *destination = module_memory_pointer(runtime, active_record, record_bytes, 1);
+    if (!record || destination != PSX_ADDR(active_record))
+        return 0;
+    for (unsigned i = 0; i < record_bytes; ++i)
+        if (module_memory_pointer(runtime, selected + i, 1, 0) != record + i ||
+            module_memory_pointer(runtime, active_record + i, 1, 1) != destination + i)
+            return 0;
+    const ResolvedFunction *move = find_function(runtime, 0x8003f99cu);
+    if (!move || !move->host || strcmp(move->name, "memmove") != 0)
+        return 0;
+
+    for (unsigned i = 0; i < writes; ++i) {
+        runtime_note_store(runtime, output[i], initial[i].size);
+        store_le(output[i], initial[i].size, initial[i].value);
+    }
+    /* Supply the same guest ABI at the resident memmove boundary. Its typed
+     * bridge preserves the guest destination as the return value. */
+    cpu->gpr[1] = 0x800c0000u;
+    cpu->gpr[2] = 0x800658dcu;
+    cpu->gpr[3] = UINT32_MAX;
+    cpu->gpr[4] = active_record;
+    cpu->gpr[5] = selected;
+    cpu->gpr[6] = record_bytes;
+    cpu->gpr[31] = resume;
+    return bridge_module_memory(runtime, cpu, move);
 }
 
 void func_80070F40(void)

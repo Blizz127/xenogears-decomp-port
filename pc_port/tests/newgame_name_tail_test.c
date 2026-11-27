@@ -20,13 +20,15 @@ enum { STATE_BYTES = 0x2358, NAME_BYTES = 620, NAME_COUNT = 31, RECORD_BYTES = 2
 #define INITIALIZER_ADDRESS 0x8001b970u
 #define DECODER_ADDRESS 0x80033b34u
 
-/* Keep the actual production globals below signed 32-bit pointer limits, with
- * visible guards around their packed storage. The volume routine writes forty
- * bytes beginning 32 bytes before its symbol, as the original body does. */
+/* The normal links place the battle table and controller in separate objects.
+ * Guard both independently so a controller underwrite cannot masquerade as a
+ * correct table reset. The non-PIE fixture also keeps game pointers representable. */
 _Alignas(16) uint8_t name_tail_state[STATE_BYTES + 64];
-_Alignas(16) uint8_t name_tail_sound[32 + 32 + 0x48 + 32];
+_Alignas(16) uint8_t name_tail_table[32 + 32 + 32];
+_Alignas(16) uint8_t name_tail_sound[32 + 0x48 + 32];
 __asm__(".globl g_GameState\n.set g_GameState, name_tail_state+32\n"
-        ".globl g_SoundVolumeController\n.set g_SoundVolumeController, name_tail_sound+64\n");
+        ".globl D_8005A3A0\n.set D_8005A3A0, name_tail_table+32\n"
+        ".globl g_SoundVolumeController\n.set g_SoundVolumeController, name_tail_sound+32\n");
 extern uint8_t g_GameState[], D_800594CC, D_8005947C;
 extern void *g_SystemDataEntries;
 extern void func_8001B970(void);
@@ -274,6 +276,7 @@ static void check_native(void)
 {
     memset(name_tail_state, 0xa6, sizeof(name_tail_state));
     memset(name_tail_sound, 0x5c, sizeof(name_tail_sound));
+    memset(name_tail_table, 0x63, sizeof(name_tail_table));
     memset(archive_heap, (int)stack_pattern, sizeof(archive_heap));
     D_800594CC = D_8005947C = 0xbb;
     service_stage = 0;
@@ -294,8 +297,11 @@ static void check_native(void)
         require(name_tail_state[32 + STATE_BYTES + i] == 0xa6, "state trailing guard", i);
     }
     for (unsigned i = 0; i < sizeof(name_tail_sound); ++i)
-        require(name_tail_sound[i] == (i >= 32 && i < 72 ? 0 : 0x5c),
+        require(name_tail_sound[i] == (i >= 32 && i < 40 ? 0 : 0x5c),
                 "native volume reset extent", i);
+    for (unsigned i = 0; i < sizeof(name_tail_table); ++i)
+        require(name_tail_table[i] == (i >= 32 && i < 64 ? 0 : 0x63),
+                "native battle table reset extent", i);
     require(D_800594CC == 6 && D_8005947C == 0, "native mode bytes", 0);
     if (stack_pattern == 0) memcpy(baseline_state, g_GameState, STATE_BYTES);
     else equal_bytes(g_GameState, baseline_state, STATE_BYTES, "repeatability");
@@ -362,7 +368,8 @@ static void check_original(unsigned initial_tail)
         require(*oracle_address(STATE_ADDRESS + STATE_BYTES + i, 1) == 0xac,
                 "original state trailing guard", i);
     }
-    for (unsigned i = 0; i < sizeof(name_tail_sound); ++i)
+    /* Guest layout has the 32-byte battle table directly before the controller. */
+    for (unsigned i = 0; i < 32 + sizeof(name_tail_sound); ++i)
         require(*oracle_address(SOUND_ADDRESS - 64u + i, 1) ==
                     (i >= 32 && i < 72 ? 0 : 0xac),
                 "original volume reset extent", i);

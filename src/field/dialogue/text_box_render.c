@@ -636,6 +636,9 @@ s32 func_8007F8DC(s32 x, s32 y, s32 stringIndex, s32 textBoxIndex, s32 width, s3
     s32 openTimer;
     s32 portraitFlags;
 
+    /* The field's signed 16-bit placement is the text origin, eight pixels inside the window. */
+    y = (s16)((u16)y - 8);
+
     pTalkingActor = (ActorData*)(uintptr_t)g_FieldActors[talkingActorIndex].pActorData;
     /* Retail s4 is argument 7 (owner); argument 8 remains the speaker used
      * for screen positioning and the final hidden-actor check. */

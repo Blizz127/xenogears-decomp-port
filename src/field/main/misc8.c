@@ -2208,7 +2208,9 @@ void func_80084158(s32 actorIndex, void* pFieldActor, void* pActorData) {
         u8* otherData;
         u32 otherFlags0;
         u32 otherFlags4;
-        s32 floorY;
+        s32 surfaceY;
+        s32 otherFeetY;
+        s32 playerFeetY = *(s16*)(actorData + 0x26);
 
         if (i == actorIndex) {
             continue;
@@ -2224,190 +2226,115 @@ void func_80084158(s32 actorIndex, void* pFieldActor, void* pActorData) {
         otherFlags4 = *(u32*)(otherData + 0x04);
         *(u32*)(otherData + 0x04) = otherFlags4 & 0xFFFF3EFF;
 
+        /* The footprint supplies a surface and a bottom. A model can have a
+         * different surface height under each point; an ordinary actor's
+         * footprint has its top at feet minus height. */
         if (otherFlags4 & 0x80) {
-            /* asm 800842B8-80084380: interaction-region actor. Test whether
-             * our predicted (x, z) lies inside the other actor's collision
-             * mesh (model header +0x4, via the FieldActor +0x0 pointer);
-             * regionY[0] receives the surface Y under us, contact[] the
-             * func_8007B07C contact data. Miss -> clear 0x400000|0x800000
-             * and skip the actor, exactly like the far case below. */
             s32 regionY[4];
             s32 contact[4];
-            u8* otherModel = (u8*)(uintptr_t)*(u32*)(otherActor + 0x0);
-            s32 regionTop;
+            u8* model = (u8*)(uintptr_t)*(u32*)(otherActor + 0x0);
 
-            if (func_80083288(i,
-                              (void*)(uintptr_t)*(u32*)(otherModel + 0x4),
-                              currentPos.vx, currentPos.vz,
-                              regionY, contact) != 0) {
-                *(u32*)(otherData + 0x04) &= 0xFF3FFFFF;
+            if (func_80083288(i, (void*)(uintptr_t)*(u32*)(model + 0x04),
+                              currentPos.vx, currentPos.vz, regionY, contact) != 0) {
+                *(u32*)(otherData + 0x04) &= ~0x00C00000u;
                 continue;
             }
 
-            /* Hit ("POLYCHECK"): asm 80084304-80084380 + tail joins. */
+            surfaceY = regionY[0];
+            otherFeetY = surfaceY + *(u16*)(otherData + 0x1A);
             if (g_FieldSystemMode == 0) {
                 func_800379C8(D_8006FC48, i);
             }
             *(u32*)(otherData + 0x04) |= 0x100;
-            regionTop = regionY[0] + *(u16*)(otherData + 0x1A);
-
             if (*(u8*)(actorData + 0x74) == i) {
-                /* Already interacting with this actor: latch the contact
-                 * data and mark it (asm 8008434C-80084380)... */
                 *(u32*)(actorData + 0x50) = (u32)contact[0];
                 *(u32*)(actorData + 0x54) = (u32)contact[1];
                 *(u32*)(actorData + 0x58) = (u32)contact[2];
                 *(u32*)(otherData + 0x04) |= 0x4000;
-                /* ...then asm .L800844B8 routes straight to the
-                 * select-target machinery unless flags0 has 0x40800 set. */
-                if ((actorFlags0 & 0x40800) == 0) {
-                    goto select_target;
-                }
             }
-
-            /* asm .L800844D8 dispatch: regionTop plays the raw-top role,
-             * regionY[0] the floor-height role. */
-            if (regionTop < targetYMin ||
-                *(s16*)(actorData + 0x26) < regionY[0]) {
-                /* .L80084660/.L8008465C track-height + .L800846A8 tail. */
-                u32 v = *(u32*)(otherData + 0x04) & ~0x100u;
-
-                if (*(s16*)(actorData + 0x26) < regionY[0]) {
-                    v |= 0x00800000;
-                    if (regionY[0] < selectedY) {
-                        selectedY = regionY[0];
-                    }
-                } else {
-                    v &= ~0x00800000u;
-                }
-                *(u32*)(otherData + 0x04) = v | 0x00400000;
-                continue;
-            }
-            if (*(s16*)(actorData + 0x26) < regionY[0] + 0x10) {
-                goto select_target;
-            }
-            if (*(u32*)(otherData + 0x04) & 0x00800000) {
-                goto select_target;
-            }
-
-            /* .L80084570 standing-on-top machinery: platforms without the
-             * 0x10 no-carry flag ramp a contact counter (+2/frame, cap
-             * 0x30); once it passes 0x20 the player's X/Z velocity bleeds
-             * into the platform (v/4, round toward zero -- retail's
-             * bgez/addiu/sra) and the player's velocity + carried-velocity
-             * latches are zeroed.  Below threshold (or 0x10 flagged) both
-             * sides' velocities and latches reset (asm .L80084628). */
-            if (!(otherFlags4 & 0x10)) {
-                u8 ramp = *(u8*)(otherData + 0xE3);
-
-                if (ramp < 0x30) {
-                    *(u8*)(otherData + 0xE3) = (u8)(ramp + 2);
-                }
-                if (*(u8*)(otherData + 0xE3) >= 0x21) {
-                    s32 v = *(s32*)(actorData + 0x30);
-
-                    if (v < 0) {
-                        v += 3;
-                    }
-                    *(s32*)(otherData + 0x40) += v >> 2;
-                    v = *(s32*)(actorData + 0x38);
-                    if (v < 0) {
-                        v += 3;
-                    }
-                    *(s32*)(otherData + 0x48) += v >> 2;
-                    /* Retail then re-derives v/4 from the just-zeroed
-                     * velocities -- provably zero, so plain zero stores. */
-                    *(s32*)(actorData + 0x30) = 0;
-                    *(s32*)(actorData + 0x34) = 0;
-                    *(s32*)(actorData + 0x38) = 0;
-                    *(s32*)(actorData + 0x40) = 0;
-                    *(s32*)(actorData + 0x44) = 0;
-                    *(s32*)(actorData + 0x48) = 0;
-                    continue;
-                }
-            }
-            *(s32*)(otherData + 0x40) = 0;
-            *(s32*)(otherData + 0x44) = 0;
-            *(s32*)(otherData + 0x48) = 0;
-            *(s32*)(otherData + 0x30) = 0;
-            *(s32*)(otherData + 0x34) = 0;
-            *(s32*)(otherData + 0x38) = 0;
-            *(s32*)(actorData + 0x30) = 0;
-            *(s32*)(actorData + 0x34) = 0;
-            *(s32*)(actorData + 0x38) = 0;
-            *(s32*)(actorData + 0x40) = 0;
-            *(s32*)(actorData + 0x44) = 0;
-            *(s32*)(actorData + 0x48) = 0;
-            continue;
-
-        select_target:
-            /* asm .L80084520: ride/select this region actor.  selectedY
-             * takes the surface Y unconditionally, the region is marked
-             * 0x800000, the platform's velocity (+0x30..0x38) is latched
-             * into the player's carried-velocity block (+0x40..0x48), and
-             * targetState arms (2).  Unless flags0 has 0x40800, the
-             * interact-actor commits and hasTarget latches. */
-            selectedY = regionY[0];
-            *(u32*)(otherData + 0x04) |= 0x00800000;
-            *(u32*)(actorData + 0x40) = *(u32*)(otherData + 0x30);
-            *(u32*)(actorData + 0x44) = *(u32*)(otherData + 0x34);
-            *(u32*)(actorData + 0x48) = *(u32*)(otherData + 0x38);
-            targetState = 2;
-            if ((actorFlags0 & 0x40800) == 0) {
-                *(u8*)(actorData + 0x74) = (u8)i;
-                hasTarget = 1;
-            }
-            continue;
-        }
-
-        if (otherFlags0 & 0x2000) {
-            if (func_8008237C(currentPos.vx, currentPos.vz, otherData, 0) != 0) {
-                *(u32*)(otherData + 0x04) &= 0xFF3FFFFF;
-                continue;
-            }
-            scratch[4] = 0;
-            scratch[5] = 1;
-            scratch[6] = 0;
         } else {
-            scratch[0] = ((*(s32*)(otherData + 0x20) + *(s32*)(otherData + 0x30)) >> 16) - currentPos.vx;
-            scratch[1] = *(u16*)(actorData + 0x1E) + *(u16*)(otherData + 0x1E);
-            scratch[2] = ((*(s32*)(otherData + 0x28) + *(s32*)(otherData + 0x38)) >> 16) - currentPos.vz;
-            Square0((VECTOR*)scratch, (VECTOR*)&scratch[4]);
-        }
-
-        if (scratch[4] + scratch[6] < scratch[5]) {
+            s32 inside;
+            if (otherFlags0 & 0x2000) {
+                inside = func_8008237C(currentPos.vx, currentPos.vz, otherData, 0) == 0;
+            } else {
+                scratch[0] = ((*(s32*)(otherData + 0x20) + *(s32*)(otherData + 0x30)) >> 16) - currentPos.vx;
+                scratch[1] = *(u16*)(actorData + 0x1E) + *(u16*)(otherData + 0x1E);
+                scratch[2] = ((*(s32*)(otherData + 0x28) + *(s32*)(otherData + 0x38)) >> 16) - currentPos.vz;
+                Square0((VECTOR*)scratch, (VECTOR*)&scratch[4]);
+                inside = scratch[4] + scratch[6] < scratch[5];
+            }
+            if (!inside) {
+                *(u32*)(otherData + 0x04) &= ~0x00C00000u;
+                continue;
+            }
             if (actorFlags14 & 0x00400000) {
                 if (g_FieldSystemMode == 0) {
                     func_800379C8(D_8006FC58);
                 }
                 continue;
             }
-
-            if ((otherFlags0 | actorFlags0) & 0x80) {
+            if (((otherFlags0 | actorFlags0) & 0x80) || D_800B21CC != 0) {
                 continue;
             }
-
-            if (D_800B21CC != 0) {
-                continue;
-            }
-
-            floorY = *(s16*)(otherData + 0x26) - *(u16*)(otherData + 0x1A);
-        } else {
-            floorY = 0x7FFFFFFF;
+            otherFeetY = *(s16*)(otherData + 0x26);
+            surfaceY = otherFeetY - *(u16*)(otherData + 0x1A);
         }
 
-        if (floorY < targetYMin) {
-            *(u32*)(otherData + 0x04) &= ~0x100;
-            if (*(s16*)(actorData + 0x26) < floorY) {
+        /* All footprints resolve in the same world-space height interval.
+         * Walkmesh IDs do not separate actors standing at the same height. */
+        *(u32*)(otherData + 0x04) |= 0x00400000;
+        if (*(u8*)(actorData + 0x74) == i && !(actorFlags0 & 0x40800)) {
+            goto stand_on_actor;
+        }
+        if (otherFeetY < targetYMin || playerFeetY < surfaceY) {
+            *(u32*)(otherData + 0x04) &= ~0x100u;
+            if (playerFeetY < surfaceY) {
                 *(u32*)(otherData + 0x04) |= 0x00800000;
-                if (floorY < selectedY) {
-                    selectedY = floorY;
+                if (surfaceY < selectedY) {
+                    selectedY = surfaceY;
                 }
             } else {
-                *(u32*)(otherData + 0x04) &= ~0x00800000;
+                *(u32*)(otherData + 0x04) &= ~0x00800000u;
             }
-        } else {
-            *(u32*)(otherData + 0x04) |= 0x00400000;
+            continue;
+        }
+        if (playerFeetY >= surfaceY + 16 && !(otherFlags4 & 0x00800000)) {
+            /* Side contact stops this step, including carried motion. A
+             * pushable actor accumulates pressure before receiving motion. */
+            s32 pushing = 0;
+            if (!(otherFlags0 & 0x10)) {
+                u8* pressure = otherData + 0xE3;
+                if (*pressure < 48) {
+                    *pressure += 2;
+                }
+                pushing = *pressure >= 33;
+            }
+            if (pushing) {
+                *(u32*)(otherData + 0x40) += (u32)(*(s32*)(actorData + 0x30) / 4);
+                *(u32*)(otherData + 0x48) += (u32)(*(s32*)(actorData + 0x38) / 4);
+            }
+            for (s32 axis = 0; axis < 3; ++axis) {
+                size_t offset = (size_t)axis * sizeof(s32);
+                if (!pushing) {
+                    *(s32*)(otherData + 0x30 + offset) = 0;
+                    *(s32*)(otherData + 0x40 + offset) = 0;
+                }
+                *(s32*)(actorData + 0x30 + offset) = 0;
+                *(s32*)(actorData + 0x40 + offset) = 0;
+            }
+            continue;
+        }
+
+    stand_on_actor:
+        selectedY = surfaceY;
+        *(u32*)(otherData + 0x04) |= 0x00800000;
+        *(u32*)(actorData + 0x40) = *(u32*)(otherData + 0x30);
+        *(u32*)(actorData + 0x44) = *(u32*)(otherData + 0x34);
+        *(u32*)(actorData + 0x48) = *(u32*)(otherData + 0x38);
+        targetState = 2;
+        if (!(actorFlags0 & 0x40800)) {
+            *(u8*)(actorData + 0x74) = (u8)i;
+            hasTarget = 1;
         }
     }
 

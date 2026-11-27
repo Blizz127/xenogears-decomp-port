@@ -26,8 +26,8 @@ void ParsePrimitivesLinkedList(u_long *packet, int single)
 { (void)packet; (void)single; abort(); }
 
 static BattleMipsRuntime candidate_runtime, oracle_runtime;
-static uint32_t allocation_plan[2];
-static struct Allocation { uint32_t size, flags, raw_size; } calls[2], expected_calls[2];
+static uint32_t allocation_plan[3];
+static struct Allocation { uint32_t size, flags, raw_size; } calls[3], expected_calls[3];
 static unsigned call_count, user_calls, printed;
 static unsigned free_calls;
 static uintptr_t freed_pointer;
@@ -41,7 +41,7 @@ void HeapChangeCurrentUser(uint32_t user, char **names)
 
 void *HeapAlloc(uint32_t size, uint32_t flags)
 {
-    assert(candidate_runtime.bridge_cpu && call_count < 2);
+    assert(candidate_runtime.bridge_cpu && call_count < 3);
     unsigned index = call_count++;
     calls[index] = (struct Allocation){size, flags, candidate_runtime.bridge_cpu->gpr[4]};
     return allocation_plan[index] ? PSX_ADDR(allocation_plan[index]) : NULL;
@@ -179,6 +179,61 @@ static int compare_roundtrip(uint32_t guest_pointer)
     return 0;
 }
 
+/* Compare only the entry prefix. Both paths use the ordinary typed bridges
+ * for allocation and clearing, with the same bounded heap fixture. */
+static int workspace_reference(void *opaque, PcPortMipsCpu *cpu, uint32_t pc)
+{
+    return pc == BATTLE_ENTRY ? 0 : runtime_bridge(opaque, cpu, pc);
+}
+
+static void compare_workspaces(void)
+{
+    const uint32_t resume = 0x80070fc8u;
+    uint8_t *initial = malloc(sizeof(g_PsxRam));
+    uint8_t *expected = malloc(sizeof(g_PsxRam));
+    PcPortMipsCpu reference;
+    assert(initial && expected);
+    allocation_plan[0] = 0x80110020u;
+    allocation_plan[1] = 0x80122040u;
+    allocation_plan[2] = 0x80124080u;
+    memset(PSX_ADDR(0x80110000u), 0xa5, 0x15000u);
+    memcpy(initial, g_PsxRam, sizeof(g_PsxRam));
+
+    for (unsigned native = 0; native < 2; ++native) {
+        PcPortMipsCpu cpu;
+        memcpy(g_PsxRam, initial, sizeof(g_PsxRam));
+        reset_calls();
+        initialize_battle_entry_cpu(&cpu, &candidate_runtime);
+        for (unsigned reg = 1; reg < 28; ++reg)
+            cpu.gpr[reg] = 0xdeaf0000u + reg;
+        if (!native) cpu.bus.bridge = workspace_reference;
+        assert(PcPortMipsRun(&cpu, BATTLE_ENTRY, resume, 64) == PC_PORT_MIPS_HALTED);
+        assert(call_count == 3 && user_calls == 3);
+        for (unsigned i = 0; i < call_count; ++i) {
+            const uint8_t *buffer = PSX_ADDR(allocation_plan[i]);
+            assert(calls[i].size == calls[i].raw_size && calls[i].flags == 0);
+            assert(buffer[-1] == 0xa5 && buffer[calls[i].size] == 0xa5);
+            for (unsigned n = 0; n < calls[i].size; ++n)
+                assert(buffer[n] == 0);
+        }
+        if (!native) {
+            assert(cpu.steps > 0);
+            reference = cpu;
+            memcpy(expected, g_PsxRam, sizeof(g_PsxRam));
+            memcpy(expected_calls, calls, sizeof(calls));
+        } else {
+            assert(cpu.steps == 0);
+            assert(memcmp(expected, g_PsxRam, sizeof(g_PsxRam)) == 0);
+            assert(memcmp(expected_calls, calls, sizeof(calls)) == 0);
+            assert(memcmp(reference.gpr, cpu.gpr, sizeof(cpu.gpr)) == 0);
+            assert(!cpu.load_valid && !reference.load_valid);
+            assert(cpu.next_pc == reference.next_pc);
+        }
+    }
+    free(expected);
+    free(initial);
+}
+
 int main(void)
 {
     assert((uintptr_t)g_PsxRam == 0x0060fe20u);
@@ -188,6 +243,9 @@ int main(void)
     assert(fread(PSX_ADDR(0x80070e48u), 1, 0x40, image) == 0x40);
     assert(!fseek(image, 0x8008abb8u - BATTLE_BASE, SEEK_SET));
     assert(fread(PSX_ADDR(0x8008abb8u), 1, 0x48, image) == 0x48);
+    size_t entry_bytes = 0x80070fc8u - BATTLE_ENTRY;
+    assert(!fseek(image, BATTLE_ENTRY - BATTLE_BASE, SEEK_SET));
+    assert(fread(PSX_ADDR(BATTLE_ENTRY), 1, entry_bytes, image) == entry_bytes);
     assert(!fclose(image));
     initialize_runtime(&candidate_runtime);
     if (!candidate_runtime.initialized || !find_function(&candidate_runtime, 0x80031bdcu) ||
@@ -228,8 +286,10 @@ int main(void)
                 "requires second allocation 58536 (E4A8), including complete guarded reservation records\n", failures, cases);
         return 1;
     }
+    compare_workspaces();
+    ++cases;
     printf("BATTLE HEAP POINTER PASS %u cases: real runtime initialization/dispatch, retail reservation fragment/helper, "
-           "allocation requests and guest pointer records, direct NULL/edge-address results, "
+           "entry workspace parity with zero decoded instructions, allocation requests and pointer records, direct NULL/edge-address results, "
            "HeapFree pointer roundtrip and unchanged scalar result; allocator boundaries controlled\n", cases);
     return 0;
 }

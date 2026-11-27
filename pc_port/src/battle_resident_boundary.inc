@@ -272,7 +272,7 @@ static int battle_model_draw_pc(uint32_t pc)
            (pc >= 0x80030ee8u && pc < 0x800315a0u);
 }
 
-static int battle_model_draw_bridge(void *opaque, PcPortMipsCpu *cpu, uint32_t target)
+static int battle_model_draw_bridge(void *opaque, PcPortMipsCpu *cpu __attribute__((unused)), uint32_t target)
 {
     BattleModelPacketRun *run = opaque;
     const uint32_t previous = run->previous_pc;

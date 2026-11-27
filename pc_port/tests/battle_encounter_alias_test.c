@@ -57,18 +57,71 @@ static void read_retail(FILE *image, uint32_t address, unsigned size)
     assert(fread(PSX_ADDR(address), 1, size, image) == size);
 }
 
-static int execute_retail_copy(BattleMipsRuntime *runtime, uint8_t selector)
+/* Compare the field-selected part of the cold entry up to the return from
+ * memmove. The reference executes the owner's overlay with the same real
+ * typed memmove as the production bridge. */
+static int check_formation_copy(BattleMipsRuntime *runtime, uint8_t selector)
 {
-    PcPortMipsCpu cpu;
-    D_80059508 = selector;
-    initialize_cpu(&cpu, runtime);
-    cpu.gpr[29] = 0x801ff000u;
-    /* Stop immediately after the retail memmove call returns. */
-    int status = PcPortMipsRun(&cpu, 0x80071130u, 0x80071158u, 64);
-    if (status != PC_PORT_MIPS_HALTED)
-        fprintf(stderr, "BATTLE ENCOUNTER ALIAS retail status=%d error=%s pc=%08x\n",
-                status, cpu.error, cpu.pc);
-    return status;
+    const uint32_t entry = 0x80070fc8u, resume = 0x80071158u;
+    const uint32_t sentinel = 0x801a0400u, active = 0x8006f9dcu;
+    static const struct { uint32_t address; unsigned size; } outputs[] = {
+        {0x8005959cu, 1}, {0x800c3e29u, 1}, {0x800c3e28u, 1},
+        {0x800d366cu, 1}, {0x800c3e54u, 4}
+    };
+    const size_t count = sizeof(outputs) / sizeof(outputs[0]);
+    uint32_t observed[sizeof(outputs) / sizeof(outputs[0])];
+    PcPortMipsCpu reference;
+    uint8_t record[32];
+    for (unsigned native = 0; native <= 1; ++native) {
+        PcPortMipsCpu cpu;
+        initialize_battle_entry_cpu(&cpu, runtime);
+        for (unsigned i = 1; i < 28; ++i)
+            cpu.gpr[i] = 0x12340000u + i; /* detect clobbered registers */
+        cpu.gpr[30] = 0x1234001eu;
+        cpu.gpr[19] = 1;
+        cpu.gpr[29] -= 48;
+        cpu.gpr[31] = entry;
+        cpu.hi = 0x9876u;
+        cpu.lo = 0x1357u;
+        D_80059508 = selector;
+        assert(runtime_write(runtime, 0x8005947cu, 1, 0) == 0);
+        assert(runtime_write(runtime, 0x800594f8u, 1, 0) == 0);
+        assert(runtime_write(runtime, 0x80062528u, 4, 0x54001234u) == 0);
+        assert(runtime_write(runtime, 0x8005917cu, 4, sentinel) == 0);
+        assert(runtime_write(runtime, sentinel, 4, UINT32_MAX) == 0);
+        for (size_t i = 0; i < count; ++i)
+            assert(runtime_write(runtime, outputs[i].address, outputs[i].size, 0x75757575u) == 0);
+        memset(PSX_ADDR(active - 1), 0xa5, sizeof(record) + 2);
+        runtime->force_interpret = !native;
+        int status = PcPortMipsRun(&cpu, entry, resume, 128);
+        runtime->force_interpret = 0;
+        if (status != PC_PORT_MIPS_HALTED || (cpu.steps == 0) != native ||
+            cpu.pc != resume || cpu.next_pc != resume + 4 || cpu.load_valid ||
+            *(uint8_t *)PSX_ADDR(active - 1) != 0xa5 ||
+            *(uint8_t *)PSX_ADDR(active + sizeof(record)) != 0xa5) {
+            fprintf(stderr, "BATTLE ENCOUNTER ALIAS copy selector=%u native=%u pc=%08x steps=%llu error=%s\n",
+                    selector, native, cpu.pc, (unsigned long long)cpu.steps, cpu.error);
+            return 0;
+        }
+        for (size_t i = 0; i < count; ++i) {
+            uint32_t value;
+            assert(runtime_read(runtime, outputs[i].address, outputs[i].size, &value) == 0);
+            if (!native)
+                observed[i] = value;
+            else if (value != observed[i])
+                return 0;
+        }
+        if (!native) {
+            reference = cpu;
+            memcpy(record, PSX_ADDR(active), sizeof(record));
+        } else if (memcmp(cpu.gpr, reference.gpr, sizeof(cpu.gpr)) ||
+                   cpu.hi != reference.hi || cpu.lo != reference.lo ||
+                   memcmp(cpu.cp0, reference.cp0, sizeof(cpu.cp0)) ||
+                   memcmp(record, PSX_ADDR(active), sizeof(record))) {
+            return 0;
+        }
+    }
+    return 1;
 }
 
 static int call_native_consumer(BattleMipsRuntime *runtime)
@@ -92,9 +145,8 @@ static unsigned check_selector(BattleMipsRuntime *runtime, uint8_t selector)
         expected[i] = (uint8_t)(selector * 29u + i * 7u + 3u);
         D_800658DC[(unsigned)selector * 0x20u + i] = expected[i];
     }
-    memset(PSX_ADDR(0x8006f9dcu), 0xa5, sizeof(expected));
-    if (execute_retail_copy(runtime, selector) != PC_PORT_MIPS_HALTED) {
-        fprintf(stderr, "BATTLE ENCOUNTER ALIAS FAIL selector=%u retail copy did not halt\n",
+    if (!check_formation_copy(runtime, selector)) {
+        fprintf(stderr, "BATTLE ENCOUNTER ALIAS FAIL selector=%u formation state differs\n",
                 selector);
         return 1;
     }
@@ -137,7 +189,7 @@ int main(int argc, char **argv)
     assert(argc == 2);
     FILE *image = fopen("disc/battle.bin", "rb");
     assert(image != NULL);
-    read_retail(image, 0x80071130u, 0x30u);
+    read_retail(image, 0x80070fc8u, 0x80071158u - 0x80070fc8u);
     assert(fclose(image) == 0);
 
     BattleMipsRuntime runtime = {0};
@@ -151,8 +203,8 @@ int main(int argc, char **argv)
 
     unsigned failures = 0;
     /* D_800658DC contains sixteen retail-sized records.  Boundaries plus the
-     * observed Map 2 selector exercise representative legal indices. */
-    static const uint8_t selectors[] = {0, 1, 7, 15};
+     * observed Map 2 selector and Mountain Path slot and its neighbors are covered. */
+    static const uint8_t selectors[] = {0, 1, 5, 6, 7, 15};
     for (unsigned i = 0; i < sizeof(selectors); ++i)
         failures += check_selector(&runtime, selectors[i]);
 
@@ -163,18 +215,37 @@ int main(int argc, char **argv)
     assert(fgetc(record) == EOF);
     assert(fclose(record) == 0);
     assert(D_800658DC[0x22u] == 0x12u);
-    if (execute_retail_copy(&runtime, 1) != PC_PORT_MIPS_HALTED ||
+    if (!check_formation_copy(&runtime, 1) ||
         !call_native_consumer(&runtime) || observed_index != 0x12u) {
         fprintf(stderr, "BATTLE ENCOUNTER ALIAS FAIL map2 selector=1 native-index=%02x expected=12\n",
                 observed_index);
         failures++;
     }
 
+    /* The table can also live entirely in guest RAM. Remove only its test
+     * binding and place the owner's selected record in that domain. A stray
+     * direct read of the native symbol then sees deliberately different data. */
+    ResolvedData *table = find_data(&runtime, 0x800658dcu, sizeof(D_800658DC));
+    assert(table != NULL && table->host == D_800658DC);
+    uint32_t table_size = table->size;
+    table->size = 0;
+    uint8_t *guest_row = PSX_ADDR(0x800658dcu + 0x20u);
+    assert(module_memory_pointer(&runtime, 0x800658dcu + 0x20u, 32, 0) == guest_row);
+    memcpy(guest_row, D_800658DC + 0x20u, 32);
+    memset(D_800658DC + 0x20u, 0xe7, 32);
+    if (!check_formation_copy(&runtime, 1) ||
+        memcmp(PSX_ADDR(0x8006f9dcu), guest_row, 32) ||
+        !call_native_consumer(&runtime) || observed_index != guest_row[2]) {
+        fputs("BATTLE ENCOUNTER ALIAS FAIL guest-backed Map 2 record\n", stderr);
+        failures++;
+    }
+    table->size = table_size;
+
     if (failures) {
         fprintf(stderr, "BATTLE ENCOUNTER ALIAS RED failures=%u: guest record writes and native +2 read are not coherent\n",
                 failures);
         return 1;
     }
-    puts("BATTLE ENCOUNTER ALIAS PASS retail 32-byte copies and native +2 reads are coherent through KSEG0/KSEG1 aliases");
+    puts("BATTLE ENCOUNTER ALIAS PASS owner and native formation states agree; 32-byte copies and native +2 reads are coherent through KSEG0/KSEG1 aliases");
     return 0;
 }
