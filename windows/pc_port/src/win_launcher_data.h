@@ -14,7 +14,7 @@ static inline int PcPort_WinRegularFileIn(const char* dir, const char* name,
            _stat64(out, &st) == 0 && (st.st_mode & _S_IFMT) == _S_IFREG;
 }
 
-/* Banshee supplies a prepared directory, either flat or containing disc/.
+/* A prepared directory can be flat or contain disc/.
  * As in xenogears.sh, SLUS selects one layout for all extracted files. */
 static inline int PcPort_WinPreparedDataDir(const char* root, char* out, size_t capacity)
 {
