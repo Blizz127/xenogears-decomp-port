@@ -62,8 +62,8 @@ void SetPolyG4(POLY_G4* p) { hx_native(F_POLYG4, 1, hx_addr(p)); }
 void SetPolyFT4(POLY_FT4* p) { hx_native(F_POLYFT4, 1, hx_addr(p)); }
 void SetSemiTrans(void* p, int abe) { hx_native(F_SEMI, 2, hx_addr(p), (uint32_t)abe); }
 void SetShadeTex(void* p, int tge) { hx_native(F_SHADE, 2, hx_addr(p), (uint32_t)tge); }
-u_short GetTPage(int tp, int abr, int x, int y) {
-    return (u_short)hx_native(F_TPAGE, 4, (uint32_t)tp, (uint32_t)abr, (uint32_t)x, (uint32_t)y);
+u_short GetTPage(int depth, int blend, int vram_x, int vram_y) {
+    return (u_short)hx_native(F_TPAGE, 4, (uint32_t)depth, (uint32_t)blend, (uint32_t)vram_x, (uint32_t)vram_y);
 }
 u_short GetClut(int x, int y) { return (u_short)hx_native(F_CLUT, 2, (uint32_t)x, (uint32_t)y); }
 void SetDrawMode(DR_MODE* p, int dfe, int dtd, int tpage, RECT16* tw) {

@@ -90,4 +90,10 @@ typedef char xeno_model_assert_model_part[(sizeof(ModelPart) == 0x38) ? 1 : -1];
 typedef char xeno_model_assert_model_file_header[(sizeof(ModelFileHeader) == 0x10) ? 1 : -1];
 #endif
 
+#ifdef XENO_PC_PORT
+/* Compute the resident 8002DB84 normal and expose the scaled cross-product Y
+ * immediately preceding VectorNormalS. The original caller's stack can reuse it. */
+s32 PcPort_TriangleNormalScaledY(SVECTOR *a, SVECTOR *b, SVECTOR *c, SVECTOR *normal);
+#endif
+
 #endif

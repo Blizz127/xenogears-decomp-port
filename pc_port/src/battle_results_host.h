@@ -75,8 +75,43 @@ extern BattleResultsExitRegs g_BattleResultsExit;
 typedef struct BattleResultsEntryRegs {
     uint32_t sp;
     uint32_t gpr[32];
+    uint32_t hi;
+    uint32_t lo;
+    /* A scoped caller can observe the working register file on an accessor
+     * fault. Valid only while the adopted body is on the host stack. */
+    struct BattleResultsRegs **fault_regs;
 } BattleResultsEntryRegs;
 extern BattleResultsEntryRegs g_BattleResultsEntry;
+
+/* A working guest register file for an adopted body that makes `jal`s of its
+ * own (the results entry routine 0x801E252C and the routines below it that
+ * call main-executable services or other module code).  The body keeps its
+ * retail register flow in `r` (including the leftovers a callee leaves in
+ * caller-saved registers, which retail code may read before setting them),
+ * applies each delay-slot instruction BEFORE calling, then BattleResults_Jal()
+ * performs the call. */
+typedef struct BattleResultsRegs {
+    uint32_t r[32];
+    uint32_t hi;
+    uint32_t lo;
+} BattleResultsRegs;
+
+/* `jal target` at guest address `site` (so ra = site + 8) made exactly as the
+ * interpreter makes it: on a copy of the dispatching CPU with `regs` as its
+ * register file and r[29] as its $sp (the body's retail frame is live), through
+ * the production bridge -- native services, adopted results bodies and the
+ * archive hooks bind as they do for an interpreted jal; anything the bridge
+ * leaves to retail code runs in the interpreter when it is enabled and is
+ * refused when it is disabled.  On return `regs` holds the callee's register
+ * file (r[31] = site + 8) and HI/LO.  A callee that stops, faults or leaves a
+ * delayed load pending unwinds the adopted call (fail closed), like an
+ * unmapped accessor access.  Only valid inside an adopted body. */
+void BattleResults_Jal(BattleResultsRegs *regs, uint32_t target, uint32_t site);
+
+/* Stop the adopted call (fail closed), like an unmapped accessor access:
+ * for an impossible state a lifted body detects (a jump-table word that is no
+ * table target).  Never returns. */
+void BattleResults_Stop(const char *reason, uint32_t address) __attribute__((noreturn));
 
 static inline uint32_t BattleResults_EntrySp(void)
 {

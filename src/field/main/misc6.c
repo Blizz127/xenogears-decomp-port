@@ -10,6 +10,13 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
+
+void func_8009E574(s32 x, s32 z);
+void func_8009E810(s16 arg0);
+void func_8009F5F4(void);
+void func_8009FD10(int partyMemberIndex);
+void func_800A0C94(void);
+void func_800A0D3C(void);
 #else
 /* <assert.h> is unavailable under the matching build's -nostdinc MIPS
  * preprocessor. The assert(...) calls below mark invariant checks in

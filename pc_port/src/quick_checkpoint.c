@@ -9,6 +9,10 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <time.h>
+#ifdef _WIN32
+#include <direct.h>
+#include "win32_clock.h"
+#endif
 
 #include "common.h"
 #include "field/actor.h"
@@ -43,7 +47,7 @@ static int s_fieldActive;
 static int s_sceneAtPrevPoll;
 static PcPortQuickRequestState s_request;
 static char s_notice[64];
-static struct timespec s_noticeAt;
+static uint64_t s_noticeAt;
 static int s_loadReady;
 static int s_restoreReady;
 static PcPortQuickCheckpoint s_loaded;
@@ -103,10 +107,30 @@ static int scene_lock_held(void)
     return D_800B21D0 != 0 || (actor && (*(u32*)actor & 0x1800u) != 0);
 }
 
+static uint64_t notice_milliseconds(void)
+{
+#ifdef _WIN32
+    return PcPort_Win32MonotonicUsec() / 1000;
+#else
+    struct timespec now;
+    clock_gettime(CLOCK_MONOTONIC, &now);
+    return (uint64_t)now.tv_sec * 1000 + (uint64_t)now.tv_nsec / 1000000;
+#endif
+}
+
+static int create_default_checkpoint_directory(void)
+{
+#ifdef _WIN32
+    return _mkdir("quicksaves");
+#else
+    return mkdir("quicksaves", 0755);
+#endif
+}
+
 void PcPort_QuickCheckpointNoticeSet(const char* text)
 {
     snprintf(s_notice, sizeof s_notice, "%s", text);
-    clock_gettime(CLOCK_MONOTONIC, &s_noticeAt);
+    s_noticeAt = notice_milliseconds();
     fprintf(stderr, "[xeno-port][quick] notice: %s\n", text);
 }
 
@@ -114,14 +138,7 @@ void PcPort_QuickCheckpointNoticeSet(const char* text)
  * psycross_port_dev_menu.inl): the last message, for three seconds. */
 const char* PcPort_QuickCheckpointNotice(void)
 {
-    struct timespec now;
-    long ms;
-    if (!s_notice[0])
-        return NULL;
-    clock_gettime(CLOCK_MONOTONIC, &now);
-    ms = (long)(now.tv_sec - s_noticeAt.tv_sec) * 1000 +
-         (now.tv_nsec - s_noticeAt.tv_nsec) / 1000000;
-    return ms < 3000 ? s_notice : NULL;
+    return s_notice[0] && notice_milliseconds() - s_noticeAt < 3000 ? s_notice : NULL;
 }
 
 void PcPort_QuickCheckpointRequestSave(void)
@@ -358,7 +375,7 @@ int PcPort_QuickCheckpointPoll(void)
     if (request == PC_PORT_QUICK_REQUEST_SAVE) {
         const char* override = getenv("XENO_QUICKSAVE_PATH");
         if ((!override || !override[0]) &&
-            mkdir("quicksaves", 0755) != 0 && errno != EEXIST) {
+            create_default_checkpoint_directory() != 0 && errno != EEXIST) {
             fprintf(stderr,
                     "[xeno-port][quick] save failed: cannot create quicksaves (%s)\n",
                     strerror(errno));
@@ -413,6 +430,11 @@ int PcPort_QuickCheckpointPoll(void)
             checkpoint.position[1] >> 16,
             checkpoint.position[2] >> 16);
     return 1;
+}
+
+int PcPort_QuickCheckpointLoadStaged(void)
+{
+    return s_loadReady;
 }
 
 void PcPort_QuickCheckpointCommitLoad(void)

@@ -6,19 +6,27 @@
 #include <unistd.h>
 #include <errno.h>
 #include <sys/stat.h>
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include <direct.h>
+#include "../win_exe_dir.h"
+#endif
 
 #include "../../include/xg_plat/config.h"
 #include "../../include/xg_plat/audio.h"
 #include "../../include/xg_plat/input.h"
 #include "../../include/xg_plat/timing.h"
+#include "../../include_shim/host_only_bss.h"
 
 #define CFG_MAX 128
 
 typedef struct { char key[64]; char value[192]; } CfgEntry;
 
-static CfgEntry s_entries[CFG_MAX];
+/* These key/value strings are read by host settings and filesystem code. */
+static CfgEntry s_entries[CFG_MAX] HOST_ONLY_BSS;
 static int s_count;
-static CfgEntry s_cli[CFG_MAX];   /* --set overrides */
+static CfgEntry s_cli[CFG_MAX] HOST_ONLY_BSS;   /* --set overrides */
 static int s_cli_count;
 static char s_cli_file[1024];     /* --config */
 static int s_loaded;
@@ -113,9 +121,12 @@ int xg_plat_config_parse(const char* text)
 
 static int exe_dir(char* out, size_t n)
 {
+#ifdef _WIN32
+    return PcPort_WinExeDir(out, n);
+#else
     ssize_t len = readlink("/proc/self/exe", out, n - 1);
     char* slash;
-    if (len <= 0)
+    if (len <= 0 || (size_t)len >= n - 1)
         return 0;
     out[len] = '\0';
     slash = strrchr(out, '/');
@@ -123,6 +134,7 @@ static int exe_dir(char* out, size_t n)
         return 0;
     *slash = '\0';
     return 1;
+#endif
 }
 
 int xg_plat_config_cli(int argc, char** argv)
@@ -168,11 +180,31 @@ int xg_plat_config_cli(int argc, char** argv)
     return 0;
 }
 
+static int user_config_path(char* out, size_t n)
+{
+    const char* xdg = getenv("XDG_CONFIG_HOME");
+    int length;
+    if (xdg && *xdg) {
+        length = snprintf(out, n, "%s/xenogears-port/config.ini", xdg);
+    } else {
+#ifdef _WIN32
+        const char* appdata = getenv("APPDATA");
+        if (!appdata || !*appdata)
+            return 0;
+        length = snprintf(out, n, "%s/xenogears-port/config.ini", appdata);
+#else
+        const char* home = getenv("HOME");
+        if (!home || !*home)
+            return 0;
+        length = snprintf(out, n, "%s/.config/xenogears-port/config.ini", home);
+#endif
+    }
+    return length >= 0 && (size_t)length < n;
+}
+
 int xg_plat_config_load(void)
 {
     const char* env = getenv("XENO_CONFIG");
-    const char* xdg = getenv("XDG_CONFIG_HOME");
-    const char* home = getenv("HOME");
     char cand[4][1024];
     char dir[900];
     int ncand = 0, i, n;
@@ -188,10 +220,8 @@ int xg_plat_config_load(void)
     else {
         if (exe_dir(dir, sizeof dir))
             snprintf(cand[ncand++], sizeof cand[0], "%s/config.ini", dir);
-        if (xdg && *xdg)
-            snprintf(cand[ncand++], sizeof cand[0], "%.900s/xenogears-port/config.ini", xdg);
-        else if (home && *home)
-            snprintf(cand[ncand++], sizeof cand[0], "%.900s/.config/xenogears-port/config.ini", home);
+        if (user_config_path(cand[ncand], sizeof cand[0]))
+            ncand++;
     }
     for (i = 0; i < ncand && f == NULL; i++) {
         f = fopen(cand[i], "rb");
@@ -233,21 +263,7 @@ const char* xg_plat_config_path(void)
 /* ---- persisting one key (player preferences changed in a menu) ---------- */
 
 /* Path persist writes: the file that was loaded (--config, $XENO_CONFIG, or
- * whichever default was found), else ${XDG_CONFIG_HOME:-~/.config}/
- * xenogears-port/config.ini.  Returns 0 when there is no usable location. */
-static int xdg_config_path(char* out, size_t n)
-{
-    const char* xdg = getenv("XDG_CONFIG_HOME");
-    const char* home = getenv("HOME");
-    if (xdg && *xdg)
-        snprintf(out, n, "%.900s/xenogears-port/config.ini", xdg);
-    else if (home && *home)
-        snprintf(out, n, "%.900s/.config/xenogears-port/config.ini", home);
-    else
-        return 0;
-    return 1;
-}
-
+ * whichever default was found), else the per-user config location. */
 const char* xg_plat_config_user_path(char* out, size_t n)
 {
     const char* env = getenv("XENO_CONFIG");
@@ -257,7 +273,7 @@ const char* xg_plat_config_user_path(char* out, size_t n)
         snprintf(out, n, "%s", env);
     else if (s_path[0])
         snprintf(out, n, "%s", s_path);
-    else if (!xdg_config_path(out, n))
+    else if (!user_config_path(out, n))
         return NULL;
     return out;
 }
@@ -268,10 +284,17 @@ static void make_parent_dirs(const char* path)
     char* p;
     snprintf(dir, sizeof dir, "%s", path);
     for (p = dir + 1; *p; p++) {
-        if (*p == '/') {
+        char sep = *p;
+#ifdef _WIN32
+        if (sep == '/' || sep == '\\') {
             *p = '\0';
-            mkdir(dir, 0777);
-            *p = '/';
+            (void)_mkdir(dir);
+#else
+        if (sep == '/') {
+            *p = '\0';
+            (void)mkdir(dir, 0777);
+#endif
+            *p = sep;
         }
     }
 }
@@ -383,6 +406,15 @@ static char* rewrite_key(const char* text, const char* section, const char* name
     return out;
 }
 
+static int replace_config(const char* temp, const char* path)
+{
+#ifdef _WIN32
+    return MoveFileExA(temp, path, MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH) != 0;
+#else
+    return rename(temp, path) == 0;
+#endif
+}
+
 int xg_plat_config_persist(const char* key, const char* value)
 {
     char path[1024], tmp[1100], section[64];
@@ -400,7 +432,7 @@ int xg_plat_config_persist(const char* key, const char* value)
         if (pass == 0) {
             if (xg_plat_config_user_path(path, sizeof path) == NULL)
                 continue;
-        } else if (!xdg_config_path(path, sizeof path)) {
+        } else if (!user_config_path(path, sizeof path)) {
             break;
         }
         free(text);
@@ -426,8 +458,15 @@ int xg_plat_config_persist(const char* key, const char* value)
         make_parent_dirs(path);
         snprintf(tmp, sizeof tmp, "%s.tmp", path);
         f = fopen(tmp, "wb");
-        if (f && fwrite(out, 1, strlen(out), f) == strlen(out) && fclose(f) == 0 &&
-            rename(tmp, path) == 0) {
+        int created = f != NULL;
+        int written = 0;
+        if (created) {
+            size_t length = strlen(out);
+            written = fwrite(out, 1, length, f) == length;
+            if (fclose(f) != 0)
+                written = 0;
+        }
+        if (written && replace_config(tmp, path)) {
             free(out);
             free(text);
             {
@@ -441,7 +480,7 @@ int xg_plat_config_persist(const char* key, const char* value)
             printf("[xg_plat] config: saved %s = %s to %s\n", key, value, path);
             return 1;
         }
-        if (f && tmp[0])
+        if (created)
             remove(tmp);
         free(out);
         fprintf(stderr, "[xg_plat] config: cannot write %s: %s\n", path, strerror(errno));

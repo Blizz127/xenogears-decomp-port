@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Fetch the build pieces this repository does not redistribute.
 #
-# This repository leaves out the Sony Psy-Q SDK (headers and the decompiled
-# SDK libraries), the GCC 2.x PSX compiler binaries and other prebuilt
-# binaries.  The upstream decompilation (ladysilverberg/xenogears-decomp)
+# The matching build uses the project-authored headers in include/psyq.
+# This repository leaves out the decompiled SDK libraries, GCC 2.x PSX
+# compiler binaries and other prebuilt binaries.  The upstream decompilation (ladysilverberg/xenogears-decomp)
 # hosts them publicly, and decompals/old-gcc publishes the one compiler
 # upstream does not have.  This script downloads them into YOUR working tree
 # at build time.  Nothing it fetches is committed (see .gitignore).
@@ -12,9 +12,6 @@
 #   tools/gcc-2.6.0-psx/, tools/gcc-2.7.2-psx/, tools/gcc-2.7.2-cdk-psx/
 #                                 from upstream (pinned commit, sha256-checked)
 #   tools/gcc-2.6.3-psx/          from decompals/old-gcc release 0.12
-#   include/psyq/                 from upstream, plus this project's port-only
-#                                 blocks (tools/scripts/adjust_upstream_psyq_headers.py,
-#                                 sha256-checked: byte-identical to ours)
 #   src/slus_006.64/psyq/         from upstream.  Upstream's copy is older than
 #                                 this project's (not published), but the matching
 #                                 build of SLUS_006.64 still matches retail with it
@@ -126,25 +123,20 @@ while read -r f want; do
 done <<< "$COMPILER_SUMS"
 [ "$bad" = 0 ] && say "compilers: sha256 verified"
 
-# ---- 3. Psy-Q headers (+ this project's port blocks) -----------------------
-copy_dir include/psyq include/psyq
-python3 tools/scripts/adjust_upstream_psyq_headers.py include/psyq \
-    || warn "include/psyq: port adjustments not applied; the port build may fail"
-
-# ---- 4. decompiled Psy-Q library sources -----------------------------------
+# ---- 3. decompiled Psy-Q library sources -----------------------------------
 if [ "$PSYQ_SRC" = 1 ]; then
     copy_dir src/slus_006.64/psyq src/slus_006.64/psyq
     say "src/slus_006.64/psyq: upstream @ ${UPSTREAM_REV:0:12} (older than this project's copy;
     SLUS_006.64 still builds byte-identical with it; the port build does not use it)"
 fi
 
-# ---- 5. objdiff (optional, `make report`) ----------------------------------
+# ---- 4. objdiff (optional, `make report`) ----------------------------------
 if [ ! -x tools/objdiff/objdiff ] || [ "$FORCE" = 1 ]; then
     cp "$UP/tools/objdiff/objdiff" tools/objdiff/objdiff && chmod +x tools/objdiff/objdiff
     say "tools/objdiff/objdiff: fetched from upstream"
 fi
 
-# ---- 6. gears (the build driver) -------------------------------------------
+# ---- 5. gears (the build driver) -------------------------------------------
 if [ ! -x tools/gears/prebuilt/gears ] || [ "$FORCE" = 1 ]; then
     mkdir -p tools/gears/prebuilt
     if [ "$GEARS_BUILD" = 1 ] && command -v cargo >/dev/null 2>&1; then
@@ -161,7 +153,7 @@ else
     say "tools/gears/prebuilt/gears: present, kept"
 fi
 
-# ---- 7. maspsx submodule ---------------------------------------------------
+# ---- 6. maspsx submodule ---------------------------------------------------
 if [ ! -f tools/maspsx/maspsx.py ]; then
     if [ "$(git -C "$ROOT" ls-files -s tools/maspsx 2>/dev/null | cut -c1-6)" = 160000 ]; then
         say "tools/maspsx: git submodule update --init"
@@ -175,7 +167,7 @@ else
     say "tools/maspsx: present"
 fi
 
-# ---- 8. what is still missing ----------------------------------------------
+# ---- 7. what is still missing ----------------------------------------------
 # Game source files this repository cannot publish yet (they still contain
 # retail bytes or retail data tables) and that no public source provides.
 NOT_PUBLISHED="

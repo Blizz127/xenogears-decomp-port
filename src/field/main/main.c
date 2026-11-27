@@ -1,4 +1,7 @@
 #include "common.h"
+#ifdef XENO_PC_PORT
+extern void PcPort_QuickCheckpointNoticeSet(const char *text);
+#endif
 #include "psyq/libgpu.h"
 #include "psyq/libetc.h"
 #include "system/memory.h"
@@ -701,8 +704,15 @@ void FieldMain(void) {
         }
         if (D_800ADB64 != 0xFF && g_FieldCurRenderContextIndex == 0
             && (FIELD_ACTOR_FLAGS(g_PlayerActorIndex) & 0x1800) == 0) {
-            func_8007FFE8();
-            func_800799D4();
+#ifdef XENO_PC_PORT
+            if (D_800ADB64 == 0x80) {
+                PcPort_QuickCheckpointNoticeSet("FIELD MENU UNAVAILABLE");
+            } else
+#endif
+            {
+                func_8007FFE8();
+                func_800799D4();
+            }
             D_800ADB64 = 0xFF;
         }
         if ((D_800C3900 & 0x10) && !D_800B21D0 && D_800ADB64 == 0xFF && D_800ADB68 == 1) {

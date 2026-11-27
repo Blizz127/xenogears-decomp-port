@@ -8,6 +8,9 @@
 #include "psyq/libcd.h"
 #ifdef XENO_PC_PORT
 #include "../../../pc_port/src/psx_memory.h"
+
+void func_8001B53C(int index);
+void func_8001B844(void);
 #endif
 
 #ifdef XENO_PC_PORT

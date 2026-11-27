@@ -117,8 +117,8 @@ int DrawSync(int mode) {
     return 0;
 }
 
-u_short GetTPage(int tp, int abr, int x, int y) {
-    event(EV_TPAGE, tp, abr, x, y);
+u_short GetTPage(int depth, int blend, int vram_x, int vram_y) {
+    event(EV_TPAGE, depth, blend, vram_x, vram_y);
     return 0x1234;
 }
 

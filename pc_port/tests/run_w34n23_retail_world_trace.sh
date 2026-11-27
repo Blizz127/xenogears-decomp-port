@@ -2,10 +2,10 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-APP="${XENO_PCSX_REDUX:-/home/blizz/apps/pcsx-redux/build293-3e10093a/PCSX-Redux-build293-3e10093a.AppImage}"
+APP="${XENO_PCSX_REDUX:?Set XENO_PCSX_REDUX to the PCSX-Redux AppImage for this trace}"
 DISC="${XENO_RETAIL_DISC:-$ROOT/disc/disc1.bin}"
 BIOS="${XENO_RETAIL_BIOS:-$ROOT/disc/scph5500.bin}"
-STATE="${XENO_RETAIL_WORLD_STATE:-$ROOT/scratchpad/retail_world_session_3e10093a.state}"
+STATE="${XENO_RETAIL_WORLD_STATE:?Set XENO_RETAIL_WORLD_STATE to the PCSX-Redux world-map checkpoint for this trace}"
 CONFIG="${XENO_PCSX_CONFIG:-${XDG_CONFIG_HOME:-$HOME/.config}/pcsx-redux/pcsx.json}"
 PROFILE="${XENO_RETAIL_TRACE_PROFILE:-frames}"
 case "$PROFILE" in
@@ -41,7 +41,7 @@ WATCHDOG="${XENO_RETAIL_TRACE_TIMEOUT:-120}"
 APP_SHA=b27a564e6c32333453433c950ac26e652f40af32d5e236441f36e8123c9c651b
 DISC_SHA=39c547a9afc6da15d847ef81a2c6cea1a6516bdfa562cf13b0999b04e8598bda
 BIOS_SHA=11052b6499e466bbf0a709b1f9cb6834a9418e66680387912451e971cf8a1fef
-STATE_SHA=6ad6c512a85b78bdde866240ababa43a8534ad218d546a979cbe3f37e9925781
+STATE_SHA="${XENO_RETAIL_WORLD_STATE_SHA256:?Set XENO_RETAIL_WORLD_STATE_SHA256 to the expected SHA-256 for that checkpoint}"
 
 require_sha() {
     local label="$1"
@@ -76,7 +76,7 @@ command -v setsid >/dev/null
 require_sha app "$APP" "$APP_SHA"
 require_sha disc "$DISC" "$DISC_SHA"
 require_sha bios "$BIOS" "$BIOS_SHA"
-require_sha state "$STATE" "$STATE_SHA"
+require_sha state "$STATE" "${STATE_SHA,,}"
 if [[ ! -f "$CONFIG" ]]; then
     printf 'W34N23 MISSING pcsx_config=%s\n' "$CONFIG" >&2
     exit 2

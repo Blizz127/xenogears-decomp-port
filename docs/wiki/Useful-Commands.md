@@ -6,7 +6,7 @@ Copy-paste commands from documented handoff and `pc_port/` notes only.
 
 ```bash
 # PC port (primary workflow)
-distrobox enter xenogears-dev -- bash -lc 'cd /home/blizz/Projects/xenogears-decomp && ./pc_port/build_port.sh'
+distrobox enter xenogears-dev -- bash -lc 'cd $HOME/Projects/xenogears-decomp-port && ./pc_port/build_port.sh'
 
 # Matching decomp (separate toolchain container)
 make -B build
@@ -16,17 +16,17 @@ make -B build
 
 ```bash
 # Map0 kernel0 field route (45s)
-distrobox enter xenogears-dev -- bash -lc 'cd /home/blizz/Projects/xenogears-decomp && \
+distrobox enter xenogears-dev -- bash -lc 'cd $HOME/Projects/xenogears-decomp-port && \
   XENO_FIELD_TEST=1 XENO_KERNEL_SEL=0 timeout -s KILL 45 ./pc_port/build_native/xeno-port'
 
 # Map1 visible control milestone (real keyboard)
-distrobox enter xenogears-dev -- bash -lc 'cd /home/blizz/Projects/xenogears-decomp && \
+distrobox enter xenogears-dev -- bash -lc 'cd $HOME/Projects/xenogears-decomp-port && \
   SDL_VIDEODRIVER=x11 XENO_FIELD_TEST=1 XENO_KERNEL_SEL=0 \
   XENO_FIELD_MAP=1 XENO_FIELD_ENTRANCE=0 XENO_FIELD_0BB_VRAM_UPLOAD=1 \
   ./pc_port/build_native/xeno-port'
 
 # Map1 entrance 9 (July 8 exit-route probes — historical)
-distrobox enter xenogears-dev -- bash -lc 'cd /home/blizz/Projects/xenogears-decomp && \
+distrobox enter xenogears-dev -- bash -lc 'cd $HOME/Projects/xenogears-decomp-port && \
   SDL_VIDEODRIVER=x11 XENO_FIELD_TEST=1 XENO_KERNEL_SEL=0 \
   XENO_FIELD_MAP=1 XENO_FIELD_ENTRANCE=9 XENO_FIELD_0BB_VRAM_UPLOAD=1 \
   timeout -s KILL 90 ./pc_port/build_native/xeno-port'
@@ -38,22 +38,22 @@ See [Debugging and Tracing](Debugging-and-Tracing) for the probe internals.
 
 ```bash
 # Zone-5 reload probe run (entrance 8, gdb-injected +Z d-pad → A50 CHANGE_FIELD)
-distrobox enter xenogears-dev -- bash -lc 'cd /home/blizz/Projects/xenogears-decomp && SDL_VIDEODRIVER=x11 DISPLAY=:0 XENO_FIELD_TEST=1 XENO_KERNEL_SEL=0 XENO_FIELD_MAP=1 XENO_FIELD_ENTRANCE=8 timeout -s KILL 240 gdb -batch -x captures/render_diag/map1_opcode_e0_reload_20260709.gdb ./pc_port/build_native/xeno-port'
+distrobox enter xenogears-dev -- bash -lc 'cd $HOME/Projects/xenogears-decomp-port && SDL_VIDEODRIVER=x11 DISPLAY=:0 XENO_FIELD_TEST=1 XENO_KERNEL_SEL=0 XENO_FIELD_MAP=1 XENO_FIELD_ENTRANCE=8 timeout -s KILL 240 gdb -batch -x captures/render_diag/map1_opcode_e0_reload_20260709.gdb ./pc_port/build_native/xeno-port'
 ```
 
 ```bash
 # Smoke triple (ent8 / ent0 / Map0 — 30s plain runs, expect baseline stub family only)
-distrobox enter xenogears-dev -- bash -lc 'cd /home/blizz/Projects/xenogears-decomp && \
+distrobox enter xenogears-dev -- bash -lc 'cd $HOME/Projects/xenogears-decomp-port && \
   XENO_FIELD_TEST=1 XENO_KERNEL_SEL=0 XENO_FIELD_MAP=1 XENO_FIELD_ENTRANCE=8 \
   timeout -s KILL 30 ./pc_port/build_native/xeno-port 2>&1 | \
   grep -E "\[stub\]|\[port\]|assert|SIG|Abort"'
 
-distrobox enter xenogears-dev -- bash -lc 'cd /home/blizz/Projects/xenogears-decomp && \
+distrobox enter xenogears-dev -- bash -lc 'cd $HOME/Projects/xenogears-decomp-port && \
   XENO_FIELD_TEST=1 XENO_KERNEL_SEL=0 XENO_FIELD_MAP=1 XENO_FIELD_ENTRANCE=0 \
   timeout -s KILL 30 ./pc_port/build_native/xeno-port 2>&1 | \
   grep -E "\[stub\]|\[port\]|assert|SIG|Abort"'
 
-distrobox enter xenogears-dev -- bash -lc 'cd /home/blizz/Projects/xenogears-decomp && \
+distrobox enter xenogears-dev -- bash -lc 'cd $HOME/Projects/xenogears-decomp-port && \
   XENO_FIELD_TEST=1 XENO_KERNEL_SEL=0 \
   timeout -s KILL 30 ./pc_port/build_native/xeno-port 2>&1 | \
   grep -E "\[stub\]|\[port\]|assert|SIG|Abort"'
@@ -63,7 +63,7 @@ distrobox enter xenogears-dev -- bash -lc 'cd /home/blizz/Projects/xenogears-dec
 
 ```bash
 # Tee full log
-distrobox enter xenogears-dev -- bash -lc 'cd /home/blizz/Projects/xenogears-decomp/pc_port && \
+distrobox enter xenogears-dev -- bash -lc 'cd $HOME/Projects/xenogears-decomp-port/pc_port && \
   XENO_FIELD_TEST=1 XENO_KERNEL_SEL=0 XENO_FIELD_MAP=1 XENO_FIELD_ENTRANCE=9 \
   XENO_FIELD_0BB_VRAM_UPLOAD=1 timeout -s KILL 90 build_native/xeno-port 2>&1 | \
   tee ../captures/render_diag/run_$(date +%Y%m%d_%H%M%S).log; echo RUN_RC=${PIPESTATUS[0]}'
@@ -85,7 +85,7 @@ Injection is clocked off **menu reader ticks**, not Vsync frames: the field's op
 phases reset the pad queue at a different cadence, so frame counting races it.
 
 ```bash
-distrobox enter xenogears-dev -- bash -lc 'cd /home/blizz/Projects/xenogears-decomp && \
+distrobox enter xenogears-dev -- bash -lc 'cd $HOME/Projects/xenogears-decomp-port && \
   env XENO_FIELD_TEST=1 XENO_KERNEL_SEL=0 XENO_FIELD_MAP=5 XENO_FIELD_ENTRANCE=0 \
       XENO_MENU_FORCE=1 XENO_MENU_NAV_TEST=items \
       timeout -s KILL 200 pc_port/build_native/xeno-port'
@@ -119,7 +119,7 @@ state markers, not the frame numbers.
 ## Matching ROM checksum gate
 
 ```bash
-distrobox enter xenogears-dev -- bash -lc 'cd /home/blizz/Projects/xenogears-decomp && make rom-check'
+distrobox enter xenogears-dev -- bash -lc 'cd $HOME/Projects/xenogears-decomp-port && make rom-check'
 ```
 
 Four FAILs (`slus_006.64`, `field.bin`, `member_change_menu.bin`, `shop_menu.bin`) is the
@@ -139,32 +139,14 @@ XENO_KERNEL_SEL=4 timeout -s KILL 30 ./pc_port/build_native/xeno-port
 ## Git (host only)
 
 ```bash
-cd /home/blizz/Projects/xenogears-decomp
+cd $HOME/Projects/xenogears-decomp-port
 git status
 git log --oneline -10
 ```
 
-## Wiki sync preview
+## Wiki sync
 
-```bash
-./scripts/preview_wiki_sync.sh ~/Projects/xenogears-decomp-ai.wiki
-```
-
-## Wiki manual sync
-
-```bash
-git clone git@github.com:Blizz127/xenogears-decomp-ai.wiki.git
-
-rsync -av \
-  ~/Projects/xenogears-decomp/docs/wiki/*.md \
-  ~/Projects/xenogears-decomp-ai.wiki/
-
-cd ~/Projects/xenogears-decomp-ai.wiki
-git status
-git add *.md
-git commit -m "Update Xenogears project wiki"
-git push
-```
+Preview the pages from the source checkout with `rsync -avn docs/wiki/*.md "$WIKI_DIR/"`. See the [manual sync workflow](README.md#manual-sync-workflow) for the copy, review and publish commands.
 
 ## Phase 1 slice (from pc_port/README.md)
 

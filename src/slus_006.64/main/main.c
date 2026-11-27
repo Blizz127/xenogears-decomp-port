@@ -20,12 +20,18 @@ extern s32 ArchiveReadFileToBuffer(s32 index, void *pBuffer, u32 arg2, u32 flags
 extern void *LZSSHeapDecompress(void *pData, int flags);
 extern void SystemInitializeFont(void *pSystemFont);
 extern void SystemInitializeData(void *pSystemData);
+#ifdef XENO_PC_PORT
+extern int func_8003BDFC(s32 flags);
+#else
 extern s16 func_8003BDFC(s32 flags);
+#endif
 extern void func_8001AADC();
 extern void func_8001BB50(void);
 extern void func_80024F20(void);
 extern void func_800379B4(s32 arg);
+#ifndef XENO_PC_PORT
 extern unsigned int ArchiveGetDiscNumber(void);
+#endif
 extern int ControllerGetType(int controllerIndex);
 extern int ControllerPopState(void);
 extern void GameShowSplashScreen(void);

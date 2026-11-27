@@ -659,6 +659,11 @@ void func_800BDB74(void* taskp) {
 }
 #endif
 extern void func_800BDB74(void* task);
+#if defined(XENO_PC_PORT) && defined(_WIN32)
+extern void TimerWorkListSetTaskCallback(void* pTask, void* callback);
+extern void func_800BDF1C(void);
+#endif
+
 /* func_800BDC14.s: run func_800BDF1C, count the task's +0x88 timer down and,
  * when it expires, rearm it at 0x10, set bit 1 / clear bit 0 of +0x83 and
  * switch the task callback to func_800BDB74. */

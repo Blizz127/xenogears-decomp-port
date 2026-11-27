@@ -2,8 +2,20 @@
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/sanitizer_preflight.sh"; ubsan_preflight
 cd "$(dirname "$0")/../.."
+# Requires a prepared US Disc 1 checkout: the raw disc image, its extracted
+# battle overlay and executable, generated battle linker symbols, and renderer.
+for input in disc/disc1.bin disc/battle.bin disc/SLUS_006.64 \
+             linker/undefined_funcs_auto.battle.txt linker/undefined_syms_auto.battle.txt \
+             pc_port/extern/PsyCross/src/gpu/PsyX_GPU.h; do
+    if [[ ! -r "$input" ]]; then
+        printf 'BATTLE ENCOUNTER ALIAS missing prepared input: %s\n' "$input" >&2
+        exit 1
+    fi
+done
+mkdir -p pc_port/build_native
 TEST_OUT=$(mktemp -d pc_port/build_native/battle_encounter_alias_test.XXXXXXXX)
 export TEST_OUT
+trap 'rm -f -- "$TEST_OUT/map2-selector1-record.bin"' EXIT
 echo "BATTLE ENCOUNTER ALIAS artifacts: $TEST_OUT"
 
 python3 - <<'PY'
@@ -16,7 +28,7 @@ for name, expected in [
  ('disc/SLUS_006.64','dc0b2dd786203d4cce5927c5a3fc85a18f39a3f7406078860076ebb0bbae7119')]:
  actual=sha256(Path(name).read_bytes()).hexdigest(); assert actual==expected,(name,actual); pins[name]=actual
 battle=Path('disc/battle.bin').read_bytes(); span=battle[0x1640:0x1668]
-assert span.hex()=='0780043cdcf98424200006340680053c0895a5900680023cdc5842244029050067fe000c2128a200'
+assert sha256(span).hexdigest()=='d5e63e5743aa5a730191af92860eabca5b468a3c34d3c441838ce3055d8a5c21'
 pins['retail_copy_80071130_80071154']=sha256(span).hexdigest()
 with open('disc/disc1.bin','rb') as disc:
  map2=bytearray()
@@ -71,9 +83,14 @@ rg -q '0x8006f9dcu, 0u, 0, "D_8006F9DC"' "$TEST_OUT/battle_bridge_map.inc"
 rg -q '0x8006f9ddu, 0u, 0, "D_8006F9DD"' "$TEST_OUT/battle_bridge_map.inc"
 printf '%s\n' '#include <stdint.h>' 'uint8_t D_8006F9DE = 0xe7;' > "$TEST_OUT/generated-stub.c"
 
-common=(-std=gnu17 -fno-pie -ffunction-sections -fdata-sections -DXENO_PC_PORT -DSKIP_ASM
- -D_LANGUAGE_C -include assert.h -Ipc_port/extern/PsyCross/include -Ipc_port/extern/PsyCross/include/psx
- -Ipc_port/include_shim -Iinclude -Ipc_port/src -I"$TEST_OUT" -Wall -Wextra -Werror)
+# This fixture compiles the complete production bridge. Apply its normal compact
+# renderer configuration and keep the game's type declarations ahead of the SDK.
+# Unused static functions in the included runtime are expected in this fixture.
+common=(-std=gnu17 -m64 -fno-builtin -fno-pie -ffunction-sections -fdata-sections
+ -DXENO_PC_PORT -DXENO_FIELD_OBJECT_OVERLAY -DSKIP_ASM -D_LANGUAGE_C -DUSE_EXTENDED_PRIM_POINTERS=0
+ -Ipc_port/src -Ipc_port/include_shim -Ipc_port/include -Iinclude -I"$TEST_OUT"
+ -Ipc_port/extern/PsyCross/include -Ipc_port/extern/PsyCross/include/psx -Ipc_port/extern/PsyCross/src
+ -Wall -Wextra -Werror -Wno-error=unused-function)
 failed=0
 for opt in O0 O2 UBSan; do
  flags=(-"$opt"); if [ "$opt" = UBSan ]; then flags=(-O1 -fsanitize=undefined -fno-sanitize-recover=all); fi

@@ -7,7 +7,10 @@
 #include <stdio.h>   /* fflush for the env-gated player-render census */
 #include <stdlib.h>
 #include "guest_prim_link.h"
+/* The optional Fei renderer intercepts primitives only in builds that link it. */
+#ifdef XENO_ENABLE_FEI_HD2D
 #include "fei_hd2d.h"
+#endif
 #define RENDER_ADD_PRIM(ot, prim) PcPort_AddPrimDomainAware((ot), (prim))
 /* TEMP-DIAG (world-map white-quad hunt): per-sprite-poly trace. Revert. */
 extern int PcPort_WorldCaptureCurFrame(void);
@@ -76,30 +79,15 @@ static int XenoPlayerRenderDiagEnabled(void) {
 #endif
 
 #ifdef XENO_PC_PORT
-/* Port-side copies of retail .data tables (0x8004FAB8/0x8004FAF8) and
- * scratch (0x8004FB98); only the port bodies use them, so they stay out of
- * the retail link. */
-static const s16 s_TPageCoords8004FAB8[] = {
-    0x300, 0x000,
-    0x340, 0x000,
-    0x380, 0x000,
-    0x3C0, 0x000,
-    0x300, 0x100,
-    0x340, 0x100,
-    0x380, 0x100,
-    0x3C0, 0x100,
-};
+#include "../../../pc_port/src/retail_data.h"
 
-static const u16 s_DirectionMask8004FAF8[] = {
-    0x0001,
-    0x0002,
-    0x0004,
-    0x0008,
-    0x0010,
-    0x0020,
-    0x0040,
-    0x0080,
-};
+void func_8001E3D8(void* pSpriteData, void* ot);
+static s16 s_TPageCoords8004FAB8[16];
+static u16 s_DirectionMask8004FAF8[8];
+XENO_RETAIL_DATA_BEGIN(sprite_render_tables)
+    XENO_RD(s_TPageCoords8004FAB8, XENO_RD_SLUS, XENO_RD_SLUS_OFF(0x8004FAB8u), sizeof(s_TPageCoords8004FAB8)),
+    XENO_RD(s_DirectionMask8004FAF8, XENO_RD_SLUS, XENO_RD_SLUS_OFF(0x8004FAF8u), sizeof(s_DirectionMask8004FAF8)),
+XENO_RETAIL_DATA_END(sprite_render_tables)
 
 static SVECTOR s_QuadWork8004FB98[4];
 #endif
@@ -127,30 +115,7 @@ static s32 ScaleSpriteFrameByte32(s32 value, s32 scale) {
     return result >> 12;
 }
 
-/* Retail RotMatrix (8003F738) with its exact Q12 stage rounding; the host
- * trig-identity RotMatrix differs. Macro rcos is sine, rsin is cosine (see
- * AnimationC1RotMatrix in animation_scripts.c). */
-static void Retail8003F738RotMatrix(const SVECTOR* angles, MATRIX* matrix) {
-    s32 sx = rcos((u16)angles->vx & 0xFFF);
-    s32 cx = rsin((u16)angles->vx & 0xFFF);
-    s32 sy = rcos((u16)angles->vy & 0xFFF);
-    s32 cy = rsin((u16)angles->vy & 0xFFF);
-    s32 sz = rcos((u16)angles->vz & 0xFFF);
-    s32 cz = rsin((u16)angles->vz & 0xFFF);
-    s32 nsy = -sy;
-    s32 t0 = (cz * nsy) >> 12;
-    s32 t0b = (sz * nsy) >> 12;
-
-    matrix->m[0][0] = (s16)((cz * cy) >> 12);
-    matrix->m[1][0] = (s16)(((sz * cx) >> 12) - ((t0 * sx) >> 12));
-    matrix->m[2][0] = (s16)(((t0 * cx) >> 12) + ((sz * sx) >> 12));
-    matrix->m[0][1] = (s16)((-(sz * cy)) >> 12);
-    matrix->m[1][1] = (s16)(((cz * cx) >> 12) + ((t0b * sx) >> 12));
-    matrix->m[2][1] = (s16)(((cz * sx) >> 12) - ((t0b * cx) >> 12));
-    matrix->m[0][2] = (s16)sy;
-    matrix->m[1][2] = (s16)((-(cy * sx)) >> 12);
-    matrix->m[2][2] = (s16)((cy * cx) >> 12);
-}
+#include "../../../pc_port/src/cleanroom/sprite_rotation_matrix.inc"
 #endif
 
 /* Retail8001D4E8: allocate and initialize eight direction records once. */
@@ -696,7 +661,9 @@ void func_8001E3D8(void* pSpriteData, void* ot) {
     static s32 s_diagCalls;
     static s32 s_diagLinked;
     s32 linkedThisCall = 0;
+#ifdef XENO_ENABLE_FEI_HD2D
     PcPortFeiHd2dBatch hdFei;
+#endif
 #endif
 
     if ((flagsAC >> 2) & 1) {
@@ -759,7 +726,7 @@ void func_8001E3D8(void* pSpriteData, void* ot) {
         return;
     }
 
-#ifdef XENO_PC_PORT
+#if defined(XENO_PC_PORT) && defined(XENO_ENABLE_FEI_HD2D)
     PcPort_FeiHd2dBegin(&hdFei, pSpriteData, frameCount);
 #endif
     for (i = 0; i < frameCount; i++, pFramePrim += 0x18) {
@@ -909,7 +876,7 @@ void func_8001E3D8(void* pSpriteData, void* ot) {
             poly->u3 = texU + texU1;
             poly->v3 = texV + texV1;
 
-#ifdef XENO_PC_PORT
+#if defined(XENO_PC_PORT) && defined(XENO_ENABLE_FEI_HD2D)
             if (!PcPort_FeiHd2dCapture(&hdFei, poly,
                     ((flags3C >> 27) & 1) ? (u8*)ot - direction * 4 : ot))
 #endif
@@ -956,7 +923,9 @@ void func_8001E3D8(void* pSpriteData, void* ot) {
     }
 
 #ifdef XENO_PC_PORT
+#ifdef XENO_ENABLE_FEI_HD2D
     PcPort_FeiHd2dEnd(&hdFei);
+#endif
     if (XenoFieldDiagEnabled() && s_diagCalls <= 8) {
         printf("[field-diag] func_8001E3D8 done linked=%d workNow=%p\n",
                (int)linkedThisCall, g_GfxCurWorkBuffer);

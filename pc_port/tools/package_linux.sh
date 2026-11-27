@@ -10,7 +10,7 @@
 #     bin/xeno-port       the port
 #     lib/                non-system shared libraries the port needs
 #     config.example.ini  settings reference (copy to ~/.config/xenogears-port/)
-#     version.txt, build-info.json, MANIFEST (sha256 of every file),
+#     version.txt, MANIFEST (sha256 of every file),
 #     MANIFEST.sizes.tsv (sha256, size, path for every file)
 #     README-TEST.txt     what to supply, how far it plays, known issues
 #     THIRD_PARTY.md      licences of bundled/linked third-party code
@@ -68,10 +68,8 @@ cat > "$PKG/xenogears.sh" <<'LAUNCHER'
 # DATA_DIR holds your own retail files (README-TEST.txt lists them). It is
 # taken from arg 1, else $XENOGEARS_DATA, else the path stored in
 # ~/.config/xenogears-port/data_dir (written the first time you pass one),
-# else the first disc/ folder holding SLUS_006.64 next to or above the
-# install (a Banshee library keeps it at games/xenogears/disc, two levels up
-# from versions/<build>/).  With none found xeno-port still starts, and its
-# retail-data check names the missing files in a message box.
+# else the disc/ folder in the installation directory.
+# If the files are missing, the runtime reports which files are required.
 # Fullscreen is the default; XENOGEARS_WINDOWED=1 opens a window instead.
 # Saves, memory cards, logs and captures go to
 # ${XDG_DATA_HOME:-~/.local/share}/xenogears-port, never the install dir.
@@ -92,7 +90,7 @@ elif [ -n "${XENOGEARS_DATA:-}" ] && [ -d "$XENOGEARS_DATA" ]; then
 else
     saved=""
     [ -f "$CONF_DIR/data_dir" ] && saved="$(head -n1 "$CONF_DIR/data_dir")"
-    for cand in "$saved" "$HERE/disc" "$HERE/../disc" "$HERE/../../disc" "$HERE/../../../disc"; do
+    for cand in "$saved" "$HERE/disc"; do
         if [ -n "$cand" ] && [ -d "$cand" ] && has_data "$cand"; then
             data="$(cd "$cand" && pwd)"
             break
@@ -130,21 +128,6 @@ chmod 0755 "$PKG/xenogears.sh"
 cat > "$PKG/version.txt" <<EOF
 $ID
 commit $COMMIT
-EOF
-
-GATE_JSON="${XENO_GATE_JSON:-{\}}"
-cat > "$PKG/build-info.json" <<EOF
-{
-  "name": "xenogears-port",
-  "build_id": "$ID",
-  "commit": "$COMMIT",
-  "built_utc": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-  "platform": "linux-x86_64",
-  "glibc_min": "$(objdump -T "$PKG/bin/xeno-port" | grep -oE 'GLIBC_[0-9.]+' | sort -Vu | tail -1)",
-  "bundled_libs": [$(printf '"%s",' "${BUNDLE[@]}" | sed 's/,$//')],
-  "contains_game_data": false,
-  "gate": $GATE_JSON
-}
 EOF
 
 cp "$ROOT/pc_port/tools/package_readme.txt" "$PKG/README-TEST.txt"

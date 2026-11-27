@@ -15,6 +15,7 @@ test -f "$FIELD_SRC"
 
 model_fn="$(awk '/^void func_8002C8CC\(/{on=1} /^void func_8002CB54\(/{on=0} on' "$MODEL_SRC")"
 teardown_fn="$(awk '/^void func_8002CBBC\(/{on=1} /^extern s32 D_80059310/{on=0} on' "$MODEL_SRC")"
+anim_fn="$(awk '/^void func_800306D0\(/{on=1} /^#ifndef XENO_PC_PORT/{if(on) exit} on' "$MODEL_SRC")"
 field_fn="$(awk '/^void func_800A0524\(/{on=1} /^extern void func_800A0C94/{on=0} on' "$FIELD_SRC")"
 
 test -n "$model_fn"
@@ -23,9 +24,15 @@ test -n "$field_fn"
 
 # func_8002C8CC's packed model slot +0x18 is a retail sw/lw slot.
 ! grep -Eq '\*\(void\*\*\)\(s0 \+ 0x18\)' <<<"$model_fn"
-grep -Eq '\*\(u32\*\)\(s0 \+ 0x18\) = \(u32\)\(uintptr_t\)HeapAlloc' <<<"$model_fn"
+grep -Fq 'part.lighting = (u32)(uintptr_t)HeapAlloc(' <<<"$model_fn"
+grep -Fq 'memcpy(model + offsetof(ModelPacketSource, lighting), &part.lighting, sizeof(part.lighting));' <<<"$model_fn"
 ! grep -Eq '\*\(void\*\*\).*0x18|0x18.*\*\(void\*\*\)' <<<"$teardown_fn"
-grep -Fq 'HeapFree((void*)(uintptr_t)*(u32*)(modelData + 0x18));' <<<"$teardown_fn"
+grep -Fq 'HeapFree(TEMP2_WORD_PTR(*(u32*)(modelData + 0x18)));' <<<"$teardown_fn"
+
+# The model and its optional buffers carry independent four-byte pointer words.
+grep -Fq 'pWork = TEMP2_WORD_PTR(*(u32*)(pAnimInfo + 0x0));' <<<"$anim_fn"
+grep -Fq 'HeapFree(TEMP2_WORD_PTR(*(u32*)(pWork + 0x8)));' <<<"$anim_fn"
+grep -Fq 'HeapFree(TEMP2_WORD_PTR(*(u32*)(pWork + 0xC)));' <<<"$anim_fn"
 
 # func_800A0524's actor slots +0x4C/+0x04 are also four-byte guest pointers.
 ! grep -Eq '\*\(u8\*\*\)' <<<"$field_fn"

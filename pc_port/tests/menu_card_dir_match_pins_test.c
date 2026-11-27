@@ -15,7 +15,7 @@ static u8 card[sizeof(MenuUnk2)];
 u8 D_801EA6D0[0x20];
 s32 D_801EA6F4;
 #include "match.inc"
-static const char prefix[12] = "BASLUS-00664";
+static const char prefix[12] = "QADEMO-00001";
 int main(void) {
     s32 k;
     g_Menu = &menu;
@@ -29,7 +29,7 @@ int main(void) {
     memcpy(card + 2 * 0x5C + 0x18, prefix, 12);
     memcpy(card + 5 * 0x5C + 0x18, prefix, 12);
     /* Record 3 matches only in its first byte. */
-    card[3 * 0x5C + 0x18] = 'B';
+    card[3 * 0x5C + 0x18] = prefix[0];
     memset(card + MENU_CARD_OFF(0x4F8E) + 0x10, 0xEE, 0x10);
     func_801C9270(1);
     for (k = 0; k < 15; k++) {

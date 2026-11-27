@@ -1,5 +1,5 @@
 /* SDL host side of the opt-in Port Dev Menu (port_dev_menu.c): keyboard
- * events (F8 open/close; arrows, Enter, Esc while open), the overlay, the
+ * events (F8 open/close; Up, Down, Enter, Esc while open), the overlay, the
  * persistent CHEATS marker and the host functions the menu drives.  The
  * controller side is polled from port 1's active pad in PsyX_pad.cpp
  * (psycross_pad_select.patch), so the menu works on exactly the pad the
@@ -13,7 +13,6 @@ extern "C" void PsyX_HostFastForwardToggle(void);
 extern "C" void PsyX_HostFastForwardToggleFrom(const char* source);
 extern "C" int PcPort_PadConfirmCircle(void);
 extern "C" void PcPort_PadConfirmToggle(void);
-extern "C" int PcPort_FeiHd2dAssetPresent(void) __attribute__((weak));
 extern "C" const char* PcPort_QuickCheckpointNotice(void) __attribute__((weak));
 
 static int s_xenoDevMenuShotPending = 0;
@@ -25,13 +24,6 @@ static int PsyX_DevHostRecording(void) { return PsyX_IsRecording(); }
 static void PsyX_DevHostRecordToggle(void) { PsyX_ToggleRecording(); }
 /* Taken from the draw hook two presents later, once the menu is gone. */
 static void PsyX_DevHostScreenshot(void) { s_xenoDevMenuShotPending = 2; }
-static int PsyX_DevHostHd2dAvailable(void)
-{
-	return PcPort_FeiHd2dAssetPresent != NULL && PcPort_FeiHd2dEnabled != NULL &&
-		PcPort_FeiHd2dAssetPresent();
-}
-static int PsyX_DevHostHd2dOn(void) { return PcPort_FeiHd2dEnabled ? PcPort_FeiHd2dEnabled() : 0; }
-static void PsyX_DevHostHd2dToggle(void) { if (PcPort_FeiHd2dToggle) PcPort_FeiHd2dToggle(); }
 static int PsyX_DevHostGod(void) { return PcPort_GodModeEnabled ? PcPort_GodModeEnabled() : 0; }
 static int PsyX_DevHostBattles(void) { return PcPort_RandomBattlesEnabled ? PcPort_RandomBattlesEnabled() : 1; }
 
@@ -42,7 +34,6 @@ static void PsyX_PortDevMenuInstallHost()
 		PsyX_DevHostSpeed, PsyX_DevHostSpeedCycle,
 		PsyX_DevHostRecording, PsyX_DevHostRecordToggle,
 		PsyX_DevHostScreenshot,
-		PsyX_DevHostHd2dAvailable, PsyX_DevHostHd2dOn, PsyX_DevHostHd2dToggle,
 		PsyX_DevHostGod, PsyX_DevHostBattles,
 		PcPort_PadConfirmCircle, PcPort_PadConfirmToggle,
 	};
@@ -68,8 +59,6 @@ static int PsyX_PortDevMenuHandleEvent(SDL_Event *event)
 		if (!pressed || event->key.repeat) return 1;
 		if (key == SDL_SCANCODE_UP) PcPort_DevMenuKey(PC_DEV_UP, 1);
 		else if (key == SDL_SCANCODE_DOWN) PcPort_DevMenuKey(PC_DEV_DOWN, 1);
-		else if (key == SDL_SCANCODE_LEFT) PcPort_DevMenuKey(PC_DEV_LEFT, 1);
-		else if (key == SDL_SCANCODE_RIGHT) PcPort_DevMenuKey(PC_DEV_RIGHT, 1);
 		else if (key == SDL_SCANCODE_RETURN || key == SDL_SCANCODE_KP_ENTER) PcPort_DevMenuKey(PC_DEV_ACCEPT, 1);
 		else if (key == SDL_SCANCODE_ESCAPE || key == SDL_SCANCODE_BACKSPACE) PcPort_DevMenuKey(PC_DEV_BACK, 1);
 		return 1;
@@ -81,7 +70,7 @@ static int PsyX_PortDevMenuHandleEvent(SDL_Event *event)
 static void PsyX_DevMenuDrawTextColor(const char* text, int x, int y, float r, float g, float b, int scale = 2);
 
 /* Harness-only scripted menu keys (DEV_MENU_SPEC.md §9), inert unless set:
- * XENO_DEV_MENU_KEYS="present:KEY,..." with KEY one of F8 UP DOWN LEFT RIGHT ENTER ESC,
+ * XENO_DEV_MENU_KEYS="present:KEY,..." with KEY one of F8 UP DOWN ENTER ESC,
  * SDL:<scancode name> (a real key press pushed through SDL, e.g. SDL:F8)
  * or SHOT=<name>, which saves the presented frame WITH the overlay to
  * $XENO_DEV_MENU_SHOT_DIR/<name>.bmp.  `present` counts overlay draws. */
@@ -90,6 +79,7 @@ static void PsyX_DevMenuScript(int phase)
 	static int parsed, count, presents;
 	static struct { int at; char key[40]; } steps[64];
 	int i;
+	if (!PcPort_DevMenuEnabled()) return;
 	if (!parsed) {
 		const char* env = getenv("XENO_DEV_MENU_KEYS");
 		parsed = 1;
@@ -111,8 +101,6 @@ static void PsyX_DevMenuScript(int phase)
 			if (!strcmp(k, "F8")) PcPort_DevMenuKey(PC_DEV_OPEN, 1);
 			else if (!strcmp(k, "UP")) PcPort_DevMenuKey(PC_DEV_UP, 1);
 			else if (!strcmp(k, "DOWN")) PcPort_DevMenuKey(PC_DEV_DOWN, 1);
-			else if (!strcmp(k, "LEFT")) PcPort_DevMenuKey(PC_DEV_LEFT, 1);
-			else if (!strcmp(k, "RIGHT")) PcPort_DevMenuKey(PC_DEV_RIGHT, 1);
 			else if (!strcmp(k, "ENTER")) PcPort_DevMenuKey(PC_DEV_ACCEPT, 1);
 			else if (!strcmp(k, "ESC")) PcPort_DevMenuKey(PC_DEV_BACK, 1);
 			else if (!strncmp(k, "SDL:", 4)) {
@@ -146,6 +134,7 @@ static void PsyX_PortDevMenuDraw()
 	GLfloat clear[4];
 	int i, cheats;
 	const char* notice;
+	const char* discHint;
 
 	if (s_xenoDevMenuShotPending > 0 && --s_xenoDevMenuShotPending == 0) {
 		eprintwarn("Saving screenshot...\n");
@@ -154,7 +143,8 @@ static void PsyX_PortDevMenuDraw()
 	PsyX_DevMenuScript(0);
 	cheats = PcPort_DevMenuCheatsActive();
 	notice = PcPort_QuickCheckpointNotice ? PcPort_QuickCheckpointNotice() : NULL;
-	if (!PcPort_DevMenuOpen() && !cheats && !notice) { PsyX_DevMenuScript(1); return; }
+	discHint = PsyX_DiscPromptHint();
+	if (!PcPort_DevMenuOpen() && !cheats && !notice && !discHint) { PsyX_DevMenuScript(1); return; }
 	scissorEnabled = glIsEnabled(GL_SCISSOR_TEST);
 	glGetBooleanv(GL_COLOR_WRITEMASK, mask);
 	glGetIntegerv(GL_SCISSOR_BOX, scissor);
@@ -171,6 +161,18 @@ static void PsyX_PortDevMenuDraw()
 		int w = (int)strlen(notice) * 12 + 16;
 		PsyX_HostToolbarClearRect(8, 8, w, 28, 0.035f, 0.05f, 0.09f);
 		PsyX_DevMenuDrawTextColor(notice, 16, 14, 0.98f, 0.85f, 0.45f);
+	}
+	if (discHint) {
+		int chars = (int)strlen(discHint);
+		int scale = g_windowWidth >= chars * 12 + 32 ? 2 : 1;
+		int h = (s_discActionRefused ? 20 : 9) * scale + 8;
+		/* The original insert-disc dialog occupies the lower-right of the frame. */
+		int y = g_windowHeight - h - 8;
+		PsyX_HostToolbarClearRect(8, y, chars * 6 * scale + 12, h, 0.035f, 0.05f, 0.09f);
+		PsyX_DevMenuDrawTextColor(discHint, 14, y + 4, 0.98f, 0.95f, 0.82f, scale);
+		if (s_discActionRefused)
+			PsyX_DevMenuDrawTextColor(s_quickDiscPrompt ? "CHECK DISC IMAGE AND RETRY" : "DISC ACTION UNAVAILABLE", 14, y + 4 + 10 * scale,
+			                          1.0f, 0.80f, 0.45f, scale);
 	}
 	if (PcPort_DevMenuOpen()) {
 		PcPortDevMenuLayout layout;
@@ -199,10 +201,7 @@ static void PsyX_PortDevMenuDraw()
 				else
 					PsyX_DevMenuDrawTextColor(PcPort_DevMenuRow(row), 14 * scale, y, 0.45f, 0.47f, 0.52f, scale);
 			}
-			const char *hint = PcPort_DevMenuRowAdjustable(PcPort_DevMenuCursor())
-				? "LEFT/RIGHT ADJUST  A INCREASE  B BACK"
-				: "DPAD/STICK MOVE  A PICK  B BACK";
-			PsyX_DevMenuDrawTextColor(hint, 10 * scale, top - rowHeight * (rows + 1), 0.6f, 0.7f, 0.8f, scale);
+			PsyX_DevMenuDrawTextColor("DPAD/STICK MOVE  A PICK  B BACK", 10 * scale, top - rowHeight * (rows + 1), 0.6f, 0.7f, 0.8f, scale);
 			PsyX_DevMenuDrawTextColor("SELECT+START OR F8 CLOSE", 10 * scale, top - rowHeight * (rows + 2), 0.6f, 0.7f, 0.8f, scale);
 			PsyX_DevMenuDrawTextColor(PcPort_DevMenuStatus(), 10 * scale, top - rowHeight * (rows + 3), 0.6f, 0.9f, 0.6f, scale);
 		}

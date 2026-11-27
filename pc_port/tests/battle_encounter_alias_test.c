@@ -7,6 +7,7 @@
  * cannot accidentally substitute for the retail guest storage.
  */
 #include "../src/battle_mips_runtime.c"
+#include <assert.h>
 
 uint8_t g_PsxRam[PSX_RAM_SIZE];
 uint8_t g_PsxScratchpad[4096];

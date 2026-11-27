@@ -98,6 +98,10 @@ int  xg_plat_mods_parse_manifest(const char* text, XgPlatModManifest* out);
  * its size returned; otherwise `size` is returned unchanged.  Replacements
  * larger than `capacity` are refused with a message. */
 size_t xg_plat_mods_filter_asset(void* buffer, size_t size, size_t capacity);
+/* A synchronous asset hook may reset its source archive. Check the caller's
+ * outstanding request after that hook, before using its destination again. */
+size_t xg_plat_mods_filter_asset_if_current(void* buffer, size_t size, size_t capacity,
+                                          int (*current)(void));
 
 /* 1 when any mod replaces assets or asset logging/dumping is on, i.e. when a
  * loader should hash what it reads (streamed data reads the whole file up

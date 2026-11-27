@@ -165,17 +165,17 @@ extern "C" int PsyX_Pad_SanitizeIgnoreDevices(const char* in, char* out, size_t 
 extern "C" void PsyX_Pad_ApplyHints()
 {
 	SDL_version linked;
-	const char* ignore = SDL_GetHint(SDL_HINT_GAMECONTROLLER_IGNORE_DEVICES);
-	const char* except = SDL_GetHint(SDL_HINT_GAMECONTROLLER_IGNORE_DEVICES_EXCEPT);
-	const char* deck = SDL_getenv("SDL_JOYSTICK_HIDAPI_STEAMDECK");
-	const char* hidapi = SDL_getenv("SDL_JOYSTICK_HIDAPI");
-	const char* steamVirtual = SDL_getenv("SDL_GAMECONTROLLER_ALLOW_STEAM_VIRTUAL_GAMEPAD");
-
 	SDL_GetVersion(&linked);
-	eprintinfo("pad: SDL %d.%d.%d; SDL_JOYSTICK_HIDAPI=%s SDL_GAMECONTROLLER_ALLOW_STEAM_VIRTUAL_GAMEPAD=%s\n",
-		linked.major, linked.minor, linked.patch,
-		hidapi ? hidapi : "(unset)", steamVirtual ? steamVirtual : "(unset)");
+	/* SDL on Windows reuses one buffer for environment-backed hints. Consume
+	 * each value before querying another hint or environment variable. */
+	const char* hidapi = SDL_getenv("SDL_JOYSTICK_HIDAPI");
+	eprintinfo("pad: SDL %d.%d.%d; SDL_JOYSTICK_HIDAPI=%s\n",
+		linked.major, linked.minor, linked.patch, hidapi ? hidapi : "(unset)");
+	const char* steamVirtual = SDL_getenv("SDL_GAMECONTROLLER_ALLOW_STEAM_VIRTUAL_GAMEPAD");
+	eprintinfo("pad: SDL_GAMECONTROLLER_ALLOW_STEAM_VIRTUAL_GAMEPAD=%s\n",
+		steamVirtual ? steamVirtual : "(unset)");
 
+	const char* ignore = SDL_GetHint(SDL_HINT_GAMECONTROLLER_IGNORE_DEVICES);
 	if (ignore && *ignore)
 	{
 		size_t size = strlen(ignore) + 1;
@@ -203,6 +203,7 @@ extern "C" void PsyX_Pad_ApplyHints()
 		free(dropped);
 	}
 
+	const char* except = SDL_GetHint(SDL_HINT_GAMECONTROLLER_IGNORE_DEVICES_EXCEPT);
 	if (except && *except)
 		eprintwarn("pad: SDL_GAMECONTROLLER_IGNORE_DEVICES_EXCEPT is set (%s); only those "
 			"controllers are visible\n", except);
@@ -210,6 +211,7 @@ extern "C" void PsyX_Pad_ApplyHints()
 	/* Steam Deck-type HID pads (real Deck, InputPlumber deck-uhid).  SDL
 	 * enables the driver with HIDAPI by default; an explicit environment
 	 * value from the user still wins. */
+	const char* deck = SDL_getenv("SDL_JOYSTICK_HIDAPI_STEAMDECK");
 	if (deck == NULL)
 		SDL_SetHint("SDL_JOYSTICK_HIDAPI_STEAMDECK", "1");
 	else
@@ -462,7 +464,7 @@ extern "C" SDL_JoystickID PsyX_Pad_HostActiveInstance()
 /* Left stick -> active-low D-pad bits for a digital pad.  Radial deadzone
  * with hysteresis, 8 sectors of 45 degrees (a direction is pressed when its
  * axis exceeds tan(22.5 deg) of the other axis). */
-static u_short XenoPad_StickToDpad(int x, int y)
+static u_short XenoPad_StickToDpad(int x, int y, int& stickDir)
 {
 	long long mag2 = (long long)x * x + (long long)y * y;
 	long long press = (long long)XENO_PAD_STICK_PRESS * XENO_PAD_STICK_PRESS;
@@ -472,7 +474,7 @@ static u_short XenoPad_StickToDpad(int x, int y)
 	int dir = 0;
 	u_short ret = 0xFFFF;
 
-	if (mag2 >= press || (s_xenoStickDir && mag2 >= release))
+	if (mag2 >= press || (stickDir && mag2 >= release))
 	{
 		/* 5/12 ~ tan(22.5 deg) = 0.414 */
 		if (ax * 12 >= ay * 5)
@@ -480,7 +482,7 @@ static u_short XenoPad_StickToDpad(int x, int y)
 		if (ay * 12 >= ax * 5)
 			dir |= y < 0 ? 0x10 : 0x40;	/* UP : DOWN (SDL +y is down) */
 	}
-	s_xenoStickDir = dir;
+	stickDir = dir;
 	ret &= ~dir;
 	return ret;
 }

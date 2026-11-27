@@ -59,7 +59,12 @@ extern int doCOP2(int op);
 
 #define BL_STACK_SIZE 0x8000u
 
-static u8 bl_stack[BL_STACK_SIZE] __attribute__((aligned(16), unused));
+/* A lifted TU whose synthetic stack never enters a GPU packet or escapes
+ * the local frame may place its private scratch outside the 24-bit GPU map. */
+#ifndef BL_STACK_STORAGE
+#define BL_STACK_STORAGE
+#endif
+static u8 bl_stack[BL_STACK_SIZE] BL_STACK_STORAGE __attribute__((aligned(16), unused));
 static u32 bl_cursor __attribute__((unused));
 
 /* Prover observation only: production never calls these accessors.  A TU
@@ -69,6 +74,12 @@ static u32 bl_cursor __attribute__((unused));
     u32 bl_frame_top_##tu(void); \
     u32 bl_frame_top_##tu(void) { \
         return (u32)(uintptr_t)(bl_stack + BL_STACK_SIZE); \
+    } \
+    /* prover only: a case that ends in bl_fail() (a lifted `break`) is unwound by a jump, \
+     * which skips bl_leave; the differential resets the cursor before its next case */ \
+    void bl_frame_reset_##tu(void); \
+    void bl_frame_reset_##tu(void) { \
+        bl_cursor = 0; \
     }
 
 static __attribute__((unused, noinline, noreturn)) void bl_fail(const char* fn, const char* what,

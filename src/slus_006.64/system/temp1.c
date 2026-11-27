@@ -10,6 +10,8 @@ void func_800230A8(void *arg0);
 #include "psx_memory.h"
 #include "guest_prim_link.h"
 
+void func_80022DF4(void* pWork);
+
 extern char* getenv(const char*);
 extern int printf(const char*, ...);
 
@@ -200,10 +202,10 @@ extern s32 D_800592EC;
 s32 D_800592EC;
 #endif
 
-void func_80022E8C(void)
+void func_80022E8C(void* pWork)
 {
     D_800592EC++;
-    func_80022DF4();
+    func_80022DF4(pWork);
 }
 
 void func_80022EB8(void* pWork)
@@ -505,7 +507,6 @@ void func_80023340(void* pSpriteData, s32 count) {
  * definition is weak under XENO_PC_PORT. */
 extern u8 D_800591AF;
 extern void func_80023804(void* p);
-extern void func_80022DF4(void* pWork);
 extern void func_80022EB8(void* pWork);
 extern void TimerWorkListAddTask(void* pOwner, void* pTask);
 extern void WorkListAddTask(void* pTask, void* pNode);

@@ -7,15 +7,20 @@ FieldScriptCopyGear = 0x80087580;
 
 FieldScriptSetCharacterGear = 0x80088360;
 
-FieldScriptSetParticleBankDirections = 0x80088D38;
+// Particle bank setup and actor lifetime.
 FieldScriptInitializeParticleBank = 0x80089004;
+FieldScriptParticlesInitialize = 0x80089A80;
+FieldScriptStopParticleActor = 0x80089AE4;
+
+// Emitter position, direction, and motion.
 FieldScriptSetParticleBankPosition = 0x80089174;
+FieldScriptSetParticleBankDirections = 0x80088D38;
 FieldScriptSetParticleBankPhysics = 0x80089374;
+
+// Emission timing, shape, and appearance.
 FieldScriptSetParticleBankParameters = 0x80089574;
 FieldScriptSetParticleBankScale = 0x800896D4;
 FieldScriptSetParticleBankColor = 0x80089880;
-FieldScriptParticlesInitialize = 0x80089A80;
-FieldScriptStopParticleActor = 0x80089AE4;
 
 // Orphaned jump tables in early field rodata: each table's owning function
 // is now decompiled to C (matching switch statement), so the C compiler

@@ -1,0 +1,13 @@
+#ifndef XENO_SPU_BUS_TIMING_H
+#define XENO_SPU_BUS_TIMING_H
+
+/* SPU delay register 1F801014h: https://psx-spx.consoledev.net/memorycontrol/
+ * Observed in US Disc 1 disc/SLUS_006.64 at 8004D1B0 and 8004D1DC,
+ * SHA-256 dc0b2dd786203d4cce5927c5a3fc85a18f39a3f7406078860076ebb0bbae7119. */
+enum {
+    MCTRL_DELAY_DMA_TIMING_OVERRIDE_SHIFT = 24,
+    MCTRL_DELAY_DMA_TIMING_OVERRIDE_MASK = 15u << MCTRL_DELAY_DMA_TIMING_OVERRIDE_SHIFT,
+    MCTRL_DELAY_DMA_TIMING_SELECT = 1u << 29
+};
+
+#endif

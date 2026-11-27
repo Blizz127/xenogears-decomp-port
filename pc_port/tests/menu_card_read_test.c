@@ -77,7 +77,7 @@ int main(void) {
     for(replace=0;replace<2;++replace) for(result=-1;result<=1;++result) {
         memset(cards,0xa5,sizeof cards); memset(menus,0,sizeof menus);
         unsigned index=port*16+slot;
-        char name[32]; snprintf(name,sizeof name,"BISLPS-01234%02u",slot);
+        char name[32]; snprintf(name,sizeof name,"QADEMO-00001%02u",slot);
         snprintf(wanted,sizeof wanted,"%s%s",port?D_801C50B0:D_801C50A8,name);
         for(unsigned n=0;n<2;++n) {
             menus[n].unk32C=&cards[n];

@@ -78,34 +78,23 @@ build_and_run() {
 }
 
 # ---------------------------------------------------------------------------
-# Source-level pin: every row present in the initialiser must declare a
-# buildProc and all three strides.  This cannot be checked at run time because
-# the buildProcs are not-yet-ported externs that the ignore-all link resolves
-# to 0, so it is verified against the source text here.
-# ---------------------------------------------------------------------------
+# The isolated link allows unresolved builders. Check that every builder the
+# supplied descriptor table requires has a concrete source-level binding.
 echo "--- source pins ---"
-python3 - "$OVERRIDES" <<'PY'
-import re, sys
-src = open(sys.argv[1]).read()
-
-table = re.search(r'ModelPrimDesc D_8004FE50\[17\] = \{(.*?)\n\};', src, re.S)
-assert table, "game_overrides.c: could not locate the D_8004FE50 initialiser"
-body = table.group(1)
-
-rows = re.findall(r'\[(0x[0-9A-Fa-f]{2})\] = \{(.*?)\n    \},', body, re.S)
-assert rows, "game_overrides.c: no rows parsed out of D_8004FE50"
-
-missing = []
-for label, row in rows:
-    for field in ('.buildProc', '.cmdStride', '.packetStride', '.outputStride'):
-        if field not in row:
-            missing.append(f"{label} lacks {field}")
-if missing:
-    raise SystemExit("PRIM TABLE SOURCE PIN FAIL: " + "; ".join(missing))
-
-print(f"  {len(rows)} populated rows, each with buildProc + 3 strides: "
-      + ", ".join(label for label, _ in rows))
-PY
+python3 - "$OVERRIDES" "$RETAIL" <<'PYBLOCK'
+import re, struct, sys
+from pathlib import Path
+text = Path(sys.argv[1]).read_text()
+owned = Path(sys.argv[2]).read_bytes()
+start = 0x8004FE50 - 0x8000F800
+required = {struct.unpack_from("<I", owned, start + row * 40 + 24)[0] for row in range(17)}
+body = text.split("static ModelPrimBuildProc ModelPrimBuilder(", 1)[1].split("\n}", 1)[0]
+pairs = re.findall(r"case 0x([0-9A-F]+)u: return ModelBuild([0-9A-F]+);", body)
+bound = {int(address, 16) for address, name in pairs if address == name}
+if required != bound:
+    raise SystemExit("PRIM TABLE SOURCE PIN FAIL: unresolved builder mapping")
+print(f"  {len(required)} distinct native builder bindings verified")
+PYBLOCK
 
 echo "--- production ---"
 build_and_run production "$OVERRIDES" pass
@@ -135,39 +124,24 @@ PY
     fi
 }
 
-# 1. Drop row 0x07 entirely -- reproduces the absent/zero-filled row bug.
-mutate drop_row_07 '
-import re
-m = re.search(r"\n    \[0x07\] = \{.*?\n    \},", src, re.S)
-assert m, "could not find row 0x07 to drop"
-src = src[:m.start()] + src[m.end():]
-'
-
-# 2. Drop row 0x0E entirely -- same class, the other row filled this pass.
-mutate drop_row_0E '
-import re
-m = re.search(r"\n    \[0x0E\] = \{.*?\n    \},", src, re.S)
-assert m, "could not find row 0x0E to drop"
-src = src[:m.start()] + src[m.end():]
-'
-
-# 3. Corrupt row 0x07's outputStride away from the retail 0x28.
+# Change the populated result of one live hydration iteration for each fault.
+for row in 7 14; do
+    mutate "drop_row_$row" "
+needle = '        ModelPrimDesc *desc = &D_8004FE50[i];'
+assert src.count(needle) == 1
+src = src.replace(needle, needle + '\n        if (i == $row) continue;')
+"
+done
 mutate bad_stride_07 '
-import re
-m = re.search(r"(\[0x07\] = \{.*?\.outputStride = )0x28", src, re.S)
-assert m, "could not find row 0x07 outputStride"
-src = src[:m.end(1)] + "0x20" + src[m.end():]
+needle = "        desc->outputStride = rows[i][9];"
+assert src.count(needle) == 1
+src = src.replace(needle, needle + "\n        if (i == 7) desc->outputStride ^= 4u;")
 '
-
-# 4. NULL out row 0x0E proc[0] while leaving the row populated -- the exact
-#    "build side links packets the walker cannot parse" shape.
 mutate null_proc0_0E '
-import re
-m = re.search(r"(\[0x0E\] = \{.*?\.proc = \{ )ModelPrimQuadG4Variant0", src, re.S)
-assert m, "could not find row 0x0E proc[0]"
-src = src[:m.end(1)] + "NULL" + src[m.end():]
+needle = "        desc->buildProc = ModelPrimBuilder(rows[i][6]);"
+assert src.count(needle) == 1
+src = src.replace(needle, needle + "\n        if (i == 14) desc->proc[0] = NULL;")
 '
-
 echo
 echo "PRIM TABLE CONTROLS REJECTED ${CONTROLS_REJECTED}/${CONTROLS_TOTAL}"
 if [ "$CONTROLS_REJECTED" -ne "$CONTROLS_TOTAL" ]; then

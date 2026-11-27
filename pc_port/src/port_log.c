@@ -21,11 +21,17 @@
  *    it never touches game state that may be mid-teardown. */
 #include <errno.h>
 #include <fcntl.h>
-#include <pthread.h>
+#include "host_thread.h"
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef _WIN32
+#include <io.h>
+#include "win32_clock.h"
+#else
 #include <sys/ioctl.h>
+#endif
 #include <sys/stat.h>
 #include <time.h>
 #include <unistd.h>
@@ -41,7 +47,8 @@
 extern int g_GameSceneMapNum;
 
 static int s_realErr = -1, s_pipeRead = -1, s_logFd = -1;
-static pthread_t s_teeThread;
+static HostThread s_teeThread;
+static int s_stderrFd = 2;
 static int s_teeStarted;
 
 static void rotate_logs(void)
@@ -71,7 +78,7 @@ static void write_all(int fd, const char *p, size_t n)
     }
 }
 
-static void *tee_main(void *arg)
+static HOST_THREAD_RESULT tee_main(void *arg)
 {
     char buf[4096];
     size_t logged = 0;
@@ -96,7 +103,7 @@ static void *tee_main(void *arg)
             }
         }
     }
-    return NULL;
+    return 0;
 }
 
 static void log_shutdown(void)
@@ -105,8 +112,11 @@ static void log_shutdown(void)
     fflush(stderr);
     /* Restore the real stderr: closes the pipe's write end, the reader drains
      * what is left and sees EOF. */
-    (void)dup2(s_realErr, 2);
-    (void)pthread_join(s_teeThread, NULL);
+    (void)dup2(s_realErr, s_stderrFd);
+    host_thread_join(s_teeThread);
+    close(s_pipeRead);
+    close(s_realErr);
+    close(s_logFd);
     s_teeStarted = 0;
 }
 
@@ -115,14 +125,26 @@ static void log_shutdown(void)
  * Bounded (~0.5 s) so a stuck reader cannot hold an exit. */
 void PcPort_LogFlush(void)
 {
-    int pending = 0, i;
+    int i;
     if (!s_teeStarted) return;
     fflush(stderr);
     for (i = 0; i < 50; i++) {
+#ifdef _WIN32
+        DWORD pending = 0;
+        if (!PeekNamedPipe((HANDLE)_get_osfhandle(s_pipeRead), NULL, 0, NULL, &pending, NULL) ||
+            pending == 0) break;
+        Sleep(10);
+#else
+        int pending = 0;
         if (ioctl(s_pipeRead, FIONREAD, &pending) != 0 || pending <= 0) break;
         usleep(10000);
+#endif
     }
+#ifdef _WIN32
+    Sleep(20);
+#else
     usleep(20000);   /* the reader's last write after its final read */
+#endif
 }
 
 void PcPort_LogInit(void)
@@ -130,23 +152,39 @@ void PcPort_LogInit(void)
     int fds[2];
     const char *off = getenv("XENO_LOG_TEE");
     if (off && !strcmp(off, "0")) return;
+    int flags = O_WRONLY | O_CREAT | O_APPEND;
+#ifdef _WIN32
+    flags |= _O_BINARY | _O_NOINHERIT;
+    if (_fileno(stderr) < 0 && !freopen("NUL", "w", stderr)) return;
+    s_stderrFd = _fileno(stderr);
+#endif
+    s_realErr = dup(s_stderrFd);
+    if (s_realErr < 0) return;
     rotate_logs();
-    s_logFd = open(LOG_NAME, O_WRONLY | O_CREAT | O_APPEND, 0644);
+    s_logFd = open(LOG_NAME, flags, 0644);
     if (s_logFd < 0)
         fprintf(stderr, "[xeno-port][log] cannot open '%s' (%s); stderr is not mirrored\n", LOG_NAME,
                 strerror(errno));
-    if (s_logFd < 0) return;
-    if (pipe(fds) != 0) return;
-    s_realErr = dup(2);
-    if (s_realErr < 0) { close(fds[0]); close(fds[1]); return; }
+    if (s_logFd < 0) { close(s_realErr); return; }
+#ifdef _WIN32
+    int pipe_result = _pipe(fds, 4096, _O_BINARY | _O_NOINHERIT);
+#else
+    int pipe_result = pipe(fds);
+#endif
+    if (pipe_result != 0) { close(s_logFd); close(s_realErr); return; }
     s_pipeRead = fds[0];
-    if (pthread_create(&s_teeThread, NULL, tee_main, NULL) != 0) {
-        close(fds[0]); close(fds[1]); close(s_realErr);
+    if (host_thread_start(&s_teeThread, tee_main, NULL) != 0) {
+        close(fds[0]); close(fds[1]); close(s_realErr); close(s_logFd);
+        return;
+    }
+    int mirrored = dup2(fds[1], s_stderrFd);
+    close(fds[1]);
+    if (mirrored < 0) {
+        host_thread_join(s_teeThread);
+        close(s_pipeRead); close(s_realErr); close(s_logFd);
         return;
     }
     s_teeStarted = 1;
-    (void)dup2(fds[1], 2);
-    close(fds[1]);
     setvbuf(stderr, NULL, _IONBF, 0);
     atexit(log_shutdown);
     fprintf(stderr, "[xeno-port][log] stderr mirrored to ./%s (keeps the last %d runs, cap %u KB each)\n",
@@ -160,9 +198,13 @@ static volatile long long s_lastTickMs;
 
 static long long now_ms(void)
 {
+#ifdef _WIN32
+    return (long long)(PcPort_Win32MonotonicUsec() / 1000u);
+#else
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
     return (long long)ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
+#endif
 }
 
 static void heartbeat_tick(const XgPlatModEventData *e, void *u)
@@ -180,13 +222,19 @@ static void heartbeat_tick(const XgPlatModEventData *e, void *u)
     }
 }
 
-static void *heartbeat_main(void *arg)
+static HOST_THREAD_RESULT heartbeat_main(void *arg)
 {
     long long start = now_ms();
     unsigned secs = (unsigned)(uintptr_t)arg;
     for (;;) {
         unsigned slept;
-        for (slept = 0; slept < secs; slept++) sleep(1);
+        for (slept = 0; slept < secs; slept++) {
+#ifdef _WIN32
+            Sleep(1000);
+#else
+            sleep(1);
+#endif
+        }
         fprintf(stderr,
                 "[xeno-port][heartbeat] t=%llus frames=%u fieldLoop=%u map=%d fieldSafe=%d "
                 "input=%s drainMs=%u lastTickAgoMs=%lld\n",
@@ -194,7 +242,7 @@ static void *heartbeat_main(void *arg)
                 s_input == 0 ? "game" : s_input == 1 ? "devmenu-open" : "drain", s_drainMs,
                 s_lastTickMs ? now_ms() - s_lastTickMs : -1);
     }
-    return NULL;
+    return 0;
 }
 
 void PcPort_HeartbeatInit(void)
@@ -202,10 +250,10 @@ void PcPort_HeartbeatInit(void)
     static int done;
     const char *e = getenv("XENO_HEARTBEAT_SECS");
     unsigned secs = e && atoi(e) > 0 ? (unsigned)atoi(e) : 10u;
-    pthread_t t;
+    HostThread t;
     if (done) return;
     done = 1;
     xg_plat_mods_subscribe(XG_PLAT_EVENT_FRAME_TICK, heartbeat_tick, NULL);
-    if (pthread_create(&t, NULL, heartbeat_main, (void *)(uintptr_t)secs) == 0)
-        pthread_detach(t);
+    if (host_thread_start(&t, heartbeat_main, (void *)(uintptr_t)secs) == 0)
+        host_thread_detach(t);
 }

@@ -11,6 +11,8 @@
 #ifdef XENO_PC_PORT
 #include <stdlib.h>
 
+void func_80070C84(void);
+
 /* Retail-shaped default: FieldLoad's per-actor model build (double-buffer
  * alloc + GPU command-list build) always runs, as on PSX. Required since the
  * func_800748E8 translation fix (asm mvmva cv=0): correctly translated model

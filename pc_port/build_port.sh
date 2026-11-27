@@ -540,10 +540,6 @@ apply_psycross_patch() {
 apply_psycross_patch "$ROOT/pc_port/patches/psycross_port_prelude.patch" "_xeno_drmove_snapshot_decl"
 apply_psycross_patch "$ROOT/pc_port/patches/psycross_cd_image_open.patch" "_xeno_cd_image_open"
 apply_psycross_patch "$ROOT/pc_port/patches/psycross_cd_cue_checked.patch" "_xeno_cd_cue_checked"
-# PsyCross carries a non-retail, unused DRAWENV.drt byte.  Removing it restores
-# PsyQ's 0x5C DRAWENV ABI so the game's literal +0x5C/+0xB8 DISPENV accesses
-# address the same data as typed host code.
-apply_psycross_patch "$ROOT/pc_port/patches/psycross_retail_drawenv_layout.patch" "_xeno_retail_drawenv_layout"
 apply_psycross_patch "$ROOT/pc_port/patches/psycross_pad_include.patch" "_xeno_pad_stdlib"
 # Preserve SDL key-down edges until the next pad sample.  Render/present paths
 # may poll and drain both halves of a quick tap before PsyX_UpdateInput samples
@@ -776,6 +772,9 @@ if [ -d "$ROOT/pc_port/patches/hd2d" ]; then
     done < <(find "$ROOT/pc_port/patches/hd2d" -maxdepth 1 -type f -name '*.patch' | LC_ALL=C sort)
 fi
 
+# Use the same project-owned GPU, SPU and CD interface headers as the release build.
+python3 "$ROOT/pc_port/tools/adjust_psycross_port_headers.py" "$PSX" || exit 1
+
 echo "==> [1/5] Building PsyCross (libpsycross.a) via CMake"
 # Drop a stale CMake cache generated under a different absolute path (e.g. from a
 # different container mount) so it reconfigures cleanly in the current env.
@@ -947,6 +946,7 @@ PORT_SOURCES=(
     pc_port/src/god_mode.c
     pc_port/src/file_menu_notice.c
     pc_port/src/battling_unavailable.c # TEMPORARY STOPGAP: unported state 4 returns to field
+    pc_port/src/gear_shop_unavailable.c
     pc_port/src/memcard_port.c
     pc_port/src/route_recorder.c  # TEST TOOLING: XENO_ROUTE_LOG progression recorder
     pc_port/src/field_pos_diag.c  # TEST TOOLING: XENO_FIELD_POS_DIAG walk telemetry
@@ -970,33 +970,8 @@ PORT_SOURCES=(
     pc_port/src/field_clip_control.c
     pc_port/src/field_clip_data.c
     pc_port/src/sprite_constructor.c
-    pc_port/src/world_map_init.c
-    pc_port/src/world_map_frame_driver.c
-    pc_port/src/world_map_image_transfer_25044.c
-    pc_port/src/world_map_upload_pump_74f2c.c
-    pc_port/src/world_map_upload_pump_75104.c
-    pc_port/src/world_map_frame_tail_71984.c
-    pc_port/src/world_map_ot_adapter.c
-    pc_port/src/world_map_frame_driver_712d0.c
-    pc_port/src/world_map_pause.c
-    pc_port/src/world_map_main_loop_71034.c
-    pc_port/src/world_map_terminal_default_71264.c
-    pc_port/src/world_map_terminal_one_711b0.c
-    pc_port/src/world_map_terminal_zero_710e4.c
-    pc_port/src/world_map_teardown_7299c.c
-    pc_port/src/world_map_mode811_lifecycle.c
-    pc_port/src/world_map_mode9_lifecycle.c
-    pc_port/src/world_map_mode10_lifecycle.c
-    pc_port/src/world_map_mode12_lifecycle.c
-    pc_port/src/world_map_mode13_lifecycle.c
-    pc_port/src/world_map_mode14_lifecycle.c
-    pc_port/src/world_map_mode15_lifecycle.c
-    pc_port/src/world_map_mode16_lifecycle.c
-    pc_port/src/world_map_mode17_lifecycle.c
-    pc_port/src/world_map_mode18_lifecycle.c
+    pc_port/src/field_pause_services.c
     pc_port/src/world_map_capture.c
-    pc_port/src/world_map_gamestate_alias.c
-    pc_port/src/world_map_selector.c
     pc_port/src/psyq_cd_mix.c
     pc_port/src/psyq_compat.c
     pc_port/src/archive_port.c
@@ -1017,183 +992,11 @@ PORT_SOURCES=(
     pc_port/src/data_boot_globals.c
     pc_port/src/data_slus_sdata.c
     pc_port/src/data_slus_rodata.c
-    pc_port/src/world_map_convergence.c
-    pc_port/src/world_map_framebuffer_init.c
-    pc_port/src/world_map_terrain_init.c
-    pc_port/src/world_map_terrain_cell.c
-    pc_port/src/world_map_plane_solver.c
-    pc_port/src/world_map_terrain_normal.c
-    pc_port/src/world_map_terrain_sampler.c
-    pc_port/src/world_map_common_tail.c
     pc_port/src/world_map_scheduler.c
-    pc_port/src/world_map_callback_923a8.c
-    pc_port/src/world_map_callback_925a0.c
-    pc_port/src/world_map_resume_initializers.c
-    pc_port/src/world_map_callback_8a2c8.c
-    pc_port/src/world_map_callback_8b2bc.c
-    pc_port/src/world_map_callback_8bb40.c
-    pc_port/src/world_map_callback_8c530.c
-    pc_port/src/world_map_callback_8d3f0.c
-    pc_port/src/world_map_callback_8dd6c.c
-    pc_port/src/world_map_callback_8e190.c
-    pc_port/src/world_map_callback_906e0.c
-    pc_port/src/world_map_callback_91b54.c
-    pc_port/src/world_map_callback_92234.c
-    pc_port/src/world_map_state_vertical_8f690.c
-    pc_port/src/world_map_callback_92be4.c
-    pc_port/src/world_map_callback_92df8.c
-    pc_port/src/world_map_callback_87734.c
-    pc_port/src/world_map_callback_7756c.c
-    pc_port/src/world_map_callback_76a14.c
-    pc_port/src/world_map_callback_78948.c
-    pc_port/src/world_map_callback_77dc8.c
-    pc_port/src/world_map_callback_78e2c.c
-    pc_port/src/world_map_callback_794d8.c
-    pc_port/src/world_map_callback_795e4.c
-    pc_port/src/world_map_callback_7a144.c
-    pc_port/src/world_map_callback_7a9b4.c
-    pc_port/src/world_map_callback_7ad34.c
-    pc_port/src/world_map_callback_7b200.c
-    pc_port/src/world_map_callback_7b604.c
-    pc_port/src/world_map_callback_7ba08.c
-    pc_port/src/world_map_callback_7bb60.c
-    pc_port/src/world_map_callback_7c36c.c
-    pc_port/src/world_map_callback_7c724.c
-    pc_port/src/world_map_callback_7de14.c
-    pc_port/src/world_map_callback_7e450.c
-    pc_port/src/world_map_callback_7eca4.c
-    pc_port/src/world_map_callback_7f8ac.c
-    pc_port/src/world_map_callback_7fc8c.c
-    pc_port/src/world_map_callback_8032c.c
-    pc_port/src/world_map_callback_80578.c
-    pc_port/src/world_map_callback_80a28.c
-    pc_port/src/world_map_callback_81174.c
-    pc_port/src/world_map_callback_813e8.c
-    pc_port/src/world_map_callback_817a0.c
-    pc_port/src/world_map_callback_819c8.c
-    pc_port/src/world_map_callback_81c3c.c
-    pc_port/src/world_map_callback_81fb4.c
-    pc_port/src/world_map_callback_827c8.c
-    pc_port/src/world_map_callback_827ec.c
-    pc_port/src/world_map_callback_83214.c
-    pc_port/src/world_map_callback_834d0.c
-    pc_port/src/world_map_callback_88720.c
-    pc_port/src/world_map_callback_838e8.c
-    pc_port/src/world_map_callback_83a00.c
-    pc_port/src/world_map_callback_84068.c
-    pc_port/src/world_map_cold_defaults.c
-    pc_port/src/world_map_mode_selector_73300.c
     pc_port/src/psyq_compat_normal_light_col.c
     pc_port/src/psyq_compat_transpose_matrix.c
     pc_port/src/psyq_compat_spu_noise_clock.c
-    pc_port/src/world_map_callback_7cc6c.c
-    pc_port/src/world_map_callback_7ce84.c
-    pc_port/src/world_map_callback_7d078.c
-    pc_port/src/world_map_callback_7d228.c
-    pc_port/src/world_map_callback_7d414.c
-    pc_port/src/world_map_callback_7d774.c
-    pc_port/src/world_map_callback_8a72c.c
-    pc_port/src/world_map_callback_8b644.c
-    pc_port/src/world_map_callback_8c844.c
-    pc_port/src/world_map_callback_8d678.c
-    pc_port/src/world_map_callback_8e76c.c
-    pc_port/src/world_map_state01_8eb30.c
-    pc_port/src/world_map_state2_8eb64.c
-    pc_port/src/world_map_vehicle_tail_90620.c
-    pc_port/src/world_map_callback_914d0.c
-    pc_port/src/world_map_callback_91c18.c
-    pc_port/src/world_map_callback_922ac.c
-    pc_port/src/world_map_callback_92c70.c
-    pc_port/src/world_map_callback_92fd8.c
-    pc_port/src/world_map_r4world_71a58.c
-    pc_port/src/world_map_helper_8bfd4.c
-    pc_port/src/world_map_helper_8e078.c
-    pc_port/src/world_map_helper_8e0f0.c
-    pc_port/src/world_map_helper_90c68.c
-    pc_port/src/world_map_helper_90e14.c
-    pc_port/src/world_map_helper_907f4.c
-    pc_port/src/world_map_helper_90fb4.c
-    pc_port/src/world_map_helper_91ff8.c
-    pc_port/src/world_map_helper_3101c.c
-    pc_port/src/world_map_helper_93484.c
-    pc_port/src/world_map_helper_96f18.c
-    pc_port/src/world_map_helper_93a5c.c
-    pc_port/src/world_map_helper_95cd4.c
-    pc_port/src/world_map_helper_9623c.c
-    pc_port/src/world_map_helper_983a0.c
-    pc_port/src/world_map_helper_987ac.c
-    pc_port/src/world_map_helper_9980c.c
-    pc_port/src/world_map_helper_96328.c
-    pc_port/src/world_map_helper_97dc0.c
-    pc_port/src/world_map_helper_980d4.c
-    pc_port/src/world_map_helper_73398.c
-    pc_port/src/world_map_helper_73448.c
-    pc_port/src/world_map_helper_72db4.c
-    pc_port/src/world_map_helper_76858.c
-    pc_port/src/world_map_helper_76954.c
-    pc_port/src/world_map_helper_97070.c
-    pc_port/src/world_map_helper_94154.c
-    pc_port/src/world_map_helper_7565c.c
-    pc_port/src/world_map_helper_75d4c.c
-    pc_port/src/world_map_helper_75e7c.c
-    pc_port/src/world_map_helper_762fc.c
-    pc_port/src/world_map_helper_86124.c
-    pc_port/src/world_map_helper_71fec.c
-    pc_port/src/world_map_menu_lifecycle.c
-    pc_port/src/world_map_session_setup_72238.c
-    pc_port/src/world_map_helper_96130.c
-    pc_port/src/world_map_helper_966cc.c
-    pc_port/src/world_map_helper_737ec.c
-    pc_port/src/world_map_helper_747dc.c
-    pc_port/src/world_map_helper_740b8.c
-    pc_port/src/world_map_helper_97244.c
-    pc_port/src/world_map_helper_965a4.c
-    pc_port/src/world_map_helper_89580.c
-    pc_port/src/world_map_helper_89748.c
-    pc_port/src/world_map_helper_98cc0.c
-    pc_port/src/world_map_helper_9932c.c
-    pc_port/src/world_map_helper_99bfc.c
-    pc_port/src/world_map_helper_99708.c
-    pc_port/src/world_map_helper_981c8.c
-    pc_port/src/world_map_helper_848b4.c
-    pc_port/src/world_map_helper_848f4.c
-    pc_port/src/world_map_helper_85cdc.c
-    pc_port/src/world_map_helper_89c78.c
-    pc_port/src/world_map_helper_8615c.c
-    pc_port/src/world_map_helper_86798.c
-    pc_port/src/world_map_helper_c28c.c
-    pc_port/src/world_map_helper_c364.c
-    pc_port/src/world_map_helper_8dff4.c
-    pc_port/src/world_map_helper_7528c.c
-    pc_port/src/world_map_helper_8e034.c
-    pc_port/src/world_map_helper_73b04.c
-    pc_port/src/world_map_helper_90a84.c
-    pc_port/src/world_map_helper_74794.c
-    pc_port/src/world_map_helper_85760.c
-    pc_port/src/world_map_helper_85418.c
-    pc_port/src/world_map_helper_93354.c
-    pc_port/src/world_map_helper_952b0.c
-    pc_port/src/world_map_helper_95324.c
-    pc_port/src/world_map_helper_93fe4.c
-    pc_port/src/world_map_helper_94088.c
-    pc_port/src/world_map_helper_951a8.c
-    pc_port/src/world_map_helper_85158.c
-    pc_port/src/world_map_helper_84db8.c
-    pc_port/src/world_map_helper_84d00.c
-    pc_port/src/world_map_helper_97770.c
-    pc_port/src/world_map_helper_941c4.c
-    pc_port/src/world_map_helper_94238.c
-    pc_port/src/world_map_helper_94364.c
-    pc_port/src/world_map_helper_8bec8.c
-    pc_port/src/world_map_helper_8c1dc.c
-    pc_port/src/world_map_helper_93534.c
-    pc_port/src/world_map_helper_93e8c.c
-    pc_port/src/world_map_helper_93f18.c
-    pc_port/src/world_map_helper_94060.c
-    pc_port/src/world_map_helper_8c040.c
-    pc_port/src/world_map_private_collision.c
-    pc_port/src/world_map_func_94a5c.c
-    pc_port/src/world_map_func_95414.c
+    pc_port/src/model_ordering.c
 )
 # HD-2D enhancement lane: every pc_port/src/hd2d/*.c is a port source by
 # glob (sorted), so that lane adds files without editing this list. Its

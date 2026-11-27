@@ -1,4 +1,7 @@
 #include "common.h"
+
+struct SpriteData;
+extern void func_80022038(struct SpriteData* sprite);
 #ifdef XENO_PC_PORT
 #include <stdio.h>
 #include "psx_memory.h"
@@ -146,9 +149,7 @@ void func_800251C8(u_long* addr, int x, int y, int width, int height) {
 #endif /* temp1e1 */
 
 #if defined(XENO_PC_PORT) || defined(TEMP1E_PART_2)
-/* Sets a sprite task's trigger callback from the D_8004FD40 handler table
- * (16 entries: 80025258, 80025710, 80025718, 0, 0, 80025258, 80025258,
- * 80025718, 8002541C, 80025544, 0, 0, 0, 0, 80025258, 800257F0). */
+/* Bind the sprite task to its selected render callback. */
 extern void (*D_8004FD40[])(void*);
 extern void WorkListSetTaskCallback(void* pTask, void (*pCallback)(void*));
 
@@ -213,7 +214,7 @@ void func_80025258(u8* pEntry) {
     *(u16*)(pSprite + 0x2E) = (u16)depth;
     if ((flags3C >> 24) & 1) {
         VECTOR trans;
-        func_80022038(pSprite);
+        func_80022038((struct SpriteData*)pSprite);
         trans.vx = *(s16*)(pSprite + 0x02);
         trans.vy = *(s16*)(pSprite + 0x06);
         trans.vz = *(s16*)(pSprite + 0x0A);
@@ -259,7 +260,7 @@ void func_80025258(u8* pEntry) {
         flags=*(u32*)(sprite+0x3C);
         *(s16*)(sprite+0x2E)=depth;
         if((flags>>24)&1) {
-            func_80022038(sprite);
+            func_80022038((struct SpriteData*)sprite);
             trans.vx=*(s16*)(sprite+2);
             trans.vy=*(s16*)(sprite+6);
             trans.vz=*(s16*)(sprite+10);
@@ -525,7 +526,7 @@ void func_80025718(u8* pEntry) {
     u8* pMatrix;
     VECTOR trans;
 
-    func_80022038(pSprite);
+    func_80022038((struct SpriteData*)pSprite);
     pSub = *(u8**)(pSprite + 0x20);
     if (*(u32*)(pSub + 0x34) == 0) return;
 
@@ -561,7 +562,7 @@ void func_80025718(u8* pEntry) {
     u8* sprite;
     u8* sub;
     sprite = *(u8**)(pEntry + 4);
-    func_80022038(sprite);
+    func_80022038((struct SpriteData*)sprite);
     if (*(s32*)(*(u8**)(sprite + 0x20) + 0x34) != 0) {
         trans.vx = *(s16*)(sprite + 2);
         trans.vy = *(s16*)(sprite + 6);
@@ -589,7 +590,6 @@ void func_80025718(u8* pEntry) {
  * the +0x30 half-word and D_80050100 unchanged, or D_80050100 = 0x10 with 0xFEC
  * (restored afterwards); the geom offset is restored when the flag word was
  * negative. */
-extern void func_80022038(void* p);
 extern u16 D_8004FD80[];
 extern void func_800B1F6C();
 extern MATRIX D_8004FDA0;
@@ -608,7 +608,7 @@ void func_800257F0(u8* pArg) {
     u8 flag;
     s32 halved;
 
-    func_80022038(pSprite);
+    func_80022038((struct SpriteData*)pSprite);
     pData = *(u8**)(pSprite + 0x20);
     if (*(u32*)(pData + 0x34) == 0) {
         return;
@@ -681,7 +681,7 @@ void func_800257F0(u8* pArg) {
     void *normalData;
 
     sprite = *(void **)((s8*)(pArg) + 4);
-    func_80022038(sprite);
+    func_80022038((struct SpriteData*)sprite);
     if (*(s32 *)((s8*)(*(void **)((s8*)(sprite) + 0x20)) + 0x34) != 0) {
         if (((u32) *(u32 *)((s8*)(sprite) + 0x40) >> 1) & 1) {
             PushMatrix();
@@ -744,7 +744,7 @@ void func_80025A88(u8* pEntry) {
     SVECTOR pos;
     VECTOR result;
 
-    func_80022038(pSprite);
+    func_80022038((struct SpriteData*)pSprite);
     pSub = *(u8**)(pSprite + 0x20);
     if (*(u32*)(pSub + 0x34) == 0) return;
 

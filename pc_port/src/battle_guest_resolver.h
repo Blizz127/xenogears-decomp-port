@@ -74,9 +74,15 @@ static inline int battle_guest_resolve(uint32_t address, unsigned width,
 
 /* The runtime's shared-data lookup for the active battle, exported by
  * battle_mips_runtime.c.  Weak, so a unit test that links battle host TUs
- * without the runtime still links; it then resolves exactly as PSX_ADDR. */
+ * without the runtime still links; it then resolves exactly as PSX_ADDR.
+ * On COFF, the runtime definition must be strong so another object's
+ * undefined weak alias cannot replace the real function with address zero. */
 extern uint8_t *PcPort_BattleSharedData(void *context, uint32_t canonical,
-                                        unsigned width) __attribute__((weak));
+                                        unsigned width)
+#if !defined(_WIN32) || !defined(XENO_BATTLE_SHARED_DATA_OWNER)
+    __attribute__((weak))
+#endif
+    ;
 
 /* The resolver as a native body sees it: the active runtime's shared table,
  * raw host pass-through for any non-guest word. */

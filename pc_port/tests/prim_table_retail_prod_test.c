@@ -24,6 +24,7 @@
  * up as an explicit, reviewable diff rather than silently changing behaviour.
  */
 #include <stdint.h>
+#include "retail_data.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -143,24 +144,18 @@ int main(int argc, char** argv) {
         retail[i].outputStride = rd32(p + 36);
     }
 
-    /* Sanity-pin the parse itself against a row whose retail contents are
-     * independently recorded in the 2026-09-02 grind-log entry.  If the
-     * offset math or row layout ever drifts, this fails first and loudly. */
+    /* Pin the independently parsed row, including the selected field widths. */
     cases++;
-    check(retail[0x04].proc[0] == 0x8002E038u,
-          "retail parse: row 0x04 proc[0] expected 8002E038, got %08X",
-          retail[0x04].proc[0]);
-    check(retail[0x04].proc[3] == 0x8002E8DCu,
-          "retail parse: row 0x04 proc[3] expected 8002E8DC, got %08X",
-          retail[0x04].proc[3]);
-    check(retail[0x04].buildProc == 0x8002CF34u,
-          "retail parse: row 0x04 buildProc expected 8002CF34, got %08X",
-          retail[0x04].buildProc);
-    check(retail[0x04].cmdStride == 0x8u && retail[0x04].packetStride == 0x4u &&
-              retail[0x04].outputStride == 0x14u,
-          "retail parse: row 0x04 strides expected 0x8/0x4/0x14, got %X/%X/%X",
-          retail[0x04].cmdStride, retail[0x04].packetStride,
-          retail[0x04].outputStride);
+    {
+        char digest[65];
+        XenoSha256 state;
+        _Static_assert(sizeof(RetailRow) == ROW_STRIDE, "retail row layout");
+        XenoSha256_Init(&state);
+        XenoSha256_Update(&state, &retail[4], sizeof(retail[4]));
+        XenoSha256_HexFinal(&state, digest);
+        check(strcmp(digest, "9babf1bb433fa8d43e9e920df2b0b9345f6e7c7b9ad95ba6f279865fa7b6811c") == 0,
+              "retail row-4 parse fingerprint changed");
+    }
 
     /* Which rows does the port actually populate?
      *

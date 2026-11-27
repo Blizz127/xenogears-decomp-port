@@ -16,7 +16,7 @@ import json,sys
 source=Path(sys.argv[1]);test=Path(sys.argv[2]);script=Path(sys.argv[3]);out=Path(sys.argv[4]);disc=Path('disc/shop_menu.bin');raw=disc.read_bytes()
 assert sha256(raw).hexdigest()=='7890e14bcabddcf85368de10783ecff8daa166dc5ac254e06db5e27959cab4cf'
 assert sha256(raw[0x4b4:0x8f4]).hexdigest()=='f791af75ac8be21876feb8f706399780e3010ab17b780e8337fd328dcbfb2d51'
-assert raw[:16]==bytes.fromhex('4249534c50532d303038303000000300')
+assert sha256(raw[:16]).hexdigest() == '47773c1d0ec894732fa108868d6ff3db76a6bcb74ce104902a402c9fc3f2cbc8'
 paths=[source,test,script,disc,Path('pc_port/src/battle_mips_adapter.c'),Path('pc_port/src/battle_mips_adapter.h'),Path('include/system/menu.h'),Path('include/types.h'),Path('include/common.h'),Path('pc_port/include_shim/psyq/libgpu.h'),Path('pc_port/extern/PsyCross/include/psx/libgpu.h')]
 (out/'pins.json').write_text(json.dumps({'inputs':{str(x.resolve()):sha256(x.read_bytes()).hexdigest() for x in paths},'scope':'actual full shop source and exact C data; explicit helper boundaries, no actual decompression/CD/GPU/audio; high native objects with low packed resource table'},indent=2)+'\n')
 (out/'test-prototypes.h').write_text('/* Unrelated later full-TU definition; no tested body rewritten. */\nvoid func_801D1F10(void);\n')

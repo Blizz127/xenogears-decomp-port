@@ -10,11 +10,16 @@
 #include <string.h>
 #include <sys/stat.h>
 
+#include "../../include_shim/host_only_bss.h"
 #include "../retail_data.h"
+#ifdef _WIN32
+#include "../win_prepared_media.h"
+#endif
 
 #define XG_PLAT_WEAK __attribute__((weak))
 
 int PcPort_VerifyDiscImage(const char* path) __attribute__((weak));
+int PsyX_CdReadManagedSectors(uint32_t, uint32_t, void*) __attribute__((weak));
 
 XG_PLAT_WEAK const char* xg_plat_disc_image_path(void)
 {
@@ -35,6 +40,19 @@ XG_PLAT_WEAK const char* xg_plat_disc_image_path(void)
         fclose(f);
         return path = env;
     }
+#ifdef _WIN32
+    /* Match the launch script's raw image preference when it has selected a
+     * prepared directory. A flat extraction can still keep its BIN in disc/. */
+    if (!env || !*env) {
+        const char* root = getenv("XENOGEARS_DATA");
+        char data_dir[1024];
+        static char image[1100];
+        if (PcPort_LocateWindowsGameDirectory(root, data_dir, sizeof data_dir) &&
+            (PcPort_WinRegularFileIn(data_dir, "disc1.bin", image, sizeof image) ||
+             PcPort_WinRegularFileIn(root, "disc/disc1.bin", image, sizeof image)))
+            return path = image;
+    }
+#endif
     for (i = 0; i < sizeof(defaults) / sizeof(defaults[0]); i++) {
         if ((f = fopen(defaults[i], "rb")) != NULL) {
             fclose(f);
@@ -44,7 +62,7 @@ XG_PLAT_WEAK const char* xg_plat_disc_image_path(void)
     /* An installed port started from another directory: disc/ beside the
      * executable, or the image next to it. */
     {
-        static char beside[1100];
+        static char beside[1100] HOST_ONLY_BSS;
         char dir[1024];
         if (XenoRetailData_ExeDir(dir, sizeof dir)) {
             const char* const forms[] = { "%s/disc/disc1.bin", "%s/disc1.bin" };
@@ -70,6 +88,10 @@ XG_PLAT_WEAK int xg_plat_disc_verify(void)
 
 XG_PLAT_WEAK int xg_plat_disc_read_sectors(uint32_t lba, uint32_t count, void* out)
 {
+    if (PsyX_CdReadManagedSectors) {
+        int status = PsyX_CdReadManagedSectors(lba, count, out);
+        if (status) return status > 0 ? 0 : -1;
+    }
     const char* path = xg_plat_disc_image_path();
     struct stat st;
     long sec_size = XG_PLAT_SECTOR_USER, data_off = 0;

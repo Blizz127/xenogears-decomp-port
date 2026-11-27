@@ -29,7 +29,11 @@ void func_80019548(void) {}
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#ifdef _WIN32
+#include <direct.h>
+#else
 #include <sys/stat.h>
+#endif
 #include "common.h"
 #include "battle_mips_adapter.h"
 #include "main/main.h"
@@ -49,6 +53,8 @@ void func_80019548(void) {}
 #include <psx/inline_c.h>
 #include <psx/gtereg.h>
 #include "model_prim_link.h"
+#include "model_polygon_projection.h"
+#include "model_polygon_lighting.h"
 #include "psx_memory.h"
 #include "boot_menu.h"
 #include "boot_str.h"
@@ -216,28 +222,12 @@ extern void SetDispMask(int mask);
 extern unsigned short g_C1ButtonStatePressedOnce;
 extern unsigned short g_C1ButtonStateReleased;
 
-/* Controller button remap tables (system/controller.h declares these extern; the
- * initialisers are commented out there because the data lives in the game's
- * .data section -- which the port's stub generator zeroes since it isn't part of
- * the migrated blob). ControllerRemapButtonState() folds the face/shoulder bits
- * through these; with zeroed tables every face button (Circle/Cross/...) is
- * dropped, so KernelMenu navigation (d-pad, passed through directly) worked but
- * Circle = confirm did nothing. Provide the real .sdata values (mappings =
- * identity, masks = the CTRL_BTN_* face/shoulder bits). Real addrs: masks
- * @0x800501e8, mappings @0x80050238 in slus_006.64. The identity mapping is
- * only the initial value: retail ControllerInit (now run by port_main, body in
- * src/slus_006.64/system/controller.c) rewrites it to the USA layout
- * {1,0,3,2,4,5,6,7} at boot. */
+/* ControllerInit applies the regional face-button layout to the mappings.
+ * The input path needs both the mappings and the masks to report presses. */
 u_char  g_ControllerButtonMappings[8];
 u_short g_ControllerButtonMasks[8];
 
-/* State->overlay-archive-index table (real ROM data @0x8004EAA0, .sdata). The
- * stub generator zeroes it, so LoadGameStateOverlay(state) read archive offset 0
- * for every state -> ArchiveDecodeSize(0)=0 -> no read -> the overlay buffer was
- * never populated (LZSSDecompress then ran on stale heap garbage). Same class as
- * the button tables / D_80010000: initialised game data the port must supply.
- * Order: KernelMenu=0, Field=0xE, Battle=0x10, Worldmap=0xF, Battling=0xD,
- * Menu=0x11, Movie=0x12. */
+/* Each game state selects its overlay archive entry here. */
 int g_GameStateOverlayArchiveOffsets[NUM_GAME_STATE_OVERLAYS];
 
 /* Main executable .sdata sentinels near 0x8004F308. These are initialized ROM
@@ -366,13 +356,8 @@ s32 D_8004F32C = -1;
  * starts at -1 so the first field request is not mistaken for already loaded. */
 s32 D_8004F33C = -1;
 
-/* Main executable .sdata @0x8004FE50: model primitive dispatch descriptors.
- * The PSX table stores raw RAM addresses, including internal entry points such
- * as 0x8002E04C/0x8002E688. Native PC needs callable host pointers, so migrate
- * only descriptor entries reached by the field harness.  The retail data is
- * 17 rows (0x8004FE50..0x800500E7), despite older notes calling it a
- * 15-row table; unsupported walker entries remain NULL until their exact
- * host paths are implemented. */
+/* Model primitive descriptors associate drawing callbacks with packet builders.
+ * The host uses callable function pointers for the supported render paths. */
 typedef s32 (*ModelPrimProc)(u8* pCmd, s32 count);
 /* Build-pass proc (func_8002C8CC dispatch): fn(D_80059538, D_80059528, shade);
  * must stay layout-identical to the typedef in src/slus_006.64/system/temp2.c. */
@@ -380,7 +365,7 @@ typedef s32 (*ModelPrimBuildProc)(u32 pSrc, u32 pCmd, s32 shade);
 
 typedef struct ModelPrimDesc {
     ModelPrimProc proc[6];
-    ModelPrimBuildProc buildProc;   /* host pointer; PSX addr kept in comments */
+    ModelPrimBuildProc buildProc;   /* host packet builder */
     u32 cmdStride;
     u32 packetStride;
     u32 outputStride;
@@ -391,8 +376,7 @@ extern s32 func_8002F2E0(u8* pCmd, s32 count);
 extern s32 func_8002F4B4(u8* pCmd, s32 count);
 extern s32 func_8002ED20(u8* pCmd, s32 count); /* model_prim_ed20.c */
 extern s32 func_8002FAE8(u8* pCmd, s32 count);
-/* Build-pass handlers ported in temp2.c; only the first arg is consumed, so the
- * (ModelPrimBuildProc) casts are ABI-safe truncated-u32 host-pointer calls. */
+/* Native packet builders used by the uniform descriptor callbacks below. */
 extern s32 func_8002CDCC(u8* pSrc, u8* pCmd, s32 shade);
 extern s32 func_8002CF34(s32* a0);
 extern s32 func_8002CF58(u8* pSrc, u8* pCmd, s32 shade);
@@ -460,291 +444,81 @@ static void ModelPrimVariant5Tripwire(const char* name, u32* entryCount,
     }
 }
 
-ModelPrimDesc D_8004FE50[17] = {
-    [0x00] = {
-        /* Retail row 0x8004FE50: proc[0]=proc[4]=proc[5]=0x8002E038 (the same
-         * small-tri average walker prim 4 dispatches) and proc[2]=0x8002E470
-         * (small-tri max-SZ) -- retail literally reuses prim 4's walkers.
-         * proc[1]=0x8002ED20 is the lit small-tri walker (model_prim_ed20.c;
-         * the object overlay draws with variant 1 and MAP16's follower
-         * models dispatch this row). proc[3]=0x8002E8DC is the min-SZ
-         * entry (ModelPrimTriSmallMinSZVariant3). The
-         * buildProc 0x8002CDCC is a byte-identical retail clone of prim 8's
-         * 0x8002CF58 (lit flat tri builder, tag len 4), ported in temp2.c. */
-        .proc = { ModelPrimTriSmallAverageVariant0, func_8002ED20,
-                  ModelPrimTriSmallMaxSZVariant2, ModelPrimTriSmallMinSZVariant3,
-                  ModelPrimTriSmallAverageVariant0,
-                  ModelPrimTriSmallAverageVariant0 },
-        .buildProc = (ModelPrimBuildProc)func_8002CDCC,   /* PSX 0x8002CDCC */
-        .cmdStride = 0x08,
-        .packetStride = 0x04,
-        .outputStride = 0x14,
-    },
-    [0x01] = {
-        /* Retail 0x8004FE78: prim 0x01 uses the lit POLY_GT3 builder
-         * 0x8002D814.  proc[0]=0x8002E04C and proc[4]/proc[5] are the
-         * already-portable depth-cued triangle walkers; proc[1] is the
-         * decomp-owned NCS lighting walker at 0x8002F2E0. The separate
-         * entries 0x8002E484/0x8002E8F0 remain unimplemented here. */
-        .proc = { ModelPrimTriAverageVariant0, func_8002F2E0,
-                  ModelPrimTriMaxSZVariant2, ModelPrimTriMinSZVariant3,
-                  ModelPrimTriDepthCueVariant4,
-                  ModelPrimTriDepthCueMaxSZVariant5 },
-        .buildProc = (ModelPrimBuildProc)func_8002D814, /* PSX 0x8002D814 */
-        .cmdStride = 0x08,
-        .packetStride = 0x08,
-        .outputStride = 0x20,
-    },
-    [0x02] = {
-        /* Retail row 0x8004FEA0, from disc/SLUS_006.64 .sdata:
-         *   proc  = 8002E024 8002F6B4 8002E45C 8002E8C8 8002E024 8002E024
-         *   build = 8002D6AC  strides = 0x8,0x4,0x1C
-         * 0x8002E024 is the medium alternate entry of the shared hand-written
-         * tri walker (see ModelPrimTriAverageShared) -- packet 0x1C, tag
-         * 0x06000000, matching this row's outputStride exactly.  proc[1]
-         * 0x8002F6B4 is the lit G3 walker (ModelPrimTriMediumLitVariant1);
-         * proc[3] 0x8002E8C8 is the min-SZ entry (ModelPrimTriMediumMinSZVariant3).
-         * buildProc func_8002D6AC is already real C in temp2.c. */
-        .proc = { ModelPrimTriMediumAverageVariant0, ModelPrimTriMediumLitVariant1,
-                  ModelPrimTriMediumMaxSZVariant2, ModelPrimTriMediumMinSZVariant3,
-                  ModelPrimTriMediumAverageVariant0,
-                  ModelPrimTriMediumAverageVariant0 },
-        .buildProc = (ModelPrimBuildProc)func_8002D6AC, /* PSX 0x8002D6AC */
-        .cmdStride = 0x08,
-        .packetStride = 0x04,
-        .outputStride = 0x1C,
-    },
-    [0x03] = {
-        /* Retail 0x8004FEC8: POLY_GT3. proc[0]=proc[4]=proc[5]=0x8002E010
-         * (shared tri body: t9=0xC, tag 9, packet 0x28). buildProc
-         * 0x8002DA14. Overlay 0x6B9 MAP16 groups dispatch this row;
-         * leaving it NULL made C8CC/C700 skip the mesh (dEmits=0).
-         * Variant 1 is the separate retail-tested F4B4 lit GT3 path. */
-        .proc = { ModelPrimTriGT3Variant0, func_8002F4B4,
-                  ModelPrimTriGT3MaxSZVariant2, ModelPrimTriGT3MinSZVariant3,
-                  ModelPrimTriGT3Variant0, ModelPrimTriGT3Variant0 },
-        .buildProc = (ModelPrimBuildProc)func_8002DA14, /* PSX 0x8002DA14 */
-        .cmdStride = 0x08,
-        .packetStride = 0x08,
-        .outputStride = 0x28,
-    },
-    [0x04] = {
-        /* Retail row 0x8004FEF0, read straight out of disc/SLUS_006.64 .sdata
-         * (file offset 0x800 + vaddr - 0x80010000):
-         *
-         *   proc = 8002E038 8002E038 8002E470 8002E8DC 8002E038 8002E038
-         *
-         * so variants 1, 4 and 5 are the SAME small-tri average walker as
-         * variant 0 (0x8002E038 = ModelPrimTriSmallAverageVariant0, see row
-         * 0x00), and only variant 3 (0x8002E8DC) is unported -> NULL, exactly
-         * as in row 0x00.
-         *
-         * Leaving proc[4] NULL was not merely incomplete, it corrupted the
-         * ordering table: temp2.c's draw dispatcher skips the group when the
-         * variant proc is NULL, but the BUILD side has already linked that
-         * group's packets into ot3 with their tag lengths set. The walker then
-         * met POLY_FT4-sized packets whose code byte was never written
-         * ("len=9 code=0"), reported "ptag length is not valid", and ran off
-         * the chain -- the Map 2 (Lahan opening) SEGV/heap-abort. */
-        .proc = { ModelPrimTriSmallAverageVariant0,
-                  ModelPrimTriSmallAverageVariant0,
-                  ModelPrimTriSmallMaxSZVariant2, ModelPrimTriSmallMinSZVariant3,
-                  ModelPrimTriSmallAverageVariant0,
-                  ModelPrimTriSmallAverageVariant0 },
-        .buildProc = (ModelPrimBuildProc)func_8002CF34,   /* PSX 0x8002CF34 */
-        .cmdStride = 0x08,
-        .packetStride = 0x04,
-        .outputStride = 0x14,
-    },
-    [0x05] = {
-        /* Retail row 0x8004FF18: proc[1]=0x8002E04C is the same entry as
-         * proc[0] (average walker); proc[4]=0x8002EF0C is the depth-cued
-         * (DPCS fog) AVSZ3 walker; proc[5]=func_8002F0E4 is the depth-cued
-         * max-SZ walker.  proc[3]=0x8002E8F0 is the min-SZ entry. */
-        .proc = { ModelPrimTriAverageVariant0, ModelPrimTriAverageVariant0,
-                  ModelPrimTriMaxSZVariant2, ModelPrimTriMinSZVariant3,
-                  ModelPrimTriDepthCueVariant4, ModelPrimTriDepthCueMaxSZVariant5 },
-        .buildProc = (ModelPrimBuildProc)func_8002D984,   /* PSX 0x8002D984 */
-        .cmdStride = 0x08,
-        .packetStride = 0x08,
-        .outputStride = 0x20,
-    },
-    [0x06] = {
-        /* Retail row 0x8004FF40, from disc/SLUS_006.64 .sdata:
-         *   proc  = 8002E024 8002E024 8002E45C 8002E8C8 8002E024 8002E024
-         *   build = 8002D77C  strides = 0x8,0x4,0x1C
-         * Row 0x02 with proc[1] reusing the shared 0x8002E024 entry instead of
-         * the separate lit path, exactly as row 0x07 relates to row 0x03.
-         * buildProc func_8002D77C is already real C in temp2.c. */
-        .proc = { ModelPrimTriMediumAverageVariant0,
-                  ModelPrimTriMediumAverageVariant0,
-                  ModelPrimTriMediumMaxSZVariant2, ModelPrimTriMediumMinSZVariant3,
-                  ModelPrimTriMediumAverageVariant0,
-                  ModelPrimTriMediumAverageVariant0 },
-        .buildProc = (ModelPrimBuildProc)func_8002D77C, /* PSX 0x8002D77C */
-        .cmdStride = 0x08,
-        .packetStride = 0x04,
-        .outputStride = 0x1C,
-    },
-    [0x07] = {
-        /* Retail row 0x8004FF68, read straight out of disc/SLUS_006.64 .sdata
-         * (file offset 0x800 + vaddr - 0x80010000):
-         *
-         *   proc  = 8002E010 8002E010 8002E448 8002E8B4 8002E010 8002E010
-         *   build = 8002DA14  strides = 0x8,0x8,0x28
-         *
-         * This row is retail row 0x03 with proc[1] pointing at the shared
-         * 0x8002E010 body instead of row 3's separate lit GT3 path 0x8002F4B4;
-         * everything else (buildProc and all three strides) is identical, so
-         * the already-ported ModelPrimTriGT3Variant0 covers variants 0/1/4/5.
-         * proc[2]=0x8002E448 and proc[3]=0x8002E8B4 stay unported -> NULL,
-         * exactly as in row 0x03.
-         *
-         * The row was previously ABSENT from this designated initializer, so it
-         * was zero-filled: a NULL buildProc and 0/0/0 strides. That is the same
-         * latent ordering-table corruption class as the row 0x04 gap (the build
-         * side links a group's packets into ot3 with tag lengths set, then the
-         * walker meets packets whose code byte was never written) -- it just had
-         * not been reached by a map yet. */
-        .proc = { ModelPrimTriGT3Variant0, ModelPrimTriGT3Variant0,
-                  ModelPrimTriGT3MaxSZVariant2, ModelPrimTriGT3MinSZVariant3,
-                  ModelPrimTriGT3Variant0, ModelPrimTriGT3Variant0 },
-        .buildProc = (ModelPrimBuildProc)func_8002DA14, /* PSX 0x8002DA14 */
-        .cmdStride = 0x08,
-        .packetStride = 0x08,
-        .outputStride = 0x28,
-    },
-    [0x08] = {
-        /* Retail row 0x8004FF90: proc = 8002E254 8002F8D0 8002E674 8002EAE0
-         * 8002E254 8002E254.  proc[1]=0x8002F8D0 is the lit F4 walker
-         * (ModelPrimQuadF4LitVariant1); the rest are the shared quad spines. */
-        .proc = { ModelPrimQuadF4Variant0, ModelPrimQuadF4LitVariant1,
-                  ModelPrimQuadF4MaxSZVariant2,
-                  ModelPrimQuadF4MinSZVariant3, ModelPrimQuadF4Variant0,
-                  ModelPrimQuadF4Variant0 },
-        .buildProc = (ModelPrimBuildProc)func_8002CF58,   /* PSX 0x8002CF58 */
-        .cmdStride = 0x08,
-        .packetStride = 0x04,
-        .outputStride = 0x18,
-    },
-    [0x09] = {
-        /* Retail 0x8004FFB8: lit textured quad row.  The raw table proves
-         * buildProc 0x8002D530 and the 0x08/0x0C/0x28 layout.  E268,
-         * E688, FCFC and FF0C map to the existing FT4 walkers; FAE8 is
-         * the retail-tested lit path; EAF4 is the min-SZ quad spine. */
-        .proc = { ModelPrimQuadFT4Variant0, func_8002FAE8,
-                  func_8002E688, ModelPrimQuadFT4MinSZVariant3,
-                  ModelPrimQuadFT4DepthCueVariant4,
-                  ModelPrimQuadFT4DepthCueMaxSZVariant5 },
-        .buildProc = (ModelPrimBuildProc)func_8002D530, /* PSX 0x8002D530 */
-        .cmdStride = 0x08,
-        .packetStride = 0x0C,
-        .outputStride = 0x28,
-    },
-    [0x0A] = {
-        /* Retail 0x8004FFE0: POLY_G4. proc[0]=proc[1]=proc[4]=proc[5]=
-         * 0x8002E240 (shared quad body: t9=8, tag 8, packet 0x24).
-         * buildProc 0x8002D180. MAP16 overlay groups use this row. */
-        .proc = { ModelPrimQuadG4Variant0, ModelPrimQuadG4Variant0,
-                  ModelPrimQuadG4MaxSZVariant2, ModelPrimQuadG4MinSZVariant3,
-                  ModelPrimQuadG4Variant0, ModelPrimQuadG4Variant0 },
-        .buildProc = (ModelPrimBuildProc)func_8002D180, /* PSX 0x8002D180 */
-        .cmdStride = 0x08,
-        .packetStride = 0x04,
-        .outputStride = 0x24,
-    },
-    [0x0D] = {
-        /* Retail table: variant 0/1 enter 0x8002E268 (AVSZ4); variant 2 enters
-         * func_8002E688 (max-SZ depth).  They share the FT4 packet layout
-         * but not depth ordering, so routing variant 0 through E688 makes room
-         * surfaces overwrite each other in the wrong OT buckets. */
-        .proc = { ModelPrimQuadFT4Variant0, ModelPrimQuadFT4Variant0,
-                  func_8002E688, ModelPrimQuadFT4MinSZVariant3,
-                  /* Retail row 13 proc[4]=func_8002FCFC (depth-cued AVSZ4
-                   * FT4 walker) and proc[5]=func_8002FF0C (depth-cued
-                   * max-SZ FT4 walker).  proc[3]=0x8002EAF4 is the
-                   * min-SZ quad spine. */
-                  ModelPrimQuadFT4DepthCueVariant4,
-                  ModelPrimQuadFT4DepthCueMaxSZVariant5 },
-        .buildProc = (ModelPrimBuildProc)func_8002D0E4,   /* PSX 0x8002D0E4 */
-        .cmdStride = 0x08,
-        .packetStride = 0x0C,
-        .outputStride = 0x28,
-    },
-    [0x0B] = {
-        /* Retail row 0x80050008 (identical to row 0x0F at 0x800500A8):
-         * proc = 8002E22C 8002E22C 8002E64C 8002EAB8 8002E22C 8002E22C,
-         * build = 8002D244 (POLY_GT4), strides 0x8/0xC/0x34.  Previously
-         * absent (zero-filled); filled by the shared quad spines. */
-        .proc = { ModelPrimQuadGT4Variant0, ModelPrimQuadGT4Variant0,
-                  ModelPrimQuadGT4MaxSZVariant2, ModelPrimQuadGT4MinSZVariant3,
-                  ModelPrimQuadGT4Variant0, ModelPrimQuadGT4Variant0 },
-        .buildProc = (ModelPrimBuildProc)func_8002D244, /* PSX 0x8002D244 */
-        .cmdStride = 0x08,
-        .packetStride = 0x0C,
-        .outputStride = 0x34,
-    },
-    [0x0C] = {
-        /* Retail row 0x80050030: 8002E254 x2, 8002E674, 8002EAE0, 8002E254 x2. */
-        .proc = { ModelPrimQuadF4Variant0, ModelPrimQuadF4Variant0,
-                  ModelPrimQuadF4MaxSZVariant2, ModelPrimQuadF4MinSZVariant3,
-                  ModelPrimQuadF4Variant0, ModelPrimQuadF4Variant0 },
-        .buildProc = (ModelPrimBuildProc)func_8002D0C0,   /* PSX 0x8002D0C0 */
-        .cmdStride = 0x08,
-        .packetStride = 0x04,
-        .outputStride = 0x18,
-    },
-    [0x10] = {
-        /* Retail row 0x800500D0: every variant is func_80030750, the
-         * environment-mapped POLY_FT3 walker (temp2.c); buildProc
-         * 0x8002DAFC (POLY_FT3 template, returns 1); strides 0x8/0x4/0x20. */
-        .proc = { func_80030750, func_80030750, func_80030750,
-                  func_80030750, func_80030750, func_80030750 },
-        .buildProc = (ModelPrimBuildProc)func_8002DAFC, /* PSX 0x8002DAFC */
-        .cmdStride = 0x08,
-        .packetStride = 0x04,
-        .outputStride = 0x20,
-    },
-    [0x0E] = {
-        /* Retail row 0x80050080, read straight out of disc/SLUS_006.64 .sdata:
-         *
-         *   proc  = 8002E240 8002E240 8002E660 8002EACC 8002E240 8002E240
-         *   build = 8002D180  strides = 0x8,0x4,0x24
-         *
-         * Byte-for-byte the SAME row as retail row 0x0A (0x8004FFE0) -- same six
-         * proc entries, same buildProc, same three strides -- so it is filled
-         * identically to the already-ported [0x0A] above: the shared POLY_G4
-         * body 0x8002E240 for variants 0/1/4/5, and proc[2]=0x8002E660 /
-         * proc[3]=0x8002EACC unported -> NULL.
-         *
-         * Like row 0x07 above, this row was absent from the initializer and so
-         * zero-filled (NULL buildProc, 0/0/0 strides) -- latent OT corruption
-         * for any map whose mesh groups dispatch prim 0x0E. */
-        .proc = { ModelPrimQuadG4Variant0, ModelPrimQuadG4Variant0,
-                  ModelPrimQuadG4MaxSZVariant2, ModelPrimQuadG4MinSZVariant3,
-                  ModelPrimQuadG4Variant0, ModelPrimQuadG4Variant0 },
-        .buildProc = (ModelPrimBuildProc)func_8002D180, /* PSX 0x8002D180 */
-        .cmdStride = 0x08,
-        .packetStride = 0x04,
-        .outputStride = 0x24,
-    },
-    [0x0F] = {
-        /* Retail row 0x800500A8: byte-identical to row 0x0B above. */
-        .proc = { ModelPrimQuadGT4Variant0, ModelPrimQuadGT4Variant0,
-                  ModelPrimQuadGT4MaxSZVariant2, ModelPrimQuadGT4MinSZVariant3,
-                  ModelPrimQuadGT4Variant0, ModelPrimQuadGT4Variant0 },
-        .buildProc = (ModelPrimBuildProc)func_8002D244, /* PSX 0x8002D244 */
-        .cmdStride = 0x08,
-        .packetStride = 0x0C,
-        .outputStride = 0x34,
-    },
-};
+#include "../include_shim/host_only_bss.h"
+
+ModelPrimDesc D_8004FE50[17] HOST_ONLY_BSS;
+
+static ModelPrimProc ModelPrimWalker(u32 guest)
+{
+    switch (guest) {
+    case 0x8002E010u: return ModelPrimTriGT3Variant0;
+    case 0x8002E024u: return ModelPrimTriMediumAverageVariant0;
+    case 0x8002E038u: return ModelPrimTriSmallAverageVariant0;
+    case 0x8002E04Cu: return ModelPrimTriAverageVariant0;
+    case 0x8002E22Cu: return ModelPrimQuadGT4Variant0;
+    case 0x8002E240u: return ModelPrimQuadG4Variant0;
+    case 0x8002E254u: return ModelPrimQuadF4Variant0;
+    case 0x8002E268u: return ModelPrimQuadFT4Variant0;
+    case 0x8002E448u: return ModelPrimTriGT3MaxSZVariant2;
+    case 0x8002E45Cu: return ModelPrimTriMediumMaxSZVariant2;
+    case 0x8002E470u: return ModelPrimTriSmallMaxSZVariant2;
+    case 0x8002E484u: return ModelPrimTriMaxSZVariant2;
+    case 0x8002E64Cu: return ModelPrimQuadGT4MaxSZVariant2;
+    case 0x8002E660u: return ModelPrimQuadG4MaxSZVariant2;
+    case 0x8002E674u: return ModelPrimQuadF4MaxSZVariant2;
+    case 0x8002E688u: return func_8002E688;
+    case 0x8002E8B4u: return ModelPrimTriGT3MinSZVariant3;
+    case 0x8002E8C8u: return ModelPrimTriMediumMinSZVariant3;
+    case 0x8002E8DCu: return ModelPrimTriSmallMinSZVariant3;
+    case 0x8002E8F0u: return ModelPrimTriMinSZVariant3;
+    case 0x8002EAB8u: return ModelPrimQuadGT4MinSZVariant3;
+    case 0x8002EACCu: return ModelPrimQuadG4MinSZVariant3;
+    case 0x8002EAE0u: return ModelPrimQuadF4MinSZVariant3;
+    case 0x8002EAF4u: return ModelPrimQuadFT4MinSZVariant3;
+    case 0x8002ED20u: return func_8002ED20;
+    case 0x8002EF0Cu: return ModelPrimTriDepthCueVariant4;
+    case 0x8002F0E4u: return ModelPrimTriDepthCueMaxSZVariant5;
+    case 0x8002F2E0u: return func_8002F2E0;
+    case 0x8002F4B4u: return func_8002F4B4;
+    case 0x8002F6B4u: return ModelPrimTriMediumLitVariant1;
+    case 0x8002F8D0u: return ModelPrimQuadF4LitVariant1;
+    case 0x8002FAE8u: return func_8002FAE8;
+    case 0x8002FCFCu: return ModelPrimQuadFT4DepthCueVariant4;
+    case 0x8002FF0Cu: return ModelPrimQuadFT4DepthCueMaxSZVariant5;
+    case 0x80030750u: return func_80030750;
+    default: return NULL;
+    }
+}
+
+#include "cleanroom/model_packet_callbacks.inc"
+
+static ModelPrimBuildProc ModelPrimBuilder(u32 guest)
+{
+    switch (guest) {
+    case 0x8002CDCCu: return ModelBuild8002CDCC;
+    case 0x8002CF34u: return ModelBuild8002CF34;
+    case 0x8002CF58u: return ModelBuild8002CF58;
+    case 0x8002D0C0u: return ModelBuild8002D0C0;
+    case 0x8002D0E4u: return ModelBuild8002D0E4;
+    case 0x8002D180u: return ModelBuild8002D180;
+    case 0x8002D244u: return ModelBuild8002D244;
+    case 0x8002D530u: return ModelBuild8002D530;
+    case 0x8002D6ACu: return ModelBuild8002D6AC;
+    case 0x8002D77Cu: return ModelBuild8002D77C;
+    case 0x8002D814u: return ModelBuild8002D814;
+    case 0x8002D984u: return ModelBuild8002D984;
+    case 0x8002DA14u: return ModelBuild8002DA14;
+    case 0x8002DAFCu: return ModelBuild8002DAFC;
+    default: return NULL;
+    }
+}
+
 
 /* Initialized renderer bounds/depth-shift globals adjacent to D_8004FE50. */
-s32 D_800500F8 = 0x13F;
-s32 D_800500FC = 0x00EE0000;
-s32 D_80050100 = 2;
-s32 D_80050104 = 1;
+s32 D_800500F8;
+s32 D_800500FC;
+s32 D_80050100;
+s32 D_80050104;
 
 /* Main-exe BSS consumed by the decompiled encounter roll func_80079288
  * (src/field/main/misc4.c): D_80059508 = battle-transition param.
@@ -1150,8 +924,13 @@ void PcPort_CullCamLogOnVsync(void) {
                      t->tm_hour, t->tm_min, t->tm_sec);
             path = autoPath;
             /* Relative to the working directory: no build-machine path in the binary. */
+#ifdef _WIN32
+            _mkdir("captures");
+            _mkdir("captures/render_diag");
+#else
             mkdir("captures", 0755);
             mkdir("captures/render_diag", 0755);
+#endif
         }
         s_ccFile = fopen(path, "w");
         if (s_ccFile == NULL) {
@@ -1309,160 +1088,34 @@ void PcPort_CullCamLogOnVsync(void) {
     s_ccFrame++;
 }
 
-/* Retail 0x8002E038 -> shared 0x8002E058: compact three-vertex packet
- * walker using AVSZ3 for OT ordering. */
-/* Retail entry 0x8002E038: packet 0x14, tag 0x04000000, t9 0x4
- * (rows 0x00/0x04) -- the shared .L8002E058 body, see
- * ModelPrimTriSharedSpine. */
 static s32 ModelPrimTriSmallAverageVariant0(u8* pCmd, s32 count) {
     return ModelPrimTriSharedSpine(pCmd, count, 0x14, 0x4, 0x04000000);
 }
 
-/* Retail 0x8002E470 -> shared 0x8002E490: compact three-vertex packet
- * walker selecting max(SZ1,SZ2,SZ3) at 0x8002E600-0x8002E62C. */
-/* Retail func_8002E448 family: one HAND-WRITTEN shared body at
- * .L8002E490 with four alternate entry points (asm/.../func_8002E448.s):
- *
- *     entry       t9    t8 (tag)     a3 (packet)   table slots
- *     8002E448    0xC   0x09000000   0x28          rows 03/07 var 2
- *     8002E45C    0x8   0x06000000   0x1C          rows 02/06 var 2
- *     8002E470    0x4   0x04000000   0x14          rows 00/04 var 2
- *     8002E484    0x8   0x07000000   0x20          rows 01/05 var 2
- *
- * Retail-exact translation of the shared max-SZ body, differing from the
- * average spine (ModelPrimTriSharedSpine) exactly as the bytes do:
- *   - no AVSZ3 anywhere; depth comes from the SIGNED maximum of the RTPT
- *     SZ FIFO regs 17/18/19 selected with slt at 0x8002E600..0x8002E628,
- *     shifted by D_80050100 + 2 (prologue addi at 0x8002E4F0);
- *   - MFC2(18) is read before the NCLIP/MAC0 reject and xy0 is stored in
- *     that branch's DELAY SLOT (0x8002E5E8/0x8002E5EC): a backface-rejected
- *     prim still writes xy0 (but not xy1/xy2);
- *   - emitted incremented after the MAC0 gate but before the zero-max
- *     reject (delay slot at 0x8002E620), so zero-depth prims count.
- */
 static s32 ModelPrimTriMaxSZSharedSpine(u8* pCmd, s32 count, u32 packetStep,
                                         u32 vertexStride, u32 tagLen,
                                         int selectMin) {
-    u8* vertexBase = (u8*)(uintptr_t)D_8005953C;
-    u8* out = D_80059424 - packetStep;
-    u32* ot = (u32*)(uintptr_t)D_80059568;
-    s32 emitted = D_80059578;
-    u32 yBound = (u32)D_800500FC;
-    u32 xBound = (u32)D_800500F8;
-    u32 shift = (u32)D_80050100 + 2;
-    u32 cmd = *(u32*)pCmd;
-    u8* nextV0 = vertexBase + ((cmd & 0xFFFFu) << 3);
-    u8* nextV1 = vertexBase + ((cmd >> 13) & 0xFFF8u);
-    u8* nextV2 = vertexBase + ((u32)*(u16*)(pCmd + 4) << 3);
-
-    for (;;) {
-        u32 xy0, xy1, xy2;
-        s32 mac0, maxSz, otIndex;
-
-        MTC2(*(u32*)nextV0, 0);
-        MTC2(*(u32*)(nextV0 + 4), 1);
-        MTC2(*(u32*)nextV1, 2);
-        MTC2(*(u32*)(nextV1 + 4), 3);
-        MTC2(*(u32*)nextV2, 4);
-        MTC2(*(u32*)(nextV2 + 4), 5);
-        gte_rtpt();
-        if (count == 0) break;
-        count--;
-        pCmd += 8;
-        out += packetStep;
-        cmd = *(u32*)pCmd;
-        nextV0 = vertexBase + ((cmd & 0xFFFFu) << 3);
-        nextV1 = vertexBase + ((cmd >> 13) & 0xFFF8u);
-        nextV2 = vertexBase + ((u32)*(u16*)(pCmd + 4) << 3);
-
-        if ((s32)MFC2(31) < 0) continue; /* LZCR, inert on hardware */
-        xy0 = MFC2(12);
-        xy1 = MFC2(13);
-        xy2 = MFC2(14);
-        gte_nclip();
-        if (!(xy0 < yBound || xy1 < yBound || xy2 < yBound)) {
-            CullCamDrop(CC_OVERLAP, 0);
-            continue;
-        }
-        if (!((xy0 & 0xFFFFu) < xBound || (xy1 & 0xFFFFu) < xBound ||
-              (xy2 & 0xFFFFu) < xBound)) {
-            CullCamDrop(CC_OVERLAP, 0);
-            continue;
-        }
-        mac0 = (s32)MFC2(24);
-        (void)MFC2(18);
-        if (mac0 <= 0) {
-            /* Retail stores xy0 in the reject's delay slot. */
-            *(u32*)(out + 0x08) = xy0;
-            CullCamDrop(CC_NCLIP_BACKFACE, 0);
-            continue;
-        }
-        *(u32*)(out + 0x08) = xy0;
-        *(u32*)(out + 0x08 + vertexStride) = xy1;
-        *(u32*)(out + 0x08 + 2 * vertexStride) = xy2;
-        /* Signed slt-based maximum of the SZ FIFO (regs 17/18/19). */
-        maxSz = (s32)MFC2(17);
-        {
-            s32 sz2 = (s32)MFC2(18);
-            s32 sz3 = (s32)MFC2(19);
-            if (selectMin) {
-                /* func_8002E8B4 family: beqz instead of bnez at
-                 * 0x8002EA78/0x8002EA88 -- the signed MINIMUM. */
-                if (sz2 < maxSz) maxSz = sz2;
-                if (sz3 < maxSz) maxSz = sz3;
-            } else {
-                if (!(sz2 < maxSz)) maxSz = sz2;
-                if (!(sz3 < maxSz)) maxSz = sz3;
-            }
-        }
-        emitted++;
-        if (maxSz == 0) {
-            CullCamDrop(CC_OTZ, 0);
-            continue;
-        }
-        otIndex = (s32)((u32)maxSz >> shift);
-        PcPort_LinkModelPrim(ot, otIndex, out, tagLen);
-        CullCamEmit(0);
-    }
-
-    D_80059578 = emitted;
-    D_80059424 = out + packetStep;
-    return (s32)yBound;
+    (void)tagLen;
+    return PcPort_DrawModelPolygons(pCmd, count, 3, packetStep, vertexStride,
+                                 selectMin ? PCPORT_MODEL_DEPTH_MINIMUM : PCPORT_MODEL_DEPTH_MAXIMUM);
 }
 
-/* Retail entry 0x8002E448: packet 0x28, tag 0x09000000, t9 0xC (rows 03/07 v2). */
 static s32 ModelPrimTriGT3MaxSZVariant2(u8* pCmd, s32 count) {
     return ModelPrimTriMaxSZSharedSpine(pCmd, count, 0x28, 0xC, 0x09000000, 0);
 }
 
-/* Retail entry 0x8002E45C: packet 0x1C, tag 0x06000000, t9 0x8 (rows 02/06 v2). */
 static s32 ModelPrimTriMediumMaxSZVariant2(u8* pCmd, s32 count) {
     return ModelPrimTriMaxSZSharedSpine(pCmd, count, 0x1C, 0x8, 0x06000000, 0);
 }
 
-/* Retail entry 0x8002E470: packet 0x14, tag 0x04000000, t9 0x4 (rows 00/04 v2). */
 static s32 ModelPrimTriSmallMaxSZVariant2(u8* pCmd, s32 count) {
     return ModelPrimTriMaxSZSharedSpine(pCmd, count, 0x14, 0x4, 0x04000000, 0);
 }
 
-/* Retail entry 0x8002E484: packet 0x20, tag 0x07000000, t9 0x8 (rows 01/05 v2). */
-/* Retail entry 0x8002E484: shared .L8002E490 body -- see
- * ModelPrimTriMaxSZSharedSpine. */
 static s32 ModelPrimTriMaxSZVariant2(u8* pCmd, s32 count) {
     return ModelPrimTriMaxSZSharedSpine(pCmd, count, 0x20, 0x8, 0x07000000, 0);
 }
 
-/* Retail func_8002E8B4 family (asm/.../func_8002E8B4.s): byte-for-byte the
- * func_8002E448 body (shared .L8002E8FC, +2 shift, xy0 in the backface
- * delay slot) except that the SZ1/SZ2/SZ3 reducer selects the signed
- * MINIMUM.  Four entries, variant 3 of rows 00..07:
- *
- *     entry       t9    t8 (tag)     a3 (packet)   table slots
- *     8002E8B4    0xC   0x09000000   0x28          rows 03/07 var 3
- *     8002E8C8    0x8   0x06000000   0x1C          rows 02/06 var 3
- *     8002E8DC    0x4   0x04000000   0x14          rows 00/04 var 3
- *     8002E8F0    0x8   0x07000000   0x20          rows 01/05 var 3
- */
 static s32 ModelPrimTriGT3MinSZVariant3(u8* pCmd, s32 count) {
     return ModelPrimTriMaxSZSharedSpine(pCmd, count, 0x28, 0xC, 0x09000000, 1);
 }
@@ -1479,650 +1132,88 @@ static s32 ModelPrimTriMinSZVariant3(u8* pCmd, s32 count) {
     return ModelPrimTriMaxSZSharedSpine(pCmd, count, 0x20, 0x8, 0x07000000, 1);
 }
 
-/* Retail 0x8002E22C family: one HAND-WRITTEN shared quad body at .L8002E274
- * with four alternate entry points (asm/slus_006.64/nonmatchings/system/temp2/
- * func_8002E010.s, tail):
- *
- *     entry       t9    t8 (tag)     a3 (packet)   table slots
- *     8002E22C    0xC   0x0C000000   0x34          rows 0B/0F var 0/1/4/5 (GT4)
- *     8002E240    0x8   0x08000000   0x24          rows 0A/0E var 0/1/4/5 (G4)
- *     8002E254    0x4   0x05000000   0x18          rows 08/0C var 0/1/4/5 (F4)
- *     8002E268    0x8   0x09000000   0x28          rows 09/0D var 0/1     (FT4)
- *
- * Retail-exact translation (differential:
- * pc_port/tests/run_model_prim_walkers_retail_test.sh):
- *   - command 0's v1/v2 preloaded in the prologue; every loop head loads v0
- *     and runs RTPT BEFORE the count test (count+1 transforms), then
- *     prefetches the next command's v1/v2 into VXY1/VXY2;
- *   - v1 decoded as the BYTE offset (cmd >> 13) & 0xFFF8;
- *   - mfc2 $31 (LZCR, inert) read, NCLIP issued, then the LZCR branch;
- *   - v3 (halfword at cmd+6) loaded and MAC0 read before the MAC0 <= 0
- *     backface reject; then RTPS of v3, sxy3 = SXY2, LZCR gate with AVSZ4
- *     in its delay slot (so AVSZ4 runs even when that gate rejects);
- *   - y-overlap (unsigned full-word < D_800500FC) then x-overlap (low
- *     halfword < D_800500F8) over all four SXY;
- *   - emitted incremented BEFORE the OTZ == 0 reject;
- *   - OT link first (0x8002E414..0x8002E424), then xy0..xy3 at
- *     +8, +8+t9, +8+2*t9, +8+3*t9;
- *   - $v0 = D_800500FC returned untouched.
- */
 static s32 ModelPrimQuadSharedSpine(u8* pCmd, s32 count, u32 packetStep,
                                     u32 vertexStride, u32 tagLen) {
-    u8* vertexBase = (u8*)(uintptr_t)D_8005953C;
-    u8* out = D_80059424 - packetStep;
-    u32* ot = (u32*)(uintptr_t)D_80059568;
-    s32 emitted = D_80059578;
-    u32 yBound = (u32)D_800500FC; /* also the return value ($v0) */
-    u32 xBound = (u32)D_800500F8;
-    u32 shift = (u32)D_80050100;
-    u32 cmd = *(u32*)pCmd;
-    u8* nextV0 = vertexBase + ((cmd & 0xFFFFu) << 3);
-    u8* v;
-
-    v = vertexBase + ((cmd >> 13) & 0xFFF8u);
-    MTC2(*(u32*)v, 2);
-    MTC2(*(u32*)(v + 4), 3);
-    v = vertexBase + ((u32)*(u16*)(pCmd + 4) << 3);
-    MTC2(*(u32*)v, 4);
-    MTC2(*(u32*)(v + 4), 5);
-
-    for (;;) {
-        u32 xy0, xy1, xy2, xy3, lzcr;
-        s32 mac0, otz;
-
-        MTC2(*(u32*)nextV0, 0);
-        MTC2(*(u32*)(nextV0 + 4), 1);
-        gte_rtpt();
-        if (count == 0) break;
-        count--;
-        pCmd += 8;
-        cmd = *(u32*)pCmd;
-        out += packetStep;
-        nextV0 = vertexBase + ((cmd & 0xFFFFu) << 3);
-        v = vertexBase + ((cmd >> 13) & 0xFFF8u);
-        MTC2(*(u32*)v, 2);
-        MTC2(*(u32*)(v + 4), 3);
-        v = vertexBase + ((u32)*(u16*)(pCmd + 4) << 3);
-        MTC2(*(u32*)v, 4);
-        MTC2(*(u32*)(v + 4), 5);
-
-        lzcr = MFC2(31);
-        gte_nclip();
-        if ((s32)lzcr < 0) continue; /* LZCR, inert on hardware */
-        v = vertexBase + ((u32)*(u16*)(pCmd - 2) << 3);
-        xy0 = MFC2(12);
-        mac0 = (s32)MFC2(24);
-        if (mac0 <= 0) {
-            CullCamDrop(CC_NCLIP_BACKFACE, 0);
-            continue;
-        }
-        xy1 = MFC2(13);
-        MTC2(*(u32*)v, 0);
-        MTC2(*(u32*)(v + 4), 1);
-        xy2 = MFC2(14);
-        gte_rtps();
-        lzcr = MFC2(31);
-        xy3 = MFC2(14);
-        gte_avsz4(); /* delay slot of the LZCR branch */
-        if ((s32)lzcr < 0) continue;
-        if (!(xy0 < yBound || xy1 < yBound || xy2 < yBound || xy3 < yBound)) {
-            CullCamDrop(CC_OVERLAP, 0);
-            continue;
-        }
-        if (!((xy0 & 0xFFFFu) < xBound || (xy1 & 0xFFFFu) < xBound ||
-              (xy2 & 0xFFFFu) < xBound || (xy3 & 0xFFFFu) < xBound)) {
-            CullCamDrop(CC_OVERLAP, 0);
-            continue;
-        }
-        otz = (s32)MFC2(7);
-        emitted++;
-        if (otz == 0) {
-            CullCamDrop(CC_OTZ, 0);
-            continue;
-        }
-        PcPort_LinkModelPrim(ot, otz >> shift, out, tagLen);
-        *(u32*)(out + 0x08) = xy0;
-        *(u32*)(out + 0x08 + vertexStride) = xy1;
-        *(u32*)(out + 0x08 + 2 * vertexStride) = xy2;
-        *(u32*)(out + 0x08 + 3 * vertexStride) = xy3;
-        CullCamEmit(0);
-    }
-
-    D_80059578 = emitted;
-    D_80059424 = out + packetStep;
-    return (s32)yBound;
+    (void)tagLen;
+    return PcPort_DrawModelPolygons(pCmd, count, 4, packetStep, vertexStride,
+                                 PCPORT_MODEL_DEPTH_AVERAGE);
 }
 
-/* Retail entry 0x8002E22C: packet 0x34, tag 0x0C000000, t9 0xC (POLY_GT4). */
 static s32 ModelPrimQuadGT4Variant0(u8* pCmd, s32 count) {
     return ModelPrimQuadSharedSpine(pCmd, count, 0x34, 0xC, 0x0C000000);
 }
 
-/* Retail entry 0x8002E240: packet 0x24, tag 0x08000000, t9 0x8 (POLY_G4). */
 static s32 ModelPrimQuadG4Variant0(u8* pCmd, s32 count) {
     return ModelPrimQuadSharedSpine(pCmd, count, 0x24, 0x8, 0x08000000);
 }
 
-/* Retail entry 0x8002E254: packet 0x18, tag 0x05000000, t9 0x4 (POLY_F4). */
 static s32 ModelPrimQuadF4Variant0(u8* pCmd, s32 count) {
     return ModelPrimQuadSharedSpine(pCmd, count, 0x18, 0x4, 0x05000000);
 }
 
-/* Retail entry 0x8002E268: packet 0x28, tag 0x09000000, t9 0x8 (POLY_FT4). */
 static s32 ModelPrimQuadFT4Variant0(u8* pCmd, s32 count) {
     return ModelPrimQuadSharedSpine(pCmd, count, 0x28, 0x8, 0x09000000);
 }
 
-/* Retail func_8002F6B4 (row 02 var 1): lit POLY_G3 walker (packet 0x1C),
- * a standalone hand-written body exiting through the shared .L8002E1F4
- * epilogue (a3 = 0x1C).  Translated instruction by instruction:
- *   - all six VXY/VZ regs reloaded from the current v0/v1/v2 addresses at
- *     every loop head, RTPT before the count test (count+1 transforms);
- *   - after the count test, the three addresses rebased into the normal
- *     table (+ D_8005952C - D_8005953C) are stored to scratchpad words
- *     0x1F800000/4/8, the records cursor D_80059498 advances by 4 per
- *     command and is written back on exit;
- *   - LZCR + SXY0 read, LZCR branch, SXY1/SXY2 read, NCLIP, then the
- *     y/x-overlap gates over three SXY;
- *   - xy0 at +8 and xy1 at +0x10 (delay slot) stored before the MAC0 <= 0
- *     reject; AVSZ3, xy2 at +0x18, OTZ == 0 reject, THEN emitted++;
- *   - NCCT on the three scratchpad normals with RGBC = record word,
- *     colour word +4 = record code byte | RGB0, RGB1 -> +0xC, RGB2 -> +0x14;
- *     link tag 0x06000000, OT index OTZ >> D_80050100.
- */
 static s32 ModelPrimTriMediumLitVariant1(u8* pCmd, s32 count) {
-    u32 vertices = D_8005953C;
-    u32 normalDelta = D_8005952C - vertices;
-    u32* scratch = (u32*)g_PsxScratchpad; /* retail 0x1F800000 */
-    u8* records = (u8*)(uintptr_t)D_80059498;
-    u8* out = D_80059424 - 0x1C;
-    u32* ot = (u32*)(uintptr_t)D_80059568;
-    s32 emitted = D_80059578;
-    u32 yBound = (u32)D_800500FC; /* also the return value ($v0) */
-    u32 xBound = (u32)D_800500F8;
-    u32 shift = (u32)D_80050100;
-    u32 cmd = *(u32*)pCmd;
-    u32 v0 = vertices + ((cmd & 0xFFFFu) << 3);
-    u32 v1 = vertices + ((cmd >> 13) & 0xFFF8u);
-    u32 v2 = vertices + ((u32)*(u16*)(pCmd + 4) << 3);
-
-    for (;;) {
-        u32 xy0, xy1, xy2, lzcr, colour;
-        s32 mac0, otz;
-        u8* n;
-
-        MTC2(*(u32*)(uintptr_t)v0, 0);
-        MTC2(*(u32*)(uintptr_t)(v0 + 4), 1);
-        MTC2(*(u32*)(uintptr_t)v1, 2);
-        MTC2(*(u32*)(uintptr_t)(v1 + 4), 3);
-        MTC2(*(u32*)(uintptr_t)v2, 4);
-        MTC2(*(u32*)(uintptr_t)(v2 + 4), 5);
-        gte_rtpt();
-        if (count == 0) break;
-        scratch[0] = v0 + normalDelta;
-        scratch[1] = v1 + normalDelta;
-        scratch[2] = v2 + normalDelta;
-        count--;
-        pCmd += 8;
-        records += 4;
-        cmd = *(u32*)pCmd;
-        out += 0x1C;
-        v0 = vertices + ((cmd & 0xFFFFu) << 3);
-        v1 = vertices + ((cmd >> 13) & 0xFFF8u);
-        v2 = vertices + ((u32)*(u16*)(pCmd + 4) << 3);
-
-        lzcr = MFC2(31);
-        xy0 = MFC2(12);
-        if ((s32)lzcr < 0) continue; /* LZCR, inert on hardware */
-        xy1 = MFC2(13);
-        xy2 = MFC2(14);
-        gte_nclip();
-        if (!(xy0 < yBound || xy1 < yBound || xy2 < yBound)) {
-            CullCamDrop(CC_OVERLAP, 0);
-            continue;
-        }
-        if (!((xy0 & 0xFFFFu) < xBound || (xy1 & 0xFFFFu) < xBound ||
-              (xy2 & 0xFFFFu) < xBound)) {
-            CullCamDrop(CC_OVERLAP, 0);
-            continue;
-        }
-        mac0 = (s32)MFC2(24);
-        *(u32*)(out + 0x08) = xy0;
-        *(u32*)(out + 0x10) = xy1; /* MAC0 branch delay slot */
-        if (mac0 <= 0) {
-            CullCamDrop(CC_NCLIP_BACKFACE, 0);
-            continue;
-        }
-        gte_avsz3();
-        *(u32*)(out + 0x18) = xy2;
-        otz = (s32)MFC2(7);
-        if (otz == 0) {
-            CullCamDrop(CC_OTZ, 0);
-            continue;
-        }
-        emitted++;
-        n = (u8*)(uintptr_t)scratch[0];
-        MTC2(*(u32*)n, 0);
-        MTC2(*(u32*)(n + 4), 1);
-        n = (u8*)(uintptr_t)scratch[1];
-        MTC2(*(u32*)n, 2);
-        MTC2(*(u32*)(n + 4), 3);
-        n = (u8*)(uintptr_t)scratch[2];
-        MTC2(*(u32*)n, 4);
-        MTC2(*(u32*)(n + 4), 5);
-        colour = *(u32*)(records - 4);
-        MTC2(colour, 6);
-        gte_ncct();
-        *(u32*)(out + 0x04) = (colour & 0xFF000000u) | (MFC2(20) & 0x00FFFFFFu);
-        *(u32*)(out + 0x0C) = MFC2(21);
-        *(u32*)(out + 0x14) = MFC2(22);
-        PcPort_LinkModelPrim(ot, otz >> shift, out, 0x06000000);
-        CullCamEmit(0);
-    }
-
-    D_80059498 = (u32)(uintptr_t)records;
-    D_80059578 = emitted;
-    D_80059424 = out + 0x1C;
-    return (s32)yBound;
+    return PcPort_DrawLitModelPolygons(pCmd, count, PCPORT_MODEL_LIT_G3);
 }
 
-/* Retail func_8002F8D0 (row 08 var 1): lit POLY_F4 walker, a standalone
- * hand-written body that exits through the shared .L8002E1F4 epilogue
- * (a3 = 0x18).  Same quad spine as ModelPrimQuadSharedSpine except, exactly
- * as the bytes do:
- *   - the lookahead v0 is decoded as (cmd << 3) & 0xFFF8 (13-bit index) in
- *     the loop, unlike the prologue's (cmd & 0xFFFF) << 3;
- *   - the 12-byte lighting-record cursor D_80059498 advances once per
- *     command after the count test (before any reject) and is written back;
- *   - after the OTZ gate: record word 0 -> RGBC, words 1/2 -> VXY0/VZ0,
- *     NCCS; xy0..xy3 at +8/+0xC/+0x10/+0x14, then the colour word at +4 is
- *     (record code byte) | (RGB2 & 0xFFFFFF); link tag 0x05000000.
- */
 static s32 ModelPrimQuadF4LitVariant1(u8* pCmd, s32 count) {
-    u8* vertexBase = (u8*)(uintptr_t)D_8005953C;
-    u8* records = (u8*)(uintptr_t)D_80059498;
-    u8* out = D_80059424 - 0x18;
-    u32* ot = (u32*)(uintptr_t)D_80059568;
-    s32 emitted = D_80059578;
-    u32 yBound = (u32)D_800500FC; /* also the return value ($v0) */
-    u32 xBound = (u32)D_800500F8;
-    u32 shift = (u32)D_80050100;
-    u32 cmd = *(u32*)pCmd;
-    u8* nextV0 = vertexBase + ((cmd & 0xFFFFu) << 3);
-    u8* v;
-
-    v = vertexBase + ((cmd >> 13) & 0xFFF8u);
-    MTC2(*(u32*)v, 2);
-    MTC2(*(u32*)(v + 4), 3);
-    v = vertexBase + ((u32)*(u16*)(pCmd + 4) << 3);
-    MTC2(*(u32*)v, 4);
-    MTC2(*(u32*)(v + 4), 5);
-
-    for (;;) {
-        u32 xy0, xy1, xy2, xy3, lzcr, colour;
-        s32 mac0, otz;
-
-        MTC2(*(u32*)nextV0, 0);
-        MTC2(*(u32*)(nextV0 + 4), 1);
-        gte_rtpt();
-        if (count == 0) break;
-        count--;
-        pCmd += 8;
-        cmd = *(u32*)pCmd;
-        out += 0x18;
-        nextV0 = vertexBase + ((cmd << 3) & 0xFFF8u);
-        v = vertexBase + ((cmd >> 13) & 0xFFF8u);
-        MTC2(*(u32*)v, 2);
-        MTC2(*(u32*)(v + 4), 3);
-        v = vertexBase + ((u32)*(u16*)(pCmd + 4) << 3);
-        MTC2(*(u32*)v, 4);
-        MTC2(*(u32*)(v + 4), 5);
-        records += 0xC;
-
-        lzcr = MFC2(31);
-        gte_nclip();
-        if ((s32)lzcr < 0) continue; /* LZCR, inert on hardware */
-        v = vertexBase + ((u32)*(u16*)(pCmd - 2) << 3);
-        xy0 = MFC2(12);
-        mac0 = (s32)MFC2(24);
-        if (mac0 <= 0) {
-            CullCamDrop(CC_NCLIP_BACKFACE, 1);
-            continue;
-        }
-        xy1 = MFC2(13);
-        MTC2(*(u32*)v, 0);
-        MTC2(*(u32*)(v + 4), 1);
-        xy2 = MFC2(14);
-        gte_rtps();
-        lzcr = MFC2(31);
-        xy3 = MFC2(14);
-        gte_avsz4(); /* delay slot of the LZCR branch */
-        if ((s32)lzcr < 0) continue;
-        if (!(xy0 < yBound || xy1 < yBound || xy2 < yBound || xy3 < yBound)) {
-            CullCamDrop(CC_OVERLAP, 1);
-            continue;
-        }
-        if (!((xy0 & 0xFFFFu) < xBound || (xy1 & 0xFFFFu) < xBound ||
-              (xy2 & 0xFFFFu) < xBound || (xy3 & 0xFFFFu) < xBound)) {
-            CullCamDrop(CC_OVERLAP, 1);
-            continue;
-        }
-        otz = (s32)MFC2(7);
-        emitted++;
-        if (otz == 0) {
-            CullCamDrop(CC_OTZ, 1);
-            continue;
-        }
-        colour = *(u32*)(records - 0xC);
-        MTC2(*(u32*)(records - 0x8), 0);
-        MTC2(*(u32*)(records - 0x4), 1);
-        MTC2(colour, 6);
-        gte_nccs();
-        *(u32*)(out + 0x08) = xy0;
-        *(u32*)(out + 0x0C) = xy1;
-        *(u32*)(out + 0x10) = xy2;
-        *(u32*)(out + 0x14) = xy3;
-        *(u32*)(out + 0x04) = (colour & 0xFF000000u) | (MFC2(22) & 0x00FFFFFFu);
-        PcPort_LinkModelPrim(ot, otz >> shift, out, 0x05000000);
-        CullCamEmit(1);
-    }
-
-    D_80059498 = (u32)(uintptr_t)records;
-    D_80059578 = emitted;
-    D_80059424 = out + 0x18;
-    return (s32)yBound;
+    return PcPort_DrawLitModelPolygons(pCmd, count, PCPORT_MODEL_LIT_F4);
 }
 
-/* Retail func_8002E64C (max-SZ, variant 2) and func_8002EAB8 (min-SZ,
- * variant 3): two HAND-WRITTEN shared quad bodies (.L8002E694 / .L8002EB00),
- * byte-identical except for the sense of the three SZ-select branches
- * (bnez -> max in E64C, beqz -> min in EAB8).  Both exit through the
- * shared .L8002E1F4 epilogue.  Entries:
- *
- *     max       min       t9    t8 (tag)     a3     packet
- *     8002E64C  8002EAB8  0xC   0x0C000000   0x34   GT4 (rows 0B/0F)
- *     8002E660  8002EACC  0x8   0x08000000   0x24   G4  (rows 0A/0E)
- *     8002E674  8002EAE0  0x4   0x05000000   0x18   F4  (rows 08/0C)
- *     (8002E688 8002EAF4  0x8   0x09000000   0x28   FT4 (rows 09/0D);
- *      E688 is ported separately in temp2.c)
- *
- * Differences from the average quad spine, exactly as the bytes do:
- *   - LZCR, SXY0 and SXY1 read BEFORE NCLIP (SXY1 in the LZCR branch's
- *     delay slot); SXY2 read, then NCLIP; no AVSZ4 anywhere;
- *   - the x-overlap reject's delay slot stores xy0 (0x8002E81C): an
- *     x-rejected prim still writes out+8;
- *   - xy0..xy2 stored, then SZ0 == 0 rejects (xy3 not yet written), then
- *     xy3 stored, then SZ1/SZ2/SZ3 == 0 reject one at a time;
- *   - signed slt select over SZ0..SZ3, emitted incremented only after all
- *     four SZ are non-zero (delay slot 0x8002E884), shift D_80050100 + 2.
- */
 static s32 ModelPrimQuadSZSelectSpine(u8* pCmd, s32 count, u32 packetStep,
                                       u32 vertexStride, u32 tagLen,
                                       int selectMin) {
-    u8* vertexBase = (u8*)(uintptr_t)D_8005953C;
-    u8* out = D_80059424 - packetStep;
-    u32* ot = (u32*)(uintptr_t)D_80059568;
-    s32 emitted = D_80059578;
-    u32 yBound = (u32)D_800500FC; /* also the return value ($v0) */
-    u32 xBound = (u32)D_800500F8;
-    s32 shift = D_80050100 + 2;
-    u32 cmd = *(u32*)pCmd;
-    u8* nextV0 = vertexBase + ((cmd & 0xFFFFu) << 3);
-    u8* v;
-
-    v = vertexBase + ((cmd >> 13) & 0xFFF8u);
-    MTC2(*(u32*)v, 2);
-    MTC2(*(u32*)(v + 4), 3);
-    v = vertexBase + ((u32)*(u16*)(pCmd + 4) << 3);
-    MTC2(*(u32*)v, 4);
-    MTC2(*(u32*)(v + 4), 5);
-
-    for (;;) {
-        u32 xy0, xy1, xy2, xy3, lzcr;
-        s32 mac0, sz, best;
-
-        MTC2(*(u32*)nextV0, 0);
-        MTC2(*(u32*)(nextV0 + 4), 1);
-        gte_rtpt();
-        if (count == 0) break;
-        count--;
-        pCmd += 8;
-        cmd = *(u32*)pCmd;
-        out += packetStep;
-        nextV0 = vertexBase + ((cmd & 0xFFFFu) << 3);
-        v = vertexBase + ((cmd >> 13) & 0xFFF8u);
-        MTC2(*(u32*)v, 2);
-        MTC2(*(u32*)(v + 4), 3);
-        v = vertexBase + ((u32)*(u16*)(pCmd + 4) << 3);
-        MTC2(*(u32*)v, 4);
-        MTC2(*(u32*)(v + 4), 5);
-
-        lzcr = MFC2(31);
-        xy0 = MFC2(12);
-        xy1 = MFC2(13);
-        if ((s32)lzcr < 0) continue; /* LZCR, inert on hardware */
-        xy2 = MFC2(14);
-        gte_nclip();
-        v = vertexBase + ((u32)*(u16*)(pCmd - 2) << 3);
-        mac0 = (s32)MFC2(24);
-        if (mac0 <= 0) {
-            CullCamDrop(CC_NCLIP_BACKFACE, 1);
-            continue;
-        }
-        MTC2(*(u32*)v, 0);
-        MTC2(*(u32*)(v + 4), 1);
-        gte_rtps();
-        lzcr = MFC2(31);
-        xy3 = MFC2(14);
-        if ((s32)lzcr < 0) continue;
-        if (!(xy0 < yBound || xy1 < yBound || xy2 < yBound || xy3 < yBound)) {
-            CullCamDrop(CC_OVERLAP, 1);
-            continue;
-        }
-        if (!((xy0 & 0xFFFFu) < xBound || (xy1 & 0xFFFFu) < xBound ||
-              (xy2 & 0xFFFFu) < xBound || (xy3 & 0xFFFFu) < xBound)) {
-            /* Retail stores xy0 in this reject's delay slot. */
-            *(u32*)(out + 0x08) = xy0;
-            CullCamDrop(CC_OVERLAP, 1);
-            continue;
-        }
-        *(u32*)(out + 0x08) = xy0;
-        *(u32*)(out + 0x08 + vertexStride) = xy1;
-        *(u32*)(out + 0x08 + 2 * vertexStride) = xy2;
-        best = (s32)MFC2(16);
-        if (best == 0) {
-            CullCamDrop(CC_OTZ, 1);
-            continue;
-        }
-        sz = (s32)MFC2(17);
-        *(u32*)(out + 0x08 + 3 * vertexStride) = xy3;
-        if (sz == 0) {
-            CullCamDrop(CC_OTZ, 1);
-            continue;
-        }
-        if ((sz < best) == selectMin) best = sz;
-        sz = (s32)MFC2(18);
-        if (sz == 0) {
-            CullCamDrop(CC_OTZ, 1);
-            continue;
-        }
-        if ((sz < best) == selectMin) best = sz;
-        sz = (s32)MFC2(19);
-        if (sz == 0) {
-            CullCamDrop(CC_OTZ, 1);
-            continue;
-        }
-        emitted++;
-        if ((sz < best) == selectMin) best = sz;
-        if (best == 0) {
-            CullCamDrop(CC_OTZ, 1);
-            continue;
-        }
-        PcPort_LinkModelPrim(ot, best >> shift, out, tagLen);
-        CullCamEmit(1);
-    }
-
-    D_80059578 = emitted;
-    D_80059424 = out + packetStep;
-    return (s32)yBound;
+    (void)tagLen;
+    return PcPort_DrawModelPolygons(pCmd, count, 4, packetStep, vertexStride,
+                                 selectMin ? PCPORT_MODEL_DEPTH_MINIMUM : PCPORT_MODEL_DEPTH_MAXIMUM);
 }
 
-/* Retail entry 0x8002E64C: GT4 max-SZ (rows 0B/0F var 2). */
 static s32 ModelPrimQuadGT4MaxSZVariant2(u8* pCmd, s32 count) {
     return ModelPrimQuadSZSelectSpine(pCmd, count, 0x34, 0xC, 0x0C000000, 0);
 }
 
-/* Retail entry 0x8002E660: G4 max-SZ (rows 0A/0E var 2). */
 static s32 ModelPrimQuadG4MaxSZVariant2(u8* pCmd, s32 count) {
     return ModelPrimQuadSZSelectSpine(pCmd, count, 0x24, 0x8, 0x08000000, 0);
 }
 
-/* Retail entry 0x8002E674: F4 max-SZ (rows 08/0C var 2). */
 static s32 ModelPrimQuadF4MaxSZVariant2(u8* pCmd, s32 count) {
     return ModelPrimQuadSZSelectSpine(pCmd, count, 0x18, 0x4, 0x05000000, 0);
 }
 
-/* Retail entry 0x8002EAB8: GT4 min-SZ (rows 0B/0F var 3). */
 static s32 ModelPrimQuadGT4MinSZVariant3(u8* pCmd, s32 count) {
     return ModelPrimQuadSZSelectSpine(pCmd, count, 0x34, 0xC, 0x0C000000, 1);
 }
 
-/* Retail entry 0x8002EACC: G4 min-SZ (rows 0A/0E var 3). */
 static s32 ModelPrimQuadG4MinSZVariant3(u8* pCmd, s32 count) {
     return ModelPrimQuadSZSelectSpine(pCmd, count, 0x24, 0x8, 0x08000000, 1);
 }
 
-/* Retail entry 0x8002EAE0: F4 min-SZ (rows 08/0C var 3). */
 static s32 ModelPrimQuadF4MinSZVariant3(u8* pCmd, s32 count) {
     return ModelPrimQuadSZSelectSpine(pCmd, count, 0x18, 0x4, 0x05000000, 1);
 }
 
-/* Retail entry 0x8002EAF4: FT4 min-SZ (rows 09/0D var 3). */
 static s32 ModelPrimQuadFT4MinSZVariant3(u8* pCmd, s32 count) {
     return ModelPrimQuadSZSelectSpine(pCmd, count, 0x28, 0x8, 0x09000000, 1);
 }
 
-/* Retail 0x8002E010 family: one HAND-WRITTEN shared body at .L8002E058 with
- * four alternate entry points (asm/slus_006.64/nonmatchings/system/temp2/
- * func_8002E010.s).  Each entry loads three constants and falls into the body:
- *
- *     entry       t9    t8 (tag)     a3 (packet)   table rows
- *     8002E010    0xC   0x09000000   0x28          0x03, 0x07
- *     8002E024    0x8   0x06000000   0x1C          0x02, 0x06
- *     8002E038    0x4   0x04000000   0x14          0x00, 0x04
- *     8002E04C    0x8   0x07000000   0x20          0x01, 0x05
- *
- * This is a retail-exact translation of that shared body (differential:
- * pc_port/tests/run_model_prim_walkers_retail_test.sh), including:
- *   - the prologue preload of command 0's vertices and the RTPT at the loop
- *     head BEFORE the count test: retail performs count+1 transforms, one
- *     even at count == 0, and preloads the next command's vertices at the
- *     end of every iteration (.L8002E0FC..0x8002E14C);
- *   - $v0 = D_800500FC loaded once in the prologue and returned untouched;
- *   - v1 decoded as (cmd >> 13) & 0xFFF8 BYTE offset (0x8002E12C), not
- *     (cmd >> 16) << 3;
- *   - the y-overlap gate as an UNSIGNED full-word compare against the packed
- *     ymax bound (sltu vs $v0), then the x-overlap gate on the low halfwords;
- *   - MFC2(24) read BEFORE AVSZ3, branch after (0x8002E1A4..0x8002E1AC);
- *   - xy words stored at out+8, out+8+t9, out+8+2*t9 (0x8002E1B4..0x8002E1C4),
- *     so a zero-OTZ prim leaves an updated-but-unlinked packet;
- *   - emitted incremented BEFORE the zero-OTZ reject (0x8002E1CC);
- *   - the packet pointer's 24-bit mask is left to PcPort_LinkModelPrim, which
- *     reproduces retail's ot[idx] read-back OR-tag link (0x8002E1D8..0x8002E1F0)
- *     for host pointers.
- * The mfc2-$31 gate (0x8002E150) reads LZCR, never negative on hardware.
- */
 static s32 ModelPrimTriSharedSpine(u8* pCmd, s32 count, u32 packetStep,
                                    u32 vertexStride, u32 tagLen) {
-    u8* vertexBase = (u8*)(uintptr_t)D_8005953C;
-    u8* out = D_80059424 - packetStep;
-    u32* ot = (u32*)(uintptr_t)D_80059568;
-    s32 emitted = D_80059578;
-    u32 yBound = (u32)D_800500FC; /* also the return value ($v0) */
-    u32 xBound = (u32)D_800500F8;
-    u32 shift = (u32)D_80050100;
-    u32 cmd = *(u32*)pCmd;
-    u8* nextV0 = vertexBase + ((cmd & 0xFFFFu) << 3);
-    u8* nextV1 = vertexBase + ((cmd >> 13) & 0xFFF8u);
-    u8* nextV2 = vertexBase + ((u32)*(u16*)(pCmd + 4) << 3);
-
-    for (;;) {
-        u32 xy0, xy1, xy2;
-        s32 mac0, otz;
-
-        MTC2(*(u32*)nextV0, 0);
-        MTC2(*(u32*)(nextV0 + 4), 1);
-        MTC2(*(u32*)nextV1, 2);
-        MTC2(*(u32*)(nextV1 + 4), 3);
-        MTC2(*(u32*)nextV2, 4);
-        MTC2(*(u32*)(nextV2 + 4), 5);
-        gte_rtpt();
-        if (count == 0) break;
-        count--;
-        pCmd += 8;
-        out += packetStep;
-        cmd = *(u32*)pCmd;
-        nextV0 = vertexBase + ((cmd & 0xFFFFu) << 3);
-        nextV1 = vertexBase + ((cmd >> 13) & 0xFFF8u);
-        nextV2 = vertexBase + ((u32)*(u16*)(pCmd + 4) << 3);
-
-        /* mfc2 $31 reads LZCR (inert on hardware); kept for GTE parity. */
-        if ((s32)MFC2(31) < 0) continue;
-        xy0 = MFC2(12);
-        xy1 = MFC2(13);
-        xy2 = MFC2(14);
-        gte_nclip();
-        /* y-overlap: unsigned compare of the packed screen word (y<<16|x)
-         * against the packed ymax bound -- any vertex below the bound passes. */
-        if (!(xy0 < yBound || xy1 < yBound || xy2 < yBound)) {
-            CullCamDrop(CC_OVERLAP, 0);
-            continue;
-        }
-        if (!((xy0 & 0xFFFFu) < xBound || (xy1 & 0xFFFFu) < xBound ||
-              (xy2 & 0xFFFFu) < xBound)) {
-            CullCamDrop(CC_OVERLAP, 0);
-            continue;
-        }
-        mac0 = (s32)MFC2(24);
-        gte_avsz3();
-        if (mac0 <= 0) {
-            CullCamDrop(CC_NCLIP_BACKFACE, 0);
-            continue;
-        }
-        *(u32*)(out + 0x08) = xy0;
-        *(u32*)(out + 0x08 + vertexStride) = xy1;
-        *(u32*)(out + 0x08 + 2 * vertexStride) = xy2;
-        otz = (s32)MFC2(7);
-        emitted++;
-        if (otz == 0) {
-            CullCamDrop(CC_OTZ, 0);
-            continue;
-        }
-        PcPort_LinkModelPrim(ot, (s32)((u32)otz >> shift), out, tagLen);
-        CullCamEmit(0);
-    }
-
-    D_80059578 = emitted;
-    D_80059424 = out + packetStep;
-    return (s32)yBound;
+    (void)tagLen;
+    return PcPort_DrawModelPolygons(pCmd, count, 3, packetStep, vertexStride,
+                                 PCPORT_MODEL_DEPTH_AVERAGE);
 }
 
-/* Retail entry 0x8002E04C: packet 0x20, tag 0x07000000, t9 0x8 (rows 0x01/0x05). */
 static s32 ModelPrimTriAverageVariant0(u8* pCmd, s32 count) {
     return ModelPrimTriSharedSpine(pCmd, count, 0x20, 0x8, 0x07000000);
 }
 
-/* Retail entry 0x8002E024: packet 0x1C, tag 0x06000000, t9 0x8 (rows 0x02/0x06). */
 static s32 ModelPrimTriMediumAverageVariant0(u8* pCmd, s32 count) {
     return ModelPrimTriSharedSpine(pCmd, count, 0x1C, 0x8, 0x06000000);
 }
 
-/* Retail 0x8002E010 -> shared 0x8002E058: POLY_GT3 average walker.
- * Same RTPT/NCLIP/AVSZ3 body as ModelPrimTriAverageVariant0; xy words sit
- * at +8/+14/+20 (t9=0xC) in the 0x28-byte packet. */
-/* Retail entry 0x8002E010: packet 0x28, tag 0x09000000, t9 0xC
- * (rows 0x03/0x07) -- the shared .L8002E058 body, see
- * ModelPrimTriSharedSpine. */
 static s32 ModelPrimTriGT3Variant0(u8* pCmd, s32 count) {
     return ModelPrimTriSharedSpine(pCmd, count, 0x28, 0xC, 0x09000000);
 }
@@ -2134,452 +1225,22 @@ extern u8 D_80059598;
 extern u8 D_80059599;
 extern u8 D_8005959A;
 
-/* Retail 0x8002EEF8 entry 0x8002EF0C: three-vertex depth-cued walker
- * (D_8004FE50 rows 1 and 5, variant 4).  Hand-written MIPS; translated
- * instruction by instruction from asm/.../func_8002EEF8.s with the shared
- * walker tail at 0x8002E1F4:
- *   - RGBC is loaded once (mtc2 $6 at 0x8002EFBC) after the first command's
- *     vertices; the RTPT pipeline prefetches the next command's vertices
- *     before the count test, so the final RTPT (also for count == 0) runs on
- *     the lookahead command and leaves observable GTE state;
- *   - v1 decode is (cmd >> 13) & 0xFFF8;
- *   - MAC0 (NCLIP) is read before AVSZ3 (0x8002F070/0x8002F074);
- *   - xy words stored at out+8, +8+t9, +8+2*t9 after the backface test;
- *     emitted counts zero-OTZ prims; DPCS sits in the zero-OTZ reject's
- *     delay slot (0x8002F0A0) so it runs on both paths;
- *   - packet word +4 = (code byte & 0xFE) << 24 | RGB2;
- *   - $v0 is D_800500FC.
- * The mfc2-$31 gate reads LZCR (inert on hardware).  The 24-bit packet
- * mask is left to PcPort_LinkModelPrim. */
 static s32 ModelPrimTriDepthCueVariant4(u8* pCmd, s32 count) {
-    const u32 packetStep = 0x20;
-    const u32 vertexStride = 0x8;
-    const u32 tagLen = 0x07000000;
-    u8* vertexBase = (u8*)(uintptr_t)D_8005953C;
-    u8* out = D_80059424;
-    u32* ot = (u32*)(uintptr_t)D_80059568;
-    s32 emitted = D_80059578;
-    u32 yBound = (u32)D_800500FC;
-    u32 xBound = (u32)D_800500F8;
-    u32 shift = (u32)D_80050100 & 31u;
-    u32 rgbc = (u32)D_80059598 | ((u32)D_80059599 << 8) |
-               ((u32)D_8005959A << 16);
-    u32 cmd = *(u32*)pCmd;
-    u8* v;
-
-    v = vertexBase + ((cmd & 0xFFFFu) << 3);
-    MTC2(*(u32*)v, 0);
-    MTC2(*(u32*)(v + 4), 1);
-    v = vertexBase + ((cmd >> 13) & 0xFFF8u);
-    MTC2(*(u32*)v, 2);
-    MTC2(*(u32*)(v + 4), 3);
-    v = vertexBase + ((u32)*(u16*)(pCmd + 4) << 3);
-    MTC2(*(u32*)v, 4);
-    MTC2(*(u32*)(v + 4), 5);
-    out -= packetStep;
-    MTC2(rgbc, 6);
-
-    for (;;) {
-        u32 xy0, xy1, xy2, otz;
-        s32 mac0;
-
-        gte_rtpt();
-        if (count == 0) break;
-        count--;
-        pCmd += 8;
-        cmd = *(u32*)pCmd;
-        out += packetStep;
-        v = vertexBase + ((cmd & 0xFFFFu) << 3);
-        MTC2(*(u32*)v, 0);
-        MTC2(*(u32*)(v + 4), 1);
-        v = vertexBase + ((cmd >> 13) & 0xFFF8u);
-        MTC2(*(u32*)v, 2);
-        MTC2(*(u32*)(v + 4), 3);
-        v = vertexBase + ((u32)*(u16*)(pCmd + 4) << 3);
-        MTC2(*(u32*)v, 4);
-        MTC2(*(u32*)(v + 4), 5);
-
-        if ((s32)MFC2(31) < 0) continue; /* LZCR, inert on hardware */
-        xy0 = MFC2(12);
-        xy1 = MFC2(13);
-        xy2 = MFC2(14);
-        gte_nclip();
-        if (!(xy0 < yBound || xy1 < yBound || xy2 < yBound)) {
-            CullCamDrop(CC_OVERLAP, 0);
-            continue;
-        }
-        if (!((xy0 & 0xFFFFu) < xBound || (xy1 & 0xFFFFu) < xBound ||
-              (xy2 & 0xFFFFu) < xBound)) {
-            CullCamDrop(CC_OVERLAP, 0);
-            continue;
-        }
-        mac0 = (s32)MFC2(24);
-        gte_avsz3();
-        if (mac0 <= 0) {
-            CullCamDrop(CC_NCLIP_BACKFACE, 0);
-            continue;
-        }
-        *(u32*)(out + 0x08) = xy0;
-        *(u32*)(out + 0x08 + vertexStride) = xy1;
-        *(u32*)(out + 0x08 + 2 * vertexStride) = xy2;
-        otz = MFC2(7);
-        emitted++;
-        gte_dpcs(); /* zero-OTZ branch delay slot: both paths */
-        if (otz == 0) {
-            CullCamDrop(CC_OTZ, 0);
-            continue;
-        }
-        *(u32*)(out + 0x04) = (((u32)out[0x7] << 24) & 0xFE000000u) |
-                              (MFC2(22) & 0x00FFFFFFu);
-        PcPort_LinkModelPrim(ot, (s32)otz >> shift, out, tagLen);
-        CullCamEmit(0);
-    }
-
-    D_80059578 = emitted;
-    D_80059424 = out + packetStep;
-    return (s32)yBound;
+    return PcPort_DrawModelPolygons(pCmd, count, 3, 32, 8, PCPORT_MODEL_DEPTH_AVERAGE);
 }
 
-/* Retail func_8002F0E4: three-vertex depth-cued max-SZ walker (D_8004FE50
- * rows 1 and 5, variant 5), translated from asm/.../func_8002F0E4.s:
- * the 0x8002EF0C spine with
- *   - shift D_80050100 + 2 (addi at 0x8002F150), no AVSZ3;
- *   - DPCS at 0x8002F228, the y-test's beqz delay slot / join target: it
- *     runs for every prim that passes the LZCR gate, before the x test and
- *     the backface test;
- *   - MAC0 then SZ2 read before the backface test; xy words stored after;
- *   - signed slt maximum of SZ1/SZ2/SZ3 (0x8002F278..0x8002F29C); emitted
- *     counts before the zero-maximum reject (delay slot 0x8002F298).
- *   - $v0 is D_800500FC. */
 static s32 ModelPrimTriDepthCueMaxSZVariant5(u8* pCmd, s32 count) {
-    const u32 packetStep = 0x20;
-    const u32 vertexStride = 0x8;
-    const u32 tagLen = 0x07000000;
-    u8* vertexBase = (u8*)(uintptr_t)D_8005953C;
-    u8* out = D_80059424;
-    u32* ot = (u32*)(uintptr_t)D_80059568;
-    s32 emitted = D_80059578;
-    u32 yBound = (u32)D_800500FC;
-    u32 xBound = (u32)D_800500F8;
-    u32 shift = (u32)(D_80050100 + 2) & 31u;
-    u32 rgbc = (u32)D_80059598 | ((u32)D_80059599 << 8) |
-               ((u32)D_8005959A << 16);
-    u32 cmd = *(u32*)pCmd;
-    u8* v;
-
-    ModelPrimVariant5Tripwire("tri", &g_ModelPrimTriDepthCueMaxSZVariant5EntryCount,
-                               pCmd, count);
-
-    v = vertexBase + ((cmd & 0xFFFFu) << 3);
-    MTC2(*(u32*)v, 0);
-    MTC2(*(u32*)(v + 4), 1);
-    v = vertexBase + ((cmd >> 13) & 0xFFF8u);
-    MTC2(*(u32*)v, 2);
-    MTC2(*(u32*)(v + 4), 3);
-    v = vertexBase + ((u32)*(u16*)(pCmd + 4) << 3);
-    MTC2(*(u32*)v, 4);
-    MTC2(*(u32*)(v + 4), 5);
-    out -= packetStep;
-    MTC2(rgbc, 6);
-
-    for (;;) {
-        u32 xy0, xy1, xy2;
-        s32 mac0, sz2, sz3, maxSz;
-
-        gte_rtpt();
-        if (count == 0) break;
-        count--;
-        pCmd += 8;
-        cmd = *(u32*)pCmd;
-        out += packetStep;
-        v = vertexBase + ((cmd & 0xFFFFu) << 3);
-        MTC2(*(u32*)v, 0);
-        MTC2(*(u32*)(v + 4), 1);
-        v = vertexBase + ((cmd >> 13) & 0xFFF8u);
-        MTC2(*(u32*)v, 2);
-        MTC2(*(u32*)(v + 4), 3);
-        v = vertexBase + ((u32)*(u16*)(pCmd + 4) << 3);
-        MTC2(*(u32*)v, 4);
-        MTC2(*(u32*)(v + 4), 5);
-
-        if ((s32)MFC2(31) < 0) continue; /* LZCR, inert on hardware */
-        xy0 = MFC2(12);
-        xy1 = MFC2(13);
-        xy2 = MFC2(14);
-        gte_nclip();
-        {
-            int yPass = xy0 < yBound || xy1 < yBound || xy2 < yBound;
-            gte_dpcs(); /* 0x8002F228: delay slot and join, every path */
-            if (!yPass) {
-                CullCamDrop(CC_OVERLAP, 0);
-                continue;
-            }
-        }
-        if (!((xy0 & 0xFFFFu) < xBound || (xy1 & 0xFFFFu) < xBound ||
-              (xy2 & 0xFFFFu) < xBound)) {
-            CullCamDrop(CC_OVERLAP, 0);
-            continue;
-        }
-        mac0 = (s32)MFC2(24);
-        sz2 = (s32)MFC2(18);
-        if (mac0 <= 0) {
-            CullCamDrop(CC_NCLIP_BACKFACE, 0);
-            continue;
-        }
-        *(u32*)(out + 0x08) = xy0;
-        *(u32*)(out + 0x08 + vertexStride) = xy1;
-        sz3 = (s32)MFC2(19);
-        *(u32*)(out + 0x08 + 2 * vertexStride) = xy2;
-        maxSz = (s32)MFC2(17);
-        if (!(sz2 < maxSz)) maxSz = sz2;
-        if (!(sz3 < maxSz)) maxSz = sz3;
-        emitted++;
-        if (maxSz == 0) {
-            CullCamDrop(CC_OTZ, 0);
-            continue;
-        }
-        *(u32*)(out + 0x04) = (((u32)out[0x7] << 24) & 0xFE000000u) |
-                              (MFC2(22) & 0x00FFFFFFu);
-        PcPort_LinkModelPrim(ot, maxSz >> shift, out, tagLen);
-        CullCamEmit(0);
-    }
-
-    D_80059578 = emitted;
-    D_80059424 = out + packetStep;
-    return (s32)yBound;
+    ModelPrimVariant5Tripwire("tri", &g_ModelPrimTriDepthCueMaxSZVariant5EntryCount, pCmd, count);
+    return PcPort_DrawModelPolygons(pCmd, count, 3, 32, 8, PCPORT_MODEL_DEPTH_MAXIMUM);
 }
 
-/* Retail func_8002FCFC: POLY_FT4 depth-cued walker (D_8004FE50 rows 9 and
- * 13, variant 4), translated from asm/.../func_8002FCFC.s:
- *   - only v1/v2 are preloaded; each iteration loads v0 then issues RTPT in
- *     the count test's delay slot (also for count == 0);
- *   - after the LZCR gate: NCLIP, then v3 = the CURRENT command's +6 (lhu
- *     -2($a0) after the advance), MAC0 backface test, then RTPS of v3,
- *     a second LZCR gate with AVSZ4 in its delay slot (always runs);
- *   - y then x overlap over all four SXY (xy0 stored in the last x
- *     compare's delay slot, even on reject); the xy words stored before
- *     the zero-OTZ test; emitted counts zero-OTZ prims; DPCS in that
- *     test's delay slot (0x8002FEC8);
- *   - packet word +4 = (code byte & 0xFE) << 24 | RGB2; $v0 = D_800500FC. */
 static s32 ModelPrimQuadFT4DepthCueVariant4(u8* pCmd, s32 count) {
-    const u32 packetStep = 0x28;
-    const u32 tagLen = 0x09000000;
-    u8* vertexBase = (u8*)(uintptr_t)D_8005953C;
-    u8* out = D_80059424;
-    u32* ot = (u32*)(uintptr_t)D_80059568;
-    s32 emitted = D_80059578;
-    u32 yBound = (u32)D_800500FC;
-    u32 xBound = (u32)D_800500F8;
-    u32 shift = (u32)D_80050100 & 31u;
-    u32 rgbc = (u32)D_80059598 | ((u32)D_80059599 << 8) |
-               ((u32)D_8005959A << 16);
-    u32 cmd = *(u32*)pCmd;
-    u8* nextV0 = vertexBase + ((cmd & 0xFFFFu) << 3);
-    u8* v;
-
-    v = vertexBase + ((cmd >> 13) & 0xFFF8u);
-    MTC2(*(u32*)v, 2);
-    MTC2(*(u32*)(v + 4), 3);
-    v = vertexBase + ((u32)*(u16*)(pCmd + 4) << 3);
-    MTC2(*(u32*)v, 4);
-    MTC2(*(u32*)(v + 4), 5);
-    out -= packetStep;
-    MTC2(rgbc, 6);
-
-    for (;;) {
-        u32 xy0, xy1, xy2, xy3, otz;
-
-        MTC2(*(u32*)nextV0, 0);
-        MTC2(*(u32*)(nextV0 + 4), 1);
-        gte_rtpt(); /* count test's delay slot */
-        if (count == 0) break;
-        count--;
-        pCmd += 8;
-        cmd = *(u32*)pCmd;
-        out += packetStep;
-        nextV0 = vertexBase + ((cmd & 0xFFFFu) << 3);
-        v = vertexBase + ((cmd >> 13) & 0xFFF8u);
-        MTC2(*(u32*)v, 2);
-        MTC2(*(u32*)(v + 4), 3);
-        v = vertexBase + ((u32)*(u16*)(pCmd + 4) << 3);
-        MTC2(*(u32*)v, 4);
-        MTC2(*(u32*)(v + 4), 5);
-
-        if ((s32)MFC2(31) < 0) continue; /* LZCR, inert on hardware */
-        xy0 = MFC2(12);
-        xy1 = MFC2(13);
-        xy2 = MFC2(14);
-        gte_nclip();
-        /* v3 of the current command: lhu -0x2($a0) after the advance. */
-        v = vertexBase + ((u32)*(u16*)(pCmd - 2) << 3);
-        if ((s32)MFC2(24) <= 0) {
-            CullCamDrop(CC_NCLIP_BACKFACE, 1);
-            continue;
-        }
-        MTC2(*(u32*)v, 0);
-        MTC2(*(u32*)(v + 4), 1);
-        gte_rtps();
-        {
-            s32 lzcr = (s32)MFC2(31);
-            xy3 = MFC2(14);
-            gte_avsz4(); /* second LZCR gate's delay slot: always runs */
-            if (lzcr < 0) continue;
-        }
-        if (!(xy0 < yBound || xy1 < yBound || xy2 < yBound || xy3 < yBound)) {
-            CullCamDrop(CC_OVERLAP, 1);
-            continue;
-        }
-        {
-            int xPass = (xy0 & 0xFFFFu) < xBound || (xy1 & 0xFFFFu) < xBound ||
-                        (xy2 & 0xFFFFu) < xBound || (xy3 & 0xFFFFu) < xBound;
-            /* xy0 is stored in the last x compare's beqz delay slot, so a
-             * prim that fails the x test still writes it. */
-            *(u32*)(out + 0x08) = xy0;
-            if (!xPass) {
-                CullCamDrop(CC_OVERLAP, 1);
-                continue;
-            }
-        }
-        *(u32*)(out + 0x10) = xy1;
-        *(u32*)(out + 0x18) = xy2;
-        *(u32*)(out + 0x20) = xy3;
-        otz = MFC2(7);
-        emitted++;
-        gte_dpcs(); /* zero-OTZ branch delay slot: both paths */
-        if (otz == 0) {
-            CullCamDrop(CC_OTZ, 1);
-            continue;
-        }
-        *(u32*)(out + 0x04) = (((u32)out[0x7] << 24) & 0xFE000000u) |
-                              (MFC2(22) & 0x00FFFFFFu);
-        PcPort_LinkModelPrim(ot, (s32)otz >> shift, out, tagLen);
-        CullCamEmit(1);
-    }
-
-    D_80059578 = emitted;
-    D_80059424 = out + packetStep;
-    return (s32)yBound;
+    return PcPort_DrawModelPolygons(pCmd, count, 4, 40, 8, PCPORT_MODEL_DEPTH_AVERAGE);
 }
 
-/* Retail func_8002FF0C: POLY_FT4 depth-cued max-SZ walker (D_8004FE50 rows
- * 9 and 13, variant 5), translated from asm/.../func_8002FF0C.s:
- * the 0x8002FCFC spine with
- *   - shift D_80050100 + 2 (addi at 0x8002FF78), no AVSZ4 (the second LZCR
- *     gate's delay slot is the first y compare);
- *   - DPCS at 0x80030080, the y-test's beqz delay slot / join target: it
- *     runs for every prim past the backface test, before the overlap
- *     rejects;
- *   - four xy words stored after the x test, then a signed slt maximum of
- *     SZ0..SZ3 (0x800300C4..0x80030110); emitted counts before the
- *     zero-maximum reject (delay slot 0x8003010C);
- *   - packet word +4 = (code byte & 0xFE) << 24 | RGB2; $v0 = D_800500FC. */
 static s32 ModelPrimQuadFT4DepthCueMaxSZVariant5(u8* pCmd, s32 count) {
-    const u32 packetStep = 0x28;
-    const u32 tagLen = 0x09000000;
-    u8* vertexBase = (u8*)(uintptr_t)D_8005953C;
-    u8* out = D_80059424;
-    u32* ot = (u32*)(uintptr_t)D_80059568;
-    s32 emitted = D_80059578;
-    u32 yBound = (u32)D_800500FC;
-    u32 xBound = (u32)D_800500F8;
-    u32 shift = (u32)(D_80050100 + 2) & 31u;
-    u32 rgbc = (u32)D_80059598 | ((u32)D_80059599 << 8) |
-               ((u32)D_8005959A << 16);
-    u32 cmd = *(u32*)pCmd;
-    u8* nextV0 = vertexBase + ((cmd & 0xFFFFu) << 3);
-    u8* v;
-
-    ModelPrimVariant5Tripwire("quad", &g_ModelPrimQuadFT4DepthCueMaxSZVariant5EntryCount,
-                               pCmd, count);
-
-    v = vertexBase + ((cmd >> 13) & 0xFFF8u);
-    MTC2(*(u32*)v, 2);
-    MTC2(*(u32*)(v + 4), 3);
-    v = vertexBase + ((u32)*(u16*)(pCmd + 4) << 3);
-    MTC2(*(u32*)v, 4);
-    MTC2(*(u32*)(v + 4), 5);
-    out -= packetStep;
-    MTC2(rgbc, 6);
-
-    for (;;) {
-        u32 xy0, xy1, xy2, xy3;
-        s32 maxSz, sz;
-
-        MTC2(*(u32*)nextV0, 0);
-        MTC2(*(u32*)(nextV0 + 4), 1);
-        gte_rtpt(); /* count test's delay slot */
-        if (count == 0) break;
-        count--;
-        pCmd += 8;
-        cmd = *(u32*)pCmd;
-        out += packetStep;
-        nextV0 = vertexBase + ((cmd & 0xFFFFu) << 3);
-        v = vertexBase + ((cmd >> 13) & 0xFFF8u);
-        MTC2(*(u32*)v, 2);
-        MTC2(*(u32*)(v + 4), 3);
-        v = vertexBase + ((u32)*(u16*)(pCmd + 4) << 3);
-        MTC2(*(u32*)v, 4);
-        MTC2(*(u32*)(v + 4), 5);
-
-        if ((s32)MFC2(31) < 0) continue; /* LZCR, inert on hardware */
-        xy0 = MFC2(12);
-        xy1 = MFC2(13);
-        xy2 = MFC2(14);
-        gte_nclip();
-        v = vertexBase + ((u32)*(u16*)(pCmd - 2) << 3);
-        if ((s32)MFC2(24) <= 0) {
-            CullCamDrop(CC_NCLIP_BACKFACE, 1);
-            continue;
-        }
-        MTC2(*(u32*)v, 0);
-        MTC2(*(u32*)(v + 4), 1);
-        gte_rtps();
-        if ((s32)MFC2(31) < 0) continue; /* LZCR, inert on hardware */
-        xy3 = MFC2(14);
-        {
-            int yPass = xy0 < yBound || xy1 < yBound || xy2 < yBound ||
-                        xy3 < yBound;
-            gte_dpcs(); /* 0x80030080: delay slot and join, every path */
-            if (!yPass) {
-                CullCamDrop(CC_OVERLAP, 1);
-                continue;
-            }
-        }
-        {
-            int xPass = (xy0 & 0xFFFFu) < xBound || (xy1 & 0xFFFFu) < xBound ||
-                        (xy2 & 0xFFFFu) < xBound || (xy3 & 0xFFFFu) < xBound;
-            /* xy0 is stored in the last x compare's beqz delay slot, so a
-             * prim that fails the x test still writes it. */
-            *(u32*)(out + 0x08) = xy0;
-            if (!xPass) {
-                CullCamDrop(CC_OVERLAP, 1);
-                continue;
-            }
-        }
-        *(u32*)(out + 0x10) = xy1;
-        maxSz = (s32)MFC2(16);
-        *(u32*)(out + 0x18) = xy2;
-        sz = (s32)MFC2(17);
-        *(u32*)(out + 0x20) = xy3;
-        if (!(sz < maxSz)) maxSz = sz;
-        sz = (s32)MFC2(18);
-        if (!(sz < maxSz)) maxSz = sz;
-        sz = (s32)MFC2(19);
-        if (!(sz < maxSz)) maxSz = sz;
-        emitted++;
-        if (maxSz == 0) {
-            CullCamDrop(CC_OTZ, 1);
-            continue;
-        }
-        *(u32*)(out + 0x04) = (((u32)out[0x7] << 24) & 0xFE000000u) |
-                              (MFC2(22) & 0x00FFFFFFu);
-        PcPort_LinkModelPrim(ot, maxSz >> shift, out, tagLen);
-        CullCamEmit(1);
-    }
-
-    D_80059578 = emitted;
-    D_80059424 = out + packetStep;
-    return (s32)yBound;
+    ModelPrimVariant5Tripwire("quad", &g_ModelPrimQuadFT4DepthCueMaxSZVariant5EntryCount, pCmd, count);
+    return PcPort_DrawModelPolygons(pCmd, count, 4, 40, 8, PCPORT_MODEL_DEPTH_MAXIMUM);
 }
 
 extern s32 D_8004F2F4;
@@ -2695,6 +1356,7 @@ void ClearMemory(u32* pStart, u32* pEnd)
 }
 
 MainGameState g_MainGameStates[7];
+static u32 s_GameStateSource[NUM_GAME_STATE_OVERLAYS][4] HOST_ONLY_BSS;
 
 /*
  * Port-side stand-in for the retail shipping boot path.
@@ -2826,8 +1488,7 @@ void PcPort_BootMain(void)
 /* F16 hollow arrival for retail game state 3. This deliberately consumes the
  * field-authored tuple without pretending to implement the world-map overlay.
  * Vsync keeps SDL event processing responsive while the explicit placeholder
- * remains stable; W2 (XENO_WORLD_INIT=1) runs native pre-loop init then lands
- * here. */
+ * remains visible. */
 void PcPort_WorldMapPlaceholderMain(void)
 {
     static char sMessage[] =
@@ -2881,48 +1542,51 @@ void PcPort_InitGameStates(void)
      * XENO_FIELD_TEST=1 harness starts there so XENO_KERNEL_SEL can still
      * drive Field/etc. */
     g_MainGameStates[0].pFnMain    = KernelMenuMain;
-    g_MainGameStates[0].pMemStart  = PSX_ADDR(0x000592b8);
-    g_MainGameStates[0].pHeapStart = PSX_ADDR(0x0006faec);
-    g_MainGameStates[0].hasOverlay = 0;
+
+
+
 
     g_MainGameStates[1].pFnMain    = FieldMain;
-    g_MainGameStates[1].pMemStart  = PSX_ADDR(0x000af5e4);
-    g_MainGameStates[1].pHeapStart = PSX_ADDR(0x000c426c);
-    g_MainGameStates[1].hasOverlay = 1;
+
+
+
 
     g_MainGameStates[2].pFnMain    = func_8001B6C4;
-    g_MainGameStates[2].pMemStart  = PSX_ADDR(0x000c3a6c);
-    g_MainGameStates[2].pHeapStart = PSX_ADDR(0x000d39f0);
-    g_MainGameStates[2].hasOverlay = 1;
 
-    /* Retail state 3: main 0x80070CFC, archive 0x0F, state/BSS 0x8009BBB0,
-     * heap 0x8009D80C.  Bind the retail state to its port-owned native entry;
-     * never install the raw PSX function address as a host pointer. */
+
+
+
+    /* Select the world-map entry installed by this build. */
     {
-        extern void PcPort_WorldMapInitMain(void);
-        g_MainGameStates[3].pFnMain = PcPort_WorldMapInitMain;
-        g_MainGameStates[3].pMemStart  = PSX_ADDR(0x0009bbb0);
-        g_MainGameStates[3].pHeapStart = PSX_ADDR(0x0009d80c);
-        g_MainGameStates[3].hasOverlay = 1;
-        printf("[xeno-port][boot] world state 3: retail native owner "
-               "enabled (hasOverlay=1)\n");
+        g_MainGameStates[3].pFnMain = PcPort_WorldMapPlaceholderMain;
+
+
+
+        printf("[xeno-port][boot] world state 3: arrival placeholder (hasOverlay=1)\n");
     }
 
     /* state 4 (battling, main 0x80088E90, archive 0x0D) is not yet ported;
      * left NULL until the oracle reaches it. */
 
     g_MainGameStates[5].pFnMain    = MenuMain;
-    g_MainGameStates[5].pMemStart  = PSX_ADDR(0x000592b8);
-    g_MainGameStates[5].pHeapStart = PSX_ADDR(0x0006faec);
-    g_MainGameStates[5].hasOverlay = 0;
 
-    /* Retail state 6: movie.bin (archive 0x12), main 0x800737EC, state/BSS
-     * 0x80076F38, heap 0x80077454.  src/movie/main.c + the native movie
-     * player module (pc_port/src/movie_player.c). */
+
+
+
+    /* The movie loader calls the native player. */
     g_MainGameStates[6].pFnMain    = MovieMain;
-    g_MainGameStates[6].pMemStart  = PSX_ADDR(0x00076f38);
-    g_MainGameStates[6].pHeapStart = PSX_ADDR(0x00077454);
-    g_MainGameStates[6].hasOverlay = 1;
+
+
+
+
+    for (unsigned i = 0; i < NUM_GAME_STATE_OVERLAYS; ++i) {
+        if (i == 4)
+            continue;
+        const u32 *record = s_GameStateSource[i];
+        g_MainGameStates[i].pMemStart = PSX_ADDR(record[1]);
+        g_MainGameStates[i].pHeapStart = PSX_ADDR(record[2]);
+        g_MainGameStates[i].hasOverlay = (int)record[3];
+    }
 }
 
 /* ---------------------------------------------------------------------------
@@ -3516,49 +2180,56 @@ void func_80025718(void* pTask)
     }
 }
 
-/* Retail .data callback table @0x8004FD40 (temp1.c CALLBACK_TABLE comment):
- * per-type render callbacks WorkListSetTaskCallback'd onto the child's task2.
- * Retail entries: 0/5/6/14=func_80025258, 1=func_80025710, 2/7=func_80025718,
- * 8=func_8002541C, 9=func_80025544, 15=func_800257F0, 3/4/10-13=NULL.
- * Billboard and model callbacks are native; the remaining missing callbacks
- * are logged by func_80025224 when requested. */
 extern void func_80025258(u8* pEntry);
 extern void func_8002541C(u8* pEntry);
 extern void func_80025544(u8* pEntry);
 extern void func_800257F0(u8* pEntry);
-static void (*const D_8004FD40[16])(void*) = {
-    (void (*)(void*))func_80025258, /* 0: billboard */
-    (void (*)(void*))func_80025710,/* 1: dummy */
-    func_80025718,                 /* 2: type-2 child model draw */
-    NULL, NULL,                    /* 3,4: NULL in retail */
-    (void (*)(void*))func_80025258, /* 5: billboard */
-    (void (*)(void*))func_80025258, /* 6: billboard */
-    func_80025718,                 /* 7: type-7 child model draw */
-    (void (*)(void*))func_8002541C, /* 8: projected TILE_1 */
-    (void (*)(void*))func_80025544, /* 9: projected square */
-    NULL, NULL, NULL, NULL,        /* 10-13: NULL in retail */
-    (void (*)(void*))func_80025258, /* 14: billboard */
-    (void (*)(void*))func_800257F0, /* 15: indexed/quad effect render */
-};
 
-/* asm 80025224: bind the per-type render callback onto the child's render
- * task. The extra logging below is port-only visibility for the still-NULL
- * table slots; retail semantics (including setting NULL) are unchanged. */
+/* Child render callback dispatch. */
+#include "../include_shim/host_only_bss.h"
+#include "retail_data.h"
+
+typedef void (*ChildRenderCallback)(void *);
+static uint8_t s_ChildRenderCallbackIds[16][4] HOST_ONLY_BSS;
+
+XENO_RETAIL_DATA_BEGIN(child_render_callbacks)
+    XENO_RD(s_ChildRenderCallbackIds, XENO_RD_SLUS, XENO_RD_SLUS_OFF(0x8004FD40u),
+            sizeof(s_ChildRenderCallbackIds)),
+XENO_RETAIL_DATA_END(child_render_callbacks)
+
+static ChildRenderCallback ChildRenderResolve(uint32_t guest)
+{
+    switch (guest) {
+    case 0x80025258u: return (ChildRenderCallback)func_80025258;
+    case 0x8002541Cu: return (ChildRenderCallback)func_8002541C;
+    case 0x80025544u: return (ChildRenderCallback)func_80025544;
+    case 0x80025710u: return (ChildRenderCallback)func_80025710;
+    case 0x80025718u: return (ChildRenderCallback)func_80025718;
+    case 0x800257F0u: return (ChildRenderCallback)func_800257F0;
+    default: return NULL;
+    }
+}
+
 void func_80025224(void* pTask, int handlerIndex)
 {
-    static const u16 retailNonNull = 0xC3E7; /* bits 0,1,2,5,6,7,8,9,14,15 */
-    static u16 loggedMask;
+    static uint32_t loggedMask;
+    unsigned slot = (unsigned)handlerIndex;
+    ChildRenderCallback callback = NULL;
 
-    if (D_8004FD40[handlerIndex & 0xF] == NULL &&
-        (retailNonNull >> (handlerIndex & 0xF)) & 1 &&
-        !((loggedMask >> (handlerIndex & 0xF)) & 1)) {
-        loggedMask |= 1 << (handlerIndex & 0xF);
-        fprintf(stderr, "[port] anim render callback D_8004FD40[%d] not "
-                        "ported; child sprite will not render\n",
-                handlerIndex & 0xF);
+    if (slot < sizeof(s_ChildRenderCallbackIds) / sizeof(s_ChildRenderCallbackIds[0])) {
+        const uint8_t *id = s_ChildRenderCallbackIds[slot];
+        uint32_t guest = (uint32_t)id[0] | ((uint32_t)id[1] << 8) |
+                         ((uint32_t)id[2] << 16) | ((uint32_t)id[3] << 24);
+        callback = ChildRenderResolve(guest);
+        if (guest && !callback && !(loggedMask & (1u << slot))) {
+            loggedMask |= 1u << slot;
+            fprintf(stderr, "[port] anim render callback D_8004FD40[%u] not "
+                            "ported; child sprite will not render\n", slot);
+        }
     }
-    WorkListSetTaskCallback(pTask, D_8004FD40[handlerIndex]);
+    WorkListSetTaskCallback(pTask, callback);
 }
+/* End child render callback dispatch. */
 
 /* asm 80023440: sprite type from the animation-script header halfword:
  * bits 8-10, plus 8 if bit 14 is set. */
@@ -4044,6 +2715,11 @@ _Static_assert(sizeof(D_8004F340) == 0x4, "D_8004F340 size");
 _Static_assert(sizeof(g_GameSceneMapNum) == 0x4, "g_GameSceneMapNum size");
 
 XENO_RETAIL_DATA_BEGIN(game_overrides)
+    XENO_RD(s_GameStateSource, XENO_RD_SLUS, XENO_RD_SLUS_OFF(0x8001808Cu), sizeof(s_GameStateSource)),
+    XENO_RD(D_800500F8, XENO_RD_SLUS, XENO_RD_SLUS_OFF(0x800500F8u), sizeof(D_800500F8)),
+    XENO_RD(D_800500FC, XENO_RD_SLUS, XENO_RD_SLUS_OFF(0x800500FCu), sizeof(D_800500FC)),
+    XENO_RD(D_80050100, XENO_RD_SLUS, XENO_RD_SLUS_OFF(0x80050100u), sizeof(D_80050100)),
+    XENO_RD(D_80050104, XENO_RD_SLUS, XENO_RD_SLUS_OFF(0x80050104u), sizeof(D_80050104)),
     XENO_RD(g_ControllerButtonMappings, XENO_RD_SLUS, XENO_RD_SLUS_OFF(0x80050238u), 0x8),
     XENO_RD(g_ControllerButtonMasks, XENO_RD_SLUS, XENO_RD_SLUS_OFF(0x800501E8u), 0x10),
     XENO_RD(g_GameStateOverlayArchiveOffsets, XENO_RD_SLUS, XENO_RD_SLUS_OFF(0x8004EAA0u), 0x1C),
@@ -4056,3 +2732,22 @@ XENO_RETAIL_DATA_BEGIN(game_overrides)
     XENO_RD(D_8004F340, XENO_RD_SLUS, XENO_RD_SLUS_OFF(0x8004F340u), 0x4),
     XENO_RD(g_GameSceneMapNum, XENO_RD_SLUS, XENO_RD_SLUS_OFF(0x8004F34Cu), 0x4),
 XENO_RETAIL_DATA_END(game_overrides)
+
+/* Read the guest's descriptor rows and bind each documented entry point to its
+ * callable host implementation. The rows contain three independent strides. */
+__attribute__((constructor)) static void LoadModelPrimDescriptors(void)
+{
+    u32 rows[17][10] = {{0}};
+    const XenoRetailRange range =
+        XENO_RD(rows, XENO_RD_SLUS, XENO_RD_SLUS_OFF(0x8004FE50u), sizeof(rows));
+    XenoRetailData_LoadTable("model-primitives", &range, 1);
+    for (unsigned i = 0; i < 17; ++i) {
+        ModelPrimDesc *desc = &D_8004FE50[i];
+        for (unsigned j = 0; j < 6; ++j)
+            desc->proc[j] = ModelPrimWalker(rows[i][j]);
+        desc->buildProc = ModelPrimBuilder(rows[i][6]);
+        desc->cmdStride = rows[i][7];
+        desc->packetStride = rows[i][8];
+        desc->outputStride = rows[i][9];
+    }
+}

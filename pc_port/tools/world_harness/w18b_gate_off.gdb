@@ -20,7 +20,7 @@ set environment XENO_FIELD_ENTRANCE 0
 set environment XENO_WORLD_FT4_POOLS 1
 unset environment XENO_WORLD_HEAP_TABLE_RAND
 set environment SDL_AUDIODRIVER dummy
-set environment LD_LIBRARY_PATH /home/blizz/dev/xenogears-assets/lib
+# The inferior inherits LD_LIBRARY_PATH from the shell launching GDB.
 
 python
 import os

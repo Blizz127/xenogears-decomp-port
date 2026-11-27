@@ -18,46 +18,6 @@ index ad168c3..886698c 100644
  extern void			GR_SetWireframe(int enable);
  
  extern void			GR_DestroyTexture(TextureID texture);
-diff --git a/include/psx/libgpu.h b/include/psx/libgpu.h
-index b924865..ed53122 100644
---- a/include/psx/libgpu.h
-+++ b/include/psx/libgpu.h
-@@ -281,7 +281,7 @@ extern	int (*GPU_printf)(const char *fmt, ...);
- 		((p)->code[1] = 0)
- 
- #define setDrawMode(p, dfe, dtd, tpage, tw) 		\
--		setlen(p, 3),					\
-+		setlen(p, 2),					\
- 		((p)->code[0] = _get_mode(dfe, dtd, tpage)),	\
- 		((p)->code[1] = _get_tw((RECT16 *)tw))
- 
-@@ -298,15 +298,15 @@ extern	int (*GPU_printf)(const char *fmt, ...);
- #define setPolyG4(p)	setlen(p, 8),  setcode(p, 0x38)
- #define setPolyGT4(p)	setlen(p, 12), setcode(p, 0x3c)
- 
--#define setSprt8(p)	setlen(p, 3),  setcode(p, 0x74)
--#define setSprt16(p)	setlen(p, 3),  setcode(p, 0x7c)
-+#define setSprt8(p)	setlen(p, 2),  setcode(p, 0x74)
-+#define setSprt16(p)	setlen(p, 2),  setcode(p, 0x7c)
- #define setSprt(p)	setlen(p, 4),  setcode(p, 0x64)
- 
- #define setTile1(p)	setlen(p, 2),  setcode(p, 0x68)
- #define setTile8(p)	setlen(p, 2),  setcode(p, 0x70)
- #define setTile16(p)	setlen(p, 2),  setcode(p, 0x78)
- #define setTile(p)	setlen(p, 3),  setcode(p, 0x60)
--#define setLineF2(p)	setlen(p, 3),  setcode(p, 0x40)
-+#define setLineF2(p)	setlen(p, 2),  setcode(p, 0x40)
- #define setLineG2(p)	setlen(p, 4),  setcode(p, 0x50)
- #define setLineF3(p)	setlen(p, 5),  setcode(p, 0x48),(p)->pad = 0x55555555
- #define setLineG3(p)	setlen(p, 7),  setcode(p, 0x58),(p)->pad = 0x55555555, \
-@@ -370,6 +370,7 @@ typedef struct _RECT16 {
- 
- typedef struct {
- 	DECLARE_P_ADDR_PTAG
-+	u_int _xeno_ot_pad; /* XENO_PC_PORT: pad OT slot to host u_long (8B) so ClearOTag(R) stride matches the game's u_long[] OTs; see build_port.sh */
- } OT_TAG;
- 
- typedef struct {
 diff --git a/src/gpu/PsyX_GPU.cpp b/src/gpu/PsyX_GPU.cpp
 index 6e9e6f6..ae79874 100644
 --- a/src/gpu/PsyX_GPU.cpp
@@ -446,14 +406,10 @@ index 9324471..5c312cd 100644
  void GR_SetOverrideTextureSize(int width, int height)
  {
  	if(u_texelSizeLoc == -1)
-@@ -1355,6 +1398,7 @@ void GR_ClearVRAM(int x, int y, int w, int h, unsigned char r, unsigned char g,
- void GR_Clear(int x, int y, int w, int h, unsigned char r, unsigned char g, unsigned char b)
- {
+@@ -1357,2 +1400,3 @@
  	framebuffer_need_update = 1;
 +	g_xeno_vram_fb_synced = 0; /* _xeno_drmove_fb_synced */
  
- #if USE_OPENGL
- 	glClearColor(r / 255.0f, g / 255.0f, b / 255.0f, 1.0f);
 @@ -1416,9 +1460,9 @@ void GR_CopyRGBAFramebufferToVRAM(u_int* src, int x, int y, int w, int h, int up
  		{
  			uint c = *data_src++;

@@ -46,12 +46,6 @@ void GfxAllocateWorkBuffers(int workBufferSize, unsigned int allocFlag) {
     func_8001D298();
 }
 
-/* Frees the work buffers and resets the sprite/image lists. The port keeps
- * its own owner in pc_port/src/world_map_teardown_7299c.c, so this
- * definition is weak there and the port's strong one wins the link. */
-#ifdef XENO_PC_PORT
-__attribute__((weak))
-#endif
 void GfxFreeWorkBuffers(void) {
     HeapFree(g_GfxWorkBuffers);
     func_8001D2A4();

@@ -2,8 +2,6 @@
 
 Chronological summary of **major committed milestones** and documented investigation checkpoints. Uncommitted read-only proofs are marked.
 
-For session-level detail see [`ACTIVE_HANDOFF.md`](https://github.com/Blizz127/xenogears-decomp-ai/blob/main/docs/ai_context/ACTIVE_HANDOFF.md).
-
 ---
 
 ## 2026-07-05 — Field visual recovery (Map 0)
@@ -130,7 +128,7 @@ causes. `make rom-check` reports them honestly; they are not fixed.
 Documented in `b9266c5`:
 
 ```bash
-distrobox enter xenogears-dev -- bash -lc 'cd /home/blizz/Projects/xenogears-decomp && \
+distrobox enter xenogears-dev -- bash -lc 'cd $HOME/Projects/xenogears-decomp-port && \
   SDL_VIDEODRIVER=x11 XENO_FIELD_TEST=1 XENO_KERNEL_SEL=0 \
   XENO_FIELD_MAP=1 XENO_FIELD_ENTRANCE=0 XENO_FIELD_0BB_VRAM_UPLOAD=1 \
   ./pc_port/build_native/xeno-port'

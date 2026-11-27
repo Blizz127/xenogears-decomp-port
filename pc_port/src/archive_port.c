@@ -37,17 +37,24 @@
  * Pulling in <stdlib.h> here fails to compile: the game headers (via common.h)
  * leave the TU without int32_t, which glibc's <stdlib.h> then references. memcpy
  * is already declared through common.h (psyq/memory.h). */
-extern void* malloc(unsigned long size);
+extern void* malloc(size_t size);
 extern void  free(void* ptr);
 extern int   printf(const char* format, ...);
-extern void* memcpy(void* dest, const void* src, unsigned long size);
-extern void* memset(void* dest, int value, unsigned long size);
+extern void* memcpy(void* dest, const void* src, size_t size);
+extern void* memset(void* dest, int value, size_t size);
 
 /* Set by ArchiveReadFileToBuffer/ArchiveReadFileFromCdSector (libarchive.c) just
  * before they call us: the absolute CD sector and the byte length to read. */
 extern s32 g_ArchiveCurFileSector;
 extern int ArchiveReadFileToBuffer(int entryIndex, void* pDestBuffer, int arg2, int flags);
 #include "../include/xg_plat/mods.h"
+#include "data_alias.h"
+
+/* The archive queue updates the same CD filter through both field labels. */
+u32 D_80059F0C;
+char D_80059F14[sizeof(CdlFILTER)];
+XG_BRIDGE_DATA_ALIAS(D_80059F15, D_80059F14, 1, 3);
+
 /* xg_plat/disc.h itself pulls libc headers whose types clash with the
  * psyq ones this TU uses; declare the one call needed (weak, like the mods
  * hooks, so tests linking this TU alone still link). */
@@ -64,7 +71,6 @@ extern int ArchiveDecodeAlignedSize(unsigned int entryIndex);
 extern int ArchiveDataSync(void);
 extern void* HeapAlloc(u_int size, u_int allocMode);
 extern void ArchiveChangeStreamingFile(void* pStreamFile);
-extern void ArchiveClearStreamFileSections(void);
 extern void ArchiveCdDataSync(int mode);
 extern u8 D_800B2394;
 extern s16 D_8004FE10;
@@ -587,8 +593,11 @@ s32 func_80028B14(void) {
     return 0;
 }
 
+#include "boot_wds_transfer.inc"
+
 int ArchiveReadFile(u32 dbgEntryIndex, u8* pDestBuffer, s32 arg2, s32 flags) {
-    int nSectors;
+    if (PcPort_ArchiveBootWdsOwned())
+        return ARCHIVE_READ_RETRY;
     CdlLOC loc;
 
     (void)dbgEntryIndex;
@@ -668,51 +677,13 @@ int ArchiveReadFile(u32 dbgEntryIndex, u8* pDestBuffer, s32 arg2, s32 flags) {
         return 0;
     }
 
-    /* Round the byte length up to whole 2048-byte data sectors. */
-    nSectors = (g_ArchiveCurFileSize + (CD_SECTOR_SIZE - 1)) / CD_SECTOR_SIZE;
-
-    /* Same sector addressing the hardware path uses (CdIntToPos on the raw
-     * sector). CdControlB(CdlSetloc) seeks the image and selects RM_DATA so
-     * CdReadSync extracts the 2048-byte data payload from each MODE2/2352 sector. */
-    CdIntToPos(g_ArchiveCurFileSector, &loc);
-    CdControlB(CdlSetloc, (u_char*)&loc, NULL);
-
-    if (nSectors * CD_SECTOR_SIZE == (int)g_ArchiveCurFileSize) {
-        /* File is a whole number of sectors: read straight into the buffer. */
-        CdRead(nSectors, (u_long*)pDestBuffer, 0);
-        CdReadSync(0, NULL);
-    } else {
-        /* Partial last sector. The game sizes buffers to ArchiveDecodeAlignedSize
-         * (4-byte aligned, NOT sector-rounded), so pDestBuffer holds exactly
-         * g_ArchiveCurFileSize bytes. CdRead always delivers whole sectors, so
-         * reading directly would scribble up to 2047 bytes past the buffer into
-         * the next heap block (on PSX the async sector-copy callbacks only write
-         * the file's bytes). Bounce through a sector-rounded scratch buffer and
-         * copy back just the file's bytes. */
-        int nAlignedBytes = nSectors * CD_SECTOR_SIZE;
-        u8* pBounce = (u8*)malloc(nAlignedBytes);
-        if (pBounce == NULL) {
-            return -1;
-        }
-        CdRead(nSectors, (u_long*)pBounce, 0);
-        CdReadSync(0, NULL);
-        memcpy(pDestBuffer, pBounce, g_ArchiveCurFileSize);
-        free(pBounce);
-    }
-
-    /* Mods: hash-keyed asset replacement of the file just read
-     * (xg_plat/mods.h).  Weak so tests that link this TU alone need no mods
-     * layer; with no mods installed it only emits the asset_loaded event. */
-    if (xg_plat_mods_filter_asset)
-        (void)xg_plat_mods_filter_asset(pDestBuffer, (size_t)g_ArchiveCurFileSize,
-                                        (size_t)g_ArchiveCurFileSize);
-
-    /* Mark the transfer complete so ArchiveDataSync()/ArchiveCdDataSync() return
-     * immediately (g_ArchiveCdDriveState IDLE, no in-flight file). */
-    g_ArchiveCurFileSize = 0;
-    D_8004FDFC = 0;
-    g_ArchiveCdDriveState = ARCHIVE_CD_DRIVE_IDLE;
-    return 0;
+    int bytes = g_ArchiveCurFileSize;
+    ArchivePortStagedFile file = {0};
+    int error = archiveStartStagedFile(&file, g_ArchiveCurFileSector, pDestBuffer, bytes);
+    if (!error && archiveFinishStagedFile(&file, 0) != 0)
+        error = ARCHIVE_CD_DRIVE_ERR_READ;
+    archiveCompleteStagedFile(error, pDestBuffer, bytes);
+    return error ? -1 : 0;
 }
 
 void ArchiveCdSetMode(u_char mode) {
@@ -754,3 +725,12 @@ void func_8002A498(int channel) {
         }
     }
 }
+
+/* The synchronous archive driver owns the current streaming ticket.
+ * Optional queue services register callbacks here while they own the drive. */
+uint64_t g_PcPortArchiveFileRegistration;
+void (*g_PcPortArchiveCancelFilteredQueue)(void);
+void (*g_PcPortArchiveQueueService)(void);
+void (*g_PcPortArchiveModeService)(void);
+
+#include "cleanroom/archive_game_overlay.inc"

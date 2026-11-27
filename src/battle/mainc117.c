@@ -2,8 +2,8 @@
 
 
 #ifndef XENO_PC_PORT
-extern int rcos(int a);
-extern int rsin(int a);
+extern int rcos(int);
+extern int rsin(int);
 extern void func_8001F6B0(u8* obj);
 
 /* func_800BCBB4.s: timer callback installed by func_800BCC60: from the

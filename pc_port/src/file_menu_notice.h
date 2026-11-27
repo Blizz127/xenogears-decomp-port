@@ -31,6 +31,8 @@ extern void (*PcPort_FileMenuNoticeDialog)(const char *title, const char *text);
 
 /* Entry point called from the field menu.  Never blocks on the dialog. */
 void PcPort_NotifyUnsupportedFileMenu(void);
+/* The platform thread retains both strings; pass static storage. */
+void PcPort_ShowMenuNotice(const char *title, const char *text);
 
 /* Exposed for the regression test: the thread body the platform hook runs. */
 void PcPort_FileMenuNoticeThreadMain(void *context);

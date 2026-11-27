@@ -17,9 +17,10 @@ extern long VectorNormalS(VECTOR* v0, SVECTOR* v1);
 /* PsyCross omits the geom-offset read-back; implemented in
  * pc_port/src/psyq_compat.c. */
 extern void ReadGeomOffset(long* ofx, long* ofy);
-extern long RotAverage4(SVECTOR* v0, SVECTOR* v1, SVECTOR* v2, SVECTOR* v3,
-                        long* sxy0, long* sxy1, long* sxy2, long* sxy3,
-                        long* p, long* flag);
+extern long RotAverage4(SVECTOR *corner_a, SVECTOR *corner_b,
+                 SVECTOR *corner_c, SVECTOR *corner_d,
+                 long *screen_a, long *screen_b, long *screen_c, long *screen_d,
+                 long *depth_cue, long *projection_flags);
 void gte_OuterProduct12(VECTOR* v0, VECTOR* v1, VECTOR* v2);
 SVECTOR* gte_ApplyMatrixSV(MATRIX* m, SVECTOR* v0, SVECTOR* v1);
 int gte_RotTransPers(SVECTOR* v0, int* sxy, long* p, long* flag, long* otz);

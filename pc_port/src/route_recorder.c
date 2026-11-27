@@ -20,7 +20,9 @@
  * line.  The analyzer (tools/analysis/route_steps.py) turns the lines into
  * steps.  REMOVAL: delete this file, its PORT_SOURCES row and the four
  * `#ifdef XENO_PC_PORT` hook calls. */
+#if !defined(_WIN32)
 #include <execinfo.h>
+#endif
 #include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -34,7 +36,6 @@
 #include "route_recorder.h"
 #include "../include/xg_plat/mods.h"
 
-extern void* g_FieldScriptMemory;
 extern int g_GameSceneMapNum;
 extern s32 D_800AFD1C;
 extern ActorData* g_FieldScriptVMCurActor;
@@ -43,6 +44,8 @@ extern s32 D_800ADBFC;
 
 #define VAR_WORDS 0x400   /* the field script memory is 0x800 bytes */
 #define MAX_VAR_LINES_PER_TICK 96
+
+extern u16 g_FieldScriptMemoryU16[VAR_WORDS] __asm__("g_FieldScriptMemory");
 
 static FILE* s_log;
 static int s_init, s_on;
@@ -55,7 +58,7 @@ static u8 s_prevParty[MAX_PARTY_MEMBERS];
 static u32 s_prevGold;
 static int s_prevMap = -2;
 
-static u16* vars(void) { return (u16*)&g_FieldScriptMemory; }
+static u16* vars(void) { return g_FieldScriptMemoryU16; }
 
 int PcPort_RouteLogOn(void)
 {
@@ -224,11 +227,16 @@ static void tick(const XgPlatModEventData* e, void* u)
 /* Harness only: a crash under XENO_ROUTE_LOG leaves a backtrace in the log. */
 static void crash_handler(int sig)
 {
+#if defined(_WIN32)
+    static const char msg[] = "\n[ROUTE] CRASH: fatal signal\n";
+    (void)!write(2, msg, sizeof msg - 1);
+#else
     void* frames[48];
     int n = backtrace(frames, 48);
     static const char msg[] = "\n[ROUTE] CRASH: fatal signal, backtrace follows\n";
     (void)!write(2, msg, sizeof msg - 1);
     backtrace_symbols_fd(frames, n, 2);
+#endif
     signal(sig, SIG_DFL);
     raise(sig);
 }
@@ -237,7 +245,9 @@ void PcPort_RouteLogInit(void)
 {
     if (!PcPort_RouteLogOn()) return;
     signal(SIGSEGV, crash_handler);
+#ifdef SIGBUS
     signal(SIGBUS, crash_handler);
+#endif
     signal(SIGABRT, crash_handler);
     xg_plat_mods_subscribe(XG_PLAT_EVENT_FRAME_TICK, tick, NULL);
     fprintf(stderr, "[ROUTE] recording progression state to XENO_ROUTE_LOG\n");

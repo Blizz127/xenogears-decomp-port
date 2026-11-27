@@ -304,14 +304,21 @@ SoundScriptSkip3 = 0x8003D5BC;
 SoundScriptNop = 0x8003D5C4;
 SoundScriptNop2 = 0x8003D5CC;
 SoundScriptCallE5BC = 0x8003D5D4;
+// Voice envelope attack.
 SoundScriptSetAttackTime = 0x8003D640;
+SoundScriptSetAttackMode = 0x8003D6F8;
+
+// Decay time and sustain level; the combined command updates both.
 SoundScriptSetDecayTime = 0x8003D65C;
-SoundScriptSetSustain = 0x8003D678;
-SoundScriptSetRelease = 0x8003D694;
 SoundScriptSetSustainLevel = 0x8003D6B4;
 SoundScriptSetAdsrDRAndSR = 0x8003D6D0;
-SoundScriptSetAttackMode = 0x8003D6F8;
+
+// Voice envelope sustain.
+SoundScriptSetSustain = 0x8003D678;
 SoundScriptSetSustainMode = 0x8003D714;
+
+// Voice envelope release.
+SoundScriptSetRelease = 0x8003D694;
 SoundScriptSetReleaseMode = 0x8003D730;
 SoundScriptSetUnk6E = 0x8003D74C;
 SoundScriptAddUnk6E = 0x8003D770;

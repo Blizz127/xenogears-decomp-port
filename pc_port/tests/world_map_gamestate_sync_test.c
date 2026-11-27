@@ -1,60 +1,91 @@
-/* The world map's g_GameState fields have one value (world_map_gamestate.h):
- * the saved world position (func_8008E034 / func_8008DFF4) and the field
- * transition tuple written by the mode teardowns must reach the host
- * g_GameState that FieldMain and save/load read. */
+/* Exercise the production state table and arrival handler with display spies. */
+#include <assert.h>
+#include <setjmp.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
-#include "common.h"
-#include "psx_memory.h"
-#include "world_map_gamestate.h"
-#include "world_map_helper_8dff4.h"
-#include "world_map_helper_8e034.h"
+typedef uint8_t u8;
+typedef uint16_t u16;
+typedef uint32_t u32;
+typedef int32_t s32;
 
-uint8_t g_PsxRam[PSX_RAM_SIZE];
-unsigned char g_GameState[0x4600];
+enum { NUM_GAME_STATE_OVERLAYS = 7 };
+static struct {
+    void (*pFnMain)(void);
+    void *pMemStart;
+    void *pHeapStart;
+    int hasOverlay;
+} g_MainGameStates[NUM_GAME_STATE_OVERLAYS];
+static u32 s_GameStateSource[NUM_GAME_STATE_OVERLAYS][4];
+#define PSX_ADDR(value) ((void *)(uintptr_t)(value))
 
-static int fails;
-static void check(int ok, const char* what)
+static struct RenderEnv { int ot, drawEnv, dispEnv; }
+    g_KernelMenuRenderEnvironments[2], *g_KernelMenuCurRenderEnvironment;
+static int g_KernelMenuIsRunning, D_800592C4, D_800592C8;
+static u16 game_state[0x1200];
+static void *g_pGameState = game_state;
+static jmp_buf finish;
+static unsigned step, frames;
+static struct RenderEnv *env(void) { return &g_KernelMenuRenderEnvironments[(frames + 1) % 2]; }
+static void event(unsigned expected) { assert(step++ == expected); }
+
+static void KernelMenuMain(void) { abort(); }
+static void FieldMain(void) { abort(); }
+static void func_8001B6C4(void) { abort(); }
+static void MenuMain(void) { abort(); }
+void MovieMain(void) { abort(); }
+void PcPort_SkipMovieState(void) { abort(); }
+static void KernelMenuInitialize(void) { event(0); }
+static void SetDispMask(int on) { assert(on == 1); event(1); }
+static void TermPrim(void *ot) { assert(ot == &env()->ot); event(2); }
+static void FontDrawLetters(void *ot) { assert(ot == &env()->ot); event(3); }
+static void FontPrintf(const char *text)
 {
-    printf("%s %s\n", ok ? "ok  " : "FAIL", what);
-    fails += !ok;
+    assert(strstr(text,"WORLD MAP NOT YET PORTED") && strstr(text,"FIELD ARRIVAL CAPTURED"));
+    event(4);
 }
-static uint16_t host16(uint32_t off) { uint16_t v; memcpy(&v, g_GameState + off, 2); return v; }
-static uint16_t guest16(uint32_t a) { uint16_t v; memcpy(&v, PSX_ADDR(a), 2); return v; }
+static void DrawSync(int arg) { assert(arg == 0); event(5); }
+static void Vsync(int arg) { assert(arg == 0); event(6); }
+static void PutDrawEnv(void *p) { assert(p == &env()->drawEnv); event(7); }
+static void PutDispEnv(void *p) { assert(p == &env()->dispEnv); event(8); }
+static void DrawOTag(void *ot)
+{
+    assert(ot == &env()->ot && env() == g_KernelMenuCurRenderEnvironment);
+    event(9);
+    if (++frames == 2) longjmp(finish,1);
+    step = 2;
+}
+
+#include "arrival.inc"
+
+static void check_tuple(u16 selector, u16 heading, u16 arg2, u16 entrance)
+{
+    u16 before[sizeof(game_state) / sizeof(game_state[0])];
+    game_state[0x231a / 2] = selector;
+    game_state[0x231c / 2] = heading;
+    game_state[0x231e / 2] = arg2;
+    game_state[0x2320 / 2] = entrance;
+    memcpy(before, game_state, sizeof before);
+    step = 0;
+    frames = 0;
+    D_800592C4 = 0;
+    if (setjmp(finish) == 0) {
+        g_MainGameStates[3].pFnMain();
+        abort();
+    }
+    assert(frames == 2 && step == 10);
+    assert(!memcmp(game_state, before, sizeof before));
+}
 
 int main(void)
 {
-    const uint32_t vec = 0x800A0000u;
-    int32_t in[3] = { 0x1234000, -0x2000, 0x7FF000 };
-    int32_t out[3];
-
-    memcpy(PSX_ADDR(vec), in, sizeof(in));
-    wm_8008E034(vec);
-    check(host16(0x182C) == 0x1234 && host16(0x182E) == 0xFFFE && host16(0x1830) == 0x07FF,
-          "save: world position reaches host g_GameState+0x182C");
-    check(guest16(0x8006EE60u) == 0x1234 && guest16(0x8006EE64u) == 0x07FF,
-          "save: guest copy kept for world-map readers");
-
-    /* A loaded save changes only the host copy; restore must use it. */
-    memset(PSX_ADDR(0x8006EE60u), 0, 6);
-    { uint16_t v[3] = { 0x0100, 0xFF80, 0x0040 }; memcpy(g_GameState + 0x182C, v, 6); }
-    wm_8008DFF4(vec + 0x10u);
-    memcpy(out, PSX_ADDR(vec + 0x10u), sizeof(out));
-    check(out[0] == 0x100000 && out[1] == -0x80000 && out[2] == 0x40000,
-          "restore: world position read from host g_GameState");
-
-    /* Mode teardown stores (e.g. mode 8/11: map 17, entrance 7). */
-    wm_gs_sh(0x8006F94Eu, 17u);
-    wm_gs_sh(0x8006F954u, 7u);
-    check(host16(0x231A) == 17 && host16(0x2320) == 7 && guest16(0x8006F94Eu) == 17,
-          "teardown: field map / entrance reach host D_8006F94E / D_8006F954");
-
-    /* Outside g_GameState only guest RAM is touched. */
-    wm_gs_sh(0x8009BD3Au, 0x1234u);
-    check(guest16(0x8009BD3Au) == 0x1234 && wm_gs_lhu(0x8009BD3Au) == 0x1234,
-          "non-g_GameState address stays guest-only");
-    printf("world map g_GameState sync test: %s\n", fails ? "FAIL" : "PASS");
-    return fails != 0;
+    s_GameStateSource[3][3] = 1;
+    PcPort_InitGameStates();
+    assert(g_MainGameStates[3].pFnMain == PcPort_WorldMapPlaceholderMain);
+    assert(g_MainGameStates[3].hasOverlay == 1);
+    check_tuple(0x0403, 9, 0x002a, 7);
+    check_tuple(0xc420, 0x2345, 0xbeef, 0x8123);
+    return 0;
 }

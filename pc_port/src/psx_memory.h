@@ -40,6 +40,17 @@ static inline uint32_t PsxMemory_GuestAddr(const void* p)
     return (uint32_t)host;
 }
 
+/* Host pointer for a 32-bit pointer word stored in a game struct: a KSEG0
+ * guest address (retail code, or a HeapAlloc block rebased to its guest
+ * address) maps into g_PsxRam; any other word is a native (compact) host
+ * address and is used as is.  A raw KSEG0 word is never a valid host pointer. */
+static inline void* PsxMemory_WordPtr(uint32_t word)
+{
+    if ((word & 0xFF800000u) == 0x80000000u)
+        return PSX_ADDR(word);
+    return (void*)(uintptr_t)word;
+}
+
 /* W34C2 — PS-X static data load path.
  *
  * SLUS_006.64 is a PS-X EXE: 0x800-byte header, then t_size bytes that the

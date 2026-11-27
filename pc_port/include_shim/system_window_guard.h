@@ -16,4 +16,7 @@ typedef struct PcPortSystemWindowGuard {
 
 const PcPortSystemWindowGuard *PcPort_SystemWindowGuardSwap(
     const PcPortSystemWindowGuard *);
+/* Render through the resident singleton, then restore its private cursor and
+ * native pointer mirrors. Decline during another render or an installed guard. */
+int PcPort_SystemRenderScopedStringEntry(void *string, void *work, int width, int flag);
 #endif

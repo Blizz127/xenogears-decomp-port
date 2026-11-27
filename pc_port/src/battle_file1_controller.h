@@ -6,12 +6,20 @@
 typedef struct BattleFile1Identity {
     uint64_t generation;
     int verified;
-    int archive20_selected;
+    uint32_t archive20_selected;
+    /* Content-identity gate of the lifted file-1 routines
+     * (battle_file1_gate.inc); independent of `verified`. */
+    int native_state;
+    uint64_t native_generation;
+    uint64_t native_calls;
+    uint8_t snapshot[0x4b5c]; /* FILE1_IMMUTABLE_BYTES */
 } BattleFile1Identity;
 
 static void file1_invalidate(BattleMipsRuntime *runtime);
 static int file1_identity_current(BattleMipsRuntime *runtime);
 static int file1_try_controller(BattleMipsRuntime *runtime, PcPortMipsCpu *cpu);
+static int file1_native_try_host(BattleMipsRuntime *runtime, PcPortMipsCpu *cpu,
+                                 uint32_t target);
 static void file1_before_archive(BattleMipsRuntime *runtime, PcPortMipsCpu *cpu,
                                  uint32_t target, int *candidate);
 static void file1_after_archive(BattleMipsRuntime *runtime, PcPortMipsCpu *cpu,

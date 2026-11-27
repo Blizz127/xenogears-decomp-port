@@ -43,13 +43,16 @@ def function(src, signature):
 
 sprite_address = function(source, 'static u8* SpriteRenderAddress(')
 tile = function(source, 'void func_80025544(')
-table_start = overrides.index('static void (*const D_8004FD40')
-table_end = overrides.index('\n};', table_start) + 3
-table = overrides[table_start:table_end]
+begin = '/* Child render callback dispatch. */'
+end = '/* End child render callback dispatch. */'
+assert overrides.count(begin) == overrides.count(end) == 1
+start = overrides.index(begin)
+dispatch = overrides[start:overrides.index(end, start) + len(end)]
 
 prologue = r'''
 #include <stdint.h>
 #include <stddef.h>
+#include <stdio.h>
 #include "psx_memory.h"
 #include "psyq/libgpu.h"
 #include "psyq/libgte.h"
@@ -67,13 +70,7 @@ extern void func_80025718(void *); extern void func_8002541C(void *);
 extern void func_80025544(u8 *); extern void func_800257F0(void *);
 extern void WorkListSetTaskCallback(void *, void (*)(void *));
 '''
-body = prologue + '\n' + sprite_address + '\n' + tile + '\n' + table + r'''
-
-void func_80025224(void *task, int handlerIndex)
-{
-    WorkListSetTaskCallback(task, D_8004FD40[handlerIndex & 0xf]);
-}
-'''
+body = '\n'.join((prologue, sprite_address, tile, dispatch, ''))
 (out / 'production.c').write_text(body)
 red_path = os.environ.get('TYPE9_RED_SOURCE_OVERRIDE')
 if red_path:
@@ -81,7 +78,7 @@ if red_path:
     (out / 'pre-repair.c').write_text(body.replace(tile, red_tile))
 
 
-paths = [str(source_path), str(overrides_path),
+paths = [str(source_path), str(overrides_path), 'pc_port/src/retail_data.h','pc_port/include_shim/host_only_bss.h',
          'pc_port/src/battle_mips_adapter.c', 'pc_port/src/guest_prim_link.c',
          'pc_port/extern/PsyCross/src/psx/LIBGTE.C',
          'pc_port/extern/PsyCross/src/psx/INLINE_C.C',
@@ -160,7 +157,8 @@ from pathlib import Path
 import sys
 source = (Path(sys.argv[1]) / 'production.c').read_text()
 mutants = {
-    'null-binding': ('(void (*)(void*))func_80025544, /* 9:', 'NULL, /* 9:'),
+    'null-binding': ('case 0x80025544u: return (ChildRenderCallback)func_80025544;',
+                     'case 0x80025544u: return NULL;'),
     'packed64': ('SpriteRenderAddress(*(u32*)(pEntry + 0x04))',
                  '((u8*)*(u8**)(pEntry + 0x04))'),
     'v2-not-repeat': ('RotTransPers3(&v0, &v1, &v0,',
@@ -189,7 +187,7 @@ prefix, sep, suffix = source.rpartition(old)
 (Path(sys.argv[1]) / 'mutant-inclusive-second.c').write_text(prefix + sep.replace('>=', '>') + suffix)
 for name, (old, new) in mutants.items():
     count = source.count(old)
-    if count == 0:
+    if count == 0 or (name == 'null-binding' and count != 1):
         raise SystemExit(f'{name}: replacement did not match')
     replacement_count = 1 if name == 'inclusive-first' else count
     (Path(sys.argv[1]) / f'mutant-{name}.c').write_text(

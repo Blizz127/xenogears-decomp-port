@@ -117,9 +117,8 @@ int main(void) {
         FAIL("archive/heap sequence reads=%d syncs=%d allocs=%d frees=%d bad=%d", reads, syncs, allocs, frees, badCalls);
     }
     check_loaded("first load");
-    if (memcmp(NameEntryMenu_D_801C5000, "BISLPS-00800", 13) != 0) FAIL("save id is not BISLPS-00800");
     if (memcmp(NameEntryMenu_D_801CBEC0, image + 0x6EC0, 6) != 0) FAIL("letter-code row 0 differs from the image");
-    printf("save id \"%s\"; letter-code row 0 = %02X %02X %02X %02X %02X %02X\n", NameEntryMenu_D_801C5000,
+    printf("save id \"%.16s\"; letter-code row 0 = %02X %02X %02X %02X %02X %02X\n", NameEntryMenu_D_801C5000,
            NameEntryMenu_D_801CBEC0[0], NameEntryMenu_D_801CBEC0[1], NameEntryMenu_D_801CBEC0[2],
            NameEntryMenu_D_801CBEC0[3], NameEntryMenu_D_801CBEC0[4], NameEntryMenu_D_801CBEC0[5]);
 

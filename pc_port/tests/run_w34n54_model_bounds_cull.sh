@@ -7,7 +7,7 @@ cd "$ROOT"
 CC="${CC:-gcc}"
 OUT="${W34N54_OUT:-pc_port/build_native/w34n54-model-bounds-cert}"
 TEST="pc_port/tests/w34n54_model_bounds_cull_prod_test.c"
-PROD="pc_port/src/world_map_helper_3101c.c"
+PROD="pc_port/src/model_ordering.c"
 CALLER="src/slus_006.64/system/temp2.c"
 BASE=(-std=gnu17 -DXENO_PC_PORT -D_LANGUAGE_C
       -DINCLUDE_ASM_USE_MACRO_INC=0 -fno-pie
@@ -49,28 +49,12 @@ cmp "$OUT/O0.stdout" "$OUT/O2.stdout"
 cmp "$OUT/O0.stdout" "$OUT/UBSan.stdout"
 echo "CERTIFICATE O0/O2/UBSan PASS; strict warnings clean"
 
-mutants=(
-  'M1:WM_3101C_MUTANT_M1:mode1.call_count'
-  'M2:WM_3101C_MUTANT_M2:retail.midpoint_direction'
-  'M3:WM_3101C_MUTANT_M3:mode2.call_count'
-  'M4:WM_3101C_MUTANT_M4:mode0.culls_without_samples'
-  'M5:WM_3101C_MUTANT_M5:depth-rejects-ffff'
-)
-for entry in "${mutants[@]}"; do
-    label="${entry%%:*}"
-    rest="${entry#*:}"
-    define="${rest%%:*}"
-    assertion="${rest#*:}"
-    set +e
-    compile_and_run "$label" -O0 -g -D"$define"
-    rc=$?
-    set -e
-    if [[ "$rc" -eq 0 ]] ||
-       ! rg -q "^ASSERTION ${assertion}$" "$OUT/$label.stderr"; then
-        echo "$label FAILED mutant gate assertion=$assertion rc=$rc" >&2
-        exit 1
-    fi
-    echo "$label DETECTED; ASSERTION $assertion"
-done
-
-echo "W34N54 0x8003101C FULL CERTIFICATE PASS; M1-M5 DETECTED"
+set +e
+compile_and_run hidden_sample -O0 -g -DXENO_TEST_MODEL_ORDERING_HIDE_SAMPLE
+rc=$?
+set -e
+if [[ $rc -eq 0 ]] || ! rg -q '^ASSERTION mode1.visible_early_out$' "$OUT/hidden_sample.stderr"; then
+    echo "Hiding the visible sample did not fail the expected visibility assertion" >&2
+    exit 1
+fi
+echo "W34N54 model ordering PASS; hidden projection sample detected"

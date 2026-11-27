@@ -39,14 +39,14 @@ uninterpretable as a completed survey.
 ### Map0 stability check
 
 ```bash
-distrobox enter xenogears-dev -- bash -lc 'cd /home/blizz/Projects/xenogears-decomp && \
+distrobox enter xenogears-dev -- bash -lc 'cd $HOME/Projects/xenogears-decomp-port && \
   XENO_FIELD_TEST=1 XENO_KERNEL_SEL=0 timeout -s KILL 45 ./pc_port/build_native/xeno-port'
 ```
 
 ### Map1 with diagnostics
 
 ```bash
-distrobox enter xenogears-dev -- bash -lc 'cd /home/blizz/Projects/xenogears-decomp && \
+distrobox enter xenogears-dev -- bash -lc 'cd $HOME/Projects/xenogears-decomp-port && \
   XENO_FIELD_TEST=1 XENO_KERNEL_SEL=0 XENO_FIELD_MAP=1 \
   XENO_FIELD_ENTRANCE=9 XENO_FIELD_0BB_VRAM_UPLOAD=1 \
   XENO_FIELD_DIAG=1 timeout -s KILL 90 ./pc_port/build_native/xeno-port'
@@ -55,7 +55,7 @@ distrobox enter xenogears-dev -- bash -lc 'cd /home/blizz/Projects/xenogears-dec
 ### Filtered log (stub / frame / assert events)
 
 ```bash
-distrobox enter xenogears-dev -- bash -lc 'cd /home/blizz/Projects/xenogears-decomp/pc_port && \
+distrobox enter xenogears-dev -- bash -lc 'cd $HOME/Projects/xenogears-decomp-port/pc_port && \
   XENO_FIELD_TEST=1 XENO_KERNEL_SEL=0 XENO_FIELD_MAP=1 XENO_FIELD_ENTRANCE=9 \
   XENO_FIELD_0BB_VRAM_UPLOAD=1 timeout -s KILL 90 build_native/xeno-port 2>&1 | \
   grep -E "RUN_RC|\[stub\]|func_8001E3D8|frame=|assert|SIG|Aborted|INSIDE3D|OP7_" | \
@@ -150,7 +150,7 @@ What it does:
 - Prints `POST_RELOAD_OK` and exits clean if the run survives to frame ≥ 200 post-reload
 
 ```bash
-distrobox enter xenogears-dev -- bash -lc 'cd /home/blizz/Projects/xenogears-decomp && \
+distrobox enter xenogears-dev -- bash -lc 'cd $HOME/Projects/xenogears-decomp-port && \
   topic=my_topic; \
   SDL_VIDEODRIVER=x11 DISPLAY=:0 \
   XENO_FIELD_TEST=1 XENO_KERNEL_SEL=0 XENO_FIELD_MAP=1 XENO_FIELD_ENTRANCE=8 \
@@ -191,7 +191,7 @@ Change `quit` to `continue` to log every hit instead of the first. For `0xBC`, `
 Standard no-regression gate after every pass: three plain 30-second runs. Pass = all `RC=124`, stub lines equal to the documented baseline family (`func_80028B14`, `func_80072254`, `func_8008CD48`, `func_8008D0F4`, `func_8009E91C` + Map0's own), zero asserts, zero new `[port]` lines.
 
 ```bash
-distrobox enter xenogears-dev -- bash -lc 'cd /home/blizz/Projects/xenogears-decomp && \
+distrobox enter xenogears-dev -- bash -lc 'cd $HOME/Projects/xenogears-decomp-port && \
   topic=my_topic; ts=$(date +%Y%m%d_%H%M%S); \
   for cfg in "ent8|XENO_FIELD_MAP=1 XENO_FIELD_ENTRANCE=8" \
              "ent0|XENO_FIELD_MAP=1 XENO_FIELD_ENTRANCE=0" \
@@ -212,7 +212,7 @@ A meaningful field-reaching smoke shows exactly one `[field-diag] actors allocat
 Any `[stub] <symbol>` line in port output = next missing function on the live path.
 
 ```bash
-distrobox enter xenogears-dev -- bash -lc 'cd /home/blizz/Projects/xenogears-decomp && \
+distrobox enter xenogears-dev -- bash -lc 'cd $HOME/Projects/xenogears-decomp-port && \
   XENO_FIELD_TEST=1 XENO_KERNEL_SEL=0 timeout -s KILL 90 ./pc_port/build_native/xeno-port 2>&1 | \
   grep "\[stub\]" | sort -u'
 ```

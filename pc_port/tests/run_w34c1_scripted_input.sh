@@ -18,13 +18,9 @@ test "$(rg -c 'PcPort_TestInputAdvanceFrame\(\);' \
     src/field/main/misc2.c)" -eq 1
 test "$(rg -c 'PcPort_TestInputInject\(&D_800AFE9C\);' \
     src/field/main/misc6.c)" -eq 1
-test "$(rg -c 'PcPort_TestInput(AdvanceFrame\(\)|Inject\(&D_800AFE9C\))' \
-    pc_port/src/world_map_main_loop_71034.c)" -eq 2
 test "$(rg -c 'PcPort_TestInputInit\(\)' pc_port/src/port_main.c)" -eq 1
 test "$(rg -c 'PcPort_WorldTestInputInit\(\)' pc_port/src/port_main.c)" -eq 1
-test "$(rg -c 'PcPort_WorldTestInputMerge\(' \
-    pc_port/src/world_map_frame_driver_712d0.c)" -eq 2
-echo "SOURCE_INVENTORY=STARTUP_PARSE+FIELD_CLOCK+FIELD_INJECT+WORLD_CONTINUATION"
+echo "SOURCE_INVENTORY=STARTUP_PARSE+FIELD_CLOCK+FIELD_INJECT"
 
 compile_and_run() {
     local name="$1"

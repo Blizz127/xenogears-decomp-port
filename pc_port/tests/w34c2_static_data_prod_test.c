@@ -1,24 +1,10 @@
-/*
- * W34C2 — PS-X static data load path certificate.
- *
- * Asserts the retail contract, not the port's: after loading disc/SLUS_006.64
- * (PS-X EXE, image at file offset 0x800 = guest 0x80010000) the main-exe
- * rodata and sdata are byte-identical to the file in g_PsxRam, .text and the
- * ._49AC0 island stay zero, .sbss stays zero, the wm_80099708 sine table
- * at 0x800523F0 is resident, and wm_80073B04's OT shift is the host
- * D_80050100 (=2), never the guest twin (0 before load, 0x342e342b after).
- */
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "common.h"
 #include "psx_memory.h"
-#include "world_map_helper_73b04.h"
 
-/* Host authority, as in game_overrides.c. */
-s32 D_80050100 = 2;
 
 static int s_failures;
 
@@ -39,11 +25,12 @@ static uint8_t* read_file(const char* path, size_t* size)
     uint8_t* buf;
     if (f == NULL)
         return NULL;
-    fseek(f, 0, SEEK_END);
-    len = ftell(f);
-    fseek(f, 0, SEEK_SET);
+    if (fseek(f, 0, SEEK_END) != 0 || (len = ftell(f)) <= 0 || fseek(f, 0, SEEK_SET) != 0) {
+        fclose(f);
+        return NULL;
+    }
     buf = (uint8_t*)malloc((size_t)len);
-    if (fread(buf, 1, (size_t)len, f) != (size_t)len) {
+    if (!buf || fread(buf, 1, (size_t)len, f) != (size_t)len) {
         free(buf);
         fclose(f);
         return NULL;
@@ -53,7 +40,7 @@ static uint8_t* read_file(const char* path, size_t* size)
     return buf;
 }
 
-static int range_is_zero(u32 start, u32 end)
+static int range_is_zero(uint32_t start, uint32_t end)
 {
     const uint8_t* p = (const uint8_t*)PSX_ADDR(start);
     size_t i;
@@ -63,18 +50,18 @@ static int range_is_zero(u32 start, u32 end)
     return 1;
 }
 
-static int range_matches_image(const uint8_t* image, u32 start, u32 end)
+static int range_matches_image(const uint8_t* image, uint32_t start, uint32_t end)
 {
     size_t off = PSX_EXE_HEADER_SIZE + (size_t)(start - PSX_EXE_LOAD_BASE);
     return memcmp(PSX_ADDR(start), image + off, (size_t)(end - start)) == 0;
 }
 
-static u32 guest_lhu_pair(u32 address)
+static uint32_t guest_lhu_pair(uint32_t address)
 {
-    u16 lo, hi;
+    uint16_t lo, hi;
     memcpy(&lo, PSX_ADDR(address), 2);
     memcpy(&hi, PSX_ADDR(address + 2u), 2);
-    return ((u32)hi << 16) | lo;
+    return ((uint32_t)hi << 16) | lo;
 }
 
 int main(void)
@@ -93,8 +80,11 @@ int main(void)
         fprintf(stderr, "ASSERTION image FAILED: disc/SLUS_006.64 missing\n");
         return 1;
     }
-    ASSERT_MSG(memcmp(image, "PS-X EXE", 8) == 0, "magic", "not a PS-X EXE");
-    ASSERT_MSG(size == 0x4A000u, "size", "file size 0x%zx != 0x4a000", size);
+    if (size != 0x4A000u || memcmp(image, "PS-X EXE", 8) != 0) {
+        fputs("ASSERTION image FAILED: unexpected PS-X executable revision or size\n", stderr);
+        free(image);
+        return 1;
+    }
 
     PsxMemory_Init();
     /* Canary in the not-copied ranges must survive as zero, so pre-check. */
@@ -127,15 +117,16 @@ int main(void)
     ASSERT_MSG(!range_is_zero(PSX_EXE_RODATA_END - 0x1000u, PSX_EXE_RODATA_END),
                "rodata_tail", "last rodata page is zero");
 
-    /* 2. sine table resident: port arithmetic base + index*4, halfword pairs. */
-    ASSERT_MSG(guest_lhu_pair(0x800523F0u + 0x000u * 4u) == 0x10000000u,
-               "sine_0000", "0x%08x", guest_lhu_pair(0x800523F0u));
-    ASSERT_MSG(guest_lhu_pair(0x800523F0u + 0x400u * 4u) == 0x00001000u,
-               "sine_0400", "0x%08x", guest_lhu_pair(0x800523F0u + 0x1000u));
-    ASSERT_MSG(guest_lhu_pair(0x800523F0u + 0x600u * 4u) == 0xF4B00B50u,
-               "sine_0600", "0x%08x", guest_lhu_pair(0x800523F0u + 0x1800u));
-    ASSERT_MSG(guest_lhu_pair(0x800523F0u + 0x800u * 4u) == 0xF0000000u,
-               "sine_0800", "0x%08x", guest_lhu_pair(0x800523F0u + 0x2000u));
+    /* Confirm the loader's paired halfwords at representative angle-table indices. */
+    const unsigned indices[] = {0u, 0x400u, 0x600u, 0x800u};
+    for (unsigned index = 0; index < sizeof(indices) / sizeof(indices[0]); ++index) {
+        uint32_t address = 0x800523f0u + 4u * indices[index];
+        const uint8_t *word = image + PSX_EXE_HEADER_SIZE + (address - PSX_EXE_LOAD_BASE);
+        uint32_t expected = (uint32_t)word[0] | (uint32_t)word[1] << 8 |
+                            (uint32_t)word[2] << 16 | (uint32_t)word[3] << 24;
+        ASSERT_MSG(guest_lhu_pair(address) == expected, "angle_table",
+                   "paired halfwords at index 0x%x differ from the supplied executable", indices[index]);
+    }
 
     /* 3. .text guest bytes remain zero (M1). */
     ASSERT_MSG(range_is_zero(PSX_EXE_TEXT_START, PSX_EXE_TEXT_END), "text_zero",
@@ -169,24 +160,9 @@ int main(void)
     ASSERT_MSG(range_is_zero(PSX_EXE_IMAGE_END, PSX_EXE_IMAGE_END + 0x1000u),
                "above_image_zero", "bytes above 0x80059800 were populated");
 
-    /* 6. WM_73B04_SHIFT reads the host authority: 2, not 0, not 11 (M3). */
-    {
-        s32 shift = wm_73b04_ot_shift();
-        u32 guest_word;
-        memcpy(&guest_word, PSX_ADDR(0x80050100u), 4);
-        /* Retail's static .sdata already holds 2 here (the overlay rewrites
-         * 2 at 0x800847D8); the host global is still the authority. */
-        ASSERT_MSG(guest_word == 0x00000002u, "guest_twin",
-                   "guest 0x80050100 = 0x%08x (expected retail value 2)",
-                   guest_word);
-        ASSERT_MSG(shift == 2, "ot_shift", "wm_73b04_ot_shift()=%d (0x%x); "
-                   "srav amount would be %u", shift, (unsigned)shift,
-                   (unsigned)shift & 31u);
-        D_80050100 = 5;
-        ASSERT_MSG(wm_73b04_ot_shift() == 5, "ot_shift_host",
-                   "shift does not follow host D_80050100");
-        D_80050100 = 2;
-    }
+    /* The loader's former world data address must agree with its source image. */
+    ASSERT_MSG(range_matches_image(image, 0x80050100u, 0x80050104u),
+               "guest_word", "loaded 32-bit word differs from the supplied executable");
 
     /* 7. Malformed image is rejected and leaves RAM untouched. */
     {

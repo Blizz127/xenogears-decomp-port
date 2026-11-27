@@ -1,0 +1,2744 @@
+{
+ "profiles": [
+  [
+   "c++",
+   [
+    "-DUSE_EXTENDED_PRIM_POINTERS=0",
+    "-I@renderer@/include",
+    "-I@renderer@/include/psx",
+    "-Ipc_port/include",
+    "-Ipc_port/include_shim",
+    "-I@renderer@/src",
+    "-I/usr/include/AL",
+    "-isystem",
+    "/usr/include/SDL2",
+    "-ffile-prefix-map=@source@=.",
+    "-g",
+    "-std=gnu++17",
+    "-include",
+    "pc_port/src/port_compat.h",
+    "-Wno-narrowing",
+    "-Wno-format-security",
+    "-fpermissive"
+   ]
+  ],
+  [
+   "cc",
+   [
+    "-DUSE_EXTENDED_PRIM_POINTERS=0",
+    "-I@renderer@/include",
+    "-I@renderer@/include/psx",
+    "-Ipc_port/include",
+    "-Ipc_port/include_shim",
+    "-I@renderer@/src",
+    "-I/usr/include/AL",
+    "-isystem",
+    "/usr/include/SDL2",
+    "-ffile-prefix-map=@source@=.",
+    "-g",
+    "-std=gnu11",
+    "-include",
+    "pc_port/src/port_compat.h",
+    "-Wno-narrowing",
+    "-Wno-format-security"
+   ]
+  ],
+  [
+   "cc",
+   [
+    "-std=gnu17",
+    "-fpermissive",
+    "-DXENO_PC_PORT",
+    "-DXENO_FIELD_OBJECT_OVERLAY",
+    "-DSKIP_ASM",
+    "-D_LANGUAGE_C",
+    "-DUSE_EXTENDED_PRIM_POINTERS=0",
+    "-include",
+    "assert.h",
+    "-w",
+    "-O0",
+    "-g",
+    "-m64",
+    "-fno-builtin",
+    "-ffile-prefix-map=@source@=.",
+    "-Ipc_port/src",
+    "-Ipc_port/include_shim",
+    "-Ipc_port/include",
+    "-Iinclude",
+    "-I@generated@",
+    "-I@renderer@/include",
+    "-I@renderer@/include/psx",
+    "-I@renderer@/src"
+   ]
+  ],
+  [
+   "cc",
+   [
+    "-std=gnu17",
+    "-fpermissive",
+    "-DXENO_PC_PORT",
+    "-DXENO_FIELD_OBJECT_OVERLAY",
+    "-DSKIP_ASM",
+    "-D_LANGUAGE_C",
+    "-DUSE_EXTENDED_PRIM_POINTERS=0",
+    "-include",
+    "assert.h",
+    "-w",
+    "-O0",
+    "-g",
+    "-m64",
+    "-fno-builtin",
+    "-ffile-prefix-map=@source@=.",
+    "-DXENO_BATTLE_OVERLAY_HOST_BODIES",
+    "-Ipc_port/include_shim",
+    "-Ipc_port/include",
+    "-Iinclude",
+    "-I@generated@",
+    "-I@renderer@/include",
+    "-I@renderer@/include/psx",
+    "-I@renderer@/src"
+   ]
+  ],
+  [
+   "cc",
+   [
+    "-std=gnu17",
+    "-DXENO_PC_PORT",
+    "-DXENO_FIELD_OBJECT_OVERLAY",
+    "-DSKIP_ASM",
+    "-D_LANGUAGE_C",
+    "-DUSE_EXTENDED_PRIM_POINTERS=0",
+    "-include",
+    "assert.h",
+    "-O0",
+    "-g",
+    "-m64",
+    "-fno-builtin",
+    "-ffile-prefix-map=@source@=.",
+    "-Werror=int-to-pointer-cast",
+    "-Werror=pointer-to-int-cast",
+    "-Werror=int-conversion",
+    "-Werror=incompatible-pointer-types",
+    "-DXENO_BATTLE_OVERLAY_HOST_BODIES",
+    "-Ipc_port/include_shim",
+    "-Ipc_port/include",
+    "-Iinclude",
+    "-I@generated@",
+    "-I@renderer@/include",
+    "-I@renderer@/include/psx",
+    "-I@renderer@/src"
+   ]
+  ],
+  [
+   "cc",
+   [
+    "-std=gnu17",
+    "-fpermissive",
+    "-DXENO_PC_PORT",
+    "-DXENO_FIELD_OBJECT_OVERLAY",
+    "-DSKIP_ASM",
+    "-D_LANGUAGE_C",
+    "-DUSE_EXTENDED_PRIM_POINTERS=0",
+    "-include",
+    "assert.h",
+    "-w",
+    "-O0",
+    "-g",
+    "-m64",
+    "-fno-builtin",
+    "-ffile-prefix-map=@source@=.",
+    "-O2",
+    "-Ipc_port/src",
+    "-Ipc_port/include_shim",
+    "-Ipc_port/include",
+    "-Iinclude",
+    "-I@generated@",
+    "-I@renderer@/include",
+    "-I@renderer@/include/psx",
+    "-I@renderer@/src"
+   ]
+  ],
+  [
+   "cc",
+   [
+    "-std=gnu17",
+    "-fpermissive",
+    "-DXENO_PC_PORT",
+    "-DXENO_FIELD_OBJECT_OVERLAY",
+    "-DSKIP_ASM",
+    "-D_LANGUAGE_C",
+    "-DUSE_EXTENDED_PRIM_POINTERS=0",
+    "-include",
+    "assert.h",
+    "-w",
+    "-O0",
+    "-g",
+    "-m64",
+    "-fno-builtin",
+    "-ffile-prefix-map=@source@=.",
+    "-Ipc_port/src",
+    "-Iinclude",
+    "-I@renderer@/include",
+    "-I@renderer@/include/psx"
+   ]
+  ],
+  [
+   "cc",
+   [
+    "-std=gnu17",
+    "-fpermissive",
+    "-DXENO_PC_PORT",
+    "-DXENO_FIELD_OBJECT_OVERLAY",
+    "-DSKIP_ASM",
+    "-D_LANGUAGE_C",
+    "-DUSE_EXTENDED_PRIM_POINTERS=0",
+    "-include",
+    "assert.h",
+    "-w",
+    "-O0",
+    "-g",
+    "-m64",
+    "-fno-builtin",
+    "-ffile-prefix-map=@source@=.",
+    "-Ipc_port/include_shim",
+    "-Ipc_port/include",
+    "-Iinclude",
+    "-I@generated@",
+    "-I@renderer@/include",
+    "-I@renderer@/include/psx",
+    "-I@renderer@/src"
+   ]
+  ],
+  [
+   "cc",
+   [
+    "-std=gnu17",
+    "-fpermissive",
+    "-DXENO_PC_PORT",
+    "-DXENO_FIELD_OBJECT_OVERLAY",
+    "-DSKIP_ASM",
+    "-D_LANGUAGE_C",
+    "-DUSE_EXTENDED_PRIM_POINTERS=0",
+    "-include",
+    "assert.h",
+    "-w",
+    "-O0",
+    "-g",
+    "-m64",
+    "-fno-builtin",
+    "-ffile-prefix-map=@source@=.",
+    "-DXENO_ARCHIVE_COMMAND_HANDLER_ONLY",
+    "-Ipc_port/include_shim",
+    "-Ipc_port/include",
+    "-Iinclude",
+    "-I@generated@",
+    "-I@renderer@/include",
+    "-I@renderer@/include/psx",
+    "-I@renderer@/src"
+   ]
+  ],
+  [
+   "cc",
+   [
+    "-O0",
+    "-g",
+    "-ffile-prefix-map=@source@=.",
+    "-include",
+    "pc_port/include_shim/host_only_bss.h"
+   ]
+  ]
+ ],
+ "transform_profiles": [
+  [
+   "--redefine-sym",
+   "bg_func_80078E24_s3=battle_bg_func_80078E24_s3",
+   "--redefine-sym",
+   "bl_frame_reset_mainasm_frame_port=battle_bl_frame_reset_mainasm_frame_port",
+   "--redefine-sym",
+   "bl_frame_reset_mainasm_status_port=battle_bl_frame_reset_mainasm_status_port",
+   "--redefine-sym",
+   "bl_frame_top_mainasm_frame_port=battle_bl_frame_top_mainasm_frame_port",
+   "--redefine-sym",
+   "bl_frame_top_mainasm_status_port=battle_bl_frame_top_mainasm_status_port",
+   "--redefine-sym",
+   "func_80070E2C=battle_func_80070E2C",
+   "--redefine-sym",
+   "func_80070EB0=battle_func_80070EB0",
+   "--redefine-sym",
+   "func_80070EDC=battle_func_80070EDC",
+   "--redefine-sym",
+   "func_80071AE0=battle_func_80071AE0",
+   "--redefine-sym",
+   "func_80071B94=battle_func_80071B94",
+   "--redefine-sym",
+   "func_80072270=battle_func_80072270",
+   "--redefine-sym",
+   "func_80072324=battle_func_80072324",
+   "--redefine-sym",
+   "func_800723E0=battle_func_800723E0",
+   "--redefine-sym",
+   "func_8007252C=battle_func_8007252C",
+   "--redefine-sym",
+   "func_800728B8=battle_func_800728B8",
+   "--redefine-sym",
+   "func_80072938=battle_func_80072938",
+   "--redefine-sym",
+   "func_80072A9C=battle_func_80072A9C",
+   "--redefine-sym",
+   "func_80072DA8=battle_func_80072DA8",
+   "--redefine-sym",
+   "func_80072F38=battle_func_80072F38",
+   "--redefine-sym",
+   "func_80073380=battle_func_80073380",
+   "--redefine-sym",
+   "func_80073538=battle_func_80073538",
+   "--redefine-sym",
+   "func_80073A58=battle_func_80073A58",
+   "--redefine-sym",
+   "func_80073B64=battle_func_80073B64",
+   "--redefine-sym",
+   "func_80073E88=battle_func_80073E88",
+   "--redefine-sym",
+   "func_80073F08=battle_func_80073F08",
+   "--redefine-sym",
+   "func_80073FB8=battle_func_80073FB8",
+   "--redefine-sym",
+   "func_800742A0=battle_func_800742A0",
+   "--redefine-sym",
+   "func_80074AB8=battle_func_80074AB8",
+   "--redefine-sym",
+   "func_80074D4C=battle_func_80074D4C",
+   "--redefine-sym",
+   "func_80074EEC=battle_func_80074EEC",
+   "--redefine-sym",
+   "func_80074F70=battle_func_80074F70",
+   "--redefine-sym",
+   "func_8007500C=battle_func_8007500C",
+   "--redefine-sym",
+   "func_800764B4=battle_func_800764B4",
+   "--redefine-sym",
+   "func_80076710=battle_func_80076710",
+   "--redefine-sym",
+   "func_80076D58=battle_func_80076D58",
+   "--redefine-sym",
+   "func_80076EA4=battle_func_80076EA4",
+   "--redefine-sym",
+   "func_80077074=battle_func_80077074",
+   "--redefine-sym",
+   "func_80077610=battle_func_80077610",
+   "--redefine-sym",
+   "func_8007765C=battle_func_8007765C",
+   "--redefine-sym",
+   "func_80077698=battle_func_80077698",
+   "--redefine-sym",
+   "func_80077990=battle_func_80077990",
+   "--redefine-sym",
+   "func_80078310=battle_func_80078310",
+   "--redefine-sym",
+   "func_80078998=battle_func_80078998",
+   "--redefine-sym",
+   "func_80078B34=battle_func_80078B34",
+   "--redefine-sym",
+   "func_80078D6C=battle_func_80078D6C",
+   "--redefine-sym",
+   "func_80078E24=battle_func_80078E24",
+   "--redefine-sym",
+   "func_8007916C=battle_func_8007916C",
+   "--redefine-sym",
+   "func_800791FC=battle_func_800791FC",
+   "--redefine-sym",
+   "func_80079270=battle_func_80079270",
+   "--redefine-sym",
+   "func_800792F8=battle_func_800792F8",
+   "--redefine-sym",
+   "func_800793F0=battle_func_800793F0",
+   "--redefine-sym",
+   "func_80079674=battle_func_80079674",
+   "--redefine-sym",
+   "func_80079778=battle_func_80079778",
+   "--redefine-sym",
+   "func_80079840=battle_func_80079840",
+   "--redefine-sym",
+   "func_80079948=battle_func_80079948",
+   "--redefine-sym",
+   "func_800799C8=battle_func_800799C8",
+   "--redefine-sym",
+   "func_80079AB0=battle_func_80079AB0",
+   "--redefine-sym",
+   "func_80079C24=battle_func_80079C24",
+   "--redefine-sym",
+   "func_8007A874=battle_func_8007A874",
+   "--redefine-sym",
+   "func_8007AEF0=battle_func_8007AEF0",
+   "--redefine-sym",
+   "func_8007BA04=battle_func_8007BA04",
+   "--redefine-sym",
+   "func_8007BA44=battle_func_8007BA44",
+   "--redefine-sym",
+   "func_8007BAE8=battle_func_8007BAE8",
+   "--redefine-sym",
+   "func_8007DCF8=battle_func_8007DCF8",
+   "--redefine-sym",
+   "func_8007FE3C=battle_func_8007FE3C",
+   "--redefine-sym",
+   "func_8007FF14=battle_func_8007FF14",
+   "--redefine-sym",
+   "func_80080160=battle_func_80080160",
+   "--redefine-sym",
+   "func_80080AE4=battle_func_80080AE4",
+   "--redefine-sym",
+   "func_80080C94=battle_func_80080C94",
+   "--redefine-sym",
+   "func_8008115C=battle_func_8008115C",
+   "--redefine-sym",
+   "func_80081318=battle_func_80081318",
+   "--redefine-sym",
+   "func_80081504=battle_func_80081504",
+   "--redefine-sym",
+   "func_800816F8=battle_func_800816F8",
+   "--redefine-sym",
+   "func_8008189C=battle_func_8008189C",
+   "--redefine-sym",
+   "func_800819A4=battle_func_800819A4",
+   "--redefine-sym",
+   "func_80081B58=battle_func_80081B58",
+   "--redefine-sym",
+   "func_800820A4=battle_func_800820A4",
+   "--redefine-sym",
+   "func_800822C4=battle_func_800822C4",
+   "--redefine-sym",
+   "func_80082504=battle_func_80082504",
+   "--redefine-sym",
+   "func_800826CC=battle_func_800826CC",
+   "--redefine-sym",
+   "func_80082820=battle_func_80082820",
+   "--redefine-sym",
+   "func_800829F4=battle_func_800829F4",
+   "--redefine-sym",
+   "func_80082BB0=battle_func_80082BB0",
+   "--redefine-sym",
+   "func_80082D4C=battle_func_80082D4C",
+   "--redefine-sym",
+   "func_80082F7C=battle_func_80082F7C",
+   "--redefine-sym",
+   "func_800830A8=battle_func_800830A8",
+   "--redefine-sym",
+   "func_80083340=battle_func_80083340",
+   "--redefine-sym",
+   "func_80083580=battle_func_80083580",
+   "--redefine-sym",
+   "func_80083748=battle_func_80083748",
+   "--redefine-sym",
+   "func_80083948=battle_func_80083948",
+   "--redefine-sym",
+   "func_80083FF4=battle_func_80083FF4",
+   "--redefine-sym",
+   "func_80084108=battle_func_80084108",
+   "--redefine-sym",
+   "func_800841E0=battle_func_800841E0",
+   "--redefine-sym",
+   "func_80084548=battle_func_80084548",
+   "--redefine-sym",
+   "func_80084854=battle_func_80084854",
+   "--redefine-sym",
+   "func_80084A7C=battle_func_80084A7C",
+   "--redefine-sym",
+   "func_80084D28=battle_func_80084D28",
+   "--redefine-sym",
+   "func_80084DE4=battle_func_80084DE4",
+   "--redefine-sym",
+   "func_80085084=battle_func_80085084",
+   "--redefine-sym",
+   "func_80085310=battle_func_80085310",
+   "--redefine-sym",
+   "func_80085350=battle_func_80085350",
+   "--redefine-sym",
+   "func_80085B58=battle_func_80085B58",
+   "--redefine-sym",
+   "func_80085C88=battle_func_80085C88",
+   "--redefine-sym",
+   "func_80085CCC=battle_func_80085CCC",
+   "--redefine-sym",
+   "func_80086B88=battle_func_80086B88",
+   "--redefine-sym",
+   "func_80086C88=battle_func_80086C88",
+   "--redefine-sym",
+   "func_80086F98=battle_func_80086F98",
+   "--redefine-sym",
+   "func_800877E0=battle_func_800877E0",
+   "--redefine-sym",
+   "func_800879A8=battle_func_800879A8",
+   "--redefine-sym",
+   "func_8008887C=battle_func_8008887C",
+   "--redefine-sym",
+   "func_80088B80=battle_func_80088B80",
+   "--redefine-sym",
+   "func_8008AAA0=battle_func_8008AAA0",
+   "--redefine-sym",
+   "func_8008AC88=battle_func_8008AC88",
+   "--redefine-sym",
+   "func_8008ADD0=battle_func_8008ADD0",
+   "--redefine-sym",
+   "func_8008B224=battle_func_8008B224",
+   "--redefine-sym",
+   "func_8008B478=battle_func_8008B478",
+   "--redefine-sym",
+   "func_8008B908=battle_func_8008B908",
+   "--redefine-sym",
+   "func_8008BD50=battle_func_8008BD50",
+   "--redefine-sym",
+   "func_8008BED8=battle_func_8008BED8",
+   "--redefine-sym",
+   "func_8008C4A8=battle_func_8008C4A8",
+   "--redefine-sym",
+   "func_8008C81C=battle_func_8008C81C",
+   "--redefine-sym",
+   "func_8008CDE4=battle_func_8008CDE4",
+   "--redefine-sym",
+   "func_8008CFB8=battle_func_8008CFB8",
+   "--redefine-sym",
+   "func_8008D328=battle_func_8008D328",
+   "--redefine-sym",
+   "func_8008D598=battle_func_8008D598",
+   "--redefine-sym",
+   "func_8008FA60=battle_func_8008FA60",
+   "--redefine-sym",
+   "func_8008FAD8=battle_func_8008FAD8",
+   "--redefine-sym",
+   "func_8008FC1C=battle_func_8008FC1C",
+   "--redefine-sym",
+   "func_8008FE18=battle_func_8008FE18",
+   "--redefine-sym",
+   "func_8009023C=battle_func_8009023C",
+   "--redefine-sym",
+   "func_80090310=battle_func_80090310",
+   "--redefine-sym",
+   "func_800904A0=battle_func_800904A0",
+   "--redefine-sym",
+   "func_8009070C=battle_func_8009070C",
+   "--redefine-sym",
+   "func_8009080C=battle_func_8009080C",
+   "--redefine-sym",
+   "func_8009093C=battle_func_8009093C",
+   "--redefine-sym",
+   "func_80090B90=battle_func_80090B90",
+   "--redefine-sym",
+   "func_80090C44=battle_func_80090C44",
+   "--redefine-sym",
+   "func_80090E7C=battle_func_80090E7C",
+   "--redefine-sym",
+   "func_80091064=battle_func_80091064",
+   "--redefine-sym",
+   "func_80091604=battle_func_80091604",
+   "--redefine-sym",
+   "func_800916D4=battle_func_800916D4",
+   "--redefine-sym",
+   "func_8009187C=battle_func_8009187C",
+   "--redefine-sym",
+   "func_80091B38=battle_func_80091B38",
+   "--redefine-sym",
+   "func_80091D38=battle_func_80091D38",
+   "--redefine-sym",
+   "func_80091EC4=battle_func_80091EC4",
+   "--redefine-sym",
+   "func_8009209C=battle_func_8009209C",
+   "--redefine-sym",
+   "func_80092298=battle_func_80092298",
+   "--redefine-sym",
+   "func_80092784=battle_func_80092784",
+   "--redefine-sym",
+   "func_80092B74=battle_func_80092B74",
+   "--redefine-sym",
+   "func_800930AC=battle_func_800930AC",
+   "--redefine-sym",
+   "func_80093578=battle_func_80093578",
+   "--redefine-sym",
+   "func_8009382C=battle_func_8009382C",
+   "--redefine-sym",
+   "func_800939CC=battle_func_800939CC",
+   "--redefine-sym",
+   "func_80093B08=battle_func_80093B08",
+   "--redefine-sym",
+   "func_800941A4=battle_func_800941A4",
+   "--redefine-sym",
+   "func_800946F4=battle_func_800946F4",
+   "--redefine-sym",
+   "func_80094D24=battle_func_80094D24",
+   "--redefine-sym",
+   "func_80094EE4=battle_func_80094EE4",
+   "--redefine-sym",
+   "func_80095690=battle_func_80095690",
+   "--redefine-sym",
+   "func_800958D8=battle_func_800958D8",
+   "--redefine-sym",
+   "func_80095A78=battle_func_80095A78",
+   "--redefine-sym",
+   "func_80095B44=battle_func_80095B44",
+   "--redefine-sym",
+   "func_80095BAC=battle_func_80095BAC",
+   "--redefine-sym",
+   "func_80095D4C=battle_func_80095D4C",
+   "--redefine-sym",
+   "func_80096018=battle_func_80096018",
+   "--redefine-sym",
+   "func_80096494=battle_func_80096494",
+   "--redefine-sym",
+   "func_80096824=battle_func_80096824",
+   "--redefine-sym",
+   "func_800968C0=battle_func_800968C0",
+   "--redefine-sym",
+   "func_80096AB8=battle_func_80096AB8",
+   "--redefine-sym",
+   "func_80096FBC=battle_func_80096FBC",
+   "--redefine-sym",
+   "func_80097610=battle_func_80097610",
+   "--redefine-sym",
+   "func_80097964=battle_func_80097964",
+   "--redefine-sym",
+   "func_80097D5C=battle_func_80097D5C",
+   "--redefine-sym",
+   "func_8009892C=battle_func_8009892C",
+   "--redefine-sym",
+   "func_80098AF8=battle_func_80098AF8",
+   "--redefine-sym",
+   "func_80098C6C=battle_func_80098C6C",
+   "--redefine-sym",
+   "func_80098D2C=battle_func_80098D2C",
+   "--redefine-sym",
+   "func_80099498=battle_func_80099498",
+   "--redefine-sym",
+   "func_800995A0=battle_func_800995A0",
+   "--redefine-sym",
+   "func_80099890=battle_func_80099890",
+   "--redefine-sym",
+   "func_80099CF0=battle_func_80099CF0",
+   "--redefine-sym",
+   "func_8009A1AC=battle_func_8009A1AC",
+   "--redefine-sym",
+   "func_8009CBC4=battle_func_8009CBC4",
+   "--redefine-sym",
+   "func_8009D354=battle_func_8009D354",
+   "--redefine-sym",
+   "func_8009D3A0=battle_func_8009D3A0",
+   "--redefine-sym",
+   "func_8009D948=battle_func_8009D948",
+   "--redefine-sym",
+   "func_8009DA04=battle_func_8009DA04",
+   "--redefine-sym",
+   "func_8009DB54=battle_func_8009DB54",
+   "--redefine-sym",
+   "func_8009DBFC=battle_func_8009DBFC",
+   "--redefine-sym",
+   "func_8009E268=battle_func_8009E268",
+   "--redefine-sym",
+   "func_8009E278=battle_func_8009E278",
+   "--redefine-sym",
+   "func_8009E2EC=battle_func_8009E2EC",
+   "--redefine-sym",
+   "func_8009E364=battle_func_8009E364",
+   "--redefine-sym",
+   "func_8009E3C8=battle_func_8009E3C8",
+   "--redefine-sym",
+   "func_8009E410=battle_func_8009E410",
+   "--redefine-sym",
+   "func_8009E48C=battle_func_8009E48C",
+   "--redefine-sym",
+   "func_8009E508=battle_func_8009E508",
+   "--redefine-sym",
+   "func_8009F708=battle_func_8009F708",
+   "--redefine-sym",
+   "func_8009F794=battle_func_8009F794",
+   "--redefine-sym",
+   "func_800A1B50=battle_func_800A1B50",
+   "--redefine-sym",
+   "func_800A1CF4=battle_func_800A1CF4",
+   "--redefine-sym",
+   "func_800A216C=battle_func_800A216C",
+   "--redefine-sym",
+   "func_800A22A8=battle_func_800A22A8",
+   "--redefine-sym",
+   "func_800A22E8=battle_func_800A22E8",
+   "--redefine-sym",
+   "func_800A2330=battle_func_800A2330",
+   "--redefine-sym",
+   "func_800A23E8=battle_func_800A23E8",
+   "--redefine-sym",
+   "func_800A2434=battle_func_800A2434",
+   "--redefine-sym",
+   "func_800A2704=battle_func_800A2704",
+   "--redefine-sym",
+   "func_800A2ACC=battle_func_800A2ACC",
+   "--redefine-sym",
+   "func_800A2BB8=battle_func_800A2BB8",
+   "--redefine-sym",
+   "func_800A2D1C=battle_func_800A2D1C",
+   "--redefine-sym",
+   "func_800A4820=battle_func_800A4820",
+   "--redefine-sym",
+   "func_800A4CF8=battle_func_800A4CF8",
+   "--redefine-sym",
+   "func_800A5EB4=battle_func_800A5EB4",
+   "--redefine-sym",
+   "func_800A6444=battle_func_800A6444",
+   "--redefine-sym",
+   "func_800A64E4=battle_func_800A64E4",
+   "--redefine-sym",
+   "func_800A6884=battle_func_800A6884",
+   "--redefine-sym",
+   "func_800A6AE8=battle_func_800A6AE8",
+   "--redefine-sym",
+   "func_800A6F98=battle_func_800A6F98",
+   "--redefine-sym",
+   "func_800A7948=battle_func_800A7948",
+   "--redefine-sym",
+   "func_800A8A88=battle_func_800A8A88",
+   "--redefine-sym",
+   "func_800A8B0C=battle_func_800A8B0C",
+   "--redefine-sym",
+   "func_800A96B4=battle_func_800A96B4",
+   "--redefine-sym",
+   "func_800A9A50=battle_func_800A9A50",
+   "--redefine-sym",
+   "func_800A9F94=battle_func_800A9F94",
+   "--redefine-sym",
+   "func_800A9FF0=battle_func_800A9FF0",
+   "--redefine-sym",
+   "func_800AA320=battle_func_800AA320",
+   "--redefine-sym",
+   "func_800AA384=battle_func_800AA384",
+   "--redefine-sym",
+   "func_800AA454=battle_func_800AA454",
+   "--redefine-sym",
+   "func_800AA650=battle_func_800AA650",
+   "--redefine-sym",
+   "func_800AA6E0=battle_func_800AA6E0",
+   "--redefine-sym",
+   "func_800AA820=battle_func_800AA820",
+   "--redefine-sym",
+   "func_800AA934=battle_func_800AA934",
+   "--redefine-sym",
+   "func_800AAB34=battle_func_800AAB34",
+   "--redefine-sym",
+   "func_800ADF1C=battle_func_800ADF1C",
+   "--redefine-sym",
+   "func_800AE098=battle_func_800AE098",
+   "--redefine-sym",
+   "func_800AE1BC=battle_func_800AE1BC",
+   "--redefine-sym",
+   "func_800AE220=battle_func_800AE220",
+   "--redefine-sym",
+   "func_800AEF68=battle_func_800AEF68",
+   "--redefine-sym",
+   "func_800AF180=battle_func_800AF180",
+   "--redefine-sym",
+   "func_800AF678=battle_func_800AF678",
+   "--redefine-sym",
+   "func_800AFB4C=battle_func_800AFB4C",
+   "--redefine-sym",
+   "func_800AFC68=battle_func_800AFC68",
+   "--redefine-sym",
+   "func_800B0060=battle_func_800B0060",
+   "--redefine-sym",
+   "func_800B00F4=battle_func_800B00F4",
+   "--redefine-sym",
+   "func_800B0164=battle_func_800B0164",
+   "--redefine-sym",
+   "func_800B026C=battle_func_800B026C",
+   "--redefine-sym",
+   "func_800B0B14=battle_func_800B0B14",
+   "--redefine-sym",
+   "func_800B3358=battle_func_800B3358",
+   "--redefine-sym",
+   "func_800B3588=battle_func_800B3588",
+   "--redefine-sym",
+   "func_800B3658=battle_func_800B3658",
+   "--redefine-sym",
+   "func_800B36BC=battle_func_800B36BC",
+   "--redefine-sym",
+   "func_800B39C0=battle_func_800B39C0",
+   "--redefine-sym",
+   "func_800B3C2C=battle_func_800B3C2C",
+   "--redefine-sym",
+   "func_800B3C74=battle_func_800B3C74",
+   "--redefine-sym",
+   "func_800B3CD4=battle_func_800B3CD4",
+   "--redefine-sym",
+   "func_800B3E04=battle_func_800B3E04",
+   "--redefine-sym",
+   "func_800B3F04=battle_func_800B3F04",
+   "--redefine-sym",
+   "func_800B4EDC=battle_func_800B4EDC",
+   "--redefine-sym",
+   "func_800B50D4=battle_func_800B50D4",
+   "--redefine-sym",
+   "func_800B5588=battle_func_800B5588",
+   "--redefine-sym",
+   "func_800B56E4=battle_func_800B56E4",
+   "--redefine-sym",
+   "func_800B572C=battle_func_800B572C",
+   "--redefine-sym",
+   "func_800B57E4=battle_func_800B57E4",
+   "--redefine-sym",
+   "func_800B5854=battle_func_800B5854",
+   "--redefine-sym",
+   "func_800B5924=battle_func_800B5924",
+   "--redefine-sym",
+   "func_800B5B3C=battle_func_800B5B3C",
+   "--redefine-sym",
+   "func_800B5C18=battle_func_800B5C18",
+   "--redefine-sym",
+   "func_800B5DC4=battle_func_800B5DC4",
+   "--redefine-sym",
+   "func_800B5FBC=battle_func_800B5FBC",
+   "--redefine-sym",
+   "func_800B61B0=battle_func_800B61B0",
+   "--redefine-sym",
+   "func_800B61F8=battle_func_800B61F8",
+   "--redefine-sym",
+   "func_800B626C=battle_func_800B626C",
+   "--redefine-sym",
+   "func_800B62C8=battle_func_800B62C8",
+   "--redefine-sym",
+   "func_800B639C=battle_func_800B639C",
+   "--redefine-sym",
+   "func_800B63F0=battle_func_800B63F0",
+   "--redefine-sym",
+   "func_800B6438=battle_func_800B6438",
+   "--redefine-sym",
+   "func_800B6464=battle_func_800B6464",
+   "--redefine-sym",
+   "func_800B64D4=battle_func_800B64D4",
+   "--redefine-sym",
+   "func_800B6A7C=battle_func_800B6A7C",
+   "--redefine-sym",
+   "func_800B6B98=battle_func_800B6B98",
+   "--redefine-sym",
+   "func_800B6BFC=battle_func_800B6BFC",
+   "--redefine-sym",
+   "func_800B6C44=battle_func_800B6C44",
+   "--redefine-sym",
+   "func_800B6C98=battle_func_800B6C98",
+   "--redefine-sym",
+   "func_800B6CEC=battle_func_800B6CEC",
+   "--redefine-sym",
+   "func_800B6DC0=battle_func_800B6DC0",
+   "--redefine-sym",
+   "func_800B6E84=battle_func_800B6E84",
+   "--redefine-sym",
+   "func_800B6F0C=battle_func_800B6F0C",
+   "--redefine-sym",
+   "func_800B7134=battle_func_800B7134",
+   "--redefine-sym",
+   "func_800B7160=battle_func_800B7160",
+   "--redefine-sym",
+   "func_800B73A0=battle_func_800B73A0",
+   "--redefine-sym",
+   "func_800B7424=battle_func_800B7424",
+   "--redefine-sym",
+   "func_800B7870=battle_func_800B7870",
+   "--redefine-sym",
+   "func_800B7C34=battle_func_800B7C34",
+   "--redefine-sym",
+   "func_800B7E94=battle_func_800B7E94",
+   "--redefine-sym",
+   "func_800B8098=battle_func_800B8098",
+   "--redefine-sym",
+   "func_800B81BC=battle_func_800B81BC",
+   "--redefine-sym",
+   "func_800B8284=battle_func_800B8284",
+   "--redefine-sym",
+   "func_800B838C=battle_func_800B838C",
+   "--redefine-sym",
+   "func_800B853C=battle_func_800B853C",
+   "--redefine-sym",
+   "func_800B8774=battle_func_800B8774",
+   "--redefine-sym",
+   "func_800B88C4=battle_func_800B88C4",
+   "--redefine-sym",
+   "func_800B89FC=battle_func_800B89FC",
+   "--redefine-sym",
+   "func_800B8DA4=battle_func_800B8DA4",
+   "--redefine-sym",
+   "func_800B8EBC=battle_func_800B8EBC",
+   "--redefine-sym",
+   "func_800B905C=battle_func_800B905C",
+   "--redefine-sym",
+   "func_800B9284=battle_func_800B9284",
+   "--redefine-sym",
+   "func_800B9508=battle_func_800B9508",
+   "--redefine-sym",
+   "func_800B9B54=battle_func_800B9B54",
+   "--redefine-sym",
+   "func_800BA8F4=battle_func_800BA8F4",
+   "--redefine-sym",
+   "func_800BB9D4=battle_func_800BB9D4",
+   "--redefine-sym",
+   "func_800BBAB8=battle_func_800BBAB8",
+   "--redefine-sym",
+   "func_800BC158=battle_func_800BC158",
+   "--redefine-sym",
+   "func_800BC2F0=battle_func_800BC2F0",
+   "--redefine-sym",
+   "func_800BCAA4=battle_func_800BCAA4",
+   "--redefine-sym",
+   "func_800BCAD0=battle_func_800BCAD0",
+   "--redefine-sym",
+   "func_800BCB54=battle_func_800BCB54",
+   "--redefine-sym",
+   "func_800BE1C4=battle_func_800BE1C4",
+   "--redefine-sym",
+   "func_800BE330=battle_func_800BE330",
+   "--redefine-sym",
+   "func_800BE538=battle_func_800BE538",
+   "--redefine-sym",
+   "func_800BE790=battle_func_800BE790",
+   "--redefine-sym",
+   "func_800BED4C=battle_func_800BED4C",
+   "--redefine-sym",
+   "func_800BF1EC=battle_func_800BF1EC",
+   "--redefine-sym",
+   "func_800BF3E8=battle_func_800BF3E8",
+   "--redefine-sym",
+   "func_800BF4F0=battle_func_800BF4F0",
+   "--redefine-sym",
+   "func_800BF6CC=battle_func_800BF6CC",
+   "--redefine-sym",
+   "func_800BFA9C=battle_func_800BFA9C",
+   "--redefine-sym",
+   "func_800BFBA0=battle_func_800BFBA0",
+   "--redefine-sym",
+   "func_800C0FAC=battle_func_800C0FAC",
+   "--redefine-sym",
+   "func_800C1140=battle_func_800C1140",
+   "--redefine-sym",
+   "func_800C11CC=battle_func_800C11CC"
+  ],
+  [
+   "--weaken-symbol=FieldScriptMemoryWriteU16"
+  ],
+  [
+   "--weaken-symbol=func_8001FB30"
+  ],
+  [
+   "--weaken-symbol=func_8003BDFC"
+  ],
+  [
+   "--weaken-symbol=func_80023440"
+  ],
+  [
+   "--weaken-symbol=func_80023958"
+  ],
+  [
+   "--weaken-symbol=func_800239F4"
+  ],
+  [
+   "--weaken-symbol=func_80023A48"
+  ],
+  [
+   "--weaken-symbol=func_80022E8C"
+  ],
+  [
+   "--weaken-symbol=func_80022EB8"
+  ],
+  [
+   "--weaken-symbol=func_80024730"
+  ],
+  [
+   "--weaken-symbol=func_80023468"
+  ],
+  [
+   "--weaken-symbol=func_80023B84"
+  ],
+  [
+   "--weaken-symbol=func_80025718"
+  ],
+  [
+   "--weaken-symbol=func_800257F0"
+  ],
+  [
+   "--weaken-symbol=func_80025A88"
+  ],
+  [
+   "--weaken-symbol=func_80025224"
+  ],
+  [
+   "--weaken-symbol=func_800317E0"
+  ],
+  [
+   "--weaken-symbol=func_80031804"
+  ],
+  [
+   "--weaken-symbol=func_8002CC10"
+  ],
+  [
+   "--weaken-symbol=func_8002C59C"
+  ],
+  [
+   "--weaken-symbol=func_8002DDE4"
+  ],
+  [
+   "--weaken-symbol=func_8001AADC"
+  ]
+ ],
+ "units": {
+  "renderer/src/PsyX_main.cpp.o": {
+   "source": "@renderer@/src/PsyX_main.cpp",
+   "profile": 0,
+   "transforms": []
+  },
+  "renderer/src/audio/PsyX_SPUAL.cpp.o": {
+   "source": "@renderer@/src/audio/PsyX_SPUAL.cpp",
+   "profile": 0,
+   "transforms": []
+  },
+  "renderer/src/gpu/PsyX_GPU.cpp.o": {
+   "source": "@renderer@/src/gpu/PsyX_GPU.cpp",
+   "profile": 0,
+   "transforms": []
+  },
+  "renderer/src/gte/PsyX_GTE.cpp.o": {
+   "source": "@renderer@/src/gte/PsyX_GTE.cpp",
+   "profile": 0,
+   "transforms": []
+  },
+  "renderer/src/gte/half_float.cpp.o": {
+   "source": "@renderer@/src/gte/half_float.cpp",
+   "profile": 0,
+   "transforms": []
+  },
+  "renderer/src/pad/PsyX_pad.cpp.o": {
+   "source": "@renderer@/src/pad/PsyX_pad.cpp",
+   "profile": 0,
+   "transforms": []
+  },
+  "renderer/src/psx/ABS.C.o": {
+   "source": "@renderer@/src/psx/ABS.C",
+   "profile": 0,
+   "transforms": []
+  },
+  "renderer/src/psx/INLINE_C.C.o": {
+   "source": "@renderer@/src/psx/INLINE_C.C",
+   "profile": 0,
+   "transforms": []
+  },
+  "renderer/src/psx/LIBAPI.C.o": {
+   "source": "@renderer@/src/psx/LIBAPI.C",
+   "profile": 0,
+   "transforms": []
+  },
+  "renderer/src/psx/LIBCD.C.o": {
+   "source": "@renderer@/src/psx/LIBCD.C",
+   "profile": 0,
+   "transforms": []
+  },
+  "renderer/src/psx/LIBETC.C.o": {
+   "source": "@renderer@/src/psx/LIBETC.C",
+   "profile": 0,
+   "transforms": []
+  },
+  "renderer/src/psx/LIBGPU.C.o": {
+   "source": "@renderer@/src/psx/LIBGPU.C",
+   "profile": 0,
+   "transforms": []
+  },
+  "renderer/src/psx/LIBGTE.C.o": {
+   "source": "@renderer@/src/psx/LIBGTE.C",
+   "profile": 0,
+   "transforms": []
+  },
+  "renderer/src/psx/LIBMCRD.C.o": {
+   "source": "@renderer@/src/psx/LIBMCRD.C",
+   "profile": 0,
+   "transforms": []
+  },
+  "renderer/src/psx/LIBPAD.C.o": {
+   "source": "@renderer@/src/psx/LIBPAD.C",
+   "profile": 0,
+   "transforms": []
+  },
+  "renderer/src/psx/LIBSN.C.o": {
+   "source": "@renderer@/src/psx/LIBSN.C",
+   "profile": 0,
+   "transforms": []
+  },
+  "renderer/src/psx/LIBSPU.C.o": {
+   "source": "@renderer@/src/psx/LIBSPU.C",
+   "profile": 0,
+   "transforms": []
+  },
+  "renderer/src/render/PsyX_fixed_uv.cpp.o": {
+   "source": "@renderer@/src/render/PsyX_fixed_uv.cpp",
+   "profile": 0,
+   "transforms": []
+  },
+  "renderer/src/render/PsyX_render.cpp.o": {
+   "source": "@renderer@/src/render/PsyX_render.cpp",
+   "profile": 0,
+   "transforms": []
+  },
+  "renderer/src/render/glad.c.o": {
+   "source": "@renderer@/src/render/glad.c",
+   "profile": 1,
+   "transforms": []
+  },
+  "renderer/src/util/crash_handler.cpp.o": {
+   "source": "@renderer@/src/util/crash_handler.cpp",
+   "profile": 0,
+   "transforms": []
+  },
+  "renderer/src/util/timer.c.o": {
+   "source": "@renderer@/src/util/timer.c",
+   "profile": 1,
+   "transforms": []
+  },
+  "archive_port.c.o": {
+   "source": "pc_port/src/archive_port.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "archive_queue_ready.c.o": {
+   "source": "pc_port/src/archive_queue_ready.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "archive_ready.c.o": {
+   "source": "pc_port/src/archive_ready.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "battle_guest_trampolines.c.o": {
+   "source": "pc_port/src/battle_guest_trampolines.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "battle_host_main103.c.o": {
+   "source": "src/battle/main103.c",
+   "profile": 3,
+   "transforms": [
+    0
+   ]
+  },
+  "battle_host_main119.c.o": {
+   "source": "src/battle/main119.c",
+   "profile": 3,
+   "transforms": [
+    0
+   ]
+  },
+  "battle_host_main12.c.o": {
+   "source": "src/battle/main12.c",
+   "profile": 3,
+   "transforms": [
+    0
+   ]
+  },
+  "battle_host_main13.c.o": {
+   "source": "src/battle/main13.c",
+   "profile": 3,
+   "transforms": [
+    0
+   ]
+  },
+  "battle_host_main19.c.o": {
+   "source": "src/battle/main19.c",
+   "profile": 4,
+   "transforms": [
+    0
+   ]
+  },
+  "battle_host_main22.c.o": {
+   "source": "src/battle/main22.c",
+   "profile": 4,
+   "transforms": [
+    0
+   ]
+  },
+  "battle_host_main31.c.o": {
+   "source": "src/battle/main31.c",
+   "profile": 3,
+   "transforms": [
+    0
+   ]
+  },
+  "battle_host_main32.c.o": {
+   "source": "src/battle/main32.c",
+   "profile": 3,
+   "transforms": [
+    0
+   ]
+  },
+  "battle_host_main33.c.o": {
+   "source": "src/battle/main33.c",
+   "profile": 4,
+   "transforms": [
+    0
+   ]
+  },
+  "battle_host_main34.c.o": {
+   "source": "src/battle/main34.c",
+   "profile": 3,
+   "transforms": [
+    0
+   ]
+  },
+  "battle_host_main4.c.o": {
+   "source": "src/battle/main4.c",
+   "profile": 3,
+   "transforms": [
+    0
+   ]
+  },
+  "battle_host_main41.c.o": {
+   "source": "src/battle/main41.c",
+   "profile": 3,
+   "transforms": [
+    0
+   ]
+  },
+  "battle_host_main44.c.o": {
+   "source": "src/battle/main44.c",
+   "profile": 3,
+   "transforms": [
+    0
+   ]
+  },
+  "battle_host_main5.c.o": {
+   "source": "src/battle/main5.c",
+   "profile": 3,
+   "transforms": [
+    0
+   ]
+  },
+  "battle_host_main51.c.o": {
+   "source": "src/battle/main51.c",
+   "profile": 3,
+   "transforms": [
+    0
+   ]
+  },
+  "battle_host_main52.c.o": {
+   "source": "src/battle/main52.c",
+   "profile": 3,
+   "transforms": [
+    0
+   ]
+  },
+  "battle_host_main53.c.o": {
+   "source": "src/battle/main53.c",
+   "profile": 3,
+   "transforms": [
+    0
+   ]
+  },
+  "battle_host_main55.c.o": {
+   "source": "src/battle/main55.c",
+   "profile": 3,
+   "transforms": [
+    0
+   ]
+  },
+  "battle_host_main56.c.o": {
+   "source": "src/battle/main56.c",
+   "profile": 3,
+   "transforms": [
+    0
+   ]
+  },
+  "battle_host_main57.c.o": {
+   "source": "src/battle/main57.c",
+   "profile": 3,
+   "transforms": [
+    0
+   ]
+  },
+  "battle_host_main58.c.o": {
+   "source": "src/battle/main58.c",
+   "profile": 3,
+   "transforms": [
+    0
+   ]
+  },
+  "battle_host_main69.c.o": {
+   "source": "src/battle/main69.c",
+   "profile": 4,
+   "transforms": [
+    0
+   ]
+  },
+  "battle_host_main7.c.o": {
+   "source": "src/battle/main7.c",
+   "profile": 3,
+   "transforms": [
+    0
+   ]
+  },
+  "battle_host_main71.c.o": {
+   "source": "src/battle/main71.c",
+   "profile": 3,
+   "transforms": [
+    0
+   ]
+  },
+  "battle_host_main7_port.c.o": {
+   "source": "src/battle/main7_port.c",
+   "profile": 3,
+   "transforms": [
+    0
+   ]
+  },
+  "battle_host_main90.c.o": {
+   "source": "src/battle/main90.c",
+   "profile": 3,
+   "transforms": [
+    0
+   ]
+  },
+  "battle_host_main91.c.o": {
+   "source": "src/battle/main91.c",
+   "profile": 3,
+   "transforms": [
+    0
+   ]
+  },
+  "battle_host_mainasm_10FF4.c.o": {
+   "source": "src/battle/mainasm_10FF4.c",
+   "profile": 3,
+   "transforms": [
+    0
+   ]
+  },
+  "battle_host_mainasm_18B1C.c.o": {
+   "source": "src/battle/mainasm_18B1C.c",
+   "profile": 3,
+   "transforms": [
+    0
+   ]
+  },
+  "battle_host_mainasm_1AFB0.c.o": {
+   "source": "src/battle/mainasm_1AFB0.c",
+   "profile": 3,
+   "transforms": [
+    0
+   ]
+  },
+  "battle_host_mainc107.c.o": {
+   "source": "src/battle/mainc107.c",
+   "profile": 3,
+   "transforms": [
+    0
+   ]
+  },
+  "battle_host_mainc108.c.o": {
+   "source": "src/battle/mainc108.c",
+   "profile": 3,
+   "transforms": [
+    0
+   ]
+  },
+  "battle_host_mainc124.c.o": {
+   "source": "src/battle/mainc124.c",
+   "profile": 3,
+   "transforms": [
+    0
+   ]
+  },
+  "battle_host_mainc129.c.o": {
+   "source": "src/battle/mainc129.c",
+   "profile": 3,
+   "transforms": [
+    0
+   ]
+  },
+  "battle_host_mainc76.c.o": {
+   "source": "src/battle/mainc76.c",
+   "profile": 3,
+   "transforms": [
+    0
+   ]
+  },
+  "battle_host_mainc99.c.o": {
+   "source": "src/battle/mainc99.c",
+   "profile": 3,
+   "transforms": [
+    0
+   ]
+  },
+  "battle_host_mainl133.c.o": {
+   "source": "src/battle/mainl133.c",
+   "profile": 3,
+   "transforms": [
+    0
+   ]
+  },
+  "battle_host_mainl81.c.o": {
+   "source": "src/battle/mainl81.c",
+   "profile": 3,
+   "transforms": [
+    0
+   ]
+  },
+  "battle_mips_adapter.c.o": {
+   "source": "pc_port/src/battle_mips_adapter.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "battle_mips_runtime.c.o": {
+   "source": "pc_port/src/battle_mips_runtime.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "battle_results_host.c.o": {
+   "source": "pc_port/src/battle_results_host.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "battle_results_trace.c.o": {
+   "source": "pc_port/src/battle_results_trace.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "battle_state_hash.c.o": {
+   "source": "pc_port/src/battle_state_hash.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "battling_unavailable.c.o": {
+   "source": "pc_port/src/battling_unavailable.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "boot_assets.c.o": {
+   "source": "pc_port/src/boot_assets.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "boot_menu.c.o": {
+   "source": "pc_port/src/boot_menu.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "boot_sound_banks.c.o": {
+   "source": "pc_port/src/boot_sound_banks.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "boot_sound_commit.c.o": {
+   "source": "pc_port/src/boot_sound_commit.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "boot_str.c.o": {
+   "source": "pc_port/src/boot_str.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "cheat_console.c.o": {
+   "source": "pc_port/src/cheat_console.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "controller_vblank_service.c.o": {
+   "source": "pc_port/src/controller_vblank_service.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "data_archive_cd.c.o": {
+   "source": "pc_port/src/data_archive_cd.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "data_battle_popup_frame.c.o": {
+   "source": "pc_port/src/data_battle_popup_frame.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "data_boot_globals.c.o": {
+   "source": "pc_port/src/data_boot_globals.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "data_controller.c.o": {
+   "source": "pc_port/src/data_controller.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "data_field.c.o": {
+   "source": "pc_port/src/data_field.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "data_font.c.o": {
+   "source": "pc_port/src/data_font.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "data_game_state.c.o": {
+   "source": "pc_port/src/data_game_state.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "data_heap.c.o": {
+   "source": "pc_port/src/data_heap.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "data_kernel_menu.c.o": {
+   "source": "pc_port/src/data_kernel_menu.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "data_main_menu.c.o": {
+   "source": "pc_port/src/data_main_menu.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "data_member_change_menu.c.o": {
+   "source": "pc_port/src/data_member_change_menu.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "data_name_entry_menu.c.o": {
+   "source": "pc_port/src/data_name_entry_menu.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "data_published_logo.c.o": {
+   "source": "pc_port/src/data_published_logo.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "data_shop_menu.c.o": {
+   "source": "pc_port/src/data_shop_menu.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "data_slus_rodata.c.o": {
+   "source": "pc_port/src/data_slus_rodata.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "data_slus_sdata.c.o": {
+   "source": "pc_port/src/data_slus_sdata.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "debug_battle_warp.c.o": {
+   "source": "pc_port/src/debug_battle_warp.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "disc_check.c.o": {
+   "source": "pc_port/src/disc_check.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "field_clip_control.c.o": {
+   "source": "pc_port/src/field_clip_control.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "field_clip_data.c.o": {
+   "source": "pc_port/src/field_clip_data.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "field_clip_prelude.c.o": {
+   "source": "pc_port/src/field_clip_prelude.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "field_object_overlay.c.o": {
+   "source": "pc_port/src/field_object_overlay.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "field_party_gear.c.o": {
+   "source": "pc_port/src/field_party_gear.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "field_pos_diag.c.o": {
+   "source": "pc_port/src/field_pos_diag.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "field_timed_commands.c.o": {
+   "source": "pc_port/src/field_timed_commands.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "field_warp_diag.c.o": {
+   "source": "pc_port/src/field_warp_diag.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "file_menu_notice.c.o": {
+   "source": "pc_port/src/file_menu_notice.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "game_error_report.c.o": {
+   "source": "pc_port/src/game_error_report.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "game_overrides.c.o": {
+   "source": "pc_port/src/game_overrides.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "glibc_compat.c.o": {
+   "source": "pc_port/src/glibc_compat.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "god_mode.c.o": {
+   "source": "pc_port/src/god_mode.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "guest_prim_link.c.o": {
+   "source": "pc_port/src/guest_prim_link.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "krom_mapping.c.o": {
+   "source": "pc_port/src/krom_mapping.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "krom_rom.c.o": {
+   "source": "pc_port/src/krom_rom.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "memcard_port.c.o": {
+   "source": "pc_port/src/memcard_port.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "mod_events.c.o": {
+   "source": "pc_port/src/mod_events.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "model_prim_ed20.c.o": {
+   "source": "pc_port/src/model_prim_ed20.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "model_prim_link.c.o": {
+   "source": "pc_port/src/model_prim_link.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "movie_player.c.o": {
+   "source": "pc_port/src/movie_player.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "pc_file_io.c.o": {
+   "source": "pc_port/src/pc_file_io.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "port_dev_menu.c.o": {
+   "source": "pc_port/src/port_dev_menu.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "port_dev_menu_actions.c.o": {
+   "source": "pc_port/src/port_dev_menu_actions.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "port_dev_menu_steps.c.o": {
+   "source": "pc_port/src/port_dev_menu_steps.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "port_dev_menu_warps.c.o": {
+   "source": "pc_port/src/port_dev_menu_warps.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "port_log.c.o": {
+   "source": "pc_port/src/port_log.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "port_main.o": {
+   "source": "pc_port/src/port_main.c",
+   "profile": 6,
+   "transforms": []
+  },
+  "port_pad_confirm.c.o": {
+   "source": "pc_port/src/port_pad_confirm.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "port_soft_reset.c.o": {
+   "source": "pc_port/src/port_soft_reset.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "psx_memory.c.o": {
+   "source": "pc_port/src/psx_memory.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "psyq_cd_mix.c.o": {
+   "source": "pc_port/src/psyq_cd_mix.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "psyq_compat.c.o": {
+   "source": "pc_port/src/psyq_compat.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "psyq_compat_normal_light_col.c.o": {
+   "source": "pc_port/src/psyq_compat_normal_light_col.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "psyq_compat_spu_noise_clock.c.o": {
+   "source": "pc_port/src/psyq_compat_spu_noise_clock.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "psyq_compat_transpose_matrix.c.o": {
+   "source": "pc_port/src/psyq_compat_transpose_matrix.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "quick_checkpoint.c.o": {
+   "source": "pc_port/src/quick_checkpoint.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "quick_checkpoint_cave_actors.c.o": {
+   "source": "pc_port/src/quick_checkpoint_cave_actors.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "quick_checkpoint_file.c.o": {
+   "source": "pc_port/src/quick_checkpoint_file.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "quick_checkpoint_particles.c.o": {
+   "source": "pc_port/src/quick_checkpoint_particles.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "retail_leaf_adapters.c.o": {
+   "source": "pc_port/src/retail_leaf_adapters.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "route_recorder.c.o": {
+   "source": "pc_port/src/route_recorder.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "sound_transfer_callbacks.c.o": {
+   "source": "pc_port/src/sound_transfer_callbacks.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "sprite_constructor.c.o": {
+   "source": "pc_port/src/sprite_constructor.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "src_battle_command_file1_after_controller.c.o": {
+   "source": "src/battle_command_file1/after_controller.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_battle_command_file1_after_controller_cdk.c.o": {
+   "source": "src/battle_command_file1/after_controller_cdk.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_battle_command_file1_before_controller.c.o": {
+   "source": "src/battle_command_file1/before_controller.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_battle_command_file1_message_controller.c.o": {
+   "source": "src/battle_command_file1/message_controller.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_battle_main7_port.c.o": {
+   "source": "src/battle/main7_port.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_battle_mainasm_10FF4.c.o": {
+   "source": "src/battle/mainasm_10FF4.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_battle_mainasm_11828.c.o": {
+   "source": "src/battle/mainasm_11828.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_battle_mainasm_12068.c.o": {
+   "source": "src/battle/mainasm_12068.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_battle_mainasm_133C.c.o": {
+   "source": "src/battle/mainasm_133C.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_battle_mainasm_146F0.c.o": {
+   "source": "src/battle/mainasm_146F0.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_battle_mainasm_14C60.c.o": {
+   "source": "src/battle/mainasm_14C60.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_battle_mainasm_15050.c.o": {
+   "source": "src/battle/mainasm_15050.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_battle_mainasm_15238.c.o": {
+   "source": "src/battle/mainasm_15238.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_battle_mainasm_15898.c.o": {
+   "source": "src/battle/mainasm_15898.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_battle_mainasm_16244.c.o": {
+   "source": "src/battle/mainasm_16244.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_battle_mainasm_163C4.c.o": {
+   "source": "src/battle/mainasm_163C4.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_battle_mainasm_18B1C.c.o": {
+   "source": "src/battle/mainasm_18B1C.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_battle_mainasm_1AFB0.c.o": {
+   "source": "src/battle/mainasm_1AFB0.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_battle_mainasm_1B160.c.o": {
+   "source": "src/battle/mainasm_1B160.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_battle_mainasm_1FF0.c.o": {
+   "source": "src/battle/mainasm_1FF0.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_battle_mainasm_28F0.c.o": {
+   "source": "src/battle/mainasm_28F0.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_battle_mainasm_3ADA8.c.o": {
+   "source": "src/battle/mainasm_3ADA8.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_battle_mainasm_3E6CC.c.o": {
+   "source": "src/battle/mainasm_3E6CC.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_battle_mainasm_3F910.c.o": {
+   "source": "src/battle/mainasm_3F910.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_battle_mainasm_419DC.c.o": {
+   "source": "src/battle/mainasm_419DC.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_battle_mainasm_4F3C4.c.o": {
+   "source": "src/battle/mainasm_4F3C4.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_battle_mainasm_AE3C.c.o": {
+   "source": "src/battle/mainasm_AE3C.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_battle_mainasm_AF70.c.o": {
+   "source": "src/battle/mainasm_AF70.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_battle_mainasm_B190.c.o": {
+   "source": "src/battle/mainasm_B190.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_battle_mainasm_D5DC.c.o": {
+   "source": "src/battle/mainasm_D5DC.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_battle_mainasm_D6B8.c.o": {
+   "source": "src/battle/mainasm_D6B8.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_battle_mainasm_D854.c.o": {
+   "source": "src/battle/mainasm_D854.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_battle_mainasm_EC50.c.o": {
+   "source": "src/battle/mainasm_EC50.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_field_camera_camera_movement.c.o": {
+   "source": "src/field/camera/camera_movement.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_field_dialogue_text_box.c.o": {
+   "source": "src/field/dialogue/text_box.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_field_dialogue_text_box_render.c.o": {
+   "source": "src/field/dialogue/text_box_render.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_field_effects_distortion.c.o": {
+   "source": "src/field/effects/distortion.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_field_effects_fade.c.o": {
+   "source": "src/field/effects/fade.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_field_effects_fade_render.c.o": {
+   "source": "src/field/effects/fade_render.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_field_effects_particles.c.o": {
+   "source": "src/field/effects/particles.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_field_game_logic_gold.c.o": {
+   "source": "src/field/game_logic/gold.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_field_game_logic_scenario_flags.c.o": {
+   "source": "src/field/game_logic/scenario_flags.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_field_main_init.c.o": {
+   "source": "src/field/main/init.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_field_main_input_script_handlers.c.o": {
+   "source": "src/field/main/input_script_handlers.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_field_main_main.c.o": {
+   "source": "src/field/main/main.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_field_main_misc.c.o": {
+   "source": "src/field/main/misc.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_field_main_misc10.c.o": {
+   "source": "src/field/main/misc10.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_field_main_misc11.c.o": {
+   "source": "src/field/main/misc11.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_field_main_misc2.c.o": {
+   "source": "src/field/main/misc2.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_field_main_misc3.c.o": {
+   "source": "src/field/main/misc3.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_field_main_misc4.c.o": {
+   "source": "src/field/main/misc4.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_field_main_misc5.c.o": {
+   "source": "src/field/main/misc5.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_field_main_misc6.c.o": {
+   "source": "src/field/main/misc6.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_field_main_misc7.c.o": {
+   "source": "src/field/main/misc7.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_field_main_misc8.c.o": {
+   "source": "src/field/main/misc8.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_field_main_misc9.c.o": {
+   "source": "src/field/main/misc9.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_field_party_stats.c.o": {
+   "source": "src/field/party/stats.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_field_scripts_variable_handlers.c.o": {
+   "source": "src/field/scripts/variable_handlers.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_field_scripts_virtual_machine.c.o": {
+   "source": "src/field/scripts/virtual_machine.c",
+   "profile": 7,
+   "transforms": [
+    1
+   ]
+  },
+  "src_member_change_menu_main_misc.c.o": {
+   "source": "src/member_change_menu/main/misc.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_menu_main_misc.c.o": {
+   "source": "src/menu/main/misc.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_menu_main_misc1b.c.o": {
+   "source": "src/menu/main/misc1b.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_menu_main_misc2.c.o": {
+   "source": "src/menu/main/misc2.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_menu_main_misc3.c.o": {
+   "source": "src/menu/main/misc3.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_movie_main.c.o": {
+   "source": "src/movie/main.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_name_entry_menu_main_misc.c.o": {
+   "source": "src/name_entry_menu/main/misc.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_shop_menu_main_misc.c.o": {
+   "source": "src/shop_menu/main/misc.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_shop_menu_main_misc2.c.o": {
+   "source": "src/shop_menu/main/misc2.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_shop_menu_main_misc3.c.o": {
+   "source": "src/shop_menu/main/misc3.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_shop_menu_main_misc4.c.o": {
+   "source": "src/shop_menu/main/misc4.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_shop_menu_main_misc5.c.o": {
+   "source": "src/shop_menu/main/misc5.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_shop_menu_main_misc6.c.o": {
+   "source": "src/shop_menu/main/misc6.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_shop_menu_main_misc7.c.o": {
+   "source": "src/shop_menu/main/misc7.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_shop_menu_main_misc8.c.o": {
+   "source": "src/shop_menu/main/misc8.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_shop_menu_main_misc9.c.o": {
+   "source": "src/shop_menu/main/misc9.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_slus_006.64_graphics_line_scroll.c.o": {
+   "source": "src/slus_006.64/graphics/line_scroll.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_slus_006.64_main_main.c.o": {
+   "source": "src/slus_006.64/main/main.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_slus_006.64_main_main_loop.c.o": {
+   "source": "src/slus_006.64/main/main_loop.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_slus_006.64_system_animation_scripts.c.o": {
+   "source": "src/slus_006.64/system/animation_scripts.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_slus_006.64_system_archive.c.o": {
+   "source": "src/slus_006.64/system/archive.c",
+   "profile": 8,
+   "transforms": []
+  },
+  "src_slus_006.64_system_asset_loader.c.o": {
+   "source": "src/slus_006.64/system/asset_loader.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_slus_006.64_system_controller.c.o": {
+   "source": "src/slus_006.64/system/controller.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_slus_006.64_system_controller2.c.o": {
+   "source": "src/slus_006.64/system/controller2.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_slus_006.64_system_font.c.o": {
+   "source": "src/slus_006.64/system/font.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_slus_006.64_system_graphics.c.o": {
+   "source": "src/slus_006.64/system/graphics.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_slus_006.64_system_heap_debug.c.o": {
+   "source": "src/slus_006.64/system/heap_debug.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_slus_006.64_system_kernel_menu.c.o": {
+   "source": "src/slus_006.64/system/kernel_menu.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_slus_006.64_system_libarchive.c.o": {
+   "source": "src/slus_006.64/system/libarchive.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_slus_006.64_system_memory.c.o": {
+   "source": "src/slus_006.64/system/memory.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_slus_006.64_system_menu.c.o": {
+   "source": "src/slus_006.64/system/menu.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_slus_006.64_system_rendering.c.o": {
+   "source": "src/slus_006.64/system/rendering.c",
+   "profile": 7,
+   "transforms": [
+    2
+   ]
+  },
+  "src_slus_006.64_system_sound.c.o": {
+   "source": "src/slus_006.64/system/sound.c",
+   "profile": 7,
+   "transforms": [
+    3
+   ]
+  },
+  "src_slus_006.64_system_system.c.o": {
+   "source": "src/slus_006.64/system/system.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_slus_006.64_system_temp1.c.o": {
+   "source": "src/slus_006.64/system/temp1.c",
+   "profile": 7,
+   "transforms": [
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12
+   ]
+  },
+  "src_slus_006.64_system_temp1a.c.o": {
+   "source": "src/slus_006.64/system/temp1a.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_slus_006.64_system_temp1b.c.o": {
+   "source": "src/slus_006.64/system/temp1b.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_slus_006.64_system_temp1c.c.o": {
+   "source": "src/slus_006.64/system/temp1c.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_slus_006.64_system_temp1d.c.o": {
+   "source": "src/slus_006.64/system/temp1d.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_slus_006.64_system_temp1e.c.o": {
+   "source": "src/slus_006.64/system/temp1e.c",
+   "profile": 7,
+   "transforms": [
+    13,
+    14,
+    15,
+    16
+   ]
+  },
+  "src_slus_006.64_system_temp1e1.c.o": {
+   "source": "src/slus_006.64/system/temp1e1.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_slus_006.64_system_temp1e2.c.o": {
+   "source": "src/slus_006.64/system/temp1e2.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_slus_006.64_system_temp1f.c.o": {
+   "source": "src/slus_006.64/system/temp1f.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_slus_006.64_system_temp2.c.o": {
+   "source": "src/slus_006.64/system/temp2.c",
+   "profile": 7,
+   "transforms": [
+    17,
+    18,
+    19,
+    20,
+    21
+   ]
+  },
+  "src_slus_006.64_system_temp3.c.o": {
+   "source": "src/slus_006.64/system/temp3.c",
+   "profile": 7,
+   "transforms": [
+    22
+   ]
+  },
+  "src_slus_006.64_system_temp3b.c.o": {
+   "source": "src/slus_006.64/system/temp3b.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "src_slus_006.64_system_temp3c.c.o": {
+   "source": "src/slus_006.64/system/temp3c.c",
+   "profile": 7,
+   "transforms": []
+  },
+  "stubs.o": {
+   "source": "@generated@/stubs.c",
+   "profile": 9,
+   "transforms": []
+  },
+  "test_input.c.o": {
+   "source": "pc_port/src/test_input.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "walkmesh_dump.c.o": {
+   "source": "pc_port/src/walkmesh_dump.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "work_list_port.c.o": {
+   "source": "pc_port/src/work_list_port.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "world_map_capture.c.o": {
+   "source": "pc_port/src/world_map_capture.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "model_ordering.c.o": {
+   "source": "pc_port/src/model_ordering.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "field_pause_services.c.o": {
+   "source": "pc_port/src/field_pause_services.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "world_map_scheduler.c.o": {
+   "source": "pc_port/src/world_map_scheduler.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "xg_plat_config.c.o": {
+   "source": "pc_port/src/plat/xg_plat_config.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "xg_plat_mods.c.o": {
+   "source": "pc_port/src/plat/xg_plat_mods.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "xg_plat_psycross.c.o": {
+   "source": "pc_port/src/plat/xg_plat_psycross.c",
+   "profile": 2,
+   "transforms": []
+  },
+  "gear_shop_unavailable.c.o": {
+   "source": "pc_port/src/gear_shop_unavailable.c",
+   "profile": 2,
+   "transforms": []
+  }
+ },
+ "renderer_order": [
+  "renderer/src/PsyX_main.cpp.o",
+  "renderer/src/audio/PsyX_SPUAL.cpp.o",
+  "renderer/src/gpu/PsyX_GPU.cpp.o",
+  "renderer/src/gte/PsyX_GTE.cpp.o",
+  "renderer/src/gte/half_float.cpp.o",
+  "renderer/src/pad/PsyX_pad.cpp.o",
+  "renderer/src/psx/ABS.C.o",
+  "renderer/src/psx/INLINE_C.C.o",
+  "renderer/src/psx/LIBAPI.C.o",
+  "renderer/src/psx/LIBCD.C.o",
+  "renderer/src/psx/LIBETC.C.o",
+  "renderer/src/psx/LIBGPU.C.o",
+  "renderer/src/psx/LIBGTE.C.o",
+  "renderer/src/psx/LIBMCRD.C.o",
+  "renderer/src/psx/LIBPAD.C.o",
+  "renderer/src/psx/LIBSN.C.o",
+  "renderer/src/psx/LIBSPU.C.o",
+  "renderer/src/render/PsyX_fixed_uv.cpp.o",
+  "renderer/src/render/PsyX_render.cpp.o",
+  "renderer/src/render/glad.c.o",
+  "renderer/src/util/crash_handler.cpp.o",
+  "renderer/src/util/timer.c.o"
+ ],
+ "link": [
+  "-m64",
+  "-no-pie",
+  "-fno-pie",
+  "-rdynamic",
+  "@obj@/port_main.o",
+  "@obj@/src_battle_main7_port.c.o",
+  "@obj@/src_battle_mainasm_10FF4.c.o",
+  "@obj@/src_battle_mainasm_11828.c.o",
+  "@obj@/src_battle_mainasm_12068.c.o",
+  "@obj@/src_battle_mainasm_133C.c.o",
+  "@obj@/src_battle_mainasm_146F0.c.o",
+  "@obj@/src_battle_mainasm_14C60.c.o",
+  "@obj@/src_battle_mainasm_15050.c.o",
+  "@obj@/src_battle_mainasm_15238.c.o",
+  "@obj@/src_battle_mainasm_15898.c.o",
+  "@obj@/src_battle_mainasm_16244.c.o",
+  "@obj@/src_battle_mainasm_163C4.c.o",
+  "@obj@/src_battle_mainasm_18B1C.c.o",
+  "@obj@/src_battle_mainasm_1AFB0.c.o",
+  "@obj@/src_battle_mainasm_1B160.c.o",
+  "@obj@/src_battle_mainasm_1FF0.c.o",
+  "@obj@/src_battle_mainasm_28F0.c.o",
+  "@obj@/src_battle_mainasm_3ADA8.c.o",
+  "@obj@/src_battle_mainasm_3E6CC.c.o",
+  "@obj@/src_battle_mainasm_3F910.c.o",
+  "@obj@/src_battle_mainasm_419DC.c.o",
+  "@obj@/src_battle_mainasm_4F3C4.c.o",
+  "@obj@/src_battle_mainasm_AE3C.c.o",
+  "@obj@/src_battle_mainasm_AF70.c.o",
+  "@obj@/src_battle_mainasm_B190.c.o",
+  "@obj@/src_battle_mainasm_D5DC.c.o",
+  "@obj@/src_battle_mainasm_D6B8.c.o",
+  "@obj@/src_battle_mainasm_D854.c.o",
+  "@obj@/src_battle_mainasm_EC50.c.o",
+  "@obj@/src_battle_command_file1_after_controller.c.o",
+  "@obj@/src_battle_command_file1_after_controller_cdk.c.o",
+  "@obj@/src_battle_command_file1_before_controller.c.o",
+  "@obj@/src_battle_command_file1_message_controller.c.o",
+  "@obj@/src_field_camera_camera_movement.c.o",
+  "@obj@/src_field_dialogue_text_box.c.o",
+  "@obj@/src_field_dialogue_text_box_render.c.o",
+  "@obj@/src_field_effects_distortion.c.o",
+  "@obj@/src_field_effects_fade.c.o",
+  "@obj@/src_field_effects_fade_render.c.o",
+  "@obj@/src_field_effects_particles.c.o",
+  "@obj@/src_field_game_logic_gold.c.o",
+  "@obj@/src_field_game_logic_scenario_flags.c.o",
+  "@obj@/src_field_main_init.c.o",
+  "@obj@/src_field_main_input_script_handlers.c.o",
+  "@obj@/src_field_main_main.c.o",
+  "@obj@/src_field_main_misc.c.o",
+  "@obj@/src_field_main_misc10.c.o",
+  "@obj@/src_field_main_misc11.c.o",
+  "@obj@/src_field_main_misc2.c.o",
+  "@obj@/src_field_main_misc3.c.o",
+  "@obj@/src_field_main_misc4.c.o",
+  "@obj@/src_field_main_misc5.c.o",
+  "@obj@/src_field_main_misc6.c.o",
+  "@obj@/src_field_main_misc7.c.o",
+  "@obj@/src_field_main_misc8.c.o",
+  "@obj@/src_field_main_misc9.c.o",
+  "@obj@/src_field_party_stats.c.o",
+  "@obj@/src_field_scripts_variable_handlers.c.o",
+  "@obj@/src_field_scripts_virtual_machine.c.o",
+  "@obj@/src_member_change_menu_main_misc.c.o",
+  "@obj@/src_menu_main_misc.c.o",
+  "@obj@/src_menu_main_misc1b.c.o",
+  "@obj@/src_menu_main_misc2.c.o",
+  "@obj@/src_menu_main_misc3.c.o",
+  "@obj@/src_movie_main.c.o",
+  "@obj@/src_name_entry_menu_main_misc.c.o",
+  "@obj@/src_shop_menu_main_misc.c.o",
+  "@obj@/src_shop_menu_main_misc2.c.o",
+  "@obj@/src_shop_menu_main_misc3.c.o",
+  "@obj@/src_shop_menu_main_misc4.c.o",
+  "@obj@/src_shop_menu_main_misc5.c.o",
+  "@obj@/src_shop_menu_main_misc6.c.o",
+  "@obj@/src_shop_menu_main_misc7.c.o",
+  "@obj@/src_shop_menu_main_misc8.c.o",
+  "@obj@/src_shop_menu_main_misc9.c.o",
+  "@obj@/src_slus_006.64_graphics_line_scroll.c.o",
+  "@obj@/src_slus_006.64_main_main.c.o",
+  "@obj@/src_slus_006.64_main_main_loop.c.o",
+  "@obj@/src_slus_006.64_system_animation_scripts.c.o",
+  "@obj@/src_slus_006.64_system_archive.c.o",
+  "@obj@/src_slus_006.64_system_asset_loader.c.o",
+  "@obj@/src_slus_006.64_system_controller.c.o",
+  "@obj@/src_slus_006.64_system_controller2.c.o",
+  "@obj@/src_slus_006.64_system_font.c.o",
+  "@obj@/src_slus_006.64_system_graphics.c.o",
+  "@obj@/src_slus_006.64_system_heap_debug.c.o",
+  "@obj@/src_slus_006.64_system_kernel_menu.c.o",
+  "@obj@/src_slus_006.64_system_libarchive.c.o",
+  "@obj@/src_slus_006.64_system_memory.c.o",
+  "@obj@/src_slus_006.64_system_menu.c.o",
+  "@obj@/src_slus_006.64_system_rendering.c.o",
+  "@obj@/src_slus_006.64_system_sound.c.o",
+  "@obj@/src_slus_006.64_system_system.c.o",
+  "@obj@/src_slus_006.64_system_temp1.c.o",
+  "@obj@/src_slus_006.64_system_temp1a.c.o",
+  "@obj@/src_slus_006.64_system_temp1b.c.o",
+  "@obj@/src_slus_006.64_system_temp1c.c.o",
+  "@obj@/src_slus_006.64_system_temp1d.c.o",
+  "@obj@/src_slus_006.64_system_temp1e.c.o",
+  "@obj@/src_slus_006.64_system_temp1e1.c.o",
+  "@obj@/src_slus_006.64_system_temp1e2.c.o",
+  "@obj@/src_slus_006.64_system_temp1f.c.o",
+  "@obj@/src_slus_006.64_system_temp2.c.o",
+  "@obj@/src_slus_006.64_system_temp3.c.o",
+  "@obj@/src_slus_006.64_system_temp3b.c.o",
+  "@obj@/src_slus_006.64_system_temp3c.c.o",
+  "@obj@/krom_rom.c.o",
+  "@obj@/disc_check.c.o",
+  "@obj@/glibc_compat.c.o",
+  "@obj@/xg_plat_psycross.c.o",
+  "@obj@/xg_plat_config.c.o",
+  "@obj@/xg_plat_mods.c.o",
+  "@obj@/mod_events.c.o",
+  "@obj@/cheat_console.c.o",
+  "@obj@/port_log.c.o",
+  "@obj@/port_soft_reset.c.o",
+  "@obj@/game_error_report.c.o",
+  "@obj@/port_dev_menu.c.o",
+  "@obj@/port_dev_menu_actions.c.o",
+  "@obj@/port_dev_menu_warps.c.o",
+  "@obj@/port_pad_confirm.c.o",
+  "@obj@/port_dev_menu_steps.c.o",
+  "@obj@/krom_mapping.c.o",
+  "@obj@/psx_memory.c.o",
+  "@obj@/battle_mips_adapter.c.o",
+  "@obj@/battle_mips_runtime.c.o",
+  "@obj@/battle_results_host.c.o",
+  "@obj@/battle_guest_trampolines.c.o",
+  "@obj@/battle_state_hash.c.o",
+  "@obj@/battle_results_trace.c.o",
+  "@obj@/guest_prim_link.c.o",
+  "@obj@/model_prim_link.c.o",
+  "@obj@/model_prim_ed20.c.o",
+  "@obj@/test_input.c.o",
+  "@obj@/quick_checkpoint_file.c.o",
+  "@obj@/quick_checkpoint_cave_actors.c.o",
+  "@obj@/quick_checkpoint_particles.c.o",
+  "@obj@/quick_checkpoint.c.o",
+  "@obj@/god_mode.c.o",
+  "@obj@/file_menu_notice.c.o",
+  "@obj@/battling_unavailable.c.o",
+  "@obj@/memcard_port.c.o",
+  "@obj@/route_recorder.c.o",
+  "@obj@/field_pos_diag.c.o",
+  "@obj@/field_warp_diag.c.o",
+  "@obj@/debug_battle_warp.c.o",
+  "@obj@/walkmesh_dump.c.o",
+  "@obj@/game_overrides.c.o",
+  "@obj@/retail_leaf_adapters.c.o",
+  "@obj@/boot_menu.c.o",
+  "@obj@/boot_str.c.o",
+  "@obj@/boot_assets.c.o",
+  "@obj@/boot_sound_banks.c.o",
+  "@obj@/boot_sound_commit.c.o",
+  "@obj@/movie_player.c.o",
+  "@obj@/pc_file_io.c.o",
+  "@obj@/controller_vblank_service.c.o",
+  "@obj@/field_object_overlay.c.o",
+  "@obj@/field_party_gear.c.o",
+  "@obj@/field_timed_commands.c.o",
+  "@obj@/field_clip_prelude.c.o",
+  "@obj@/field_clip_control.c.o",
+  "@obj@/field_clip_data.c.o",
+  "@obj@/sprite_constructor.c.o",
+  "@obj@/field_pause_services.c.o",
+  "@obj@/world_map_capture.c.o",
+  "@obj@/psyq_cd_mix.c.o",
+  "@obj@/psyq_compat.c.o",
+  "@obj@/archive_port.c.o",
+  "@obj@/work_list_port.c.o",
+  "@obj@/sound_transfer_callbacks.c.o",
+  "@obj@/data_published_logo.c.o",
+  "@obj@/data_font.c.o",
+  "@obj@/data_battle_popup_frame.c.o",
+  "@obj@/data_kernel_menu.c.o",
+  "@obj@/data_field.c.o",
+  "@obj@/data_member_change_menu.c.o",
+  "@obj@/data_shop_menu.c.o",
+  "@obj@/data_name_entry_menu.c.o",
+  "@obj@/gear_shop_unavailable.c.o",
+  "@obj@/data_main_menu.c.o",
+  "@obj@/data_game_state.c.o",
+  "@obj@/data_controller.c.o",
+  "@obj@/data_archive_cd.c.o",
+  "@obj@/archive_ready.c.o",
+  "@obj@/archive_queue_ready.c.o",
+  "@obj@/data_heap.c.o",
+  "@obj@/data_boot_globals.c.o",
+  "@obj@/data_slus_sdata.c.o",
+  "@obj@/data_slus_rodata.c.o",
+  "@obj@/world_map_scheduler.c.o",
+  "@obj@/psyq_compat_normal_light_col.c.o",
+  "@obj@/psyq_compat_transpose_matrix.c.o",
+  "@obj@/psyq_compat_spu_noise_clock.c.o",
+  "@obj@/model_ordering.c.o",
+  "@obj@/battle_host_main103.c.o",
+  "@obj@/battle_host_main119.c.o",
+  "@obj@/battle_host_main12.c.o",
+  "@obj@/battle_host_main13.c.o",
+  "@obj@/battle_host_main19.c.o",
+  "@obj@/battle_host_main22.c.o",
+  "@obj@/battle_host_main31.c.o",
+  "@obj@/battle_host_main32.c.o",
+  "@obj@/battle_host_main33.c.o",
+  "@obj@/battle_host_main34.c.o",
+  "@obj@/battle_host_main4.c.o",
+  "@obj@/battle_host_main41.c.o",
+  "@obj@/battle_host_main44.c.o",
+  "@obj@/battle_host_main5.c.o",
+  "@obj@/battle_host_main51.c.o",
+  "@obj@/battle_host_main52.c.o",
+  "@obj@/battle_host_main53.c.o",
+  "@obj@/battle_host_main55.c.o",
+  "@obj@/battle_host_main56.c.o",
+  "@obj@/battle_host_main57.c.o",
+  "@obj@/battle_host_main58.c.o",
+  "@obj@/battle_host_main69.c.o",
+  "@obj@/battle_host_main7.c.o",
+  "@obj@/battle_host_main71.c.o",
+  "@obj@/battle_host_main7_port.c.o",
+  "@obj@/battle_host_main90.c.o",
+  "@obj@/battle_host_main91.c.o",
+  "@obj@/battle_host_mainasm_10FF4.c.o",
+  "@obj@/battle_host_mainasm_18B1C.c.o",
+  "@obj@/battle_host_mainasm_1AFB0.c.o",
+  "@obj@/battle_host_mainc107.c.o",
+  "@obj@/battle_host_mainc108.c.o",
+  "@obj@/battle_host_mainc124.c.o",
+  "@obj@/battle_host_mainc129.c.o",
+  "@obj@/battle_host_mainc76.c.o",
+  "@obj@/battle_host_mainc99.c.o",
+  "@obj@/battle_host_mainl133.c.o",
+  "@obj@/battle_host_mainl81.c.o",
+  "@obj@/stubs.o",
+  "@obj@/libpsycross.a",
+  "-lSDL2",
+  "-lopenal",
+  "-lcrypto",
+  "-lGL",
+  "-lm",
+  "-lpthread",
+  "-ldl",
+  "-Wl,--wrap=LoadImage",
+  "-Wl,--wrap=SpuWrite",
+  "-Wl,--wrap=DrawOTag",
+  "-Wl,--wrap=PutDrawEnv",
+  "-Wl,--wrap=PutDispEnv",
+  "-Wl,--wrap=ClearOTag",
+  "-Wl,--wrap=ClearOTagR",
+  "-Wl,--wrap=CdRead",
+  "-Wl,--wrap=CdControl",
+  "-Wl,--wrap=CdControlB",
+  "-Wl,--wrap=CdControlF",
+  "-Wl,--wrap=PsyX_Pad_InitPad",
+  "-Wl,--wrap=PsyX_UpdateInput",
+  "-Wl,--wrap=VSync",
+  "-Wl,--wrap=SetRCnt",
+  "-Wl,--wrap=GetRCnt",
+  "-Wl,--wrap=StartRCnt",
+  "-Wl,--wrap=PsyX_Sys_DispatchCounter2",
+  "-Wl,--wrap=acosf",
+  "-Wl,--wrap=asinf",
+  "-Wl,--wrap=sqrtf"
+ ],
+ "renderer_sources": [
+  "pc_port/extern/PsyCross/include/PsyX/PsyX_config.h",
+  "pc_port/extern/PsyCross/include/PsyX/PsyX_globals.h",
+  "pc_port/extern/PsyCross/include/PsyX/PsyX_public.h",
+  "pc_port/extern/PsyCross/include/PsyX/PsyX_render.h",
+  "pc_port/extern/PsyCross/include/PsyX/PsyX_version.h",
+  "pc_port/extern/PsyCross/include/PsyX/common/glad.h",
+  "pc_port/extern/PsyCross/include/PsyX/common/half_float.h",
+  "pc_port/extern/PsyCross/include/PsyX/common/pgxp_defs.h",
+  "pc_port/extern/PsyCross/include/PsyX/util/timer.h",
+  "pc_port/extern/PsyCross/include/psx/abs.h",
+  "pc_port/extern/PsyCross/include/psx/gtemac.h",
+  "pc_port/extern/PsyCross/include/psx/gtereg.h",
+  "pc_port/extern/PsyCross/include/psx/inline_c.h",
+  "pc_port/extern/PsyCross/include/psx/kernel.h",
+  "pc_port/extern/PsyCross/include/psx/libapi.h",
+  "pc_port/extern/PsyCross/include/psx/libcd.h",
+  "pc_port/extern/PsyCross/include/psx/libetc.h",
+  "pc_port/extern/PsyCross/include/psx/libgpu.h",
+  "pc_port/extern/PsyCross/include/psx/libgte.h",
+  "pc_port/extern/PsyCross/include/psx/libmath.h",
+  "pc_port/extern/PsyCross/include/psx/libmcrd.h",
+  "pc_port/extern/PsyCross/include/psx/libpad.h",
+  "pc_port/extern/PsyCross/include/psx/libsn.h",
+  "pc_port/extern/PsyCross/include/psx/libspu.h",
+  "pc_port/extern/PsyCross/include/psx/strings.h",
+  "pc_port/extern/PsyCross/include/psx/types.h",
+  "pc_port/extern/PsyCross/src/PsyX_main.cpp",
+  "pc_port/extern/PsyCross/src/PsyX_main.h",
+  "pc_port/extern/PsyCross/src/audio/PsyX_SPUAL.cpp",
+  "pc_port/extern/PsyCross/src/audio/PsyX_SPUAL.h",
+  "pc_port/extern/PsyCross/src/gpu/PsyX_GPU.cpp",
+  "pc_port/extern/PsyCross/src/gpu/PsyX_GPU.h",
+  "pc_port/extern/PsyCross/src/gpu/font.h",
+  "pc_port/extern/PsyCross/src/gte/PsyX_GTE.cpp",
+  "pc_port/extern/PsyCross/src/gte/PsyX_GTE.h",
+  "pc_port/extern/PsyCross/src/gte/half_float.cpp",
+  "pc_port/extern/PsyCross/src/iso9660.h",
+  "pc_port/extern/PsyCross/src/pad/PsyX_pad.cpp",
+  "pc_port/extern/PsyCross/src/pad/PsyX_pad.h",
+  "pc_port/extern/PsyCross/src/platform.h",
+  "pc_port/extern/PsyCross/src/psx/ABS.C",
+  "pc_port/extern/PsyCross/src/psx/INLINE_C.C",
+  "pc_port/extern/PsyCross/src/psx/LIBAPI.C",
+  "pc_port/extern/PsyCross/src/psx/LIBCD.C",
+  "pc_port/extern/PsyCross/src/psx/LIBETC.C",
+  "pc_port/extern/PsyCross/src/psx/LIBGPU.C",
+  "pc_port/extern/PsyCross/src/psx/LIBGTE.C",
+  "pc_port/extern/PsyCross/src/psx/LIBMCRD.C",
+  "pc_port/extern/PsyCross/src/psx/LIBPAD.C",
+  "pc_port/extern/PsyCross/src/psx/LIBSN.C",
+  "pc_port/extern/PsyCross/src/psx/LIBSPU.C",
+  "pc_port/extern/PsyCross/src/render/PsyX_fixed_uv.cpp",
+  "pc_port/extern/PsyCross/src/render/PsyX_fixed_uv.h",
+  "pc_port/extern/PsyCross/src/render/PsyX_render.cpp",
+  "pc_port/extern/PsyCross/src/render/glad.c",
+  "pc_port/extern/PsyCross/src/util/crash_handler.cpp",
+  "pc_port/extern/PsyCross/src/util/crash_handler.h",
+  "pc_port/extern/PsyCross/src/util/timer.c",
+  "pc_port/include_shim/host_only_bss.h",
+  "pc_port/src/file_menu_notice.h",
+  "pc_port/src/host_speed.h",
+  "pc_port/src/port_compat.h",
+  "pc_port/src/port_dev_menu.h",
+  "pc_port/src/psycross_deferred_pad.inl",
+  "pc_port/src/psycross_disc_prompt.inl",
+  "pc_port/src/psycross_host_speed.inl",
+  "pc_port/src/psycross_host_toolbar.inl",
+  "pc_port/src/psycross_input_trace.inl",
+  "pc_port/src/psycross_pad_select.inl",
+  "pc_port/src/psycross_port_dev_menu.inl",
+  "pc_port/src/psycross_video_recording.inl",
+  "pc_port/src/quick_checkpoint_request.h",
+  "pc_port/src/retail_data.h"
+ ]
+}

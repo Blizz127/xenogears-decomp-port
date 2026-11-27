@@ -3,24 +3,24 @@ set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/sanitizer_preflight.sh"; ubsan_preflight
 
 repo_dir=$(cd "$(dirname "$0")/../.." && pwd)
-build_dir=$(mktemp -d /tmp/w34n120-normal-light-col.XXXXXX)
+build_dir=$(mktemp -d "${TMPDIR:-/tmp}/w34n120-normal-light-col.XXXXXX")
 trap 'rm -rf "$build_dir"' EXIT
 
+provider="$repo_dir/pc_port/src/psyq_compat_normal_light_col.c"
 common=(
   -std=gnu17 -fno-builtin -DXENO_PC_PORT -DSKIP_ASM -D_LANGUAGE_C
   -I"$repo_dir/pc_port/include_shim" -I"$repo_dir/include"
-  -I"$repo_dir/pc_port/extern/PsyCross/include"
-  -I"$repo_dir/pc_port/extern/PsyCross/include/psx"
+  -isystem "$repo_dir/pc_port/extern/PsyCross/include"
+  -isystem "$repo_dir/pc_port/extern/PsyCross/include/psx"
   -I"$repo_dir/pc_port/src"
   "$repo_dir/pc_port/tests/w34n120_normal_light_col_prod_test.c"
-  "$repo_dir/pc_port/src/psyq_compat_normal_light_col.c"
 )
 warnings=(-Wall -Wextra -Wconversion -Wsign-conversion -Werror)
 
 run_regime() {
   local name=$1
   shift
-  gcc "${common[@]}" "${warnings[@]}" "$@" -o "$build_dir/$name"
+  gcc "${common[@]}" "${warnings[@]}" "$@" "$provider" -o "$build_dir/$name"
   "$build_dir/$name" > "$build_dir/$name.log"
   grep -Fq 'W34N120 NORMAL LIGHT COL CERTIFICATE PASS' "$build_dir/$name.log"
   printf 'W34N120 %s PASS\n' "$name"
@@ -32,28 +32,46 @@ run_regime UBSan -O2 -fsanitize=undefined -fno-sanitize-recover=undefined
 
 run_mutant() {
   local name=$1
-  local define=$2
-  local assertion=$3
-  gcc "${common[@]}" "${warnings[@]}" -O2 "$define" -o "$build_dir/$name"
-  if "$build_dir/$name" > "$build_dir/$name.log" 2>&1; then
-    printf 'W34N120 %s SURVIVED\n' "$name" >&2
+  local original=$2
+  local replacement=$3
+  local assertion=$4
+  local mutant="$build_dir/$name.c"
+  python3 "$repo_dir/pc_port/tests/lib/write_source_mutant.py" \
+    "$provider" "$mutant" "$original" "$replacement"
+  gcc "${common[@]}" "${warnings[@]}" -O2 "$mutant" -o "$build_dir/$name"
+  local status=0
+  "$build_dir/$name" > "$build_dir/$name.log" 2>&1 || status=$?
+  if [[ $status != 1 ]]; then
+    printf 'Mutant %s returned %s (expected assertion failure exit 1)\n' "$name" "$status" >&2
     return 1
   fi
   grep -Fq "FAIL [normal-light-col]: $assertion" "$build_dir/$name.log"
   printf 'W34N120 %s DETECTED by %s\n' "$name" "$assertion"
 }
 
-run_mutant M1 -DW34N120_MUTANT_WRONG_VXY_REGISTER \
+run_mutant M1 \
+  'gte_NormalColorCol(normal_words,' \
+  'normal_words[0] = 0; gte_NormalColorCol(normal_words,' \
   'normal word zero loads VXY register'
-run_mutant M2 -DW34N120_MUTANT_DROP_VZ_LOAD \
+run_mutant M2 \
+  'gte_NormalColorCol(normal_words,' \
+  'normal_words[1] = 0; gte_NormalColorCol(normal_words,' \
   'normal word one loads VZ register'
-run_mutant M3 -DW34N120_MUTANT_WRONG_RGBC_REGISTER \
+run_mutant M3 \
+  'gte_NormalColorCol(normal_words,' \
+  'color = 0; gte_NormalColorCol(normal_words,' \
   'input color loads RGBC register'
-run_mutant M4 -DW34N120_MUTANT_WRONG_OPCODE \
+run_mutant M4 \
+  'gte_NormalColorCol(normal_words, &color, &shaded);' \
+  'gte_NormalColor(normal_words, &shaded);' \
   'retail NCCS opcode'
-run_mutant M5 -DW34N120_MUTANT_WRONG_OUTPUT_REGISTER \
+run_mutant M5 \
+  'memcpy(output_color,' \
+  'shaded = MFC2(20); memcpy(output_color,' \
   'reads RGB2 register'
-run_mutant M6 -DW34N120_MUTANT_CORRUPT_OUTPUT \
+run_mutant M6 \
+  '&shaded, sizeof(shaded)' \
+  '&shaded, sizeof(shaded) - 1' \
   'stores RGB2 output'
 
 printf 'W34N120 CERTIFICATE PASS O0/O2/UBSan; strict warnings; M1-M6 DETECTED\n'

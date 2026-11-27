@@ -73,7 +73,8 @@ segments:
       # there instead).  movie.bin -- which matches retail exactly -- uses
       # `rodata` here for the same reason.
       - [0x0, rodata]
-      - [0x120C, c, main]
+      # Assemble the split made from the owner-supplied overlay.
+      - [0x120C, asm]
       # Code ends after func_80099BFC; splat's own scan puts the first trailing
       # data label at D_80099E8C == offset 0x2A39C.  It must be declared as a
       # `data` subsegment rather than left inside the text one: inside `asm`,

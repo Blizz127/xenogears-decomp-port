@@ -14,7 +14,7 @@
  * PcPort_NameEntryMenuLoadData() reads the same file -- archive 0x10, file
  * 8, from the user's disc -- at every mode-3 entry (MenuExecute, menu.c) and
  * copies the retail address ranges:
- *   .rodata 0x801C5000..0x801C5010  the "BISLPS-00800" save id (the rest of
+ *   .rodata 0x801C5000..0x801C5010  the save identifier (the rest of
  *           .rodata, 0x801C5010..0x801C5040, is NameEntryMenu_801CB33C's jump
  *           table, which the native switch carries itself);
  *   .data   0x801CBEA0..0x801CC134  window, cursor and letter-code tables.

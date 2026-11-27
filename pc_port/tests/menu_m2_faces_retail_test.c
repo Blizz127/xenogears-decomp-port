@@ -63,8 +63,8 @@ void func_801E920C(POLY_FT4 *f, s32 x, s32 y, s32 a, s32 b, s32 c, s32 d) {
     M2_SPY(TE920C, M2_U(f), (u32)x, (u32)y, (u32)a, (u32)b, (u32)c, (u32)d);
 }
 void func_801E927C(POLY_FT4 *f) { M2_SPY(TE927C, M2_U(f)); }
-u_short GetTPage(int tp, int abr, int x, int y) {
-    return (u_short)M2_SPY(TTPAGE, (u32)tp, (u32)abr, (u32)x, (u32)y);
+u_short GetTPage(int depth, int blend, int vram_x, int vram_y) {
+    return (u_short)M2_SPY(TTPAGE, (u32)depth, (u32)blend, (u32)vram_x, (u32)vram_y);
 }
 s32 func_8002675C(u8 *res, s32 glyph, void *dst, s32 ctx, s32 x, s32 y, s32 scale) {
     return (s32)M2_SPY(T2675C, M2_U(res), (u32)glyph, M2_U(dst), (u32)ctx, (u32)x, (u32)y,

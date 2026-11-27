@@ -41,6 +41,14 @@ static int s_732c;
 static int s_732c_arg;
 static int s_soft;
 static int s_swap;
+static int s_gpu_service_count;
+static int s_movie_failed;
+static int s_fail_after_tick;
+
+int MoviePlayerStartFailed(void)
+{
+    return s_movie_failed;
+}
 
 DRAWENV* SetDefDrawEnv(DRAWENV* env, int x, int y, int w, int h)
 {
@@ -87,22 +95,26 @@ int ClearImage(RECT* rect, u_char r, u_char g, u_char b)
 int DrawSync(int mode)
 {
     (void)mode;
+    s_gpu_service_count++;
     return 0;
 }
 
 int Vsync(int mode)
 {
     (void)mode;
+    s_gpu_service_count++;
     return 0;
 }
 
 DISPENV* PutDispEnv(DISPENV* env)
 {
+    s_gpu_service_count++;
     return env;
 }
 
 DRAWENV* PutDrawEnv(DRAWENV* env)
 {
+    s_gpu_service_count++;
     return env;
 }
 
@@ -146,7 +158,12 @@ void func_800A732C(s32 count)
 {
     s_732c++;
     s_732c_arg = count;
-    D_800B06A0 = 0x18E2;
+    if (s_fail_after_tick) {
+        D_800B06A0 += count;
+        s_movie_failed = 1;
+    } else {
+        D_800B06A0 = 0x18E2;
+    }
 }
 
 static void fail(const char* name, const char* detail)
@@ -185,6 +202,9 @@ static void reset_state(void)
     s_732c = 0;
     s_soft = 0;
     s_swap = 0;
+    s_gpu_service_count = 0;
+    s_movie_failed = 0;
+    s_fail_after_tick = 0;
 }
 
 int main(void)
@@ -237,6 +257,38 @@ int main(void)
     expect_eq_s32("run.isrgb24.0", g_FieldRenderContexts[0].dispEnv.isrgb24, 1);
     expect_eq_s32("run.isrgb24.1", g_FieldRenderContexts[1].dispEnv.isrgb24, 1);
     expect_eq_s32("run.isinter.0", g_FieldRenderContexts[0].dispEnv.isinter, 0);
+
+    /* A failed movie must leave the active field display and transition state intact. */
+    reset_state();
+    D_8004F300 = 1;
+    D_800B06A0 = 0x687;
+    D_800AFE74 = 37;
+    D_801E89E0 = 81;
+    s_movie_failed = 1;
+    func_800A7948();
+    expect_eq_s32("failed.envs", s_draw_count + s_disp_count, 0);
+    expect_eq_s32("failed.gpu", s_gpu_service_count + s_clear_count + s_otag, 0);
+    expect_eq_s32("failed.movie", s_acb90 + s_ac99c + s_accf4 + s_accb0 + s_732c, 0);
+    expect_eq_s32("failed.field", s_soft + s_swap, 0);
+    expect_eq_s32("failed.position", D_800B06A0, 0x687);
+    expect_eq_s32("failed.busy", D_800AFE74, 37);
+    expect_eq_s32("failed.end", D_801E89E0, 81);
+
+    /* Loss of the stream during a real tick restores both displays. */
+    reset_state();
+    D_8004F300 = 1;
+    D_800B06A0 = 0x700;
+    s_fail_after_tick = 1;
+    func_800A7948();
+    expect_eq_s32("interrupted.ticks", s_732c, 1);
+    expect_eq_s32("interrupted.otag", s_otag, 1);
+    expect_eq_s32("interrupted.position", D_800B06A0, 0x705);
+    expect_eq_s32("interrupted.teardown", s_accb0, 1);
+    expect_eq_s32("interrupted.restore0", g_FieldRenderContexts[0].drawEnvs[0].clip.w, 320);
+    expect_eq_s32("interrupted.restore1", g_FieldRenderContexts[1].drawEnvs[0].clip.w, 320);
+    expect_eq_s32("interrupted.rgb0", g_FieldRenderContexts[0].dispEnv.isrgb24, 1);
+    expect_eq_s32("interrupted.rgb1", g_FieldRenderContexts[1].dispEnv.isrgb24, 1);
+    expect_eq_s32("interrupted.busy", D_800AFE74, 0);
 
     printf("FIELD FE60 FRAME A7948 certificate PASS checks=%u\n", s_checks);
     return 0;

@@ -1,6 +1,35 @@
 #include "common.h"
 #include "field/main.h"
 #include "field/particles.h"
+
+#include "data_alias.h"
+
+/* The fade submits one of two consecutive tiles by index or by its own name. */
+TILE D_800AFE54[2] __attribute__((aligned(8)));
+_Static_assert(sizeof(TILE) == 0x10, "menu fade tile stride");
+XG_SIZED_DATA_ALIAS(D_800AFE64, D_800AFE54, 0x10, 0x10);
+
+/* Battle return addresses a DRAWENV before its named base and a DISPENV
+ * at the end of the second buffer. Keep both views in the same allocation. */
+unsigned char g_FieldBattleReturnGfxEnv[0x40e0] __attribute__((aligned(8)));
+_Static_assert(sizeof(DRAWENV) == 0x5c && sizeof(DISPENV) == 0x14,
+               "battle return display layout");
+XG_BRIDGE_DATA_ALIAS(D_800C4A7C, g_FieldBattleReturnGfxEnv, 0x5c, 4);
+
+s32 g_FieldPartyActorSlots[8];
+XG_BRIDGE_DATA_ALIAS(D_8005A444, g_FieldPartyActorSlots, 0, 4);
+XG_BRIDGE_DATA_ALIAS(D_8005A448, g_FieldPartyActorSlots, 4, 4);
+XG_BRIDGE_DATA_ALIAS(D_8005A44C, g_FieldPartyActorSlots, 8, 4);
+
+/* The field loader hydrates these tables from the authenticated overlay. */
+unsigned short D_800AF5C0[20] __attribute__((aligned(8)));
+unsigned char D_800ADC1C[8];
+unsigned int D_800AF47C[0x144 / 4];
+unsigned short D_800AE060[0x180 / 2];
+unsigned char D_800AE294[12];
+short g_FieldNumPartyMembersMasks[4];
+unsigned short D_800AFD24[0x80] __attribute__((aligned(8)));
+
 /* Retail tables below are zero storage filled at startup from the user's
  * disc/field.bin by the load table at the end of this file (retail_data.h). */
 /* Retail field.bin [800AEB68,800AF278): 117 texture rectangles followed
@@ -43,8 +72,8 @@ asm(".globl D_800AF768\n.set D_800AF768, g_FieldMoveImageBss + 0x180");
  * spacing. */
 _Static_assert(sizeof(void*) == 8, "xeno-port field data requires LP64 pointers");
 void* g_PartyDataBuffers[3];
-asm(".globl D_8005A418\n.set D_8005A418, g_PartyDataBuffers + 8");
-asm(".globl D_8005A41C\n.set D_8005A41C, g_PartyDataBuffers + 16");
+XG_BRIDGE_DATA_ALIAS(D_8005A418, g_PartyDataBuffers, 8, 4);
+XG_BRIDGE_DATA_ALIAS(D_8005A41C, g_PartyDataBuffers, 16, 4);
 
 /* Field overlay .rodata debug string @0x8006FC48 (asm/field/data/0.rodata.s
  * line 160): the "POLYCHECK %d\n" printf format used by func_80084158's
@@ -769,7 +798,7 @@ unsigned char g_FieldBss_800AEB60[0x08] __attribute__((aligned(8)));
  * (== D_800AFFAC), so the block ends where D_800AFFEC begins. */
 unsigned char g_FieldBss_800AFE9C[0x150] __attribute__((aligned(8)));
 unsigned char g_FieldBss_800AFB20[0x108] __attribute__((aligned(8)));
-unsigned char g_FieldBss_800AF85C[0x2A0] __attribute__((aligned(8)));
+unsigned char g_FieldBss_800AF85C[0x2B0] __attribute__((aligned(8)));
 /* Retail keeps D_800B004C..D_800B0052 as one packed RECT.  Host-side
  * auto-stubs used to allocate each label separately, so StoreImage/LoadImage
  * read a zero-height rectangle through pointer arithmetic. */
@@ -858,6 +887,9 @@ FIELD_BSS_ALIAS(g_CamEyeMovementCurrent, g_FieldBss_800AF85C, 0x108);
 FIELD_BSS_ALIAS(g_CamEyeMovementDelta, g_FieldBss_800AF85C, 0x118);
 FIELD_BSS_ALIAS(g_CamInterpolation, g_FieldBss_800AF85C, 0x128);
 FIELD_BSS_ALIAS(g_Scene, g_FieldBss_800AF85C, 0x134); /* 0x800AF990; worldToScreen at +0xD4 == g_CameraEye+0x1E4 */
+FIELD_BSS_ALIAS(D_800AFB04, g_FieldBss_800AF85C, 0x2a8);
+FIELD_BSS_ALIAS(D_800AFB06, g_FieldBss_800AF85C, 0x2aa);
+FIELD_BSS_ALIAS(D_800AFB08, g_FieldBss_800AF85C, 0x2ac);
 FIELD_BSS_ALIAS(g_WorldScale, g_FieldBss_800AF85C, 0x268); /* 0x800AFAC4; was 0x298, same wrong-base (0x800AF82C) error as the camera vectors */
 
 FIELD_BSS_ALIAS(D_800AFC60, g_FieldBss_800AFC60, 0x000);
@@ -1115,8 +1147,8 @@ FIELD_BSS_ALIAS(D_800C4268, g_FieldBss_800C38F8, 0x970);
  * Regression test: pc_port/tests/run_encounter_weight_aliasing_test.sh.
  */
 unsigned char g_SlusBss_800658DC[0x230] __attribute__((aligned(8)));
-FIELD_BSS_ALIAS(D_800658DC, g_SlusBss_800658DC, 0x000);
-FIELD_BSS_ALIAS(D_80065ADC, g_SlusBss_800658DC, 0x200);
+XG_BRIDGE_DATA_ALIAS(D_800658DC, g_SlusBss_800658DC, 0x000, 0x200);
+XG_BRIDGE_DATA_ALIAS(D_80065ADC, g_SlusBss_800658DC, 0x200, 0x30);
 
 #undef FIELD_BSS_ALIAS
 
@@ -1152,6 +1184,12 @@ _Static_assert(sizeof(g_FieldData_800ADF64) == 0x68, "g_FieldData_800ADF64 size"
 _Static_assert(sizeof(g_FieldData_800ADFCC) == 0x94, "g_FieldData_800ADFCC size");
 
 XENO_RETAIL_DATA_BEGIN(field)
+    XENO_RD(D_800AF5C0, XENO_RD_FIELD, XENO_RD_FIELD_OFF(0x800AF5C0u), sizeof(D_800AF5C0)),
+    XENO_RD(D_800ADC1C, XENO_RD_FIELD, XENO_RD_FIELD_OFF(0x800ADC1Cu), sizeof(D_800ADC1C)),
+    XENO_RD(D_800AF47C, XENO_RD_FIELD, XENO_RD_FIELD_OFF(0x800AF47Cu), sizeof(D_800AF47C)),
+    XENO_RD(D_800AE060, XENO_RD_FIELD, XENO_RD_FIELD_OFF(0x800AE060u), sizeof(D_800AE060)),
+    XENO_RD(D_800AE294, XENO_RD_FIELD, XENO_RD_FIELD_OFF(0x800AE294u), sizeof(D_800AE294)),
+    XENO_RD(g_FieldNumPartyMembersMasks, XENO_RD_FIELD, XENO_RD_FIELD_OFF(0x800AEA2Cu), sizeof(g_FieldNumPartyMembersMasks)),
     XENO_RD(g_FieldOverlayLayoutData, XENO_RD_FIELD, XENO_RD_FIELD_OFF(0x800AEB68u), 0x710),
     XENO_RD(D_8006FC48, XENO_RD_FIELD, XENO_RD_FIELD_OFF(0x8006FC48u), 0xE),
     XENO_RD(D_800ADC24, XENO_RD_FIELD, XENO_RD_FIELD_OFF(0x800ADC24u), 0x20),

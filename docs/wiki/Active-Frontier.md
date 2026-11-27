@@ -79,7 +79,7 @@ Do **not**:
 ## Quick repro context
 
 ```bash
-distrobox enter xenogears-dev -- bash -lc 'cd /home/blizz/Projects/xenogears-decomp && \
+distrobox enter xenogears-dev -- bash -lc 'cd $HOME/Projects/xenogears-decomp-port && \
   XENO_FIELD_TEST=1 XENO_KERNEL_SEL=0 \
   XENO_FIELD_MAP=1 XENO_FIELD_ENTRANCE=8 \
   ./pc_port/build_native/xeno-port'

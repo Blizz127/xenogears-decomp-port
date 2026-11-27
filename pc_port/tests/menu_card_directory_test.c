@@ -16,7 +16,7 @@ static uint8_t ram[0x200000];
 static unsigned port,entries,replace,foreign,pattern,step,gstep;
 static struct DIRENTRY other;
 static void put32(void *p,uint32_t v) { memcpy(p,&v,4); }
-static void name(char *p,unsigned i) { snprintf(p,20,"BASLUS-00664%02u",i); }
+static void name(char *p,unsigned i) { snprintf(p,20,"QADEMO-00001%02u",i); }
 static struct DIRENTRY *entry(struct DIRENTRY *p) {
     assert(step<=entries);
     unsigned i=step++;

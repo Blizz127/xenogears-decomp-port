@@ -58,7 +58,7 @@ s32 func_8002675C(u8* atlas, s32 id, void* buf, s32 rc, s32 x, s32 y, s32 scale)
 }
 void func_801C851C(SVECTOR* v, s32 x, s32 y, s32 w, s32 h) { N(F_VERTS, 5, hx_addr(v), (uint32_t)x, (uint32_t)y, (uint32_t)w, (uint32_t)h); }
 void func_801E927C(POLY_FT4* p) { N(F_RESET, 1, hx_addr(p)); }
-u_short GetTPage(int tp, int abr, int x, int y) { return (u_short)N(F_TPAGE, 4, (uint32_t)tp, (uint32_t)abr, (uint32_t)x, (uint32_t)y); }
+u_short GetTPage(int depth, int blend, int vram_x, int vram_y) { return (u_short)N(F_TPAGE, 4, (uint32_t)depth, (uint32_t)blend, (uint32_t)vram_x, (uint32_t)vram_y); }
 void func_801E920C(POLY_FT4* p, s32 x, s32 y, s32 u, s32 v, s32 w, s32 h) {
     N(F_UV, 7, hx_addr(p), (uint32_t)x, (uint32_t)y, (uint32_t)u, (uint32_t)v, (uint32_t)w, (uint32_t)h);
 }

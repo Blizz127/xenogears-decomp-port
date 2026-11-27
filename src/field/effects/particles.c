@@ -6,6 +6,11 @@
 #include "field/camera.h"
 #include "field/particles.h"
 
+#ifdef XENO_PC_PORT
+void FieldParticleStart(ParticleBank* pParticleBank, ParticlePrimitive* pPrim, int* pTimer);
+void FieldParticleUpdateAndRender(ParticleBank* pParticleBank, ParticlePrimitive* pPrim, MATRIX* pMatWorldToScreen);
+#endif
+
 extern s32 D_800ADB34;
 extern s32 g_FieldSystemMode;
 extern u8 D_8006FDC8[]; // "PARTICLE  "

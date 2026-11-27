@@ -21,5 +21,5 @@
 
 * [Debugging and tracing](Debugging-and-Tracing)
 * [Useful commands](Useful-Commands)
-* [Repository](https://github.com/Blizz127/xenogears-decomp-ai)
+* [Repository](https://github.com/Blizz127/xenogears-decomp-port)
 * [Original starter](https://github.com/ladysilverberg/xenogears-decomp)

@@ -142,19 +142,20 @@ static void load_retail(void)
     const char* path = getenv("TLIST_BATTLE_BIN") ? getenv("TLIST_BATTLE_BIN")
                                                   : "disc/battle.bin";
     FILE* f = fopen(path, "rb");
-    u32 w0, w1, w2;
+
 
     if (f == NULL || fseek(f, (long)(kBlobAddr - 0x8006FAF0u), SEEK_SET) != 0 ||
         fread(s_code, 1, kBlobBytes, f) != (size_t)kBlobBytes) {
         FAIL("cannot read the retail chain from battle.bin");
     }
     fclose(f);
-    memcpy(&w0, s_code, 4);                      /* 80083FF4 andi a1,a1,0xFF */
-    memcpy(&w1, s_code + (0x800841E0u - kBlobAddr), 4); /* addiu sp,sp,-0x50 */
-    memcpy(&w2, s_code + (0x80084A7Cu - kBlobAddr), 4); /* addiu sp,sp,-0x28 */
-    if (w0 != 0x30A500FFu || w1 != 0x27BDFFB0u || w2 != 0x27BDFFD8u) {
-        FAIL("retail chain bytes are not where expected (%08x %08x %08x)", w0, w1, w2);
-    }
+    /* The runner verifies the complete owned overlay by SHA-256. Check the
+     * exact address range again for standalone runs and offset changes. */
+    uint32_t range_hash = 2166136261u;
+    for (size_t i = 0; i < sizeof(s_code); ++i)
+        range_hash = (range_hash ^ s_code[i]) * 16777619u;
+    if (range_hash != 0x7a372be3u)
+        FAIL("unexpected retail chain range digest (%08x)", range_hash);
 }
 
 /* ---- state construction ---------------------------------------------------- */

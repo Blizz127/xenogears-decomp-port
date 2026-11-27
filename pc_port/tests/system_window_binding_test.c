@@ -12,7 +12,10 @@
 #include "guest_prim_link.h"
 #include "main/game.h"
 #include "system/memory.h"
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-function"
 #include "battle_mips_runtime.c"
+#pragma GCC diagnostic pop
 static BattleMipsRuntime binding_runtime;
 uint8_t g_PsxScratchpad[4096];
 
@@ -49,7 +52,12 @@ u_char g_ControllerButtonMappings[8];
 u8 D_8005A0E4[0x400];
 int g_xeno_swap_index;
 static u16 host_vram[1024*512], guest_vram[1024*512];
+#ifdef WINDOW_TEST_WITHOUT_HEAP
+static unsigned skipped_heap_cases;
+u32 g_HeapNeedsConsolidation;
+#else
 extern u_int WindowBody_HeapFree(void *);
+#endif
 extern int WindowBody_LoadImage(RECT *,u_long *);
 void MainLoop(int code) { fprintf(stderr,"unexpected MainLoop %d\n",code);abort(); }
 
@@ -180,7 +188,13 @@ void GR_CopyVRAM(unsigned short *p,int sx,int sy,int w,int h,int x,int y)
 }
 u_int HeapFree(void *p)
 {
+    #ifdef WINDOW_TEST_WITHOUT_HEAP
+    (void)p;
+    fputs("Window requested HeapFree in a selected heap-free case\n",stderr);
+    abort();
+#else
     event(&host,FREE,(u32)(uintptr_t)p,0);return WindowBody_HeapFree(p);
+#endif
 }
 int LoadImage(RECT *r,u_long *p)
 {
@@ -234,7 +248,7 @@ typedef struct {
     int count,cursor,width,flags,ctx,t84,t86,t88,queued,hook,x,y,step,selected;
     int glyph_x,row,page,speed,pinned,number,frames,restore,suppress,caller,ui_slot,alias;u8 script[32];
 } Case;
-static uint64_t oracle_steps;
+static uint64_t oracle_steps, guest_caller_steps;
 static unsigned total,failures;
 static int native_caller_bridge(void *opaque,PcPortMipsCpu *cpu,u32 pc)
 {
@@ -341,10 +355,18 @@ static void run_case(Case c,unsigned salt)
     if(rc!=PC_PORT_MIPS_HALTED) {
         fprintf(stderr,"WINDOW ORACLE ERROR case=%s rc=%d pc=%08x %s\n",c.name,rc,cpu.pc,cpu.error);exit(2);
     }
+#ifdef WINDOW_TEST_WITHOUT_HEAP
+    for (unsigned i=0; i<guest.count; i++) {
+        if (guest.events[i].kind==FREE) {
+            skipped_heap_cases++;
+            return;
+        }
+    }
+#endif
     assert(cpu.gpr[29]==STACK);
     for(unsigned i=16;i<=23;i++)assert(cpu.gpr[i]==0x43210000u+i);
-    setenv("XENO_DISABLE_CPU_INTERPRETER","1",1);
-    assert(PcPortMipsInterpreterDisabled());
+    setenv("XENO_DISABLE_CPU_INTERPRETER",c.caller ? "0" : "1",1);
+    assert(PcPortMipsInterpreterDisabled() == !c.caller);
     PcPortMipsExecutionStats before=PcPortMipsExecutionStatsGet();
     actual_links=0;PcPort_PrimLinkReset();
     PcPortMipsCpu native_cpu={0};
@@ -372,7 +394,8 @@ static void run_case(Case c,unsigned salt)
     PcPortMipsExecutionStats after=PcPortMipsExecutionStatsGet();
     if(!c.caller)assert(!memcmp(&before,&after,sizeof(before)));
     else {
-        assert(after.interpreted_instructions==before.interpreted_instructions);
+        assert(after.interpreted_instructions > before.interpreted_instructions);
+        guest_caller_steps += after.interpreted_instructions - before.interpreted_instructions;
         assert(after.disabled_refusals==before.disabled_refusals);
         assert(after.unresolved_bridges==before.unresolved_bridges);
         assert(native_cpu.gpr[29]==STACK && native_cpu.gpr[31]==HALT);
@@ -497,13 +520,15 @@ int main(int argc,char **argv)
     load_host_ranges(&binding_runtime);
     assert(binding_runtime.host_range_count);
     binding_runtime.functions[0]=(ResolvedFunction){0x80034888u,func_80034888,"func_80034888"};
-    binding_runtime.function_count=1;g_ActiveBattleRuntime=&binding_runtime;
+    binding_runtime.functions[1]=(ResolvedFunction){0x80043b48u,AddPrim,"AddPrim"};
+    binding_runtime.function_count=2;g_ActiveBattleRuntime=&binding_runtime;
     setenv("XENO_BATTLE_NATIVE_WINDOW_RENDER","1",1);
     FILE *f=fopen(argv[1],"rb");assert(f);
     /* Include original text jump tables and all called resident bodies. */
     assert(fseek(f,0x800,SEEK_SET)==0);
     size_t loaded=fread(ram+0x10000,1,0x70000,f);assert(loaded==0x49800);
     assert(fclose(f)==0);
+    memcpy(g_PsxRam+0x10000, ram+0x10000, loaded);
     FILE *battle=fopen("disc/battle.bin","rb");assert(battle);
     assert(fseek(battle,0x80074f70u-BATTLE_BASE,SEEK_SET)==0);
     assert(fread(ram+0x74f70u,1,156,battle)==156);assert(fclose(battle)==0);
@@ -562,14 +587,21 @@ int main(int argc,char **argv)
     }
     check_binding_rejections();
     unsigned covered=0;for(unsigned i=0;i<sizeof(coverage);i++)covered+=coverage[i]!=0;
-    printf("WINDOW %s cases=%u failures=%u original_body_instructions=%u/393 oracle_steps=%llu native_interpreted_delta=0 boundary_model=GR_CopyVRAM actual_native_services=window,text,glyph,HeapFree,LoadImage,links\n",
+    printf("WINDOW %s cases=%u failures=%u original_body_instructions=%u/393 oracle_steps=%llu direct_binding_interpreted_delta=0 boundary_model=GR_CopyVRAM actual_native_services=window,text,glyph,LoadImage,links\n",
         failures?"FAIL":"PASS",total,failures,covered,(unsigned long long)oracle_steps);
     unsigned tc=0,gc=0;
     for(unsigned i=0;i<sizeof(text_coverage);i++)tc+=text_coverage[i]!=0;
     for(unsigned i=0;i<sizeof(glyph_coverage);i++)gc+=glyph_coverage[i]!=0;
     printf("ACTIVE text_calls=%u glyph_calls=%u frees=%u uploads=%u text_instructions=%u/%zu glyph_instructions=%u/%zu\n",text_calls,glyph_calls,free_calls,uploads,tc,sizeof(text_coverage),gc,sizeof(glyph_coverage));
     unsigned cc=0;for(unsigned i=0;i<39;i++)cc+=caller_coverage[i]!=0;
-    printf("CALLER original instructions=%u/39; real AddPrim and typed active window; volatile callee registers excluded from API equivalence\n",cc);
+#ifdef WINDOW_TEST_WITHOUT_HEAP
+    printf("HEAP NOT RUN: production HeapFree unavailable; %u oracle cases excluded\n",skipped_heap_cases);
+    assert(total && skipped_heap_cases);
+#else
+    printf("HEAP production HeapFree exercised; %u oracle frees\n",free_calls);
+    assert(free_calls);
+#endif
+    printf("CALLER original instructions=%u/39; guest caller interpreted instructions=%llu; typed active window; volatile callee registers excluded from API equivalence\n",cc,(unsigned long long)guest_caller_steps);
     printf("WINDOW UNEXECUTED");
     for(unsigned i=0;i<sizeof(coverage);i++)if(!coverage[i])printf(" %08x",0x80034888u+4*i);
     putchar('\n');

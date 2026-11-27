@@ -1,0 +1,9 @@
+# Native kernel menu
+
+The new translation unit connects four independently authored menu functions to the host renderer, input state, game loop and font services. Blizz127 and contributors released the four implementations under MIT in `Blizz127/xenogears-decomp-port` at `0fba9c73eb2a2c6bc7408568b2deb13fb16b7f19`. The project lists the functions, their provenance and each source digest in `common/README.md`. Preserve the accompanying MIT license.
+
+Place the translation unit at `src/slus_006.64/system/kernel_menu.c` in a host-only build. Take the four `common/pc_port/src/cleanroom/kernel_menu_{cursor,init,update,main}.inc` files from the reviewed commit and place them under `pc_port/src/cleanroom/`. The translation unit uses the project's kernel environment type and the host renderer's controller-timing declaration. The external data symbols continue to be supplied by the rest of the port. The five menu text symbols have no initializers in this unit.
+
+The declaration and include assembly was written for this source candidate using publicly recorded interface declarations, the reviewed menu functions and the debug types from Linux and Windows x64 release objects. Its declarations for the font, heap and game-loop functions use the parameter and return types from the linked definitions. The port's public main header supplies the non-returning contract for `MainLoop`.
+
+The four functions were syntax-checked using Linux GCC and Windows-target Clang. Both used the public project's kernel environment declaration and GPU redirection header at `7c729166cbcf076cd5a30872a7022171fc7f6bbb`, the replacement renderer headers supplied with v0.7.93-preview and the required configuration headers from PsyCross commit `e56e4cde1c2b8a15e0d4e38b26cdd9202e0d17e6`. The original Linux and Windows compiler receipts identify the same four reviewed provider files byte for byte. Executable parity and gameplay require subsequent integration testing.

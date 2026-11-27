@@ -24,10 +24,19 @@
  * as part of the compat layer.
  */
 
-s32 ReadGeomScreen(void)
+#define xeno_cleanroom_cfc2 CFC2
+#include "cleanroom/gte_readgeom_cleanroom.h"
+
+int32_t ReadGeomScreen(void)
 {
-    return (s32)CFC2(26); /* H */
+    uint32_t w = xeno_cleanroom_cfc2(26);
+    uint32_t lo = w & 0xFFFFu;
+
+    /* sign-extend the low 16 bits; idempotent if the seam already extended them */
+    return lo >= 0x8000u ? (int32_t)lo - 65536 : (int32_t)lo;
 }
+
+#undef xeno_cleanroom_cfc2
 
 MATRIX* SetMulMatrix(MATRIX* m0, MATRIX* m1)
 {
@@ -61,11 +70,37 @@ MATRIX* SetMulMatrix(MATRIX* m0, MATRIX* m1)
  * Render Polygon/Line Commands").  Spelled out rather than taken from a
  * setPoly/setLine macro because PsyCross's libgpu.h gives LINE_F2 a length
  * of 2, while the packet (colour+code word, two vertex words) is 3 words. */
-void SetPolyFT3(POLY_FT3* primitive) { setlen(primitive, 7); setcode(primitive, 0x24); } /* col, 3x(xy,uv/clut/tpage) */
-void SetPolyG3(POLY_G3* primitive)   { setlen(primitive, 6); setcode(primitive, 0x30); } /* 3x(col, xy) */
-void SetPolyGT3(POLY_GT3* primitive) { setlen(primitive, 9); setcode(primitive, 0x34); } /* 3x(col, xy, uv) */
-void SetLineF2(LINE_F2* primitive)   { setlen(primitive, 3); setcode(primitive, 0x40); } /* col, 2x xy */
-void SetLineG2(LINE_G2* primitive)   { setlen(primitive, 4); setcode(primitive, 0x50); } /* 2x(col, xy) */
+/* PsyCross e56e4cde, include/psx/libgpu.h (MIT). */
+void SetPolyFT3(POLY_FT3 *packet)
+{
+    setPolyFT3(packet);
+}
+
+/* PsyCross e56e4cde, include/psx/libgpu.h (MIT). */
+void SetPolyG3(POLY_G3 *packet)
+{
+    setPolyG3(packet);
+}
+
+/* PsyCross e56e4cde, include/psx/libgpu.h (MIT). */
+void SetPolyGT3(POLY_GT3 *packet)
+{
+    setPolyGT3(packet);
+}
+
+/* PsyCross e56e4cde, include/psx/libgpu.h (MIT). */
+void SetLineF2(LINE_F2 *packet)
+{
+    /* The port's patched lowercase macro differs from the MIT three-word packet. */
+    setlen(packet, 3);
+    setcode(packet, 0x40);
+}
+
+/* PsyCross e56e4cde, include/psx/libgpu.h (MIT). */
+void SetLineG2(LINE_G2 *packet)
+{
+    setLineG2(packet);
+}
 
 /* Q12 product, floored (arithmetic shift right by 12). */
 static s32 CompatQ12Mul(s32 a, s32 b)

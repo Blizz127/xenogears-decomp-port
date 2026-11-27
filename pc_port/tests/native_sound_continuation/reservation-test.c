@@ -16,6 +16,8 @@ extern int PsyX_Sys_BeginReservedSoundBracket(unsigned int);
 extern int PsyX_Sys_FinishReservedSoundBracket(void);
 extern int PsyX_Sys_AbortReservedSoundBracket(void);
 extern int PsyX_Sys_ReservedSoundBracketPristine(unsigned int);
+#include "memory-domains-test.inc"
+
 static int calls;
 static int simulated_native_failure(unsigned int event, int mutate) {
     jmp_buf failure;
@@ -56,6 +58,7 @@ int main(void) {
     assert(!PsyX_Sys_ReserveSoundEvent(event));
     EnableEvent(other); assert(!PsyX_Sys_ReserveSoundEvent(other));
     EnableEvent(event); dispatch_thread(); assert(calls == 1);
+    test_fixture_domains((unsigned)event);
     PsyX_Sys_SoundGateEnterCritical(); assert(!PsyX_Sys_ReserveSoundEvent(event));
     PsyX_Sys_SoundGateExitCritical();
     assert(PsyX_Sys_ReserveSoundEvent(event));

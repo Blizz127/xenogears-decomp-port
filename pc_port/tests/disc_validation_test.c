@@ -46,10 +46,14 @@ static void swap_tables(void) {
 static void ArchiveCdDataSync(s32 a) {event(1,a,0,0,0,0);swap_tables();}
 static s32 func_8002C3D8(void) {event(2,0,0,0,0,0);return debug_mode;}
 static void func_801E9340(char *path,void *dst,s32 size) {
-    const char *names[]={"c:\\work\\cdrom.mdg","c:\\work\\cdrom.fid","c:\\work\\cdrom.fnd",
-        "c:\\work\\cdrom2.mdg","c:\\work\\cdrom2.fid","c:\\work\\cdrom2.fnd"};
-    unsigned i; for(i=0;i<6 && strcmp(names[i],path);++i){} assert(i<6);
-    event(3,i,(u32)(uintptr_t)dst,size,0,0);swap_tables();
+    /* Compare this request with the same call in the preceding disc trace. */
+    assert(side == 1 && counts[1] < counts[0]);
+    const Event *expected = &events[0][counts[1]];
+    assert(expected->op == 3);
+    const u8 *reference = ptr(expected->a, 1);
+    assert(memchr(reference, '\0', sizeof ram - (size_t)(reference - ram)));
+    assert(strcmp(path, (const char *)reference) == 0);
+    event(3,expected->a,(u32)(uintptr_t)dst,size,0,0);swap_tables();
 }
 static CdlLOC *test_pos(int a,CdlLOC *p) {
     event(4,a,0,0,0,0);u8 bytes[]={0,2,0,0};memcpy(p,bytes,4);return p;
@@ -87,7 +91,7 @@ static int bridge(void *o,PcPortMipsCpu *c,u32 target) {
     switch(target) {
     case 0x80028a60: ArchiveCdDataSync(a);break;
     case 0x8002c3d8: c->gpr[2]=func_8002C3D8();break;
-    case 0x801e9340: func_801E9340((char*)ptr(a,1),(void*)(uintptr_t)b,d);break;
+    case 0x801e9340: event(3,a,b,d,0,0);swap_tables();break;
     case 0x80041430: test_pos(a,(CdlLOC*)ptr(b,4));c->gpr[2]=b;break;
     case 0x8004b54c: Vsync(a);break;
     case 0x80041248: assert(d==0x801ea8f4);c->gpr[2]=test_control(a,b?ptr(b,4):NULL,ptr(d,8));break;

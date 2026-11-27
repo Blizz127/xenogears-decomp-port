@@ -56,6 +56,9 @@ typedef struct {
 } FieldTriggerZone; // Size: 0x18
 
 extern FieldTriggerZone* g_pFieldTriggerZones;
+#ifdef XENO_PC_PORT
+extern u32 g_PcFieldTriggerZoneCount;
+#endif
 
 extern FieldScene g_Scene;
 extern int g_WorldScale;
@@ -73,6 +76,15 @@ typedef struct {
     int unk2;
     u_long ot3[0x8];
 } RenderContext;
+
+/* The first field ordering table begins immediately after the display
+ * environment. Its GPU links stay four bytes wide when the host widens
+ * u_long and adds padding before the C struct's ot1 member. */
+#ifdef XENO_PC_PORT
+#define FIELD_CTX_OT1(ctx) ((u32*)((u8*)(ctx) + 0xCC))
+#else
+#define FIELD_CTX_OT1(ctx) ((ctx)->ot1)
+#endif
 
 /* The field's third ordering table (8 tags; DrawOTag starts at tag 7).
  * Retail code reaches it both as ctx->ot3 and as the raw byte offset

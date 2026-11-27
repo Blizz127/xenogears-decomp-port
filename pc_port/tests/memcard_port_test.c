@@ -49,48 +49,48 @@ int main(int argc, char** argv) {
     CHECK(PcPortCard_open("bu00:NOPE", 1) == -1);
     CHECK(erase("bu00:NOPE") == 0);
     /* create 3 blocks, write, read back */
-    int fd = PcPortCard_open("bu00:BASLUS-00664GEAR0", (3u << 16) | 0x200);
+    int fd = PcPortCard_open("bu00:QADEMO-00001GEAR0", (3u << 16) | 0x200);
     CHECK(fd >= 2);
     CHECK(PcPortCard_close(fd) == fd && PcPortCard_close(fd) == -1);
-    CHECK(PcPortCard_open("bu00:BASLUS-00664GEAR0", (1u << 16) | 0x200) == -1); /* exists */
-    fd = PcPortCard_open("bu00:BASLUS-00664GEAR0", 2);
+    CHECK(PcPortCard_open("bu00:QADEMO-00001GEAR0", (1u << 16) | 0x200) == -1); /* exists */
+    fd = PcPortCard_open("bu00:QADEMO-00001GEAR0", 2);
     CHECK(PcPortCard_read(fd, back, 128) == -1);             /* write-only */
     CHECK(PcPortCard_write(fd, buf, 100) == -1);             /* not a sector multiple */
     CHECK(PcPortCard_write(fd, buf, 0x200) == 0x200);
     CHECK(PcPortCard_write(fd, buf + 0x200, sizeof buf - 0x200) == (int)sizeof buf - 0x200);
     CHECK(PcPortCard_write(fd, buf, 128) == -1);             /* past end of file */
     PcPortCard_close(fd);
-    fd = PcPortCard_open("bu00:BASLUS-00664GEAR0", 3);
+    fd = PcPortCard_open("bu00:QADEMO-00001GEAR0", 3);
     CHECK(PcPortCard_read(fd, back, sizeof back) == (int)sizeof back && !memcmp(buf, back, sizeof buf));
     PcPortCard_close(fd);
     /* on-disk layout */
     load_img(0); check_frames();
-    CHECK(get32(img + 128) == 0x51 && get32(img + 128 + 4) == 3 * 8192 && !strcmp((char*)img + 128 + 10, "BASLUS-00664GEAR0"));
+    CHECK(get32(img + 128) == 0x51 && get32(img + 128 + 4) == 3 * 8192 && !strcmp((char*)img + 128 + 10, "QADEMO-00001GEAR0"));
     CHECK(img[128 + 8] == 1 && img[128 + 9] == 0);            /* -> block 2 */
     CHECK(get32(img + 256) == 0x52 && img[256 + 8] == 2);     /* -> block 3 */
     CHECK(get32(img + 384) == 0x53 && img[384 + 8] == 0xFF && img[384 + 9] == 0xFF);
     CHECK(get32(img + 512) == 0xA0);
     CHECK(!memcmp(img + 8192, buf, sizeof buf));
     /* second file, listing and wildcards */
-    fd = PcPortCard_open("bu00:BESLES-XYZ", (1u << 16) | 0x200); CHECK(fd >= 2); PcPortCard_close(fd);
+    fd = PcPortCard_open("bu00:QAFILE-XYZ", (1u << 16) | 0x200); CHECK(fd >= 2); PcPortCard_close(fd);
     char names[16][21]; int sizes[16], heads[16];
-    CHECK(count("bu00:", names, sizes, heads) == 2 && !strcmp(names[0], "BASLUS-00664GEAR0") && sizes[0] == 3 * 8192 && heads[0] == 1 && heads[1] == 4 && sizes[1] == 8192);
-    CHECK(count("bu00:*", 0, 0, 0) == 2 && count("bu00:BASLUS*", names, 0, 0) == 1);
-    CHECK(count("bu00:BESLES-XY?", 0, 0, 0) == 1 && count("bu00:BESLES-XY", 0, 0, 0) == 0);
+    CHECK(count("bu00:", names, sizes, heads) == 2 && !strcmp(names[0], "QADEMO-00001GEAR0") && sizes[0] == 3 * 8192 && heads[0] == 1 && heads[1] == 4 && sizes[1] == 8192);
+    CHECK(count("bu00:*", 0, 0, 0) == 2 && count("bu00:QADEMO*", names, 0, 0) == 1);
+    CHECK(count("bu00:QAFILE-XY?", 0, 0, 0) == 1 && count("bu00:QAFILE-XY", 0, 0, 0) == 0);
     CHECK(count("bu10:", 0, 0, 0) == 0);
     /* persistence across a fresh boot */
     PcPortCard_ResetForTest();
     CHECK(count("bu00:", 0, 0, 0) == 2);
-    fd = PcPortCard_open("bu00:BASLUS-00664GEAR0", 1);
+    fd = PcPortCard_open("bu00:QADEMO-00001GEAR0", 1);
     CHECK(PcPortCard_read(fd, back, 8192) == 8192 && PcPortCard_read(fd, back + 8192, 16384) == 16384 && !memcmp(buf, back, sizeof buf));
     PcPortCard_close(fd);
     /* rename */
-    CHECK(PcPortCard_rename("bu00:BESLES-XYZ", "bu00:BASLUS-00664GEAR0") == 0); /* target exists */
-    CHECK(PcPortCard_rename("bu00:BESLES-XYZ", "bu10:NEW") == 0);               /* cross device */
-    CHECK(PcPortCard_rename("bu00:BESLES-XYZ", "bu00:NEWNAME") == 1);
-    CHECK(count("bu00:NEWNAME", 0, 0, 0) == 1 && count("bu00:BESLES-XYZ", 0, 0, 0) == 0);
+    CHECK(PcPortCard_rename("bu00:QAFILE-XYZ", "bu00:QADEMO-00001GEAR0") == 0); /* target exists */
+    CHECK(PcPortCard_rename("bu00:QAFILE-XYZ", "bu10:NEW") == 0);               /* cross device */
+    CHECK(PcPortCard_rename("bu00:QAFILE-XYZ", "bu00:NEWNAME") == 1);
+    CHECK(count("bu00:NEWNAME", 0, 0, 0) == 1 && count("bu00:QAFILE-XYZ", 0, 0, 0) == 0);
     /* erase frees blocks for reuse */
-    CHECK(erase("bu00:BASLUS-00664GEAR0") == 1 && count("bu00:", 0, 0, 0) == 1);
+    CHECK(erase("bu00:QADEMO-00001GEAR0") == 1 && count("bu00:", 0, 0, 0) == 1);
     load_img(0); check_frames();
     CHECK(get32(img + 128) == 0xA1 && get32(img + 256) == 0xA2 && get32(img + 384) == 0xA3);
     /* full card: 14 free blocks now */

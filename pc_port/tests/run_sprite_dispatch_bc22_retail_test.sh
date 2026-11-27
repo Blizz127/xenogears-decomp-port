@@ -3,11 +3,10 @@
 # new player-relative body in func_8001FBE4 (src/slus_006.64/system/
 # animation_scripts.c), plus deliberate mutants the test must reject.
 set -euo pipefail
-source "$(dirname "${BASH_SOURCE[0]}")/lib/sanitizer_preflight.sh"; ubsan_preflight
 ulimit -c 0
 cd "$(dirname "$0")/../.."
-OUT=pc_port/build_native/sprite_dispatch_bc22_retail_test
-mkdir -p "$OUT"
+case "${1-}" in ""|--check-owner) ;; *) echo "usage: $0 [--check-owner]" >&2; exit 2;; esac
+if [ "$#" -gt 1 ]; then echo "usage: $0 [--check-owner]" >&2; exit 2; fi
 
 python3 - <<'PY'
 from hashlib import sha256
@@ -21,6 +20,7 @@ assert sha256(SLUS).hexdigest() == \
 BASE = 0x8000F800
 
 def sl(start, end):
+    assert BASE <= start <= end <= BASE + len(SLUS)
     return SLUS[start - BASE:end - BASE]
 
 # Pin the dispatch table and every byte the 0x22 path executes.
@@ -42,25 +42,43 @@ for name, (start, end, digest) in pins.items():
 # The jump table entry and the two visited basic blocks decode exactly.
 assert int.from_bytes(sl(0x800185A8 + 0x22 * 4, 0x800185A8 + 0x23 * 4), 'little') \
     == 0x8002049C
-words = [int.from_bytes(sl(0x8002049C + i * 4, 0x8002049C + i * 4 + 4), 'little')
-         for i in range(4)]
-assert words == [0x3C10800C, 0x8E103E1C, 0x08008154, 0x00000000], \
-    [hex(w) for w in words]
+# The full entry is pinned above. Decode its real jump destination from the
+# owner's executable rather than storing a second instruction stream here.
+branch_pc = 0x800204A4
+jump = int.from_bytes(sl(branch_pc, branch_pc + 4), 'little')
+assert jump >> 26 == 2
+target = ((branch_pc + 4) & 0xF0000000) | ((jump & 0x03FFFFFF) << 2)
+assert target == pins['sub22_body'][0], hex(target)
 
-# The annotated matching listing must agree with the disc byte-for-byte.
-rows = re.findall(r'/\* ([0-9A-F]+) ([0-9A-F]+) ([0-9A-F]+) \*/',
-                  Path('asm/slus_006.64/matchings/system/animation_scripts/'
-                       'func_8001FBE4.s').read_text())
-checked = 0
-for _, address, word in rows:
-    addr = int(address, 16)
-    if 0x8002049C <= addr < 0x800204AC or 0x80020550 <= addr < 0x8002058C:
-        off = addr - BASE
-        assert SLUS[off:off + 4] == bytes.fromhex(word), f'{address} mismatch'
-        checked += 1
-assert checked == 4 + 15, f'expected 19 annotated sub-0x22 instructions, got {checked}'
-print(f'SPRITE BC22 {checked} annotated sub-0x22 instruction bytes match disc')
+listing = Path('asm/slus_006.64/matchings/system/animation_scripts/func_8001FBE4.s')
+if listing.is_file():
+    rows = re.findall(r'/\* ([0-9A-F]+) ([0-9A-F]+) ([0-9A-F]+) \*/', listing.read_text())
+    checked = set()
+    for _, address, word in rows:
+        addr = int(address, 16)
+        if 0x8002049C <= addr < 0x800204AC or 0x80020550 <= addr < 0x8002058C:
+            assert addr not in checked
+            assert sl(addr, addr + 4) == bytes.fromhex(word), f'{address} mismatch'
+            checked.add(addr)
+    assert len(checked) == 19
+    print('SPRITE BC22 matching listing verified for 19 instructions')
+else:
+    print('SPRITE BC22 optional matching listing absent; checked owner-file branch and range hashes')
+
 PY
+
+if [ "${1-}" = --check-owner ]; then
+    echo 'SPRITE BC22 owned reference verified'
+    exit
+fi
+if [ ! -f src/slus_006.64/system/animation_scripts.c ]; then
+    echo 'SPRITE BC22 native provider unavailable in this source revision' >&2
+    exit 1
+fi
+source pc_port/tests/lib/sanitizer_preflight.sh
+ubsan_preflight
+OUT=pc_port/build_native/sprite_dispatch_bc22_retail_test
+mkdir -p "$OUT"
 
 COMMON=(-std=gnu17 -fpermissive -include stdint.h -D_LANGUAGE_C -fno-pie
     -ffunction-sections -fdata-sections -DXENO_PC_PORT -DSKIP_ASM
@@ -112,32 +130,46 @@ echo 'SPRITE BC22 O0/O2/UBSAN PASS'
 
 python3 - <<'PY'
 from pathlib import Path
-source = Path('src/slus_006.64/system/animation_scripts.c').read_text()
+import re
+
+root = Path.cwd()
+out = root / 'pc_port/build_native/sprite_dispatch_bc22_retail_test'
+unit = root / 'src/slus_006.64/system/animation_scripts.c'
+dispatch = root / 'pc_port/src/cleanroom/animation/dispatch/dispatch.inc'
+anchor = dispatch.parent / 'data/anchor.inc'
+helpers = dispatch.parent / 'helpers/animation_dispatch_helpers.inc'
 mutations = {
-    # Wrong +0x38 source field on the player.
-    'height_off': ('*(u16*)(pPlayer + 0x38)', '*(u16*)(pPlayer + 0x36)'),
-    # Half the height instead of the full +0x38 (that would be sub 0x15).
-    'half': ('(s32)*(u16*)(pPlayer + 0x38)',
-             '(s32)(*(u16*)(pPlayer + 0x38) >> 1)'),
-    # Add the height instead of subtracting it.
-    'add_height': ('- (s32)*(u16*)(pPlayer + 0x38)',
-                   '+ (s32)*(u16*)(pPlayer + 0x38)'),
-    # Wrong X halfword.
-    'x_off': ('*(s16*)(pPlayer + 0x2)', '*(s16*)(pPlayer + 0x0)'),
-    # Wrong Y halfword.
-    'y_off': ('*(s16*)(pPlayer + 0x6)', '*(s16*)(pPlayer + 0x4)'),
-    # Flip the preserved camera-relative gate.
-    'camera_flip': ('if (cameraRelative != 0) {', 'if (cameraRelative == 0) {'),
-    # Drop native host-pointer support in the player lookup.
-    'host_ptr': ('return (u8*)PSX_ADDR(address);\n    }\n'
-                 '    return (u8*)(uintptr_t)address;',
-                 'return (u8*)PSX_ADDR(address);\n    }\n'
-                 '    return (u8*)PSX_ADDR(address);'),
+    'height_off': (anchor, 'case 2: height = spriteDataHalf(source + 0x38)',
+                   'case 2: height = spriteDataHalf(source + 0x36)'),
+    'half': (anchor, 'case 2: height = spriteDataHalf(source + 0x38)',
+             'case 2: height = spriteDataHalf(source + 0x38) / 2u'),
+    'add_height': (anchor, '(unsigned)position.vy - height',
+                   '(unsigned)position.vy + height'),
+    'x_off': (anchor, 'spriteDataHalf(source + 2)', 'spriteDataHalf(source)'),
+    'y_off': (anchor, 'spriteDataHalf(source + 6)', 'spriteDataHalf(source + 4)'),
+    'camera_flip': (anchor, 'if (camera_space)', 'if (!camera_space)'),
+    'host_ptr': (helpers, 'return (u8 *)(uintptr_t)address;',
+                 'return &g_PsxRam[address % 0x200000u];'),
 }
-for name, (old, new) in mutations.items():
-    assert source.count(old) == 1, f'mutant {name}: {source.count(old)} matches'
-    Path(f'pc_port/build_native/sprite_dispatch_bc22_retail_test/{name}.c') \
-        .write_text(source.replace(old, new))
+
+def write_redirected(source, destination, redirects):
+    # Keep untouched includes at their production locations. Change one leaf
+    # in an isolated variant of the original translation unit.
+    def relocate(match):
+        path = (source.parent / match[2]).resolve()
+        return match[1] + str(redirects.get(path, path)) + '"'
+    destination.write_text(re.sub(r'^(\s*#\s*include\s*")([^"\n]+)"',
+                                  relocate, source.read_text(), flags=re.MULTILINE))
+
+for name, (fragment, old, new) in mutations.items():
+    content = fragment.read_text()
+    assert content.count(old) == 1, f'mutant {name}: {content.count(old)} matches'
+    leaf = out / f'{name}.inc'
+    leaf.write_text(content.replace(old, new))
+    variant = out / f'{name}.dispatch.inc'
+    write_redirected(dispatch, variant, {fragment: leaf})
+    write_redirected(unit, out / f'{name}.c', {dispatch: variant})
+
 PY
 for mutant in height_off half add_height x_off y_off camera_flip host_ptr; do
     build_body O2 "$OUT/$mutant.c"

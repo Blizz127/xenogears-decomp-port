@@ -20,6 +20,13 @@
 #include "psyq/libgpu.h"
 #include "psyq/libcd.h"
 
+#ifdef XENO_PC_PORT
+void FieldScriptMemoryWriteU16(s32 address, s32 value);
+void FieldScriptWritePartyMemberIDs(void);
+void func_800A3C8C(void);
+void func_800A476C(int x, int y);
+#endif
+
 extern s32 D_800AFFEC;
 extern s32 D_800AFD1C; // Current actor index
 extern s32 D_800B00C0;
@@ -965,7 +972,8 @@ INCLUDE_ASM("asm/field/nonmatchings/scripts/virtual_machine", FieldScriptMemoryW
  * Address it through a correctly typed alias of the same symbol: indexing an
  * 8-byte object past its end is host UB (UBSan object-size). */
 extern u16 g_FieldScriptMemoryU16[] __asm__("g_FieldScriptMemory");
-void FieldScriptMemoryWriteU16(s32 address, u16 value) {
+void FieldScriptMemoryWriteU16(s32 address, s32 rawValue) {
+    u16 value = (u16)rawValue;
     s32 index = address >> 1;
 
     /* DIAGNOSTIC (port only, logging only): XENO_FIELD_VAR_WATCH=<byte

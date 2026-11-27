@@ -158,12 +158,23 @@ void func_800883AC(u8 a0) {
 #define RETAIL_883AC "asm/battle/nonmatchings/main39/func_800883AC.s"
 #define RETAIL_89C48 "asm/battle/matchings/main41/func_80089C48.s"
 
-/* jtbl_80070250 contents (asm/battle/data/0.rodata.s). */
-static const uint32_t jtblw[12] = {
-    0x8008570Cu, 0x80085908u, 0x8008583Cu, 0x80085954u,
-    0x80085A70u, 0x8008570Cu, 0x80085A70u, 0x8008570Cu,
-    0x8008570Cu, 0x80085908u, 0x800859CCu, 0x80085A18u,
-};
+/* The emulator starts with empty RAM. Reuse the table from the same
+ * extracted battle overlay as the retail code, preserving its byte order. */
+static uint8_t jump_table[12 * sizeof(uint32_t)];
+
+static int read_jump_table(void) {
+    FILE *image = fopen("disc/battle.bin", "rb");
+    if (!image) {
+        perror("disc/battle.bin");
+        return 0;
+    }
+    const long offset = JTBL_BASE - 0x8006FAF0u;
+    int ok = fseek(image, offset, SEEK_SET) == 0 &&
+             fread(jump_table, 1, sizeof(jump_table), image) == sizeof(jump_table);
+    if (fclose(image) != 0) ok = 0;
+    if (!ok) fprintf(stderr, "FAIL reading jump table from disc/battle.bin\n");
+    return ok;
+}
 
 static uint32_t lcg(uint32_t *s) {
     *s = *s * 1103515245u + 12345u;
@@ -281,15 +292,9 @@ static int check_one(remu_t *m, uint32_t entry, uint32_t seed, uint32_t idxw,
         }
         if (remu_poke(m, T48_BASE, p48, T48_LEN)) { printf("FAIL poke t48\n"); return 0; }
     }
-    {
-        u8 jw[48];
-        for (int j = 0; j < 12; j++) {
-            jw[4 * j] = (u8)(jtblw[j] & 0xFFu);
-            jw[4 * j + 1] = (u8)((jtblw[j] >> 8) & 0xFFu);
-            jw[4 * j + 2] = (u8)((jtblw[j] >> 16) & 0xFFu);
-            jw[4 * j + 3] = (u8)((jtblw[j] >> 24) & 0xFFu);
-        }
-        if (remu_poke(m, JTBL_BASE, jw, sizeof(jw))) { printf("FAIL poke jtbl\n"); return 0; }
+    if (remu_poke(m, JTBL_BASE, jump_table, sizeof(jump_table))) {
+        printf("FAIL poke jtbl\n");
+        return 0;
     }
     if (remu_poke(m, S54_BASE, s54, S54_LEN)) { printf("FAIL poke s54\n"); return 0; }
     if (remu_poke(m, S88_BASE, s88, S88_LEN)) { printf("FAIL poke s88\n"); return 0; }
@@ -429,6 +434,7 @@ static int check_one(remu_t *m, uint32_t entry, uint32_t seed, uint32_t idxw,
 }
 
 int main(void) {
+    if (!read_jump_table()) return 1;
     printf("layout 5C=%p 67=%p\n", (void*)D_800D2D5C, (void*)&D_800D2D67);
     if (&D_800D2D67 != &D_800D2D5C[11]) {
         printf("FAIL host layout: D_800D2D67 != D_800D2D5C+11\n");

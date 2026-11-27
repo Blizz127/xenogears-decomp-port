@@ -1,0 +1,137 @@
+/* SPDX-License-Identifier: MIT */
+#ifndef XENO_NATIVE_SOUND_PROVIDER_DECLARATIONS_H
+#define XENO_NATIVE_SOUND_PROVIDER_DECLARATIONS_H
+
+#include "sound_host_abi.h"
+
+void SoundAbortAllVoices(AudioManager *);
+void SoundAbortVoiceOnChannel(SoundVoiceData *, u32);
+void SoundAddAudioManagerToList(AudioManager *);
+void SoundAddSedsEntry(SoundFile *);
+void SoundApplyVolumeSettings(void);
+void SoundAssignVoiceToChannel(SoundVoiceData *, u32);
+void SoundAssignVoiceToChannelAndPlay(SoundVoiceData *, u32);
+void SoundAssignVoiceToChannelAndStop(SoundVoiceData *, u32);
+s32 SoundCalculateAudioManagerSize(s32);
+void SoundCopyAudioManagerData(AudioManager *, AudioManager *);
+void SoundExecuteReverbWorkAreaTransfer(void);
+int SoundFileComputeChecksum(SoundFile *);
+SoundWDSEntry * SoundFindWdsEntry(int);
+void SoundFreeWdsEntry(SoundWDSEntry *);
+void * SoundHeapAllocate(u32);
+void SoundHeapClearBlockMemory(void *, s32);
+void SoundHeapInitialize(void *, unsigned int);
+void SoundHeapSetBlockMemory(void *, void *, int);
+void SoundInitializeAudioManager(AudioManager *);
+void SoundInitiateReverbWorkAreaTransfer(s32, s32);
+void SoundOnTransferCallback(void);
+void SoundProcessTransferCommand(void);
+void SoundQueueSpuReadCommand(u32, void *, u_long, SoundCommandCallback_t);
+void SoundQueueSpuWriteCommand(u32, void *, u_long, SoundCommandCallback_t);
+void SoundQueueTransferCommand(u32, void *, u_long, SoundCommandCallback_t, unsigned short);
+void SoundReleaseAllVoices(AudioManager *);
+void SoundReleaseVoiceFromChannel(SoundVoiceData *, uint);
+s32 SoundRemoveAudioManagerFromList(AudioManager *);
+void SoundReset(void);
+u8 * SoundScriptAddManagerUnk1a(u8 *, AudioManager *, AudioElement *);
+u8 * SoundScriptAddUnk6E(u8 *, AudioManager *, AudioElement *);
+u8 * SoundScriptCallE5BC(u8 *, AudioManager *, AudioElement *);
+u8 * SoundScriptClearActiveFlag800(u8 *, AudioManager *, AudioElement *);
+u8 * SoundScriptClearUnk04Bit1(u8 *, AudioManager *, AudioElement *);
+u8 * SoundScriptClearUnkCEAndF6(u8 *, AudioManager *, AudioElement *);
+u8 * SoundScriptClearUnkCEAndUnk116(u8 *, AudioManager *, AudioElement *);
+u8 * SoundScriptDefaultHandler(u8 *, AudioManager *, AudioElement *);
+u8 * SoundScriptDefaultSkip3(u8 *, AudioManager *, AudioElement *);
+u8 * SoundScriptFermata(u8 *, AudioManager *, AudioElement *);
+u8 * SoundScriptLowerOctave(u8 *, AudioManager *, AudioElement *);
+u8 * SoundScriptNop(u8 *, AudioManager *, AudioElement *);
+u8 * SoundScriptNop2(u8 *, AudioManager *, AudioElement *);
+u8 * SoundScriptNop3(u8 *, AudioManager *, AudioElement *);
+u8 * SoundScriptNop4(u8 *, AudioManager *, AudioElement *);
+u8 * SoundScriptNop5(u8 *, AudioManager *, AudioElement *);
+u8 * SoundScriptPercussionOff(u8 *, AudioManager *, AudioElement *);
+u8 * SoundScriptRaiseOctave(u8 *, AudioManager *, AudioElement *);
+u8 * SoundScriptSaveOctaveAndIP(u8 *, AudioManager *, AudioElement *);
+u8 * SoundScriptSetActiveFlag800(u8 *, AudioManager *, AudioElement *);
+u8 * SoundScriptSetAdsrDRAndSR(u8 *, AudioManager *, AudioElement *);
+u8 * SoundScriptSetAttackMode(u8 *, AudioManager *, AudioElement *);
+u8 * SoundScriptSetAttackTime(u8 *, AudioManager *, AudioElement *);
+u8 * SoundScriptSetDecayTime(u8 *, AudioManager *, AudioElement *);
+u8 * SoundScriptSetManagerUnk1a(u8 *, AudioManager *, AudioElement *);
+u8 * SoundScriptSetOctave(u8 *, AudioManager *, AudioElement *);
+u8 * SoundScriptSetRelease(u8 *, AudioManager *, AudioElement *);
+u8 * SoundScriptSetReleaseMode(u8 *, AudioManager *, AudioElement *);
+u8 * SoundScriptSetSustain(u8 *, AudioManager *, AudioElement *);
+u8 * SoundScriptSetSustainLevel(u8 *, AudioManager *, AudioElement *);
+u8 * SoundScriptSetSustainMode(u8 *, AudioManager *, AudioElement *);
+u8 * SoundScriptSetUnk62(u8 *, AudioManager *, AudioElement *);
+u8 * SoundScriptSetUnk6E(u8 *, AudioManager *, AudioElement *);
+u8 * SoundScriptSetUnk74(u8 *, AudioManager *, AudioElement *);
+u8 * SoundScriptSetUnkCEAndF6(u8 *, AudioManager *, AudioElement *);
+u8 * SoundScriptSetUnkCEAndUnk116(u8 *, AudioManager *, AudioElement *);
+u8 * SoundScriptSetUnkCEAndUnk136(u8 *, AudioManager *, AudioElement *);
+u8 * SoundScriptSetVoiceFlags2000AndMode(u8 *, AudioManager *, AudioElement *);
+u8 * SoundScriptSetVoiceFlags2000ClearMode(u8 *, AudioManager *, AudioElement *);
+u8 * SoundScriptSetVoiceFlags4000ClearMode(u8 *, AudioManager *, AudioElement *);
+u8 * SoundScriptSkip3(u8 *, AudioManager *, AudioElement *);
+u8 * SoundScriptToggleUnk04Bit2(u8 *, AudioManager *, AudioElement *);
+void SoundSetCdAttr(long, long);
+void SoundSetFlagsOnActiveVoices(AudioManager *, s32);
+void SoundSetMasterVolumeWithFade(s32, s32);
+void SoundSetReverbModeWithAllocation(s32, s32, s32, s32);
+void SoundSetReverbVoices(u32);
+void SoundSetSpuIrqCallback(u32);
+void SoundSetVoiceAdsrAttackModeAndRate(s32, s32, s32);
+void SoundSetVoiceAdsrDecayShift(s32, s32);
+void SoundSetVoiceAdsrReleaseShiftAndMode(s32, s32, s32);
+void SoundSetVoiceAdsrSustainLevel(s32, s32);
+void SoundSetVoiceAdsrSustainRateAndDirection(s32, s32, s32);
+void SoundSetVoiceKeyOff(u32);
+void SoundSetVoiceKeyOn(u32);
+void SoundSetVoiceLoopAddress(s32, s32);
+void SoundSetVoicePitch(s32, s32);
+void SoundSetVoiceStartAddress(s32, s32);
+void SoundSetVoiceVolume(s32, s32, s32);
+void SoundSetVolumeWithPhase(s32, SpuVolume *, s32);
+void SoundSpuIRQHandler(void);
+u32 SoundSpuMemoryAllocateWDS(SoundWDSEntry *, int);
+SoundSpuMemoryBlock * SoundSpuMemoryFindBlock(s32);
+int SoundSpuMemoryFreeBlock(int);
+s32 SoundSpuMemoryGetFreeBlock(void);
+void SoundSpuMemoryInitialize(void);
+void SoundStopVoiceOnChannel(SoundVoiceData *, u32);
+void SoundTickInterpolator(AudioInterpolator *);
+int SoundTransferQueueSync(void);
+void SoundUnkDebugNoReturn_8003F4BC(void);
+int SoundValidateFile(SoundFile *, u32, u16);
+void SoundWdsSetTransferParamters(int, int);
+void func_80037F44(void);
+void func_80037F88(void);
+void func_80038624(void);
+void func_8003869C(void);
+int func_80038824(void);
+void func_800388D4(s32);
+void func_8003890C(AudioManager *, s32);
+void func_80039748(int, u_char);
+int func_8003977C(void);
+void func_80039C4C(AudioManager *);
+void func_80039C8C(AudioManager *, s32);
+void func_80039CC4(void);
+void func_80039D24(void);
+void func_80039D2C(s32);
+void func_80039E18(s32);
+void func_80039EC4(s32, s32);
+void func_8003A2D4(void);
+void func_8003A2DC(void);
+void func_8003AFA0(AudioManager *);
+void func_8003BC58(u32, void *, u_long, SoundCommandCallback_t);
+void func_8003BC7C(u32, void *, u_long, SoundCommandCallback_t);
+void func_8003BDF4(void);
+void unk_SoundSetFlagsOnActiveVoices(u16, AudioManager *);
+
+#ifdef _WIN32
+#else
+void SoundSetCdVolumeWithFade(s32, s32);
+#endif
+
+#endif

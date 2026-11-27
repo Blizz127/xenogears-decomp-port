@@ -330,8 +330,8 @@ def check_abi_thunks(wanted: list[str]) -> int:
         if int(m.group(4)) != len(kinds):
             print(f"THUNK {m.group(2)}: argc {m.group(4)} != {len(kinds)} kinds")
             bad += 1
-    if len(declared) != text.count("BG_THUNK("):
-        print("THUNK: an entry does not parse")
+    if len(declared) != text.count("BG_THUNK(") or THUNK_RE.sub("", text).strip():
+        print("THUNK: malformed, repeated or incomplete initializer")
         bad += 1
     for name, (addr, ret, kinds) in declared.items():
         if name not in wanted:

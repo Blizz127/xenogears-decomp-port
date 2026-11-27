@@ -68,6 +68,18 @@ typedef struct PcPortMipsExecutionStats {
     uint64_t unresolved_bridges;
 } PcPortMipsExecutionStats;
 void PcPortMipsExecutionStatsInit(void);
+/* Attach an opcode counter to this thread, including nested CPU runs. NULL
+ * detaches it. Count instructions handed to the decoder after a good fetch. */
+void PcPortMipsSetInstructionCounter(uint64_t *counter);
+/* Hybrid default-on for the tested battle native-host set; call first in
+ * main() (battle_mips_runtime.c). No-op in the native-only build. */
+void BattleMipsApplyNativeHostDefaults(void);
+#ifdef _WIN32
+/* The release verifier runs the actual battle entry's PE symbol resolution
+ * in a fresh game process, before opening a user profile or graphics device. */
+void PcPort_VerifyWindowsBattleBindings(void);
+#endif
+void BattleMipsLogNativeHostMode(void);
 PcPortMipsExecutionStats PcPortMipsExecutionStatsGet(void);
 int PcPortMipsRun(PcPortMipsCpu *cpu, uint32_t entry, uint32_t halt_pc,
                   uint64_t max_steps);

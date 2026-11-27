@@ -80,6 +80,56 @@ static unsigned one_case(BattleMipsRuntime*r,const Case*c)
  }
  return 0;
 }
+typedef void (*TestChildCallback)(void *);
+
+static TestChildCallback expected_callback(uint32_t guest)
+{
+    switch (guest) {
+    case 0: return NULL;
+    case 0x80025258u: return (TestChildCallback)func_80025258;
+    case 0x8002541cu: return func_8002541C;
+    case 0x80025544u: return func_80025544;
+    case 0x80025710u: return func_80025710;
+    case 0x80025718u: return func_80025718;
+    case 0x800257f0u: return func_800257F0;
+    default:
+        fprintf(stderr, "Unknown retail child callback 0x%08x\n", (unsigned)guest);
+        exit(1);
+    }
+}
+
+static void unregistered_callback(void *unused) { (void)unused; }
+
+static unsigned check_bindings(FILE *slus)
+{
+    uint8_t row[16][4];
+    unsigned failures = 0;
+    assert(!fseek(slus, 0x8004fd40u - 0x8000f800u, SEEK_SET));
+    assert(fread(row, sizeof(row[0]), 16, slus) == 16);
+    for (int slot = 0; slot < 16; ++slot) {
+        uint32_t guest = load_le(row[slot], 4);
+        TestChildCallback expected = expected_callback(guest);
+        registered = unregistered_callback;
+        func_80025224(PSX_ADDR(0x80170000), slot);
+        if (registered != expected) {
+            fprintf(stderr, "BATTLE CHILD BILLBOARD binding slot=%d guest=0x%08x failed\n",
+                    slot, (unsigned)guest);
+            ++failures;
+        }
+    }
+    static const int invalid[] = {-1, 16};
+    for (unsigned i = 0; i < sizeof(invalid) / sizeof(invalid[0]); ++i) {
+        registered = unregistered_callback;
+        func_80025224(PSX_ADDR(0x80170000), invalid[i]);
+        if (registered != NULL) {
+            fprintf(stderr, "BATTLE CHILD BILLBOARD invalid slot=%d retained a callback\n",
+                    invalid[i]);
+            ++failures;
+        }
+    }
+    return failures;
+}
+
 int main(void)
 {
  static const Case cases[]={
@@ -104,9 +154,13 @@ int main(void)
   {"flag24-wins-over29",0,0x21000000,0,0,0,99,0,7,1,0},
   {"kseg1-packed-alias",0,0,0,0,0,4,0,1,1,1},
  };
- FILE*f=fopen("disc/SLUS_006.64","rb");assert(f);assert(!fseek(f,0x80025258u-0x8000f800u,SEEK_SET));assert(fread(PSX_ADDR(0x80025258),1,0x1c4,f)==0x1c4);fclose(f);
- initialize_runtime(&g_BattleRuntime);unsigned fail=0;void(*expected[16])(void*)={(void(*)(void*))func_80025258,func_80025710,func_80025718,0,0,(void(*)(void*))func_80025258,(void(*)(void*))func_80025258,func_80025718,func_8002541C,func_80025544,0,0,0,0,(void(*)(void*))func_80025258,(void(*)(void*))func_800257F0};
- for(int i=0;i<16;i++){registered=(void*)1;func_80025224(PSX_ADDR(0x80170000),i);if(registered!=expected[i])fail++;}
+ FILE *slus = fopen("disc/SLUS_006.64", "rb");
+ assert(slus);
+ assert(!fseek(slus, 0x80025258u - 0x8000f800u, SEEK_SET));
+ assert(fread(PSX_ADDR(0x80025258), 1, 0x1c4, slus) == 0x1c4);
+ initialize_runtime(&g_BattleRuntime);
+ unsigned fail = check_bindings(slus);
+ assert(!fclose(slus));
  for(unsigned i=0;i<sizeof cases/sizeof cases[0];i++){unsigned rc=one_case(&g_BattleRuntime,&cases[i]);if(rc){fprintf(stderr,"BATTLE CHILD BILLBOARD case %s failed rc=%u\n",cases[i].name,rc);fail++;}}
  if(fail){fprintf(stderr,"BATTLE CHILD BILLBOARD RED failures=%u\n",fail);return 1;}puts("BATTLE CHILD BILLBOARD PASS bindings, suppression, flags, depths 1..4095, OT byte stride, KSEG aliases");return 0;
 }

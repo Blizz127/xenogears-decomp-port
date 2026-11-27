@@ -89,6 +89,8 @@ for entry in "${SERIES[@]}"; do
     applied=$((applied + 1))
 done
 
+python3 "$ROOT/pc_port/tools/adjust_psycross_port_headers.py" "$REPLAY" || exit 1
+
 echo "==> comparing replay against the live vendor tree"
 diffout="$(diff -rq --exclude=.git "$REPLAY" "$PSX" 2>&1)"
 if [ -n "$diffout" ]; then

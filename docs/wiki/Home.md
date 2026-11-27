@@ -1,6 +1,6 @@
 # Xenogears
 
-This wiki is the guide to the decompilation and the PC port in [Blizz127/xenogears-decomp-ai](https://github.com/Blizz127/xenogears-decomp-ai).
+This wiki is the guide to the decompilation and the PC port in [Blizz127/xenogears-decomp-port](https://github.com/Blizz127/xenogears-decomp-port).
 
 The game is Xenogears for the PlayStation, US release SLUS-00664. The code on `main` is two trees:
 
@@ -30,4 +30,4 @@ The splat layout and the US-disc target come from that starter. The matching wor
 | [Debugging and tracing](Debugging-and-Tracing) | gdb and logging |
 | [Useful commands](Useful-Commands) | Copy-paste commands |
 
-The same completion and port tables are on the [repository README](https://github.com/Blizz127/xenogears-decomp-ai#completion).
+The same completion and port tables are on the [repository README](https://github.com/Blizz127/xenogears-decomp-port#completion).

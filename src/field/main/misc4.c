@@ -14,7 +14,6 @@
  * the matching build; the port resolves these to PsyCross' equivalents. */
 #ifdef XENO_PC_PORT
 #include <psx/inline_c.h>
-#include <psx/gtemac.h>
 /* PsyCross gte_ldsxy3 dereferences its arguments; PSY-Q mtc2's packed SXY
  * values. Route the matching-shape macro onto NormalClip() so the live
  * path does not SEGV. Matching still uses the PSY-Q inline form. */
@@ -29,6 +28,8 @@
 #include <stdint.h> /* uintptr_t for LP64 pointer widening below */
 #include <stdio.h>
 #include <stdlib.h> /* getenv for the env-gated party-pointer diagnostic */
+#include "../../../pc_port/src/retail_data.h"
+extern void FontFree(void);
 #endif
 
 /* Per-frame helper: rand seed, map-load check, angle-step timer. */
@@ -611,7 +612,6 @@ extern void FieldPartyFreeSkinDataBuffers(void);
 extern void FieldPartyAllocateSkinDataBuffers(void);
 extern void GamePartySyncSkinData(void);
 extern void GamePartySyncStreamedData(void);
-extern void FontFree(void);
 extern void FieldSwapRenderContext(void);
 extern void MenuMain(void);
 extern void FieldScriptMemoryWriteU16(int index, int value);
@@ -656,17 +656,13 @@ static void PcPort_MenuVramDigest(const char* tag)
 
     if (!PcPort_MenuPartyDiagArmed())
         return;
-    /* Retail party-page coordinates spelled out, INDEPENDENT of the migrated
-     * D_800ADCB0 (asm/field/data/3DF78.data.s @ 0x3E1C0).  The table-driven
-     * digest below reports whatever the build actually blits; this probe always
-     * reports the real party texture pages, so a build whose table is stubbed
-     * to zero can still be measured at the same place as a build whose table is
-     * correct.  That is what makes the before/after comparison an A/B. */
-    {
-        static const FieldVramCoord kRetailPartyPages[6] = {
-            { 0x0000, 0x00E0 }, { 0x0040, 0x00E0 }, { 0x0080, 0x00E0 },
-            { 0x00C0, 0x00E0 }, { 0x0100, 0x00E0 }, { 0x0100, 0x01E0 },
-        };
+    /* Read the reference coordinates from the verified field image so a change
+     * to the live blit table cannot also change the reference digest. */
+    const XenoRetailFileSlot* field = XenoRetailData_File(XENO_RD_FIELD);
+    const size_t offset = XENO_RD_FIELD_OFF(0x800ADCB0u);
+    FieldVramCoord referencePages[6];
+    if (field && field->size >= offset + sizeof(referencePages)) {
+        memcpy(referencePages, field->bytes + offset, sizeof(referencePages));
 
         for (r = 0; r < 6; r++) {
             unsigned int h = 2166136261u;
@@ -677,8 +673,8 @@ static void PcPort_MenuVramDigest(const char* tag)
                 s32 x;
                 for (x = 0; x < RECT_W; x++) {
                     unsigned short p =
-                        vram[(kRetailPartyPages[r].y + y) * VRAM_W +
-                             kRetailPartyPages[r].x + x];
+                        vram[(referencePages[r].y + y) * VRAM_W +
+                             referencePages[r].x + x];
                     h ^= p;
                     h *= 16777619u;
                     if (p != 0)
@@ -687,8 +683,8 @@ static void PcPort_MenuVramDigest(const char* tag)
             }
             printf("[xeno-port][vram-probe] %-11s page[%d] (%u,%u) fnv=%08x "
                    "nonzero=%d/%d\n",
-                   tag, (int)r, (unsigned)kRetailPartyPages[r].x,
-                   (unsigned)kRetailPartyPages[r].y, h, nonZero,
+                   tag, (int)r, (unsigned)referencePages[r].x,
+                   (unsigned)referencePages[r].y, h, nonZero,
                    RECT_W * RECT_H);
         }
     }
@@ -767,6 +763,8 @@ static void PcPort_MenuPartyDiag(const char* tag)
 #ifndef XENO_PC_PORT
 INCLUDE_ASM("asm/field/nonmatchings/main/misc4", func_800799D4);
 #else
+extern int PcPort_QuickCheckpointLoadStaged(void) __attribute__((weak));
+
 void func_800799D4(void) {
     FieldVramCoord* pFieldRects;
     FieldVramCoord* pBackupRects;
@@ -780,6 +778,7 @@ void func_800799D4(void) {
     s32 i;
     s32 menuId;
     s16* pPresentFlags;
+    unsigned menuArchiveBytes = 0;
 
     if (D_800ADB64 == 0x80 && D_800B21D0[0] != 0) {
         return;
@@ -810,8 +809,9 @@ void func_800799D4(void) {
     /* Preserve the streamed 0x6B9 field archive across the overlay load. */
     if (D_800B2264 != 0) {
         ArchiveSetIndex(0x4, 0);
-        pMenuArchiveBackup = HeapAlloc(ArchiveDecodeAlignedSize(0x6B9), 0);
-        memcpy(pMenuArchiveBackup, D_800ADB20, ArchiveDecodeAlignedSize(0x6B9));
+        menuArchiveBytes = ArchiveDecodeAlignedSize(0x6B9);
+        pMenuArchiveBackup = HeapAlloc(menuArchiveBytes, 0);
+        memcpy(pMenuArchiveBackup, D_800ADB20, menuArchiveBytes);
         HeapFree(D_800ADB20);
     }
 
@@ -937,7 +937,10 @@ void func_800799D4(void) {
     D_80050100 = 2;
 
     /* Post-menu state fixups keyed on the menu return state D_800594D0. */
-    if (D_800594D0 == 0 && (D_800ADB64 & 0x7F) == 2) {
+    const int titleRequest = (D_800ADB64 & 0x7F) == 2;
+    const int stagedLoad = titleRequest && PcPort_QuickCheckpointLoadStaged &&
+                           PcPort_QuickCheckpointLoadStaged();
+    if (!stagedLoad && D_800594D0 == 0 && titleRequest) {
         D_800B02C8 = 1;
         FieldScriptMemoryWriteU16(0x46, 0);
         FieldScriptMemoryWriteU16(4, 4);
@@ -946,7 +949,7 @@ void func_800799D4(void) {
         *(s16*)((u8*)g_pGameState + 0x1932) = 0;
         *(s16*)((u8*)g_pGameState + 0x231A) = 4;
     }
-    if (D_800594D0 == 2) {
+    if (!stagedLoad && D_800594D0 == 2) {
         D_800B02C8 = 1;
         FieldScriptMemoryWriteU16(0x46, 2);
         FieldScriptMemoryWriteU16(4, *(u16*)((u8*)g_pGameState + 0x231A) & 0x3FFF);
@@ -1062,7 +1065,7 @@ void func_800799D4(void) {
          * retail's own D_8004F370 branch and main.c:171. Latent at cold boot
          * (D_800B2264 == 0 in the repro) but the same crash class once maps
          * with streamed archives open a menu. */
-        D_800ADB20 = HeapAlloc(ArchiveDecodeAlignedSize(0x6B9), 1);
+        D_800ADB20 = HeapAlloc(menuArchiveBytes, 1);
 #else
         if (D_8004F370 == 0) {
             D_800ADB20 = HeapAlloc(
@@ -1071,7 +1074,7 @@ void func_800799D4(void) {
             D_800ADB20 = HeapAlloc(ArchiveDecodeAlignedSize(0x6B9), 1);
         }
 #endif
-        memcpy(D_800ADB20, pMenuArchiveBackup, ArchiveDecodeAlignedSize(0x6B9));
+        memcpy(D_800ADB20, pMenuArchiveBackup, menuArchiveBytes);
         HeapFree(pMenuArchiveBackup);
     }
 
@@ -1093,7 +1096,7 @@ void func_800799D4(void) {
         FieldRenderSync();
         D_800ADBEC = 0;
         D_800ADB05 = 1;
-    } else {
+    } else if (!stagedLoad) {
         for (i = 0; i < 3; i++) {
             s32 skin = g_GamePartyMemberSkins[i];
             if (skin != 0xFF) {

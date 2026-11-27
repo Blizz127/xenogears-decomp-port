@@ -5,7 +5,7 @@
 extern void SetPolyFT4(void* p);
 extern void SetSemiTrans(void* p, int abe);
 extern u_short GetClut(int x, int y);
-extern u_short GetTPage(int tp, int abr, int x, int y);
+extern u_short GetTPage(int, int, int, int);
 
 /* Initialise all (count + 1) 124-byte entries of the list at p (+0 entries,
  * +4 s16 count): +0x16 = -1, +0x1E = 0, and for both double-buffered

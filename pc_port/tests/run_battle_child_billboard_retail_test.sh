@@ -24,9 +24,13 @@ def fn(src,sig):
     depth += (src[i]=='{')-(src[i]=='}')
     if depth==0:return src[s:i+1]
   start=s+len(sig)
-table=overrides[overrides.index('static void (*const D_8004FD40'):overrides.index('\n};',overrides.index('static void (*const D_8004FD40'))+3]
+begin = '/* Child render callback dispatch. */'
+end = '/* End child render callback dispatch. */'
+assert overrides.count(begin) == overrides.count(end) == 1
+start = overrides.index(begin)
+dispatch = overrides[start:overrides.index(end, start) + len(end)]
 p='''#include <stdint.h>\n#include <stdio.h>\ntypedef uint8_t u8;typedef uint16_t u16;typedef int16_t s16;typedef uint32_t u32;typedef int32_t s32;typedef unsigned long u_long;\ntypedef struct {s16 vx,vy,vz,pad;} SVECTOR;typedef struct {s32 vx,vy,vz,pad;} VECTOR;typedef struct {s16 m[3][3];s32 t[3];} MATRIX;\n#include "psx_memory.h"\nextern u8 D_800C3664;extern s32 D_80050100;extern MATRIX D_8004FBB8;extern u_long *g_GfxCurOT;\nextern void SetRotMatrix(MATRIX*);extern void SetTransMatrix(MATRIX*);extern int RotTransPers(SVECTOR*,int*,long*,long*);extern MATRIX* TransMatrix(MATRIX*,VECTOR*);extern void func_80022038(void*);extern void func_8001E3D8(void*,void*);extern void func_8001E298(void*,void*);\nextern void func_80025710(void*),func_80025718(void*),func_8002541C(void*),func_80025544(void*),func_800257F0(void*);extern void WorkListSetTaskCallback(void*,void(*)(void*));\n'''
-p+=fn(temp,'static u8* SpriteRenderAddress(')+'\n'+fn(temp,'void func_80025258(')+'\n'+table+'\n'+fn(overrides,'void func_80025224(')+'\n'
+p+=fn(temp,'static u8* SpriteRenderAddress(')+'\n'+fn(temp,'void func_80025258(')+'\n'+dispatch+'\n'
 (out/'production.c').write_text(p)
 (out/'mutant-packed64.c').write_text(p.replace('SpriteRenderAddress(*(u32*)(pEntry + 0x04))','*(u8**)(pEntry + 0x04)'))
 (out/'mutant-gte-reversed.c').write_text(p.replace('if (flg & 0x8000)', 'if (!(flg & 0x8000))'))
@@ -34,17 +38,18 @@ p+=fn(temp,'static u8* SpriteRenderAddress(')+'\n'+fn(temp,'void func_80025258('
 (out/'mutant-stale-flags.c').write_text(p.replace('(*(u32*)(pSprite + 0x3C) & 0x02000000u)', '(flags3C & 0x02000000u)'))
 (out/'mutant-no-normal.c').write_text(p.replace('if ((u32)depth - 1u < 0xFFFu) {\n            func_8001E298', 'if (((flags3C >> 29) & 1) && (u32)depth - 1u < 0xFFFu) {\n            func_8001E298'))
 (out/'mutant-ot-stride.c').write_text(p.replace('((u32)depth << 2)', '((u32)depth << 5)'))
-q=p
-for line in ['(void (*)(void*))func_80025258, /* 0: billboard */','(void (*)(void*))func_80025258, /* 5: billboard */','(void (*)(void*))func_80025258, /* 6: billboard */','(void (*)(void*))func_80025258, /* 14: billboard */']:
- q=q.replace(line,'NULL, /* mutant missing billboard */')
-(out/'mutant-bindings.c').write_text(q)
-retail=Path('disc/SLUS_006.64').read_bytes()[0x80025258-0x8000f800:0x8002541c-0x8000f800]
+binding = 'case 0x80025258u: return (ChildRenderCallback)func_80025258;'
+assert p.count(binding) == 1
+(out/'mutant-bindings.c').write_text(p.replace(binding, 'case 0x80025258u: return NULL;'))
+disc = Path('disc/SLUS_006.64').read_bytes()
+assert sha256(disc).hexdigest() == 'dc0b2dd786203d4cce5927c5a3fc85a18f39a3f7406078860076ebb0bbae7119'
+retail = disc[0x80025258-0x8000f800:0x8002541c-0x8000f800]
 assert sha256(retail).hexdigest()=='d78069fc2f793a0e19306def3c307454192f0fd3eab8c53a7f95d24acb992737'
-files=['src/slus_006.64/system/temp1e.c','pc_port/src/game_overrides.c','pc_port/src/battle_mips_runtime.c','pc_port/src/battle_mips_adapter.c','tools/scripts/gen_battle_bridge_map.py','config/symbol_addrs.slus_006.64.txt','linker/undefined_funcs_auto.battle.txt','linker/undefined_syms_auto.battle.txt','config/symbol_addrs.battle.txt','pc_port/tests/battle_child_billboard_retail_test.c','pc_port/tests/run_battle_child_billboard_retail_test.sh']
-proof={'retail_80025258_8002541c_sha256':sha256(retail).hexdigest(),'source_sha256':{x:sha256(Path(x).read_bytes()).hexdigest() for x in files},'generated_map_sha256':sha256((out/'battle_bridge_map.inc').read_bytes()).hexdigest(),'verbatim_fixture_sha256':sha256(p.encode()).hexdigest(),'controlled_leaves':['SetRotMatrix','SetTransMatrix','RotTransPers','TransMatrix','func_80022038','func_8001E3D8','func_8001E298']}
+files=['pc_port/src/retail_data.h','pc_port/include_shim/host_only_bss.h','src/slus_006.64/system/temp1e.c','pc_port/src/game_overrides.c','pc_port/src/battle_mips_runtime.c','pc_port/src/battle_mips_adapter.c','tools/scripts/gen_battle_bridge_map.py','config/symbol_addrs.slus_006.64.txt','linker/undefined_funcs_auto.battle.txt','linker/undefined_syms_auto.battle.txt','config/symbol_addrs.battle.txt','pc_port/tests/battle_child_billboard_retail_test.c','pc_port/tests/run_battle_child_billboard_retail_test.sh']
+proof={'retail_slus_sha256':sha256(disc).hexdigest(),'retail_80025258_8002541c_sha256':sha256(retail).hexdigest(),'source_sha256':{x:sha256(Path(x).read_bytes()).hexdigest() for x in files},'generated_map_sha256':sha256((out/'battle_bridge_map.inc').read_bytes()).hexdigest(),'verbatim_fixture_sha256':sha256(p.encode()).hexdigest(),'controlled_leaves':['SetRotMatrix','SetTransMatrix','RotTransPers','TransMatrix','func_80022038','func_8001E3D8','func_8001E298']}
 (out/'provenance.json').write_text(json.dumps(proof,indent=2)+'\n')
 PY
-common=(-std=gnu17 -fno-pie -DXENO_PC_PORT -DSKIP_ASM -D_LANGUAGE_C -include assert.h -Ipc_port/include_shim -Iinclude -Ipc_port/src -I"$OUT" -Ipc_port/extern/PsyCross/include -Ipc_port/extern/PsyCross/include/psx -O0 -Wall -Wextra -Werror)
+common=(-std=gnu17 -fno-pie -DXENO_PC_PORT -DSKIP_ASM -D_LANGUAGE_C -include assert.h -Ipc_port/include_shim -Iinclude -Ipc_port/src -I"$OUT" -Ipc_port/extern/PsyCross/include -Ipc_port/extern/PsyCross/include/psx -Ipc_port/extern/PsyCross/src -O0 -Wall -Wextra -Werror)
 build_positive() {
  local mode=$1 opt=$2 sanitize=$3
  clang "${common[@]}" "$opt" $sanitize -c pc_port/tests/battle_child_billboard_retail_test.c -o "$OUT/test-$mode.o"

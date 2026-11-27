@@ -1,5 +1,5 @@
 /* Differential test: host-compiled src/battle/main14.c func_80079ED8
- * vs the retail bytes (asm/battle/nonmatchings/main14/func_80079ED8.s)
+ * vs the retail bytes (read from the caller's own battle.bin)
  * executed by remu. Fails on any behavioral mismatch.
  *
  * func_80079ED8(a0, a1, a2, a3): jump-table dispatch on (a1 & 0xFF)
@@ -16,6 +16,7 @@
  * slice per call.
  *
  * Build (from repo root):
+ *   # Supply disc/battle.bin or set XENO_BATTLE_FILE to your own extraction.
  *   tools/remu/run_diff.sh diff_80079ED8 src/battle/main14.c
  */
 #include <stdio.h>
@@ -29,19 +30,8 @@
 #include "common.h"
 u8 func_80079ED8(u8 a0, u8 a1, u8 a2, u8 a3);
 
-#define RETAIL_S "asm/battle/nonmatchings/main14/func_80079ED8.s"
 #define JTBL_BASE 0x8006FB7Cu
 #define JTBL_LEN 96u
-/* jtbl_8006FB7C (asm/battle/data/0.rodata.s): 24 identity-ordered case
- * addresses, each case block 9 insns (0x24 bytes) from 0x80079F00. */
-static const uint32_t jtbl[24] = {
-    0x80079F00u, 0x80079F24u, 0x80079F48u, 0x80079F6Cu,
-    0x80079F90u, 0x80079FB4u, 0x80079FD8u, 0x80079FFCu,
-    0x8007A020u, 0x8007A044u, 0x8007A068u, 0x8007A08Cu,
-    0x8007A0B0u, 0x8007A0D4u, 0x8007A0F8u, 0x8007A11Cu,
-    0x8007A140u, 0x8007A164u, 0x8007A188u, 0x8007A1ACu,
-    0x8007A1D0u, 0x8007A1F4u, 0x8007A218u, 0x8007A23Cu,
-};
 #define MIN_BASE 0x800CCCECu
 #define SPAN_OFF 0x13Eu /* max base - min base: 0x800CCE2A - 0x800CCCEC */
 #define REACH (368u * 255u + 1u)
@@ -57,40 +47,8 @@ static const uint32_t rbase[24] = {
     0x800CCD9Eu, 0x800CCE28u, 0x800CCE29u, 0x800CCE2Au,
 };
 
-/* TU externs the test must provide (one reach-sized array per base). */
-u8 D_800CCCEC[REACH];
-u8 D_800CCD3E[REACH];
-u8 D_800CCDC8[REACH];
-u8 D_800CCDCB[REACH];
-u8 D_800CCD40[REACH];
-u8 D_800CCD41[REACH];
-u8 D_800CCD42[REACH];
-u8 D_800CCD15[REACH];
-u8 D_800CCD45[REACH];
-u8 D_800CCD43[REACH];
-u8 D_800CCD44[REACH];
-u8 D_800CCD46[REACH];
-u8 D_800CCD47[REACH];
-u8 D_800CCD48[REACH];
-u8 D_800CCD49[REACH];
-u8 D_800CCD4C[REACH];
-u8 D_800CCD4D[REACH];
-u8 D_800CCD4E[REACH];
-u8 D_800CCD4F[REACH];
-u8 D_800CCE24[REACH];
-u8 D_800CCD9E[REACH];
-u8 D_800CCE28[REACH];
-u8 D_800CCE29[REACH];
-u8 D_800CCE2A[REACH];
-
-static u8 *hbase[24] = {
-    D_800CCCEC, D_800CCD3E, D_800CCDC8, D_800CCDCB,
-    D_800CCD40, D_800CCD41, D_800CCD42, D_800CCD15,
-    D_800CCD45, D_800CCD43, D_800CCD44, D_800CCD46,
-    D_800CCD47, D_800CCD48, D_800CCD49, D_800CCD4C,
-    D_800CCD4D, D_800CCD4E, D_800CCD4F, D_800CCE24,
-    D_800CCD9E, D_800CCE28, D_800CCE29, D_800CCE2A,
-};
+/* Backing storage used by the production battle guest aliases. */
+__attribute__((aligned(16))) u8 g_PsxRam[PSX_RAM_SIZE];
 
 static uint32_t lcg(uint32_t *s) {
     *s = *s * 1103515245u + 12345u;
@@ -106,8 +64,9 @@ static int check_one(remu_t *m, uint32_t entry, uint32_t seed,
     uint32_t row = a0 & 0xFFu;
     uint32_t off = row * 368u;
 
+    u8 *host_base = PSX_ADDR(rbase[idx]);
     /* host side: mirror the touched base's slice */
-    memcpy(hbase[idx], span + (rbase[idx] - MIN_BASE), REACH);
+    memcpy(host_base, span + (rbase[idx] - MIN_BASE), REACH);
     /* retail side: the whole overlapping span at once */
     if (remu_poke(m, MIN_BASE, span, SPAN_LEN)) { printf("FAIL poke\n"); return 0; }
 
@@ -174,9 +133,9 @@ static int check_one(remu_t *m, uint32_t entry, uint32_t seed,
         /* host mirror slice must show the same single-byte change */
         for (uint32_t k = 0; k < REACH; k++) {
             u8 wantk = (k == off) ? hwant : span[(rbase[idx] - MIN_BASE) + k];
-            if (hbase[idx][k] != wantk) {
+            if (host_base[k] != wantk) {
                 printf("FAIL seed=%08X host slice @%u got=%02X want=%02X\n",
-                       seed, k, hbase[idx][k], wantk);
+                       seed, k, host_base[k], wantk);
                 return 0;
             }
         }
@@ -187,18 +146,11 @@ static int check_one(remu_t *m, uint32_t entry, uint32_t seed,
 int main(void) {
     remu_t *m = remu_create();
     if (!m) { printf("FAIL create\n"); return 1; }
-    uint32_t entry = remu_load_s(m, RETAIL_S);
-    if (entry != 0x80079ED8u) { printf("FAIL load entry=%08X\n", entry); return 1; }
-    /* the dispatch reads jtbl_8006FB7C (rodata, not part of the .s) */
-    {
-        u8 jb[JTBL_LEN];
-        for (int i = 0; i < 24; i++) {
-            jb[4 * i] = (u8)(jtbl[i] & 0xFFu);
-            jb[4 * i + 1] = (u8)((jtbl[i] >> 8) & 0xFFu);
-            jb[4 * i + 2] = (u8)((jtbl[i] >> 16) & 0xFFu);
-            jb[4 * i + 3] = (u8)((jtbl[i] >> 24) & 0xFFu);
-        }
-        if (remu_poke(m, JTBL_BASE, jb, JTBL_LEN)) { printf("FAIL poke jtbl\n"); return 1; }
+    const uint32_t entry = 0x80079ED8u;
+    if (remu_load_battle_slice(m, entry, 936u, 1) ||
+        remu_load_battle_slice(m, JTBL_BASE, JTBL_LEN, 0)) {
+        fputs("FAIL loading owned battle function or dispatch table\n", stderr);
+        return 1;
     }
 
     int n = 0;

@@ -1,4 +1,5 @@
 #define _GNU_SOURCE
+#define XENO_BATTLE_SHARED_DATA_OWNER 1
 
 #include "god_mode.h"
 /* Host hooks: weak so the tests that #include/link this runtime without the
@@ -23,9 +24,18 @@ void PcPort_BattleResultsTraceBeforeGuest(PcPortMipsCpu*, uint32_t);
 #include "psyq/libgpu.h"
 #include "psyq/libgte.h"
 #include "PsyX/PsyX_public.h"
-#include "../extern/PsyCross/src/gpu/PsyX_GPU.h"
+#include "gpu/PsyX_GPU.h"
 
+#ifdef _WIN32
+#include "battle_win32_host.h"
+#define RTLD_DEFAULT ((void *)0)
+static void *dlsym(void *scope, const char *name)
+{
+    return scope == RTLD_DEFAULT ? PcPort_Win32MainImageSymbol(name) : NULL;
+}
+#else
 #include <dlfcn.h>
+#endif
 #if defined(__linux__)
 #include <link.h>
 #include <pthread.h>
@@ -63,6 +73,7 @@ typedef struct PcPortBattleSymbol {
     const char *name;
 } PcPortBattleSymbol;
 
+#include "host_only_bss.h"
 #include "battle_bridge_map.inc"
 
 typedef struct ResolvedFunction {
@@ -216,6 +227,9 @@ static uint32_t inferred_data_size(size_t index)
 
 static void load_host_ranges(BattleMipsRuntime *runtime)
 {
+#ifdef _WIN32
+    (void)runtime;
+#else
     FILE *maps = fopen("/proc/self/maps", "r");
     char line[512];
 
@@ -238,11 +252,16 @@ static void load_host_ranges(BattleMipsRuntime *runtime)
         range->writable = perms[1] == 'w';
     }
     fclose(maps);
+#endif
 }
 
 static int host_address_valid(BattleMipsRuntime *runtime, uintptr_t address,
                               unsigned width, int write)
 {
+#ifdef _WIN32
+    (void)runtime;
+    return PcPort_Win32HostAddressValid(address, width, write);
+#else
     size_t i;
     for (i = 0; i < runtime->host_range_count; i++) {
         const HostRange *range = &runtime->host_ranges[i];
@@ -252,6 +271,7 @@ static int host_address_valid(BattleMipsRuntime *runtime, uintptr_t address,
             return 1;
     }
     return 0;
+#endif
 }
 
 /* These four scalar renderer globals are missing from the generated map.
@@ -388,6 +408,17 @@ static void runtime_binding_size_guard(BattleMipsRuntime *runtime)
         fprintf(stderr, "[xeno-port][battle-bindings] checked=%u clamped=%u not-exported=%u\n",
                 checked, oversized, unknown);
 }
+#elif defined(_WIN32)
+static void runtime_binding_size_guard(BattleMipsRuntime *runtime)
+{
+    for (size_t i = 0; i < runtime->data_count; ++i) {
+        ResolvedData *data = &runtime->data[i];
+        if (!data->name || PcPort_Win32MainImageSymbol(data->name) != data->host)
+            continue;
+        size_t bytes = PcPort_Win32DataSymbolSize(data->name);
+        if (bytes && bytes < data->size) data->size = (uint32_t)bytes;
+    }
+}
 #else
 /* dladdr1 and ELF symbol sizes are glibc/Linux; elsewhere bindings keep their
  * inferred sizes (pc_port/tests/check_battle_binding_sizes.py still checks). */
@@ -413,7 +444,7 @@ static void initialize_runtime(BattleMipsRuntime *runtime)
     memset(runtime->call_cache, 0, sizeof(runtime->call_cache));
 
     for (i = 0; i < g_BattleBridgeSymbolCount; i++) {
-        const PcPortBattleSymbol *symbol = &g_BattleBridgeSymbols[i];
+        const __typeof__(g_BattleBridgeSymbols[0]) *symbol = &g_BattleBridgeSymbols[i];
         void *host;
 
         /* Overlay-owned code and data must stay in the loaded retail image,
@@ -587,7 +618,7 @@ static uint8_t *runtime_shared_lookup(void *context, uint32_t canonical,
 }
 
 /* The same lookup for native battle bodies (bg_ptr/GPTR): the active battle's
- * runtime, or none.  Declared weak in battle_guest_resolver.h. */
+ * runtime, or none. The PE definition owns the optional consumer symbol. */
 uint8_t *PcPort_BattleSharedData(void *context, uint32_t canonical,
                                  unsigned width)
 {
@@ -2144,1246 +2175,13 @@ static BridgeCallCacheSlot *bridge_cache_slot(BattleMipsRuntime *runtime,
     }
 }
 
-static int battle_entry_try_host(BattleMipsRuntime *runtime, PcPortMipsCpu *cpu,
-                                  uint32_t target);
-static int battle_startup_try_host(BattleMipsRuntime *runtime, PcPortMipsCpu *cpu,
-                                    uint32_t target);
-static int battle_display_try_host(BattleMipsRuntime *runtime, PcPortMipsCpu *cpu,
-                                    uint32_t target);
-static int battle_transition_try_host(BattleMipsRuntime *runtime, PcPortMipsCpu *cpu,
-                                       uint32_t target);
-static int battle_shard_setup_try_host(BattleMipsRuntime *runtime, PcPortMipsCpu *cpu,
-                                        uint32_t target);
-static int battle_module_setup_try_host(BattleMipsRuntime *runtime, PcPortMipsCpu *cpu,
-                                         uint32_t target);
-static int battle_module_stage1_try_host(BattleMipsRuntime *runtime, PcPortMipsCpu *cpu,
-                                          uint32_t target);
-static int battle_module_stage2_try_host(BattleMipsRuntime *runtime, PcPortMipsCpu *cpu,
-                                          uint32_t target);
-static int battle_module_stage3_try_host(BattleMipsRuntime *runtime, PcPortMipsCpu *cpu,
-                                          uint32_t target);
-static int battle_text_allocation_try_host(BattleMipsRuntime *runtime, PcPortMipsCpu *cpu,
-                                           uint32_t target);
-static int battle_effect_reset_try_host(BattleMipsRuntime *runtime, PcPortMipsCpu *cpu,
-                                        uint32_t target);
-static int battle_actor_create_try_host(BattleMipsRuntime *runtime, PcPortMipsCpu *cpu,
-                                        uint32_t target);
-static int battle_actor_records_try_host(BattleMipsRuntime *runtime, PcPortMipsCpu *cpu,
-                                         uint32_t target);
-static int battle_model_list_try_host(BattleMipsRuntime *runtime, PcPortMipsCpu *cpu,
-                                      uint32_t target);
-static int battle_model_packets_target(uint32_t target);
-static int battle_model_packets_callback(uint32_t target);
-static int battle_model_packets_try_host(BattleMipsRuntime *runtime,PcPortMipsCpu *cpu,uint32_t target);
-static int battle_model_lighting_target(uint32_t target,uint32_t caller);
-static int battle_model_lighting_try_host(BattleMipsRuntime *runtime,PcPortMipsCpu *cpu,uint32_t target);
-static int battle_model_nodes_try_host(BattleMipsRuntime *runtime, PcPortMipsCpu *cpu,
-                                       uint32_t target);
-static int battle_model_release_try_host(BattleMipsRuntime *runtime, PcPortMipsCpu *cpu,
-                                         uint32_t target);
-static int battle_motion_track_try_host(BattleMipsRuntime *runtime,PcPortMipsCpu *cpu,uint32_t target);
-static int battle_motion_slot_try_host(BattleMipsRuntime *runtime,PcPortMipsCpu *cpu,uint32_t target);
-static int battle_motion_triple_try_host(BattleMipsRuntime *runtime,PcPortMipsCpu *cpu,uint32_t target);
-static int battle_target_selector_try_host(BattleMipsRuntime *runtime,PcPortMipsCpu *cpu,uint32_t target);
-static int battle_rotation_retarget_try_host(BattleMipsRuntime *runtime,PcPortMipsCpu *cpu,uint32_t target);
-static int battle_animation_start_try_host(BattleMipsRuntime *runtime,PcPortMipsCpu *cpu,uint32_t target);
-static int battle_animation_stream_try_host(BattleMipsRuntime *runtime,PcPortMipsCpu *cpu,uint32_t target);
-static int battle_effect_sprite_try_host(BattleMipsRuntime *runtime,PcPortMipsCpu *cpu,uint32_t target);
-static int battle_effect_sprite_parent_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_effect_sprite_tasks_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_effect_sprite_tasks_target(uint32_t,uint32_t);
-static int battle_resource_init_try_host(BattleMipsRuntime *runtime, PcPortMipsCpu *cpu,
-                                         uint32_t target);
-static int battle_resource_bounds_try_host(BattleMipsRuntime *runtime,PcPortMipsCpu *cpu,uint32_t target);
-static int battle_resource_bind_try_host(BattleMipsRuntime *runtime,PcPortMipsCpu *cpu,uint32_t target);
-static int battle_status_scan_try_host(BattleMipsRuntime *runtime,PcPortMipsCpu *cpu,uint32_t target);
-static int battle_post_resource_target(uint32_t target);
-static int battle_post_resource_try_host(BattleMipsRuntime *runtime,PcPortMipsCpu *cpu,uint32_t target);
-static int battle_timer_task_try_host(BattleMipsRuntime *runtime,PcPortMipsCpu *cpu,uint32_t target);
-static int battle_vram_setup_try_host(BattleMipsRuntime *runtime,PcPortMipsCpu *cpu,uint32_t target);
-static int battle_target_camera_target(uint32_t target);
-static int battle_target_camera_try_host(BattleMipsRuntime *runtime,PcPortMipsCpu *cpu,uint32_t target);
-static int battle_frame_target(uint32_t target);
-static int battle_frame_try_host(BattleMipsRuntime *runtime,PcPortMipsCpu *cpu,uint32_t target);
-static int battle_camera_update_target(uint32_t target);
-static int battle_camera_update_try_host(BattleMipsRuntime *runtime,PcPortMipsCpu *cpu,uint32_t target);
-static int battle_effects_render_target(uint32_t target);
-static int battle_effects_render_try_host(BattleMipsRuntime *runtime,PcPortMipsCpu *cpu,uint32_t target);
-static int battle_palette_update_target(uint32_t target);
-static int battle_palette_update_try_host(BattleMipsRuntime *runtime,PcPortMipsCpu *cpu,uint32_t target);
-static int battle_effect_models_target(uint32_t target);
-static int battle_effect_models_try_host(BattleMipsRuntime *runtime,PcPortMipsCpu *cpu,uint32_t target);
-static int battle_packet_render_target(uint32_t target);
-static int battle_packet_render_try_host(BattleMipsRuntime *runtime,PcPortMipsCpu *cpu,uint32_t target);
-static int battle_model_unrelocate_try_host(BattleMipsRuntime *runtime,PcPortMipsCpu *cpu,uint32_t target);
-static int battle_triangle_walkers_target(uint32_t target);
-static int battle_triangle_walkers_try_host(BattleMipsRuntime *runtime,PcPortMipsCpu *cpu,uint32_t target);
-static int battle_quad_walkers_target(uint32_t target);
-static int battle_quad_walkers_try_host(BattleMipsRuntime *runtime,PcPortMipsCpu *cpu,uint32_t target);
-static int battle_triangle_max_target(uint32_t target);
-static int battle_triangle_max_try_host(BattleMipsRuntime *runtime,PcPortMipsCpu *cpu,uint32_t target);
-static int battle_quad_max_target(uint32_t target);
-static int battle_quad_max_try_host(BattleMipsRuntime *runtime,PcPortMipsCpu *cpu,uint32_t target);
-static int battle_triangle_min_target(uint32_t target);
-static int battle_triangle_min_try_host(BattleMipsRuntime *runtime,PcPortMipsCpu *cpu,uint32_t target);
-static int battle_quad_min_target(uint32_t target);
-static int battle_quad_min_try_host(BattleMipsRuntime *runtime,PcPortMipsCpu *cpu,uint32_t target);
-static int battle_lit_ft_target(uint32_t target);
-static int battle_lit_ft_try_host(BattleMipsRuntime *runtime,PcPortMipsCpu *cpu,uint32_t target);
-static int battle_vector_normal_s_try_host(BattleMipsRuntime *runtime,PcPortMipsCpu *cpu,uint32_t target);
-static int battle_rot_matrix_yxz_try_host(BattleMipsRuntime *runtime,PcPortMipsCpu *cpu,uint32_t target);
-static int battle_effect_grid_try_host(BattleMipsRuntime *runtime,PcPortMipsCpu *cpu,uint32_t target);
-static int battle_color_scale_try_host(BattleMipsRuntime *runtime,PcPortMipsCpu *cpu,uint32_t target);
-static int battle_actor_update_try_host(BattleMipsRuntime *runtime,PcPortMipsCpu *cpu,uint32_t target);
-static int battle_callback_selector_try_host(BattleMipsRuntime *runtime,PcPortMipsCpu *cpu,uint32_t target);
-static int popup_transmatrix_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_effect_constructor_try_host(BattleMipsRuntime *runtime,PcPortMipsCpu *cpu,uint32_t target);
-static int battle_anchor_update_try_host(BattleMipsRuntime *runtime,PcPortMipsCpu *cpu,uint32_t target);
-static int battle_effect_list_try_host(BattleMipsRuntime *runtime,PcPortMipsCpu *cpu,uint32_t target);
-static int battle_fade_draw_try_host(BattleMipsRuntime *runtime,PcPortMipsCpu *cpu,uint32_t target);
-static int battle_fade_draw_sdk_target(uint32_t target,uint32_t caller);
-static int battle_fade_draw_sdk_try_host(BattleMipsRuntime *runtime,PcPortMipsCpu *cpu,uint32_t target);
-static int battle_startup_resources_try_host(BattleMipsRuntime *runtime,PcPortMipsCpu *cpu,uint32_t target);
-static int battle_startup_actors_try_host(BattleMipsRuntime *runtime,PcPortMipsCpu *cpu,uint32_t target);
-static int battle_module_0c4_lift_try_host(BattleMipsRuntime *runtime,PcPortMipsCpu *cpu,uint32_t target);
-static int battle_startup_actors_unconverted(uint32_t target,uint32_t return_pc);
-static int battle_panel_packets_target(uint32_t,uint32_t);
-static int battle_panel_packets_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_line_display_target(uint32_t,uint32_t);
-static int battle_line_display_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_status_packets_target(uint32_t,uint32_t);
-static int battle_status_packets_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_window_render_target(uint32_t,uint32_t);
-static int battle_window_render_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_optional_strips_target(uint32_t,uint32_t);
-static int battle_optional_strips_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_hud_strips_target(uint32_t,uint32_t);
-static int battle_hud_strips_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_primitive_style_target(uint32_t,uint32_t);
-static int battle_primitive_style_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_party_hud_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_party_hud_unconverted(uint32_t,uint32_t);
-static int battle_window_open_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_window_open_unconverted(uint32_t,uint32_t);
-static int battle_phase_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_phase_unconverted(uint32_t,uint32_t);
-static int battle_target_process_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_target_process_unconverted(uint32_t,uint32_t);
-static int battle_number_draw_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_number_draw_unconverted(uint32_t,uint32_t);
-static int battle_digits_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_hud_values_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_label_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_label_unconverted(uint32_t,uint32_t);
-static int battle_gauge_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_gauge_refresh_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_popup_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_hud_submit_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_optional_panel_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_window_strips_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_panel_inactive_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_indicator_inactive_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_inactive_status_timer_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_command_menu_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_attack_ring_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_target_mask_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_actor_clear_flag_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_menu_reset_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_inactive_free_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_active_free_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_menu_free_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_menu_fade_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_menu_empty_fade_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int fade_nonempty_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int one_glyph_context_bridge(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int one_glyph_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int many_glyph_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int seven_glyph_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int six_glyph_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int five_glyph_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int four_mapped_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int four_one_mapped_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int four_glyph_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int three_mappings_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int three_second_third_mapped_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int three_first_second_mapped_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int three_first_third_mapped_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int two_mappings_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int third_mapped_glyph_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int second_mapped_three_glyph_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int second_mapped_glyph_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int three_mapped_glyph_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int two_mapped_glyph_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int three_glyph_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int two_mixed_glyph_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int two_zero_glyph_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int mapped_glyph_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int missing_mapped_glyph_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int nonfade_empty_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int nonfade_no_glyph_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int nonfade_glyph_prefix_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int zero_glyph_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int zero_glyph_scoped_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_inactive_state_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_active_state_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_small_cursor_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_cursor_layout_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_empty_menu_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_menu_alloc_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_menu_sound_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_popup_highlight_prefix_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_popup_task_prefix_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_popup_lookup_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_popup_create_prefix_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_popup_pair_prefix_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_popup_frame_size_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_popup_record_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_popup_copy_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_popup_sprite_noop_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_popup_gfx_queue_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_popup_timer_remove_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_popup_pinned_free_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_color_work_remove_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_popup_unlinked_work_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_popup_unlinked_timer_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_popup_unrelated_unlink_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_popup_one_null_unlink_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_menu_sprite_active_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_popup_trig_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_sound_disabled_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_sound_enabled_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_sound_missing_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_sound_match_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_wds_lookup_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_sound_prefix_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_frame_geometry_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_frame_sprite_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_atlas_render_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_pushmatrix_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_scale_matrix_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_rot_matrix_z_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_geom_control_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_set_matrix_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_atlas_gpu_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_popmatrix_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_rottranspers4_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_startup_queue_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_startup_queue_service_target(uint32_t,uint32_t);
-static int battle_startup_queue_service_try_host(BattleMipsRuntime *,PcPortMipsCpu *,uint32_t);
-static int battle_startup_resources_service_target(uint32_t target,uint32_t caller);
-static int battle_startup_resources_service_try_host(BattleMipsRuntime *runtime,PcPortMipsCpu *cpu,uint32_t target);
-static int battle_color_fade_target(uint32_t target);
-static int battle_color_fade_try_host(BattleMipsRuntime *runtime,PcPortMipsCpu *cpu,uint32_t target);
-static int battle_motion_queue_try_host(BattleMipsRuntime *runtime,PcPortMipsCpu *cpu,uint32_t target);
-static int battle_glyphs_try_host(BattleMipsRuntime *runtime, PcPortMipsCpu *cpu,
-                                uint32_t target);
-static int battle_party_stats_try_host(BattleMipsRuntime *runtime, PcPortMipsCpu *cpu,
-                                        uint32_t target);
-static int battle_turn_speed_try_host(BattleMipsRuntime *runtime, PcPortMipsCpu *cpu,
-                                       uint32_t target);
-static int battle_target_list_try_host(BattleMipsRuntime *runtime, PcPortMipsCpu *cpu,
-                                      uint32_t target);
-static int battle_texture_try_host(BattleMipsRuntime *runtime, PcPortMipsCpu *cpu,
-                                    uint32_t target);
-static int battle_shard_callbacks_try_host(BattleMipsRuntime *runtime, PcPortMipsCpu *cpu,
-                                           uint32_t target);
-
-/* The adopted caller hosts (battle_*_host.inc) and their recorded
- * boundaries run by default only in the native-only build.  In the hybrid
- * build an interpreted retail caller and a native host share battle data,
- * and a host can leave a host-domain word where retail code reads a guest
- * pointer (observed: the default-on actor-update host, then 0x8009F844
- * loading a halfword through 0x0081012B).  Until each host is proven in a
- * mixed battle, the hybrid build keeps interpreting their retail callers, as
- * it did before the hosts existed.  XENO_BATTLE_NATIVE_HOSTS=1 opts in; the
- * per-host XENO_BATTLE_NATIVE_* switches then apply as before. */
-static int battle_caller_hosts_enabled(void)
-{
-#ifdef XENO_NATIVE_ONLY
-    return 1;
-#else
-    static int enabled = -1;
-
-    if (enabled < 0) {
-        const char *control = getenv("XENO_BATTLE_NATIVE_HOSTS");
-        enabled = control != NULL && strcmp(control, "1") == 0;
-    }
-    return enabled;
-#endif
-}
-
-/* Adopted caller hosts and their recorded boundaries.  Returns
- * BRIDGE_HOOKS_NONE when none of them owns the target, otherwise the owner's
- * verdict (0 = run the retail bytes, -1 = stop, > 0 = handled natively,
- * BRIDGE_REFUSE = a recorded boundary that must not bind legacy C). */
 #define BRIDGE_HOOKS_NONE INT_MIN
-/* A recorded boundary that must not bind a legacy native body. */
-#define BRIDGE_REFUSE (INT_MIN + 1)
-static int bridge_normalize_hook(int verdict)
-{
-    return verdict==BRIDGE_REFUSE ? -1 : verdict;
-}
 
-/* XENO_BATTLE_NATIVE_MENU_ADOPTED_LEAVES_EXPERIMENT: where a scoped host or
- * an unconverted-edge list leaves a battle-overlay target to the retail
- * bytes (verdict 0), an adopted native leaf binds through the generic
- * resolver instead.  Any other verdict is kept. */
-static int bridge_adopted_leaf_or(int verdict, uint32_t target)
-{
-    static int enabled = -1;
-    char leaf[16];
+#include "battle_resident_boundary.inc"
 
-    if (verdict != 0)
-        return verdict;
-    if (enabled < 0) {
-        const char *control = getenv("XENO_BATTLE_NATIVE_MENU_ADOPTED_LEAVES_EXPERIMENT");
-        enabled = control != NULL && strcmp(control, "1") == 0;
-    }
-    if (!enabled)
-        return 0;
-    snprintf(leaf, sizeof(leaf), "func_%08X", target);
-    return overlay_leaf_host_ok(leaf) ? BRIDGE_HOOKS_NONE : 0;
-}
-
-/* A recorded boundary whose legacy native body the boundary audit found
- * equivalent to the retail bytes at that call site: it binds (F1), but it is
- * legacy C on the generic bridge, so each site is logged once and counted per
- * battle (XENO_CPU_FALLBACK_STATS).  Returns 0, the decline. */
-static int bridge_legacy_boundary(uint32_t target, uint32_t return_pc)
-{
-    static uint32_t seen[16][2];
-    static unsigned seen_count;
-    unsigned i;
-
-    for (i = 0; i < seen_count; i++)
-        if (seen[i][0] == target && seen[i][1] == return_pc)
-            break;
-    if (i == seen_count && seen_count < 16u) {
-        seen[seen_count][0] = target;
-        seen[seen_count][1] = return_pc;
-        seen_count++;
-        fprintf(stderr,
-                "[xeno-port][battle-boundary] legacy native C at recorded "
-                "boundary target=0x%08x from=0x%08x (audited equivalent)\n",
-                target, return_pc - 8u);
-    }
-    cpu_meter_note_legacy_boundary();
-    return 0;
-}
-
-/* startup-actors (801E67A4) call edges into main-executable legacy C.  The
- * audit found 800223B0 equivalent to retail only when the sprite's +0x58
- * word holds a host (compact) address, which is what the startup path
- * stores; a guest address there crashes it, so that case refuses. */
-static int battle_startup_actors_boundary(BattleMipsRuntime *runtime,
-                                          PcPortMipsCpu *cpu, uint32_t target)
-{
-    uint32_t return_pc = cpu->gpr[31];
-
-    if (target == 0x800223b0u && return_pc == 0x801e68f8u) {
-        uint32_t word;
-        /* Since the bus aliases KUSEG main RAM (runtime_read), a sprite
-         * pointer or a +0x58 word below 2 MB -- NULL included -- is
-         * guest-shaped too, and the audit covered neither: refuse them. */
-        if (cpu->gpr[4] < BATTLE_BUS_KUSEG_RAM_END ||
-            runtime_read(runtime, cpu->gpr[4] + 0x58u, 4, &word) != 0 ||
-            word < BATTLE_BUS_KUSEG_RAM_END ||
-            (word & 0xff800000u) == 0x80000000u ||
-            (word & 0xff800000u) == 0xa0000000u)
-            return -1;
-        return bridge_legacy_boundary(target, return_pc);
-    }
-    if (target == 0x80021fe0u && return_pc == 0x801e6904u)
-        return bridge_legacy_boundary(target, return_pc);
-    return BRIDGE_HOOKS_NONE;
-}
-
-#include "battle_menu_heap_preview.h"
-#include "battle_sound_channel_snapshot.inc"
-
-static int runtime_bridge_caller_hosts(BattleMipsRuntime *runtime,
-                                       PcPortMipsCpu *cpu, uint32_t target)
-{
-    int scoped=one_glyph_context_bridge(runtime,cpu,target);if(scoped!=BRIDGE_HOOKS_NONE)return scoped;
-    /* These experimental menu edges cannot bind unverified legacy C. */
-    const char *menu_experiment = getenv("XENO_BATTLE_NATIVE_COMMAND_MENU_EXPERIMENT");
-    if (menu_experiment && strcmp(menu_experiment, "1") == 0 && ((target==0x800716d8u && cpu->gpr[31]==0x8008028cu) ||
-        (target==0x8008aa74u && cpu->gpr[31]==0x800802bcu) ||
-        (target==0x8007fec4u && cpu->gpr[31]==0x800805acu) ||
-        (target==0x8007ff14u && cpu->gpr[31]==0x80080604u) ||
-        (target==0x80085e78u && cpu->gpr[31]==0x8008060cu) ||
-        (target==0x8009ab00u && cpu->gpr[31]==0x80080614u) ||
-        (target==0x80089c08u && cpu->gpr[31]==0x8008061cu) ||
-        (target==0x80089c08u && cpu->gpr[31]==0x80080638u) ||
-        (target==0x800bc404u && cpu->gpr[31]==0x80080644u) ||
-        (target==0x80089c08u && cpu->gpr[31]==0x80080674u) ||
-        (target==0x800bcd98u && cpu->gpr[31]==0x8008067cu) ||
-        (target==0x8007fbe0u && cpu->gpr[31]==0x800806f0u) ||
-        (target==0x8008d598u && cpu->gpr[31]==0x80080758u) ||
-        (target==0x800716d8u && cpu->gpr[31]==0x80080794u) ||
-        (target==0x8008115cu && cpu->gpr[31]==0x80080800u) ||
-        (target==0x80081b58u && cpu->gpr[31]==0x80080850u) ||
-        (target==0x800816f8u && cpu->gpr[31]==0x80080830u) ||
-        (target==0x80082f7cu && cpu->gpr[31]==0x800808d0u) ||
-        (target==0x800baf40u && cpu->gpr[31]==0x80080a38u) ||
-        (target==0x8007fce8u && cpu->gpr[31]==0x80080a70u) ||
-        (target==0x8007fdecu && cpu->gpr[31]==0x80080a78u) ||
-        (target==0x800800e8u && cpu->gpr[31]==0x80080a80u) ||
-        (target==0x8007fb70u && cpu->gpr[31]==0x80080a88u))) {
-        if (target == 0x800716d8u) {
-            int hosted = battle_frame_try_host(runtime, cpu, target);
-            if (hosted != 0) return hosted;
-        }
-        if (target == 0x800bcd98u) {
-            int hosted = battle_popup_highlight_prefix_try_host(runtime,cpu,target);
-            if (hosted != 0) return hosted;
-        }
-        if (target == 0x8008aa74u) {
-            int hosted = battle_menu_sound_try_host(runtime, cpu, target);
-            if (hosted != 0) return hosted;
-        }
-        if (target == 0x8008115cu) {
-            int hosted = battle_attack_ring_try_host(runtime,cpu,target);
-            if (hosted != 0) return hosted;
-        }
-        if (target == 0x80089c08u) {
-            int hosted=battle_target_mask_try_host(runtime,cpu,target);
-            if(hosted!=0)return hosted;
-        }
-        if (target == 0x8009ab00u) {
-            int hosted=battle_actor_clear_flag_try_host(runtime,cpu,target);
-            if(hosted!=0)return hosted;
-        }
-        if (target == 0x80085e78u) {
-            int hosted=battle_menu_reset_try_host(runtime,cpu,target);
-            if(hosted!=0)return hosted;
-        }
-        if (target == 0x800bc404u && cpu->gpr[31] == 0x80080644u) {
-            const char *camera=getenv("XENO_BATTLE_NATIVE_MENU_CAMERA_EXPERIMENT");
-            if(camera && strcmp(camera,"1")==0) {
-                int hosted=battle_target_camera_try_host(runtime,cpu,target);
-                if(hosted!=0)return hosted;
-            }
-        }
-        if (target == 0x8007fce8u || target == 0x8007fdecu) {
-            int hosted=battle_inactive_free_try_host(runtime,cpu,target);
-            if(hosted!=0)return hosted;
-            hosted=battle_active_free_try_host(runtime,cpu,target);
-            if(hosted!=0)return hosted;
-            const char *active=getenv("XENO_BATTLE_NATIVE_ACTIVE_FREE_EXPERIMENT");
-            if(active && strcmp(active,"1")==0)return -1;
-        }
-        if (target == 0x8007fb70u) {
-            int hosted=battle_inactive_state_try_host(runtime,cpu,target);
-            if(hosted!=0)return hosted;
-            hosted=battle_active_state_try_host(runtime,cpu,target);
-            if(hosted!=0)return hosted;
-            const char *active=getenv("XENO_BATTLE_NATIVE_ACTIVE_STATE_EXPERIMENT");
-            if(active && strcmp(active,"1")==0)return -1;
-        }
-        if (target == 0x8007fbe0u) {
-            int hosted=battle_small_cursor_try_host(runtime,cpu,target);
-            if(hosted!=0)return hosted;
-            hosted=battle_cursor_layout_try_host(runtime,cpu,target);
-            if(hosted!=0)return hosted;
-        }
-        if (target == 0x800baf40u) {
-            int hosted=battle_empty_menu_try_host(runtime,cpu,target);
-            if(hosted!=0)return hosted;
-        }
-        if (target == 0x8007fec4u) {
-            /* The adopted native func_8007FEC4 allocates, clears and seeds the
-             * whole menu block in one call; the generic resolver binds it. */
-            const char *alloc_body=getenv("XENO_BATTLE_NATIVE_MENU_ALLOC_BODY_EXPERIMENT");
-            if(alloc_body && strcmp(alloc_body,"1")==0 && overlay_leaf_host_ok("func_8007FEC4"))
-                return BRIDGE_HOOKS_NONE;
-            int hosted=battle_menu_alloc_try_host(runtime,cpu,target);
-            if(hosted!=0)return hosted;
-            const char *allocation=getenv("XENO_BATTLE_NATIVE_MENU_ALLOC_EXPERIMENT");
-            if(allocation && strcmp(allocation,"1")==0)return -1;
-        }
-        if (target == 0x8008d598u) {
-            int hosted=many_glyph_try_host(runtime,cpu,target);
-            if(hosted!=0)return hosted;
-            hosted=seven_glyph_try_host(runtime,cpu,target);
-            if(hosted!=0)return hosted;
-            hosted=six_glyph_try_host(runtime,cpu,target);
-            if(hosted!=0)return hosted;
-            hosted=five_glyph_try_host(runtime,cpu,target);
-            if(hosted!=0)return hosted;
-            hosted=four_mapped_try_host(runtime,cpu,target);
-            if(hosted!=0)return hosted;
-            hosted=four_one_mapped_try_host(runtime,cpu,target);
-            if(hosted!=0)return hosted;
-            hosted=four_glyph_try_host(runtime,cpu,target);
-            if(hosted!=0)return hosted;
-            hosted=three_mappings_try_host(runtime,cpu,target);
-            if(hosted!=0)return hosted;
-            hosted=three_second_third_mapped_try_host(runtime,cpu,target);
-            if(hosted!=0)return hosted;
-            hosted=three_first_second_mapped_try_host(runtime,cpu,target);
-            if(hosted!=0)return hosted;
-            hosted=three_first_third_mapped_try_host(runtime,cpu,target);
-            if(hosted!=0)return hosted;
-            hosted=two_mappings_try_host(runtime,cpu,target);
-            if(hosted!=0)return hosted;
-            hosted=third_mapped_glyph_try_host(runtime,cpu,target);
-            if(hosted!=0)return hosted;
-            hosted=second_mapped_three_glyph_try_host(runtime,cpu,target);
-            if(hosted!=0)return hosted;
-            hosted=second_mapped_glyph_try_host(runtime,cpu,target);
-            if(hosted!=0)return hosted;
-            hosted=three_mapped_glyph_try_host(runtime,cpu,target);
-            if(hosted!=0)return hosted;
-            hosted=two_mapped_glyph_try_host(runtime,cpu,target);
-            if(hosted!=0)return hosted;
-            hosted=three_glyph_try_host(runtime,cpu,target);
-            if(hosted!=0)return hosted;
-            hosted=two_mixed_glyph_try_host(runtime,cpu,target);
-            if(hosted!=0)return hosted;
-            hosted=two_zero_glyph_try_host(runtime,cpu,target);
-            if(hosted!=0)return hosted;
-            hosted=mapped_glyph_try_host(runtime,cpu,target);
-            if(hosted!=0)return hosted;
-            hosted=missing_mapped_glyph_try_host(runtime,cpu,target);
-            if(hosted!=0)return hosted;
-            hosted=one_glyph_try_host(runtime,cpu,target);
-            if(hosted!=0)return hosted;
-            hosted=zero_glyph_try_host(runtime,cpu,target);
-            if(hosted!=0)return hosted;
-            hosted=nonfade_no_glyph_try_host(runtime,cpu,target);
-            if(hosted!=0)return hosted;
-            hosted=nonfade_glyph_prefix_try_host(runtime,cpu,target);
-            if(hosted!=0)return hosted;
-            hosted=nonfade_empty_try_host(runtime,cpu,target);
-            if(hosted!=0)return hosted;
-            hosted=fade_nonempty_try_host(runtime,cpu,target);
-            if(hosted!=0)return hosted;
-            hosted=battle_menu_empty_fade_try_host(runtime,cpu,target);
-            if(hosted!=0)return hosted;
-            const char *empty_fade=getenv("XENO_BATTLE_NATIVE_EMPTY_FADE_EXPERIMENT");
-            const char *nonempty_fade=getenv("XENO_BATTLE_NATIVE_NONEMPTY_FADE_EXPERIMENT");
-            const char *nonfade_empty=getenv("XENO_BATTLE_NATIVE_NONFADE_EMPTY_EXPERIMENT");
-            const char *nonfade_no_glyph=getenv("XENO_BATTLE_NATIVE_NONFADE_NO_GLYPH_EXPERIMENT");
-            const char *glyph_prefix=getenv("XENO_BATTLE_NATIVE_NONFADE_GLYPH_PREFIX_EXPERIMENT");
-            const char *zero_glyph=getenv("XENO_BATTLE_NATIVE_ZERO_GLYPH_EXPERIMENT");
-            const char *one_glyph=getenv("XENO_BATTLE_NATIVE_ONE_GLYPH_EXPERIMENT");
-            const char *missing_mapped=getenv("XENO_BATTLE_NATIVE_MISSING_MAPPED_GLYPH_EXPERIMENT");
-            const char *mapped=getenv("XENO_BATTLE_NATIVE_MAPPED_GLYPH_EXPERIMENT");
-            const char *two_zero=getenv("XENO_BATTLE_NATIVE_TWO_ZERO_GLYPHS_EXPERIMENT");
-            const char *many=getenv("XENO_BATTLE_NATIVE_MANY_GLYPHS_EXPERIMENT");
-            const char *seven=getenv("XENO_BATTLE_NATIVE_SEVEN_GLYPHS_EXPERIMENT");
-            const char *six=getenv("XENO_BATTLE_NATIVE_SIX_GLYPHS_EXPERIMENT");
-            const char *five=getenv("XENO_BATTLE_NATIVE_FIVE_GLYPHS_EXPERIMENT");
-            const char *four_mapped=getenv("XENO_BATTLE_NATIVE_FOUR_MAPPED_EXPERIMENT");
-            const char *four_one=getenv("XENO_BATTLE_NATIVE_FOUR_ONE_MAPPED_EXPERIMENT");
-            const char *four=getenv("XENO_BATTLE_NATIVE_FOUR_GLYPHS_EXPERIMENT");
-            const char *three_mappings=getenv("XENO_BATTLE_NATIVE_THREE_MAPPINGS_EXPERIMENT");
-            const char *second_third=getenv("XENO_BATTLE_NATIVE_THREE_SECOND_THIRD_MAPPED_EXPERIMENT");
-            const char *first_second=getenv("XENO_BATTLE_NATIVE_THREE_FIRST_SECOND_MAPPED_EXPERIMENT");
-            const char *first_third=getenv("XENO_BATTLE_NATIVE_THREE_FIRST_THIRD_MAPPED_EXPERIMENT");
-            const char *two_mappings=getenv("XENO_BATTLE_NATIVE_TWO_MAPPINGS_EXPERIMENT");
-            const char *third_mapped=getenv("XENO_BATTLE_NATIVE_THIRD_MAPPED_GLYPH_EXPERIMENT");
-            const char *second_mapped_three=getenv("XENO_BATTLE_NATIVE_SECOND_MAPPED_THREE_GLYPHS_EXPERIMENT");
-            const char *second_mapped=getenv("XENO_BATTLE_NATIVE_SECOND_MAPPED_GLYPH_EXPERIMENT");
-            const char *three_mapped=getenv("XENO_BATTLE_NATIVE_THREE_MAPPED_GLYPHS_EXPERIMENT");
-            const char *two_mapped=getenv("XENO_BATTLE_NATIVE_TWO_MAPPED_GLYPHS_EXPERIMENT");
-            const char *three=getenv("XENO_BATTLE_NATIVE_THREE_GLYPHS_EXPERIMENT");
-            const char *two_mixed=getenv("XENO_BATTLE_NATIVE_TWO_GLYPHS_EXPERIMENT");
-            if((many && strcmp(many,"1")==0) || (seven && strcmp(seven,"1")==0) || (six && strcmp(six,"1")==0) || (five && strcmp(five,"1")==0) || (four_mapped && strcmp(four_mapped,"1")==0) || (four_one && strcmp(four_one,"1")==0) || (four && strcmp(four,"1")==0) || (three_mappings && strcmp(three_mappings,"1")==0) || (second_third && strcmp(second_third,"1")==0) || (first_second && strcmp(first_second,"1")==0) || (first_third && strcmp(first_third,"1")==0) || (two_mappings && strcmp(two_mappings,"1")==0) || (third_mapped && strcmp(third_mapped,"1")==0) || (second_mapped_three && strcmp(second_mapped_three,"1")==0) || (second_mapped && strcmp(second_mapped,"1")==0) || (three_mapped && strcmp(three_mapped,"1")==0) || (two_mapped && strcmp(two_mapped,"1")==0) || (three && strcmp(three,"1")==0) || (two_mixed && strcmp(two_mixed,"1")==0) || (two_zero && strcmp(two_zero,"1")==0) || (mapped && strcmp(mapped,"1")==0) || (missing_mapped && strcmp(missing_mapped,"1")==0) || (one_glyph && strcmp(one_glyph,"1")==0) || (zero_glyph && strcmp(zero_glyph,"1")==0) || (empty_fade && strcmp(empty_fade,"1")==0) || (nonempty_fade && strcmp(nonempty_fade,"1")==0) || (nonfade_empty && strcmp(nonfade_empty,"1")==0) || (nonfade_no_glyph && strcmp(nonfade_no_glyph,"1")==0) || (glyph_prefix && strcmp(glyph_prefix,"1")==0))return -1;
-            hosted=battle_menu_fade_try_host(runtime,cpu,target);
-            if(hosted!=0)return hosted;
-            const char *fade=getenv("XENO_BATTLE_NATIVE_MENU_FADE_EXPERIMENT");
-            if(fade && strcmp(fade,"1")==0)return -1;
-        }
-        if (target == 0x800800e8u) {
-            int hosted=battle_menu_free_try_host(runtime,cpu,target);
-            if(hosted!=0)return hosted;
-            const char *teardown=getenv("XENO_BATTLE_NATIVE_MENU_FREE_EXPERIMENT");
-            if(teardown && strcmp(teardown,"1")==0)return -1;
-        }
-        /* Once the scoped hosts above declined, an adopted native leaf on
-         * these edges may bind through the generic resolver. */
-        return bridge_adopted_leaf_or(0,target); /* else the hybrid may interpret it */
-    }
-    const char *glyph_prefix=getenv("XENO_BATTLE_NATIVE_NONFADE_GLYPH_PREFIX_EXPERIMENT");
-    if(menu_experiment && strcmp(menu_experiment,"1")==0 && glyph_prefix && strcmp(glyph_prefix,"1")==0 &&
-       target==0x80076a10u && cpu->gpr[31]==0x8008d7b0u)
-        return -1; /* Do not draw until the parent continuation is converted. */
-    const char *menu_fade=getenv("XENO_BATTLE_NATIVE_MENU_FADE_EXPERIMENT");
-    if(menu_experiment && strcmp(menu_experiment,"1")==0 && menu_fade && strcmp(menu_fade,"1")==0 &&
-       target == 0x8008d328u && cpu->gpr[31] == 0x8008d5d4u)
-        return -1; /* Rendering child and its continuation are not converted. */
-    const char *popup_prefix=getenv("XENO_BATTLE_NATIVE_POPUP_HIGHLIGHT_PREFIX_EXPERIMENT");
-    if (menu_experiment && strcmp(menu_experiment,"1")==0 && popup_prefix && strcmp(popup_prefix,"1")==0 &&
-        target==0x800bcc60u && cpu->gpr[31]==0x800bcdd4u) {
-        int hosted=battle_popup_task_prefix_try_host(runtime,cpu,target);
-        if(hosted!=0)return hosted;
-        return -1;
-    }
-    if (menu_experiment && strcmp(menu_experiment,"1")==0 && popup_prefix && strcmp(popup_prefix,"1")==0 &&
-        target==0x800bcb54u && cpu->gpr[31]==0x800bcde4u)
-        return -1; /* Popup clear and parent continuation remain unconverted. */
-    const char *popup_owner=getenv("XENO_BATTLE_NATIVE_POPUP_OWNER_PREFIX_EXPERIMENT");
-    if (menu_experiment && strcmp(menu_experiment,"1")==0 && popup_prefix && strcmp(popup_prefix,"1")==0 &&
-        popup_owner && strcmp(popup_owner,"1")==0 && target==0x8001d0a4u && cpu->gpr[31]==0x800bce4cu) {
-        int hosted=battle_popup_lookup_try_host(runtime,cpu,target);
-        if(hosted!=0)return hosted;
-        return -1; /* Never use legacy lookup when the scoped host declines. */
-    }
-    const char *popup_loop=getenv("XENO_BATTLE_NATIVE_POPUP_OWNER_LOOP_EXPERIMENT");
-    if (menu_experiment && strcmp(menu_experiment,"1")==0 && popup_prefix && strcmp(popup_prefix,"1")==0 &&
-        popup_owner && strcmp(popup_owner,"1")==0 && popup_loop && strcmp(popup_loop,"1")==0 &&
-        target==0x8001d0a4u && cpu->gpr[31]==0x800bce1cu) {
-        int hosted=battle_popup_lookup_try_host(runtime,cpu,target);
-        if(hosted!=0)return hosted;
-        return -1; /* No legacy lookup when the scoped host declines. */
-    }
-    const char *popup_create=getenv("XENO_BATTLE_NATIVE_POPUP_CREATE_PREFIX_EXPERIMENT");
-    if(menu_experiment && strcmp(menu_experiment,"1")==0 && popup_prefix && strcmp(popup_prefix,"1")==0 &&
-       popup_owner && strcmp(popup_owner,"1")==0 && popup_loop && strcmp(popup_loop,"1")==0 &&
-       target==0x800bd098u && cpu->gpr[31]==0x800bce2cu) {
-        int hosted=battle_popup_create_prefix_try_host(runtime,cpu,target);
-        if(hosted!=0)return hosted;
-        return -1;
-    }
-    if(menu_experiment && strcmp(menu_experiment,"1")==0 && popup_create && strcmp(popup_create,"1")==0 &&
-       target==0x8001d1d8u && cpu->gpr[31]==0x800bd0e4u) {
-        const char *diag=getenv("XENO_BATTLE_POPUP_PAIR_HEAP_DIAG");
-        if(diag && strcmp(diag,"1")==0) {
-            void **heap=dlsym(RTLD_DEFAULT,"g_Heap");
-            uint32_t *needs=dlsym(RTLD_DEFAULT,"g_HeapNeedsConsolidation");
-            uint8_t *flags=dlsym(RTLD_DEFAULT,"D_800591AF");
-            MenuHeapSnapshot snapshot;
-            int ok=heap && needs && flags && *flags==0 && cpu->gpr[4]==0x68u &&
-                menu_heap_snapshot(g_PsxRam,BATTLE_BUS_KUSEG_RAM_END,
-                                   (uintptr_t)*heap,*needs,0x68u,&snapshot);
-            fprintf(stderr,"[xeno-port][popup-pair-heap] mode=%u preview=%s blocks=%u candidate=%08x\n",
-                    flags?*flags:255u,ok?"fit":"refused",ok?snapshot.count:0u,
-                    ok?(uint32_t)snapshot.result:0u);
-        }
-        int hosted=battle_popup_pair_prefix_try_host(runtime,cpu,target);
-        if(hosted!=0)return hosted;
-        return -1; /* Paired allocation and continuation remain unconverted. */
-    }
-    const char *pair_prefix=getenv("XENO_BATTLE_NATIVE_POPUP_PAIR_PREFIX_EXPERIMENT");
-    if(menu_experiment && strcmp(menu_experiment,"1")==0 && popup_create && strcmp(popup_create,"1")==0 &&
-       pair_prefix && strcmp(pair_prefix,"1")==0 && target==0x80031bdcu && cpu->gpr[31]==0x8001d210u)
-        return -1; /* Heap allocation and both list insertions remain guarded. */
-    const char *popup_record=getenv("XENO_BATTLE_NATIVE_POPUP_RECORD_EXPERIMENT");
-    if (popup_record && strcmp(popup_record,"1")==0 && target==0x800b168cu &&
-        (cpu->gpr[31]==0x800bd150u || cpu->gpr[31]==0x800bd178u || cpu->gpr[31]==0x800bd1b4u)) {
-        int hosted=battle_popup_record_try_host(runtime,cpu,target);
-        return hosted != 0 ? hosted : -1;
-    }
-    const char *popup_copy=getenv("XENO_BATTLE_NATIVE_POPUP_COPY_EXPERIMENT");
-    if (popup_copy && strcmp(popup_copy,"1")==0 && target==0x8003f968u && cpu->gpr[31]==0x800bd1a0u) {
-        int hosted=battle_popup_copy_try_host(runtime,cpu,target);
-        return hosted != 0 ? hosted : -1;
-    }
-    const char *active_sprite=getenv("XENO_BATTLE_NATIVE_MENU_SPRITE_ACTIVE_EXPERIMENT");
-    if(active_sprite && strcmp(active_sprite,"1")==0 && target==0x8001f6b0u && cpu->gpr[31]==0x800bcc34u) {
-        int hosted=battle_menu_sprite_active_try_host(runtime,cpu,target);
-        return hosted != 0 ? hosted : -1;
-    }
-    const char *gfx_queue=getenv("XENO_BATTLE_NATIVE_POPUP_GFX_QUEUE_EXPERIMENT");
-    if(gfx_queue && strcmp(gfx_queue,"1")==0 && target==0x80025180u && cpu->gpr[31]==0x800bd068u) {
-        int hosted=battle_popup_gfx_queue_try_host(runtime,cpu,target);
-        return hosted!=0?hosted:-1;
-    }
-    const char *timer_remove=getenv("XENO_BATTLE_NATIVE_POPUP_TIMER_REMOVE_EXPERIMENT");
-    if(timer_remove && strcmp(timer_remove,"1")==0 && target==0x8001cd94u && cpu->gpr[31]==0x800bd078u) {
-        int hosted=battle_popup_timer_remove_try_host(runtime,cpu,target);
-        return hosted!=0?hosted:-1;
-    }
-    const char *color_timer_remove=getenv("XENO_BATTLE_NATIVE_COLOR_TIMER_REMOVE_EXPERIMENT");
-    if(color_timer_remove && strcmp(color_timer_remove,"1")==0 && target==0x8001cd94u && cpu->gpr[31]==0x800b385cu) {
-        int hosted=battle_popup_timer_remove_try_host(runtime,cpu,target);
-        return hosted!=0?hosted:-1;
-    }
-    const char *color_work_remove=getenv("XENO_BATTLE_NATIVE_COLOR_WORK_REMOVE_EXPERIMENT");
-    if(color_work_remove && strcmp(color_work_remove,"1")==0 && target==0x8001cb48u && cpu->gpr[31]==0x800b3854u) {
-        int hosted=battle_color_work_remove_try_host(runtime,cpu,target);
-        return hosted!=0?hosted:-1;
-    }
-    const char *unlinked_work=getenv("XENO_BATTLE_NATIVE_POPUP_UNLINK_CALLBACK_EXPERIMENT");
-    if(unlinked_work && strcmp(unlinked_work,"1")==0 && target==0x8001cb48u && cpu->gpr[31]==0x8001cf34u) {
-        int hosted=battle_popup_unlinked_work_try_host(runtime,cpu,target);
-        return hosted!=0?hosted:-1;
-    }
-    const char *unlinked_timer=getenv("XENO_BATTLE_NATIVE_POPUP_UNLINK_TIMER_CALLBACK_EXPERIMENT");
-    if(unlinked_timer && strcmp(unlinked_timer,"1")==0 && target==0x8001cd94u && cpu->gpr[31]==0x8001cff8u) {
-        int hosted=battle_popup_unlinked_timer_try_host(runtime,cpu,target);
-        return hosted!=0?hosted:-1;
-    }
-    const char *pinned_free=getenv("XENO_BATTLE_NATIVE_POPUP_PINNED_FREE_EXPERIMENT");
-    if(pinned_free && strcmp(pinned_free,"1")==0 && target==0x800320e8u && cpu->gpr[31]==0x800bd080u) {
-        int hosted=battle_popup_pinned_free_try_host(runtime,cpu,target);
-        return hosted!=0?hosted:-1;
-    }
-    const char *one_null_unlink=getenv("XENO_BATTLE_NATIVE_POPUP_ONE_NULL_UNLINK_EXPERIMENT");
-    if(one_null_unlink && strcmp(one_null_unlink,"1")==0 && target==0x8001ce74u && cpu->gpr[31]==0x800bd070u) {
-        int hosted=battle_popup_one_null_unlink_try_host(runtime,cpu,target);
-        if(hosted!=0)return hosted;
-        const char *no_match=getenv("XENO_BATTLE_NATIVE_POPUP_UNRELATED_UNLINK_EXPERIMENT");
-        if(no_match && strcmp(no_match,"1")==0) {
-            hosted=battle_popup_unrelated_unlink_try_host(runtime,cpu,target);
-            if(hosted!=0)return hosted;
-        }
-        return -1;
-    }
-    const char *unrelated_unlink=getenv("XENO_BATTLE_NATIVE_POPUP_UNRELATED_UNLINK_EXPERIMENT");
-    if(unrelated_unlink && strcmp(unrelated_unlink,"1")==0 && target==0x8001ce74u && cpu->gpr[31]==0x800bd070u) {
-        int hosted=battle_popup_unrelated_unlink_try_host(runtime,cpu,target);
-        return hosted!=0?hosted:-1;
-    }
-    const char *popup_sprite_noop=getenv("XENO_BATTLE_NATIVE_POPUP_SPRITE_NOOP_EXPERIMENT");
-    if (popup_sprite_noop && strcmp(popup_sprite_noop,"1")==0 && target==0x8001f6b0u && (cpu->gpr[31]==0x800bd1ccu || cpu->gpr[31]==0x800bcb40u || cpu->gpr[31]==0x800bcc34u || cpu->gpr[31]==0x800bd05cu)) {
-        int hosted=battle_popup_sprite_noop_try_host(runtime,cpu,target);
-        return hosted != 0 ? hosted : -1;
-    }
-    const char *popup_trig=getenv("XENO_BATTLE_NATIVE_POPUP_TRIG_EXPERIMENT");
-    if (popup_trig && strcmp(popup_trig,"1")==0 &&
-        ((target==0x8003f8b0u && (cpu->gpr[31]==0x800bcb14u || cpu->gpr[31]==0x800bcbe4u)) ||
-         (target==0x8003f8ccu && cpu->gpr[31]==0x800bcc0cu))) {
-        int hosted=battle_popup_trig_try_host(runtime,cpu,target);
-        return hosted != 0 ? hosted : -1;
-    }
-    const char *frame_size=getenv("XENO_BATTLE_NATIVE_POPUP_FRAME_SIZE_EXPERIMENT");
-    if(menu_experiment && strcmp(menu_experiment,"1")==0 && frame_size && strcmp(frame_size,"1")==0 &&
-       target==0x800b16a4u && cpu->gpr[31]==0x800bd158u) {
-        int hosted=battle_popup_frame_size_try_host(runtime,cpu,target);
-        if(hosted!=0)return hosted;
-        return -1;
-    }
-    const char *popup_task=getenv("XENO_BATTLE_NATIVE_POPUP_TASK_PREFIX_EXPERIMENT");
-    if (menu_experiment && strcmp(menu_experiment,"1")==0 && popup_prefix && strcmp(popup_prefix,"1")==0 &&
-        popup_task && strcmp(popup_task,"1")==0 && target==0x8001cd08u && cpu->gpr[31]==0x800bccd4u)
-        return -1; /* Never allocate a task without its complete continuation. */
-    const char *menu_alloc=getenv("XENO_BATTLE_NATIVE_MENU_ALLOC_EXPERIMENT");
-    if(menu_experiment && strcmp(menu_experiment,"1")==0 && menu_alloc && strcmp(menu_alloc,"1")==0 &&
-       target == 0x8008abb8u && cpu->gpr[31] == 0x8007fed8u) {
-        const char *diag = getenv("XENO_BATTLE_MENU_HEAP_DIAG");
-        if (diag && strcmp(diag,"1")==0) {
-            void **heap = dlsym(RTLD_DEFAULT,"g_Heap");
-            uint32_t *needs = dlsym(RTLD_DEFAULT,"g_HeapNeedsConsolidation");
-            MenuHeapSnapshot snapshot;
-            int ok = heap && needs && menu_heap_snapshot(g_PsxRam,
-                BATTLE_BUS_KUSEG_RAM_END,(uintptr_t)*heap,*needs,0x5da4u,&snapshot);
-            fprintf(stderr,"[xeno-port][menu-heap] preview=%s blocks=%u candidate=%08x\n",
-                    ok ? "fit" : "refused",ok ? snapshot.count : 0u,
-                    ok ? PsxMemory_GuestAddr((void*)snapshot.result) : 0u);
-        }
-        return -1; /* Never allocate before a complete native continuation. */
-    }
-    const char *active_state=getenv("XENO_BATTLE_NATIVE_ACTIVE_STATE_EXPERIMENT");
-    if(menu_experiment && strcmp(menu_experiment,"1")==0 && active_state && strcmp(active_state,"1")==0 &&
-       target == 0x8008fa60u && cpu->gpr[31] == 0x8007fbb8u)
-        return -1; /* Callback includes heap frees and is not converted. */
-    const char *active_free=getenv("XENO_BATTLE_NATIVE_ACTIVE_FREE_EXPERIMENT");
-    if(menu_experiment && strcmp(menu_experiment,"1")==0 && active_free && strcmp(active_free,"1")==0 &&
-       target == 0x800320e8u && (cpu->gpr[31] == 0x8007fd18u || cpu->gpr[31] == 0x8007fe1cu))
-        return -1; /* Heap ownership and continuation are not yet converted. */
-    const char *menu_free=getenv("XENO_BATTLE_NATIVE_MENU_FREE_EXPERIMENT");
-    if(menu_experiment && strcmp(menu_experiment,"1")==0 && menu_free && strcmp(menu_free,"1")==0 &&
-       target == 0x800320e8u && cpu->gpr[31] == 0x80080150u)
-        return -1; /* Heap owner and teardown continuation are not converted. */
-    const char *menu_sound_experiment = getenv("XENO_BATTLE_NATIVE_MENU_SOUND_EXPERIMENT");
-    if (menu_experiment && strcmp(menu_experiment, "1") == 0 &&
-        menu_sound_experiment && strcmp(menu_sound_experiment, "1") == 0) {
-        if (target == 0x8008aa40u && cpu->gpr[31] == 0x8008aa90u) {
-            int hosted = battle_menu_sound_try_host(runtime, cpu, target);
-            if (hosted != 0) return hosted;
-            return -1; /* Hosted sound wrappers cannot fall back to legacy or CPU. */
-        }
-        if (target == 0x80039db8u && cpu->gpr[31] == 0x8008aa64u) {
-            /* The compiled func_80039DB8 owns its whole DisableEvent/EnableEvent
-             * bracket; it is the body every hybrid build binds at this edge. */
-            const char *sound_body=getenv("XENO_BATTLE_NATIVE_SOUND_BODY_EXPERIMENT");
-            if(sound_body && strcmp(sound_body,"1")==0)
-                return bridge_legacy_boundary(target,cpu->gpr[31]);
-            int hosted=battle_sound_disabled_try_host(runtime,cpu,target);
-            if(hosted!=0)return hosted;
-            hosted=battle_sound_enabled_try_host(runtime,cpu,target);
-            if(hosted!=0)return hosted;
-            return -1; /* Hosted sound wrappers cannot fall back to legacy or CPU. */
-        }
-    }
-    const char *enabled_sound = getenv("XENO_BATTLE_NATIVE_SOUND_ENABLED_EXPERIMENT");
-    if (menu_experiment && strcmp(menu_experiment,"1")==0 && menu_sound_experiment && strcmp(menu_sound_experiment,"1")==0 &&
-        enabled_sound && strcmp(enabled_sound,"1")==0 && target==0x8003b644u && cpu->gpr[31]==0x80039e08u) {
-        int hosted=battle_sound_missing_try_host(runtime,cpu,target);
-        if(hosted!=0)return hosted;
-        hosted=battle_sound_prefix_try_host(runtime,cpu,target);
-        if(hosted!=0)return hosted;
-        hosted=battle_sound_match_try_host(runtime,cpu,target);
-        if(hosted!=0)return hosted;
-        return -1; /* Do not enter the unconverted sound service. */
-    }
-    const char *matched_sound=getenv("XENO_BATTLE_NATIVE_SOUND_MATCH_EXPERIMENT");
-    const char *sound_prefix=getenv("XENO_BATTLE_NATIVE_SOUND_PREFIX_EXPERIMENT");
-    if(menu_experiment && strcmp(menu_experiment,"1")==0 && menu_sound_experiment && strcmp(menu_sound_experiment,"1")==0 &&
-       enabled_sound && strcmp(enabled_sound,"1")==0 && ((matched_sound && strcmp(matched_sound,"1")==0) || (sound_prefix && strcmp(sound_prefix,"1")==0)) &&
-       target==0x800383ecu && cpu->gpr[31]==0x8003b6c8u) {
-        int hosted=battle_wds_lookup_try_host(runtime,cpu,target);
-        if(hosted!=0)return hosted;
-        return -1; /* The native sound prefix cannot fall back here. */
-    }
-    if(menu_experiment && strcmp(menu_experiment,"1")==0 && menu_sound_experiment && strcmp(menu_sound_experiment,"1")==0 &&
-       enabled_sound && strcmp(enabled_sound,"1")==0 && sound_prefix && strcmp(sound_prefix,"1")==0 &&
-       target==0x800404b4u && cpu->gpr[31]==0x8003b76cu) {
-        const char *diag = getenv("XENO_BATTLE_SOUND_BOUNDARY_DIAG");
-        if (diag && strcmp(diag, "1") == 0) {
-            uint32_t first = 0, second = 0;
-            int first_rc = runtime_read(runtime, cpu->gpr[21], 2, &first);
-            int second_rc = cpu->gpr[21] <= UINT32_MAX - 2u
-                ? runtime_read(runtime, cpu->gpr[21] + 2u, 2, &second) : -1;
-            fprintf(stderr, "[xeno-port][sound-boundary] event=%08x "
-                    "r16=%08x r17=%08x r18=%08x r19=%08x r20=%08x "
-                    "r21=%08x count=%08x bank=%08x sp=%08x "
-                    "offsets=%s%04x,%s%04x\n", cpu->gpr[4], cpu->gpr[16],
-                    cpu->gpr[17], cpu->gpr[18], cpu->gpr[19], cpu->gpr[20],
-                    cpu->gpr[21], cpu->gpr[22], cpu->gpr[23], cpu->gpr[29],
-                    first_rc ? "invalid:" : "", first,
-                    second_rc ? "invalid:" : "", second);
-        }
-        const char *channels=getenv("XENO_BATTLE_SOUND_CHANNEL_DIAG");
-        if(channels && strcmp(channels,"1")==0) {
-            BattleSoundChannelSnapshot snapshot;
-            BattleSoundBoundaryProbe shape;
-            const char *shape_control=getenv("XENO_BATTLE_SOUND_POINTER_DIAG");
-            int shape_enabled=shape_control && strcmp(shape_control,"1")==0;
-            unsigned problem=0;
-            int safe=battle_sound_channel_diag_safe();
-            int ok=battle_sound_channel_snapshot_reserved(runtime,cpu->gpr[4],&snapshot,&problem,
-                                                           shape_enabled?cpu:NULL,shape_enabled?&shape:NULL);
-            fprintf(stderr,"[xeno-port][sound-channels] controlled=%d snapshot=%s populated=%u problem=%u\n",
-                    safe,ok?"valid":"refused",ok?snapshot.populated:0u,problem);
-            if(shape_enabled)
-                fprintf(stderr,"[xeno-port][sound-shape] valid=%d problem=%u offsets=%04x,%04x voices=%u,%u slots=%u,%u priorities=%d,%d aliases=%04x arena=%u manager_slots=%u other_slots=%u\n",
-                        shape.valid,shape.problem,shape.offsets[0],shape.offsets[1],shape.voices[0],shape.voices[1],
-                        shape.slot_relation[0],shape.slot_relation[1],shape.slot_priority[0],shape.slot_priority[1],shape.alias_mask,
-                        shape.manager_arena_valid,shape.manager_slots,shape.other_slots);
-        }
-        return -1; /* Never take the sound mutex without its full bracket. */
-    }
-    const char *popup_shade = getenv("XENO_BATTLE_NATIVE_POPUP_SHADE_EXPERIMENT");
-    if (popup_shade && strcmp(popup_shade,"1")==0 && target==0x80043c24u &&
-        cpu->gpr[31]==0x800b1798u) {
-        int hosted=battle_atlas_gpu_try_host(runtime,cpu,target);
-        return hosted != 0 ? hosted : -1;
-    }
-    const char *sprite_experiment = getenv("XENO_BATTLE_NATIVE_FRAME_SPRITE_EXPERIMENT");
-    if (sprite_experiment && strcmp(sprite_experiment,"1")==0 &&
-        ((target==0x80025fa8u && (cpu->gpr[31]==0x80076814u || cpu->gpr[31]==0x8007688cu)) ||
-         (target==0x80043bfcu && cpu->gpr[31]==0x800768f0u))) {
-        if (target==0x80025fa8u) {
-            int hosted=battle_atlas_render_try_host(runtime,cpu,target);
-            if(hosted!=0)return hosted;
-        }
-        if (target==0x80043bfcu) {
-            int hosted=battle_atlas_gpu_try_host(runtime,cpu,target);
-            if(hosted!=0)return hosted;
-        }
-        return -1;
-    }
-    const char *popup_transmatrix=getenv("XENO_BATTLE_NATIVE_POPUP_TRANS_MATRIX_EXPERIMENT");
-    if(popup_transmatrix && !strcmp(popup_transmatrix,"1") && target==0x80049d9cu && cpu->gpr[31]==0x800bceccu) {
-        int hosted=popup_transmatrix_try_host(runtime,cpu,target);
-        return hosted!=0?hosted:-1;
-    }
-    /* Atlas SDK calls refuse unless separately converted and verified. */
-    const char *atlas_experiment=getenv("XENO_BATTLE_NATIVE_ATLAS_GUESTABI_EXPERIMENT");
-    if (atlas_experiment && strcmp(atlas_experiment,"1")==0 && ((target==0x8004960cu && cpu->gpr[31]==0x80026064u) ||
-        (target==0x8004974cu && cpu->gpr[31]==0x80026074u) ||
-        (target==0x8004b18cu && cpu->gpr[31]==0x80026084u) ||
-        (target==0x8004a0bcu && cpu->gpr[31]==0x80026090u) ||
-        (target==0x8004a0dcu && cpu->gpr[31]==0x80026098u) ||
-        (target==0x8004a12cu && cpu->gpr[31]==0x800260acu) ||
-        (target==0x8004a14cu && cpu->gpr[31]==0x800260b4u) ||
-        (target==0x80049efcu && cpu->gpr[31]==0x800260bcu) ||
-        (target==0x80049f8cu && cpu->gpr[31]==0x800260c4u) ||
-        (target==0x80043cb0u && cpu->gpr[31]==0x80026110u) ||
-        (target==0x80043bfcu && cpu->gpr[31]==0x8002611cu) ||
-        (target==0x80043c24u && cpu->gpr[31]==0x80026128u) ||
-        (target==0x80043a1cu && cpu->gpr[31]==0x80026140u) ||
-        (target==0x80043a58u && cpu->gpr[31]==0x80026154u) ||
-        (target==0x8004a73cu && cpu->gpr[31]==0x80026210u) ||
-        (target==0x8004a12cu && cpu->gpr[31]==0x800262ecu) ||
-        (target==0x8004a14cu && cpu->gpr[31]==0x800262f8u) ||
-        (target==0x800496acu && cpu->gpr[31]==0x80026300u))) {
-        if(target==0x8004960cu && cpu->gpr[31]==0x80026064u) {
-            int hosted=battle_pushmatrix_try_host(runtime,cpu,target);
-            if(hosted!=0)return hosted;
-        }
-        if(target==0x8004974cu && cpu->gpr[31]==0x80026074u) {
-            int hosted=battle_scale_matrix_try_host(runtime,cpu,target);
-            if(hosted!=0)return hosted;
-        }
-        if(target==0x8004b18cu && cpu->gpr[31]==0x80026084u) {
-            int hosted=battle_rot_matrix_z_try_host(runtime,cpu,target);
-            if(hosted!=0)return hosted;
-        }
-        if(target==0x8004a0bcu || target==0x8004a0dcu || target==0x8004a12cu || target==0x8004a14cu) {
-            int hosted=battle_geom_control_try_host(runtime,cpu,target);
-            if(hosted!=0)return hosted;
-        }
-        if(target==0x80049efcu || target==0x80049f8cu) {
-            int hosted=battle_set_matrix_try_host(runtime,cpu,target);
-            if(hosted!=0)return hosted;
-        }
-        if(target==0x80043cb0u || target==0x80043bfcu || target==0x80043c24u || target==0x80043a1cu || target==0x80043a58u) {
-            int hosted=battle_atlas_gpu_try_host(runtime,cpu,target);
-            if(hosted!=0)return hosted;
-        }
-        if(target==0x800496acu && cpu->gpr[31]==0x80026300u) {
-            int hosted=battle_popmatrix_try_host(runtime,cpu,target);
-            if(hosted!=0)return hosted;
-        }
-        if(target==0x8004a73cu && cpu->gpr[31]==0x80026210u) {
-            int hosted=battle_rottranspers4_try_host(runtime,cpu,target);
-            if(hosted!=0)return hosted;
-        }
-        return -1;
-    }
-    /* A decline cannot bind legacy C at these packet edges. */
-    if(target==0x80043b48u &&
-       (cpu->gpr[31]==0x80073b24u || cpu->gpr[31]==0x80073b50u ||
-        cpu->gpr[31]==0x80073bc8u || cpu->gpr[31]==0x80073e50u)) {
-        int hosted = battle_fade_draw_sdk_try_host(runtime,cpu,target);
-        if(hosted != 0) return hosted;
-        return -1;
-    }
-    /* Try the existing identity-gated strip host at the tested HUD sites. */
-    if(target==0x800728b8u &&
-       (cpu->gpr[31]==0x80073c1cu || cpu->gpr[31]==0x80073cdcu ||
-        cpu->gpr[31]==0x80073d08u || cpu->gpr[31]==0x80073d50u ||
-        cpu->gpr[31]==0x80073d88u || cpu->gpr[31]==0x80073de4u ||
-        cpu->gpr[31]==0x80073e1cu)) {
-        int hosted = battle_optional_strips_try_host(runtime,cpu,target);
-        if(hosted != 0) return hosted;
-    }
-    if(target==0x800728b8u &&
-       (cpu->gpr[31]==0x80073c1cu || cpu->gpr[31]==0x80073cdcu ||
-        cpu->gpr[31]==0x80073d08u || cpu->gpr[31]==0x80073d50u ||
-        cpu->gpr[31]==0x80073d88u || cpu->gpr[31]==0x80073de4u ||
-        cpu->gpr[31]==0x80073e1cu)) return 0;
-    /* Only the identity-gated strip body may cross panel/window edges. */
-    if(target==0x800728b8u &&
-       (cpu->gpr[31]==0x80073ee4u || cpu->gpr[31]==0x80074f28u ||
-        cpu->gpr[31]==0x80074f44u || cpu->gpr[31]==0x80074f60u)) {
-        int hosted = battle_optional_strips_try_host(runtime,cpu,target);
-        if(hosted != 0) return hosted;
-        return 0;
-    }
-    if (battle_triangle_walkers_target(target))
-        return battle_triangle_walkers_try_host(runtime,cpu,target);
-    if (battle_quad_walkers_target(target))
-        return battle_quad_walkers_try_host(runtime,cpu,target);
-    if (battle_triangle_max_target(target))
-        return battle_triangle_max_try_host(runtime,cpu,target);
-    /* Lit FT3 / FT4 packet callbacks from the packet-render host only
-     * (return address 0x8002C86C).  A decline falls through: the rest of
-     * the chain decides that recorded boundary. */
-    if (battle_lit_ft_target(target) && cpu->gpr[31] == 0x8002c86cu) {
-        int hosted = battle_lit_ft_try_host(runtime, cpu, target);
-        if (hosted != 0)
-            return hosted;
-    }
-    if (battle_quad_max_target(target))
-        return battle_quad_max_try_host(runtime,cpu,target);
-    if (battle_triangle_min_target(target))
-        return battle_triangle_min_try_host(runtime,cpu,target);
-    if (battle_quad_min_target(target))
-        return battle_quad_min_try_host(runtime,cpu,target);
-    if (target==0x80048d68u)
-        return battle_vector_normal_s_try_host(runtime,cpu,target);
-    if (target==0x8004a92cu)
-        return battle_rot_matrix_yxz_try_host(runtime,cpu,target);
-    if (target==0x800a4db8u)
-        return battle_effect_grid_try_host(runtime,cpu,target);
-    if (target==0x800aa514u)
-        return battle_color_scale_try_host(runtime,cpu,target);
-    if (target==0x800a9a50u)
-        return battle_actor_update_try_host(runtime,cpu,target);
-    if (target==0x800aa820u)
-        return battle_callback_selector_try_host(runtime,cpu,target);
-    if (target==0x800a3640u)
-        return battle_effect_constructor_try_host(runtime,cpu,target);
-    if (target==0x800a44c0u)
-        return battle_anchor_update_try_host(runtime,cpu,target);
-    if(target==0x800a2fd8u||target==0x800a2f94u)
-        return battle_effect_list_try_host(runtime,cpu,target);
-    if(target==0x800b3878u)
-        return battle_fade_draw_try_host(runtime,cpu,target);
-    if(battle_fade_draw_sdk_target(target,cpu->gpr[31]))
-        return battle_fade_draw_sdk_try_host(runtime,cpu,target);
-    if(battle_line_display_target(target,cpu->gpr[31]))
-        return battle_line_display_try_host(runtime,cpu,target);
-    if(battle_status_packets_target(target,cpu->gpr[31]))
-        return battle_status_packets_try_host(runtime,cpu,target);
-    if(battle_window_render_target(target,cpu->gpr[31]))
-        return battle_window_render_try_host(runtime,cpu,target);
-    if(battle_panel_packets_target(target,cpu->gpr[31]))
-        return battle_panel_packets_try_host(runtime,cpu,target);
-    if(battle_hud_strips_target(target,cpu->gpr[31]))
-        return battle_hud_strips_try_host(runtime,cpu,target);
-    if(battle_optional_strips_target(target,cpu->gpr[31]))
-        return battle_optional_strips_try_host(runtime,cpu,target);
-    if(battle_primitive_style_target(target,cpu->gpr[31]))
-        return battle_primitive_style_try_host(runtime,cpu,target);
-    if(target==0x80073538u)return battle_party_hud_try_host(runtime,cpu,target);
-    if(target==0x8008fad8u)return battle_window_open_try_host(runtime,cpu,target);
-    if(target==0x800742a0u && cpu->gpr[31]==0x8007643cu)
-        return battle_target_process_try_host(runtime,cpu,target);
-    if(target==0x80073380u && cpu->gpr[31]==0x80074308u)
-        return battle_number_draw_try_host(runtime,cpu,target);
-    if(target==0x8008aaa0u && cpu->gpr[31]==0x80073420u)
-        return battle_digits_try_host(runtime,cpu,target);
-    /* The existing identity-gated glyph entry may handle this call site;
-     * a decline still falls through to the recorded refusal below. */
-    if(target==0x80076a10u && cpu->gpr[31]==0x800734ccu) {
-        int hosted = battle_glyphs_try_host(runtime,cpu,target);
-        if(hosted != 0) return hosted;
-    }
-    if(battle_number_draw_unconverted(target,cpu->gpr[31])) return 0;
-    if(target==0x80072f38u && cpu->gpr[31]==0x8007431cu)
-        return battle_hud_values_try_host(runtime,cpu,target);
-    if(target==0x80072a9cu && cpu->gpr[31]==0x8007434cu)
-        return battle_label_try_host(runtime,cpu,target);
-    /* Only the identity-gated glyph body may cross these label edges. */
-    if(target==0x80076a10u &&
-       (cpu->gpr[31]==0x80072b90u || cpu->gpr[31]==0x80072c54u ||
-        cpu->gpr[31]==0x80072d08u)) {
-        int hosted = battle_glyphs_try_host(runtime,cpu,target);
-        if(hosted != 0) return hosted;
-    }
-    if(battle_label_unconverted(target,cpu->gpr[31])) return 0;
-    if(battle_target_process_unconverted(target,cpu->gpr[31])) return 0;
-    if(target==0x80076544u||target==0x80076418u||target==0x800764b4u||target==0x800764ecu)
-        return battle_phase_try_host(runtime,cpu,target);
-    if(target==0x801e693cu)return battle_startup_queue_try_host(runtime,cpu,target);
-    if(battle_startup_queue_service_target(target,cpu->gpr[31]))
-        return battle_startup_queue_service_try_host(runtime,cpu,target);
-    if(target==0x801e6f00u||target==0x801e6ac4u||target==0x801e6e48u||target==0x801e6dc8u||target==0x801e6d6cu||target==0x801e6a4cu||target==0x801e6d34u||target==0x801e6c80u)
-        return battle_module_0c4_lift_try_host(runtime,cpu,target);
-    if(target==0x801e6710u||target==0x801e67a4u||target==0x80021d3cu)
-        return battle_startup_actors_try_host(runtime,cpu,target);
-    if(battle_startup_actors_unconverted(target,cpu->gpr[31]))return 0;
-    {
-        int boundary = battle_startup_actors_boundary(runtime, cpu, target);
-        if (boundary != BRIDGE_HOOKS_NONE)
-            return boundary;
-    }
-    if(target==0x801e6314u)
-        return battle_startup_resources_try_host(runtime,cpu,target);
-    if(battle_startup_resources_service_target(target,cpu->gpr[31]))
-        return battle_startup_resources_service_try_host(runtime,cpu,target);
-    /* Staged opt-in service boundary; default-off retains startup refusal. */
-    if(target==0x800bb350u)
-        return battle_effect_sprite_parent_try_host(runtime,cpu,target);
-    if(battle_effect_sprite_tasks_target(target,cpu->gpr[31]))
-        return battle_effect_sprite_tasks_try_host(runtime,cpu,target);
-    /* These two child graphs have not been adopted with their original guest
-     * frames and packed-pointer effects. Keep the startup boundary explicit,
-     * including when a legacy symbol has already populated the call cache.
-     * 800BB350 is guest code (refused natively); 80022A70's legacy body
-     * matches retail at this site apart from the stack switch it omits
-     * (boundary audit), so it binds and is disclosed. */
-    if(target==0x800bb350u&&cpu->gpr[31]==0x801e65e0u)return 0;
-    if(target==0x80022a70u&&cpu->gpr[31]==0x801e6620u)
-        return bridge_legacy_boundary(target,cpu->gpr[31]);
-
-    /* Remaining rendering callbacks refuse before legacy LP64 C: the bodies
-     * bound here (8002F2E0, 8002FAE8, ...) read native pointer globals that
-     * the battle path never sets (boundary audit). */
-    if (cpu->gpr[31]==0x8002c86cu) {
-        fprintf(stderr,"[xeno-port][battle-packet-render] unconverted indirect callback target=0x%08x from=0x8002c864\n",target);
-        return -1;
-    }
-    if (target==0x8003101cu && cpu->gpr[31]==0x8002c744u)
-        return bridge_legacy_boundary(target,cpu->gpr[31]);
-
-    if (cpu->gpr[31]==0x800b371cu && target!=0x800b383cu) {
-        fprintf(stderr,"[xeno-port][battle-color-fade] unconverted indirect callback target=0x%08x from=0x800b3714\n",target);
-        return -1;
-    }
-    if (cpu->gpr[31]==0x800bea88u ||
-        (cpu->gpr[31]==0x80071700u && target==0x8028022cu)) {
-#ifndef XENO_NATIVE_ONLY
-        /* The hybrid interprets an unconverted battle-frame callback that is
-         * overlay guest code (800B9F78 from 0x800BEA80 in the all-hosts
-         * battle 1), as it does any guest code no host owns.  Only the
-         * native-only build, which has no interpreter, refuses it here. */
-        if (target_is_guest_code(target))
-            return 0;
-#endif
-        if (bridge_adopted_leaf_or(0,target) == BRIDGE_HOOKS_NONE)
-            return BRIDGE_HOOKS_NONE; /* opt-in: an adopted leaf binds */
-        fprintf(stderr,"[xeno-port][battle-frame] unconverted callback target=0x%08x from=0x%08x\n",target,cpu->gpr[31]-8u);
-        return -1;
-    }
-    if (battle_frame_target(target))
-        return battle_frame_try_host(runtime,cpu,target);
-    if (battle_camera_update_target(target))
-        return battle_camera_update_try_host(runtime,cpu,target);
-    if (battle_effects_render_target(target))
-        return battle_effects_render_try_host(runtime,cpu,target);
-    if (battle_palette_update_target(target))
-        return battle_palette_update_try_host(runtime,cpu,target);
-    if (battle_effect_models_target(target))
-        return battle_effect_models_try_host(runtime,cpu,target);
-    if (battle_packet_render_target(target))
-        return battle_packet_render_try_host(runtime,cpu,target);
-    if (target==0x8002c4bcu)
-        return battle_model_unrelocate_try_host(runtime,cpu,target);
-    /* Palette transforms still need complete native-body adoption. Keep the
-     * new caller's paths out of cached and generic host-word dispatch. */
-    if ((target==0x80025d4cu && cpu->gpr[31]==0x800a6d04u) ||
-        (target==0x80026f44u && cpu->gpr[31]==0x800a6d44u) ||
-        (target==0x800a6884u && cpu->gpr[31]>=0x800a6d84u && cpu->gpr[31]<=0x800a6f34u))
-        return 0;
-    if (battle_target_camera_target(target))
-        return battle_target_camera_try_host(runtime,cpu,target);
-    if (target==0x80077990u)
-        return battle_vram_setup_try_host(runtime,cpu,target);
-    if (battle_color_fade_target(target))
-        return battle_color_fade_try_host(runtime,cpu,target);
-    if (target == 0x801e7098u || target == 0x801e6fecu || target == 0x8001cd6cu)
-        return battle_timer_task_try_host(runtime, cpu, target);
-    if (battle_post_resource_target(target))
-        return battle_post_resource_try_host(runtime, cpu, target);
-    if (target == BATTLE_ENTRY)
-        return battle_entry_try_host(runtime, cpu, target);
-    if (target == 0x800a8bf0u)
-        return battle_actor_create_try_host(runtime, cpu, target);
-    if (target == 0x800aa6e0u)
-        return battle_actor_records_try_host(runtime, cpu, target);
-    if (target == 0x800aa934u)
-        return battle_motion_queue_try_host(runtime, cpu, target);
-    if (target == 0x801e7ec4u)
-        return battle_resource_bind_try_host(runtime, cpu, target);
-    if (target == 0x8007252cu || target == 0x80089c08u || target == 0x80089c48u || target == 0x80089c9cu)
-        return battle_status_scan_try_host(runtime, cpu, target);
-    if (target == 0x8009f794u || target == 0x8002cbbcu)
-        return battle_model_release_try_host(runtime, cpu, target);
-    if (target == 0x800a216cu || target == 0x800a23e8u)
-        return battle_motion_track_try_host(runtime,cpu,target);
-    if (target == 0x800af518u || target == 0x8009c050u)
-        return battle_motion_slot_try_host(runtime,cpu,target);
-    if (target == 0x800a1b50u)
-        return battle_motion_triple_try_host(runtime,cpu,target);
-    if (target == 0x800af438u || target == 0x800af400u)
-        return battle_target_selector_try_host(runtime,cpu,target);
-    if (target == 0x800adf1cu || target == 0x800a2330u)
-        return battle_rotation_retarget_try_host(runtime,cpu,target);
-    if (target == 0x800a2434u || target == 0x800a2accu)
-        return battle_animation_start_try_host(runtime,cpu,target);
-    if (target == 0x800ae1bcu)
-        return battle_animation_stream_try_host(runtime,cpu,target);
-    if (target == 0x80023804u || target == 0x800239a0u || target == 0x8002393cu ||
-        target == 0x800aa600u || target == 0x80022000u)
-        return battle_effect_sprite_try_host(runtime,cpu,target);
-    if (target == 0x8009eba8u || target == 0x8002c3e8u)
-        return battle_model_list_try_host(runtime, cpu, target);
-    if (target == 0x8009ec4cu || target == 0x8009f708u || target == 0x8002cb54u ||
-        target == 0x8002cc10u || target == 0x8002cc74u)
-        return battle_model_nodes_try_host(runtime, cpu, target);
-    if (cpu->gpr[31]==0x8002ca9cu&&!battle_model_packets_callback(target)) {
-        fprintf(stderr,"[xeno-port][battle-model-packets] unconverted indirect callback target=0x%08x from=0x8002ca94\n",target);
-        return -1;
-    }
-    if (battle_model_packets_target(target))
-        return battle_model_packets_try_host(runtime,cpu,target);
-    if (battle_model_lighting_target(target,cpu->gpr[31]))
-        return battle_model_lighting_try_host(runtime,cpu,target);
-    if (target == 0x801e7210u)
-        return battle_resource_init_try_host(runtime, cpu, target);
-    if (target == 0x801e70e8u || target == 0x8003342cu)
-        return battle_resource_bounds_try_host(runtime, cpu, target);
-    if (target == 0x8008ac00u)
-        return battle_text_allocation_try_host(runtime, cpu, target);
-    if (target == 0x800a8b0cu || target == 0x800a2234u || target == 0x800a22e8u ||
-        target == 0x800a2ca4u || target == 0x800a2d5cu || target == 0x800b00d0u)
-        return battle_effect_reset_try_host(runtime, cpu, target);
-    if (target == 0x80076a10u || target == 0x80076a6cu || target == 0x8002675cu)
-        return battle_glyphs_try_host(runtime, cpu, target);
-    if (target == 0x800b8098u)
-        return battle_startup_try_host(runtime, cpu, target);
-    if (target == 0x800b8284u)
-        return battle_display_try_host(runtime, cpu, target);
-    if (target == 0x800b7870u)
-        return battle_transition_try_host(runtime, cpu, target);
-    if (target == 0x800b73ecu || target == 0x800b7424u)
-        return battle_shard_setup_try_host(runtime, cpu, target);
-    if (target == 0x801e5384u || target == 0x801e5840u)
-        return battle_module_setup_try_host(runtime, cpu, target);
-    if (target == 0x801e4048u || target == 0x801e4160u ||
-        target == 0x801e4870u || target == 0x801e4ac0u)
-        return battle_module_stage1_try_host(runtime, cpu, target);
-    if (target == 0x801e4cd0u || target == 0x801e4e7cu || target == 0x801e5014u)
-        return battle_module_stage2_try_host(runtime, cpu, target);
-    if (target == 0x801e5924u || target == 0x801e5ee8u || target == 0x801e5d2cu ||
-        target == 0x801e5e78u || target == 0x801e6290u || target == 0x801e62b8u)
-        return battle_module_stage3_try_host(runtime, cpu, target);
-    if (target == 0x80097d5cu || target == 0x8009b098u)
-        return battle_party_stats_try_host(runtime, cpu, target);
-    if (target == 0x80078508u || target == 0x80098af8u || target == 0x80094d24u)
-        return battle_turn_speed_try_host(runtime, cpu, target);
-    if (target == 0x800841e0u || target == 0x80083ff4u || target == 0x80085310u)
-        return battle_target_list_try_host(runtime, cpu, target);
-    if (target == 0x80078310u)
-        return battle_texture_try_host(runtime, cpu, target);
-    if (target == 0x800b6f0cu || target == 0x800b7160u || target == 0x800b7330u)
-        return battle_shard_callbacks_try_host(runtime, cpu, target);
-
-    if(target==0x80099890u && cpu->gpr[31]==BATTLE_HALT_PC)
-        return battle_inactive_status_timer_try_host(runtime,cpu,target);
-    if(target==0x80080160u && cpu->gpr[31]==BATTLE_HALT_PC) {
-        /* Opt-in: the adopted native driver (main34_q1_port.c) replaces
-         * the transliterated one. */
-        if(bridge_adopted_leaf_or(0,target)==BRIDGE_HOOKS_NONE)return BRIDGE_HOOKS_NONE;
-        return battle_command_menu_try_host(runtime,cpu,target);
-    }
-    if(target==0x800765c4u && cpu->gpr[31]==0x800739c4u)
-        return battle_frame_geometry_try_host(runtime,cpu,target);
-    if(target==0x80076710u && cpu->gpr[31]==0x800739ccu)
-        return battle_frame_sprite_try_host(runtime,cpu,target);
-    if(battle_party_hud_unconverted(target,cpu->gpr[31]))return 0;
-    if(battle_window_open_unconverted(target,cpu->gpr[31]))return 0;
-    if(target==0x80075938u && cpu->gpr[31]==0x80076444u)
-        return battle_gauge_try_host(runtime,cpu,target);
-    if(target==0x80075168u && cpu->gpr[31]==0x80075950u)
-        return battle_gauge_refresh_try_host(runtime,cpu,target);
-    if(target==0x80073a58u && cpu->gpr[31]==0x80076454u)
-        return battle_popup_try_host(runtime,cpu,target);
-    if(target==0x80073b64u && cpu->gpr[31]==0x8007645cu)
-        return battle_hud_submit_try_host(runtime,cpu,target);
-    if(target==0x80073e88u && cpu->gpr[31]==0x80076464u)
-        return battle_optional_panel_try_host(runtime,cpu,target);
-    if(target==0x80074eecu && cpu->gpr[31]==0x8007647cu)
-        return bridge_adopted_leaf_or(battle_window_strips_try_host(runtime,cpu,target),target);
-    if(target==0x800745ecu && cpu->gpr[31]==0x80076484u)
-        return bridge_adopted_leaf_or(battle_panel_inactive_try_host(runtime,cpu,target),target);
-    if(target==0x80074d4cu && cpu->gpr[31]==0x8007648cu)
-        return bridge_adopted_leaf_or(battle_indicator_inactive_try_host(runtime,cpu,target),target);
-    if(battle_phase_unconverted(target,cpu->gpr[31]))return bridge_adopted_leaf_or(0,target);
-
-    return BRIDGE_HOOKS_NONE;
-}
-
-/* Hooks consulted before the generic resolution in runtime_bridge_call:
- * the caller hosts when enabled, then the adopted RESULTS module and file-1
- * controller.  Same return convention as runtime_bridge_caller_hosts. */
 static int runtime_bridge_hooks(BattleMipsRuntime *runtime, PcPortMipsCpu *cpu,
                                 uint32_t target)
 {
-    if (battle_caller_hosts_enabled()) {
-        int hooked = runtime_bridge_caller_hosts(runtime, cpu, target);
-        if (hooked != BRIDGE_HOOKS_NONE)
-            return hooked;
-    }
-
     /* Adopted RESULTS module routines (battle_results_gate.inc).  Ahead of the
      * per-target cache below, which keys on the address alone: other overlays
      * load over 0x801DE000.., so only the module-identity gate may decide
@@ -3424,17 +2222,27 @@ static int runtime_bridge_call(void *opaque, PcPortMipsCpu *cpu, uint32_t target
     if (runtime->force_interpret && target_is_guest_code(target))
         return 0;
 
-    /* A hook's 0 asks for the retail bytes to run, which the interpreter can
-     * only do for guest code: the main executable's text is not in guest RAM.
-     * A main-executable target that its hook declines (route flag off,
-     * identity mismatch, recorded boundary) therefore continues to the
-     * generic resolution below and binds its native body, exactly as when no
-     * hook owns it.  The hybrid and the native-only build share this rule. */
+    /* The renderer callbacks at these sites require native packed data.
+     * A guest call without a verified argument adapter cannot enter them. */
+    if ((cpu->gpr[31] == 0x8002c86cu ||
+         (cpu->gpr[31] == 0x800b371cu && target != 0x800b383cu) ||
+         cpu->gpr[31] == 0x800bea88u ||
+         (cpu->gpr[31] == 0x80071700u && target == 0x8028022cu)) &&
+        !target_is_guest_code(target))
+        return -1;
+
     {
-        int hooked = bridge_normalize_hook(runtime_bridge_hooks(runtime, cpu, target));
-        if (hooked != BRIDGE_HOOKS_NONE &&
-            (hooked != 0 || target_is_guest_code(target)))
-            return hooked;
+        int result = battle_resident_boundary(runtime, cpu, target);
+        if (result != BRIDGE_HOOKS_NONE)
+            return result;
+    }
+
+    /* Validate the loaded module before consulting the native symbol cache. */
+    {
+        int result = runtime_bridge_hooks(runtime, cpu, target);
+        if (result != BRIDGE_HOOKS_NONE &&
+            (result != 0 || target_is_guest_code(target)))
+            return result;
     }
 
     resolved = NULL;
@@ -3505,6 +2313,14 @@ static int runtime_bridge_call(void *opaque, PcPortMipsCpu *cpu, uint32_t target
                 "target=0x%08x guest-pc=0x%08x\n",
                 target, cpu->gpr[31] - 8u);
         return -1;
+    }
+
+    /* A native work-list may store a registered host callback address. Its
+     * canonical guest address still determines the argument ABI. */
+    if (resolved->address != target) {
+        int result = battle_resident_boundary(runtime, cpu, resolved->address);
+        if (result != BRIDGE_HOOKS_NONE)
+            return result;
     }
 
     /* Concrete signatures precede the legacy word-based thunks. In
@@ -4204,162 +3020,6 @@ int PcPort_BattleMipsDispatchCallback(uint32_t callback, void *argument)
 /* Identity-gated dispatch for the adopted battle RESULTS module routines and
  * the guest accessor their native bodies use; after file-1 for its digest. */
 #include "battle_results_gate.inc"
-#include "battle_entry_host.inc"
-#include "battle_startup_host.inc"
-#include "battle_display_host.inc"
-#include "battle_transition_host.inc"
-#include "battle_shard_setup_host.inc"
-#include "battle_module_setup_host.inc"
-#include "battle_module_stage1_host.inc"
-#include "battle_module_stage2_host.inc"
-#include "battle_module_stage3_host.inc"
-#include "battle_glyphs_host.inc"
-#include "battle_popup_transmatrix_host.inc"
-#include "battle_text_allocation_host.inc"
-#include "battle_effect_reset_host.inc"
-#include "battle_resource_init_host.inc"
-#include "battle_resource_bounds_host.inc"
-#include "battle_resource_bind_host.inc"
-#include "battle_status_scan_host.inc"
-#include "battle_post_resource_host.inc"
-#include "battle_timer_task_host.inc"
-#include "battle_color_fade_host.inc"
-#include "battle_vram_setup_host.inc"
-#include "battle_target_camera_host.inc"
-#include "battle_frame_host.inc"
-#include "battle_phase_chain_host.inc"
-#include "battle_target_process_host.inc"
-#include "battle_number_draw_host.inc"
-#include "battle_digits_host.inc"
-#include "battle_hud_values_host.inc"
-#include "battle_label_host.inc"
-#include "battle_gauge_host.inc"
-#include "battle_gauge_refresh_host.inc"
-#include "battle_popup_host.inc"
-#include "battle_hud_submit_host.inc"
-#include "battle_optional_panel_host.inc"
-#include "battle_window_strips_host.inc"
-#include "battle_panel_inactive_host.inc"
-#include "battle_indicator_inactive_host.inc"
-#include "battle_inactive_status_timer_host.inc"
-#include "battle_command_menu_host.inc"
-#include "battle_attack_ring_host.inc"
-#include "battle_target_mask_host.inc"
-#include "battle_actor_clear_flag_host.inc"
-#include "battle_menu_reset_host.inc"
-#include "battle_inactive_free_host.inc"
-#include "battle_active_free_host.inc"
-#include "battle_menu_free_host.inc"
-#include "battle_menu_fade_host.inc"
-#include "battle_menu_empty_fade_host.inc"
-#include "battle_menu_nonempty_fade_host.inc"
-#include "battle_menu_nonfade_empty_host.inc"
-#include "battle_menu_nonfade_no_glyph_host.inc"
-#include "battle_menu_glyph_prefix_host.inc"
-#include "battle_menu_zero_glyph_host.inc"
-#include "battle_inactive_state_host.inc"
-#include "battle_active_state_host.inc"
-#include "battle_small_cursor_host.inc"
-#include "battle_cursor_layout_host.inc"
-#include "battle_empty_menu_host.inc"
-#include "battle_menu_alloc_host.inc"
-#include "battle_menu_sound_host.inc"
-#include "battle_popup_highlight_prefix_host.inc"
-#include "battle_popup_task_prefix_host.inc"
-#include "battle_popup_lookup_host.inc"
-#include "battle_popup_create_prefix_host.inc"
-#include "battle_popup_pair_prefix_host.inc"
-#include "battle_popup_frame_size_host.inc"
-#include "battle_popup_record_host.inc"
-#include "battle_popup_copy_host.inc"
-#include "battle_popup_sprite_noop_host.inc"
-#include "battle_popup_gfx_queue_host.inc"
-#include "battle_popup_timer_remove_host.inc"
-#include "battle_popup_pinned_free_host.inc"
-#include "battle_color_work_remove_host.inc"
-#include "battle_popup_unlinked_work_host.inc"
-#include "battle_popup_unlinked_timer_host.inc"
-#include "battle_popup_unrelated_unlink_host.inc"
-#include "battle_popup_one_null_unlink_host.inc"
-#include "battle_menu_sprite_active_host.inc"
-#include "battle_popup_trig_host.inc"
-#include "battle_sound_disabled_host.inc"
-#include "battle_sound_enabled_host.inc"
-#include "battle_sound_missing_host.inc"
-#include "battle_sound_match_host.inc"
-#include "battle_sound_wds_host.inc"
-#include "battle_sound_prefix_host.inc"
-#include "battle_frame_geometry_host.inc"
-#include "battle_frame_sprite_host.inc"
-#include "battle_atlas_guestabi_host.inc"
-#include "battle_pushmatrix_host.inc"
-#include "battle_scale_matrix_host.inc"
-#include "battle_rot_matrix_z_host.inc"
-#include "battle_gte_geometry_host.inc"
-#include "battle_gte_matrix_host.inc"
-#include "battle_atlas_gpu_host.inc"
-#include "battle_menu_missing_mapped_glyph_host.inc"
-#include "battle_menu_one_glyph_host.inc"
-#include "battle_popmatrix_host.inc"
-#include "battle_rottranspers4_host.inc"
-#include "battle_window_open_host.inc"
-#include "battle_party_hud_host.inc"
-#include "battle_primitive_style_host.inc"
-#include "battle_optional_strips_host.inc"
-#include "battle_hud_strips_host.inc"
-#include "battle_panel_packets_host.inc"
-#include "battle_window_render_host.inc"
-#include "battle_status_packets_host.inc"
-#include "battle_line_display_host.inc"
-#include "battle_camera_update_host.inc"
-#include "battle_effects_render_host.inc"
-#include "battle_palette_update_host.inc"
-#include "battle_effect_models_host.inc"
-#include "battle_packet_render_host.inc"
-#include "battle_model_unrelocate_host.inc"
-#include "battle_triangle_walkers_host.inc"
-#include "battle_quad_walkers_host.inc"
-#include "battle_triangle_max_host.inc"
-#include "battle_quad_max_host.inc"
-#include "battle_triangle_min_host.inc"
-#include "battle_quad_min_host.inc"
-#include "battle_lit_ft_packets_host.inc"
-#include "battle_vector_normal_s_host.inc"
-#include "battle_model_lighting_host.inc"
-#include "battle_rot_matrix_yxz_host.inc"
-#include "battle_effect_grid_host.inc"
-#include "battle_color_scale_host.inc"
-#include "battle_actor_update_host.inc"
-#include "battle_callback_selector_host.inc"
-#include "battle_effect_constructor_host.inc"
-#include "battle_anchor_update_host.inc"
-#include "battle_effect_list_host.inc"
-#include "battle_fade_draw_host.inc"
-#include "battle_startup_resources_host.inc"
-#include "battle_startup_actors_host.inc"
-#include "battle_module_0c4_lift_host.inc"
-#include "battle_startup_queue_host.inc"
-#include "battle_motion_queue_host.inc"
-#include "battle_actor_create_host.inc"
-#include "battle_actor_records_host.inc"
-#include "battle_model_list_host.inc"
-#include "battle_model_nodes_host.inc"
-#include "battle_model_release_host.inc"
-#include "battle_motion_track_host.inc"
-#include "battle_motion_slot_host.inc"
-#include "battle_motion_triple_host.inc"
-#include "battle_target_selector_host.inc"
-#include "battle_rotation_retarget_host.inc"
-#include "battle_animation_start_host.inc"
-#include "battle_animation_stream_host.inc"
-#include "battle_effect_sprite_host.inc"
-#include "battle_effect_sprite_parent_host.inc"
-#include "battle_model_packets_host.inc"
-#include "battle_party_stats_host.inc"
-#include "battle_turn_speed_host.inc"
-#include "battle_target_list_host.inc"
-#include "battle_texture_host.inc"
-#include "battle_shard_callbacks_host.inc"
 
 /* TEST TOOLING XENO_BATTLE_EXIT_HASH=1 (off unless set; read once): at battle
  * exit print one line with a SHA-256 per guest-RAM game-state region, read
@@ -4452,22 +3112,32 @@ static void battle_exit_hash_print(BattleMipsRuntime *runtime, const char *how)
 void PcPort_DetVblankBattleEnter(void) __attribute__((weak));
 void PcPort_DetVblankBattleReturn(void) __attribute__((weak));
 
+/* Verify the owner-supplied battle entry before the CPU is started. */
+static int battle_entry_present(const uint8_t *entry)
+{
+    static const uint8_t expected[32] = {
+        0x07, 0xef, 0xcf, 0xb5, 0xb6, 0xbb, 0x51, 0x0e,
+        0xb6, 0x4f, 0xca, 0xe3, 0x2e, 0x1e, 0x38, 0x90,
+        0x6c, 0xd8, 0xf6, 0xdf, 0x72, 0xb9, 0xf4, 0xbf,
+        0x54, 0x49, 0xa2, 0x08, 0x43, 0x82, 0x25, 0x9c,
+    };
+    uint8_t digest[sizeof(expected)];
+    file1_digest(entry, 4, digest);
+    return memcmp(digest, expected, sizeof(expected)) == 0;
+}
+
 void func_80070F40(void)
 {
     BattleMipsRuntime *runtime = &g_BattleRuntime;
     PcPortMipsCpu cpu;
-    uint32_t first;
     int rc;
 
     initialize_runtime(runtime);
     file1_invalidate(runtime);
     results_invalidate(runtime);
     runtime->file1.archive20_selected = 0;
-    first = load_le((const uint8_t *)PSX_ADDR(BATTLE_ENTRY), 4);
-    if (first != 0x27bdffd0u) {
-        fprintf(stderr,
-                "[xeno-port][battle-mips] retail battle image missing: "
-                "entry word=%08x expected=27bdffd0\n", first);
+    if (!battle_entry_present((const uint8_t *)PSX_ADDR(BATTLE_ENTRY))) {
+        fprintf(stderr, "[xeno-port][battle-mips] expected battle image is missing\n");
         abort();
     }
 

@@ -12,6 +12,12 @@
 #include <stdio.h>
 #include "test_input.h"
 #include "hd2d_world_packets.h"
+
+void FieldMatrixCopy(MATRIX *dest, MATRIX *source);
+void FieldMatrixCopyTranslation(MATRIX *dest, MATRIX *source);
+void FieldMatrixCopyTransform(MATRIX *dest, MATRIX *source);
+void func_80281B00(void *label);
+
 #pragma weak PcPort_Hd2dWorldBegin
 #pragma weak PcPort_Hd2dWorldEnd
 

@@ -1,10 +1,5 @@
-/* Host overlay hooks.  The old clickable toolbar strip (SAVE | LOAD | RECORD |
- * SPEED | HD2D | BATTLES | GOD and its reserved 34 px) is gone: those
- * functions live on host keys (F9-F12, F6/Backspace) and in the opt-in dev
- * menu (psycross_port_dev_menu.inl).  The game image fills the whole window;
- * these hooks stay as identity functions for the PsyCross patches that call
- * them.  The overlay is drawn after recording readback, so it never enters
- * game captures.  The glyph renderer below is the dev menu's text. */
+/* Host overlay hooks keep the full window available for the game. The dev
+ * menu draws after recording readback. Its text uses the glyphs below. */
 #include "quick_checkpoint_request.h"
 #include "file_menu_notice.h"
 #if defined(__GNUC__)
@@ -12,8 +7,6 @@ extern "C" int PcPort_GodModeEnabled(void) __attribute__((weak));
 extern "C" void PcPort_GodModeToggle(void) __attribute__((weak));
 extern "C" int PcPort_RandomBattlesEnabled(void) __attribute__((weak));
 extern "C" void PcPort_RandomBattlesToggle(void) __attribute__((weak));
-extern "C" int PcPort_FeiHd2dEnabled(void) __attribute__((weak));
-extern "C" void PcPort_FeiHd2dToggle(void) __attribute__((weak));
 extern "C" void PcPort_CheatQueue(const char* line) __attribute__((weak));
 #endif
 
@@ -93,12 +86,25 @@ static int PsyX_HostToolbarWarpY(int gameY) { return gameY; }
 /* No pixels are reserved above the game image any more. */
 extern "C" int PsyX_HostToolbarReservedHeight(void) { return 0; }
 
+#include "port_dev_menu.h"
+#include "psycross_disc_prompt.inl"
+
 static void PsyX_PortDevMenuInstallHost();
 static void PsyX_HostToolbarInitialise() { PsyX_PortDevMenuInstallHost(); }
 
 static int PsyX_HostToolbarHandleEvent(SDL_Event* event)
 {
-	return PsyX_PortDevMenuHandleEvent(event);
+	if (s_quickDiscPrompt) {
+		if (PsyX_DiscPromptHandleEvent(event)) return 1;
+		if (event->type == SDL_KEYDOWN || event->type == SDL_KEYUP) {
+			SDL_Scancode key = event->key.keysym.scancode;
+			if (key == SDL_SCANCODE_F8 || key == SDL_SCANCODE_F11 || key == SDL_SCANCODE_F12)
+				return 1;
+		}
+		return 0;
+	}
+	if (PsyX_PortDevMenuHandleEvent(event)) return 1;
+	return PsyX_DiscPromptHandleEvent(event);
 }
 
 static const unsigned char* PsyX_HostToolbarGlyph(char ch)

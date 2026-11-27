@@ -1,47 +1,13 @@
-/* Popup task lookup versus retail CPU. Both sides use PsyCross GTE. */
+/* Exercise the retained read-only diagnostic with the real runtime address resolver. */
+#include <assert.h>
 #include "battle_mips_runtime.c"
-#include "psx/gtereg.h"
-/* Unused runtime globals required by the linked fixture. */
-void *g_Heap;
-unsigned int g_HeapIsErrorHandlerOff;
+#include "battle_sound_channel_snapshot.inc"
+
 uint8_t g_PsxRam[PSX_RAM_SIZE];
 uint8_t g_PsxScratchpad[4096];
-int g_GPUDisabledState;
-unsigned g_PcPortPresentedFrames;
-/* compat.o's real pump is the sole definition; with a frozen vblank count it
- * early-returns before touching pad state (a conflicting no-op stub here
- * breaks the link with multiple-definition). */
-int PsyX_Sys_GetVBlankCount(void) { return 0; }
-void PsyX_UpdateInput(void) {}
-void ControllerPoll(void) {}
-void ControllerPushState(void) {}
-char PsyX_BeginScene(void) { abort(); }
-void ClearSplits(void) { abort(); }
-void DrawAllSplits(void) { abort(); }
-void ParsePrimitivesLinkedList(u_long *p, int s) { (void)p; (void)s; abort(); }
-extern int func_80025FA8(uint8_t *, int, uint8_t *, int, int, int, int, int, int)
-    __attribute__((weak));
-extern int ReadGeomScreen(void);
-extern void ReadGeomOffset(long *, long *);
-extern MATRIX *ScaleMatrixL(MATRIX *, VECTOR *);
 
-static int sdk_bridge(void *opaque, PcPortMipsCpu *cpu, uint32_t target)
-{
-    if (target >= 0x80025fa8u && target < 0x80026338u) return 0;
-    if (target >= 0x80043a1cu && target < 0x80043d00u) return 0;
-    return runtime_bridge(opaque, cpu, target);
-}
-
-static void initial_gte(void)
-{
-    memset(&gteRegs, 0, sizeof(gteRegs));
-    CTC2(4096, 0); CTC2(4096, 2); CTC2(4096, 4);
-    CTC2(123, 5); CTC2(456, 6); CTC2(789, 7);
-    SetGeomOffset(160, 112); SetGeomScreen(512);
-}
-
-
-SoundVoiceData *g_SoundChannels[24];
+/* The diagnostic resolves this real exported table through dlsym. */
+SoundVoiceData *g_SoundChannels[24] __attribute__((externally_visible));
 static int lockstep,can_reserve,held,reserve_calls,release_calls;
 int PcPort_SoundLockstepActive(void) { return lockstep; }
 int PsyX_Sys_ReserveSoundEvent(unsigned event) {
@@ -113,5 +79,5 @@ int main(void) {
  g_SoundChannels[2]=PSX_ADDR(0x80140000u);rt.host_ranges[0].writable=0;
  assert(!battle_sound_channel_snapshot(&rt,&before));rt.host_ranges[0].writable=1;
  rt.data[0].size-=sizeof(void*);assert(!battle_sound_channel_snapshot_detail(&rt,&before,&problem) && problem==1u);
- puts("sound channel snapshot and boundary spans PASS synthetic valid and refusal cases");
+ puts("Sound channel diagnostic passed synthetic reservation, pointer, and boundary checks.");
 }

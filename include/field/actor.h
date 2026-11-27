@@ -414,7 +414,11 @@ typedef struct {
 typedef struct {
     u_int signBits[0x20]; // Sign bits for variables
     /* 0x80 */ u_int numScripts;
+#ifdef XENO_PC_PORT
+    /* 0x84 */ u8 metadata[]; // Inline 0x40-byte routine table for each script.
+#else
     /* 0x84 */ void* metadata; // numScripts * 0x40 size of script metadata
+#endif
     // script instructions
 } ScriptsFile;
 

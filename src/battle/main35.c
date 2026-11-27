@@ -143,6 +143,7 @@ extern u16 D_800CCD64[][184], D_800CCE08[][184];
 #include "target_eligibility_impl.inc"
 #endif /* XENO_BATTLE_OVERLAY_HOST_BODIES */
 /* Retail 84108: flag low byte bypasses status only, not presence/block. */
+#ifndef XENO_BATTLE_OVERLAY_HOST_BODIES
 u32 func_80084108(u32 arg0, u32 arg1) {
     u8 result = 0;
     u32 target = arg0 & 0xFF;
@@ -158,6 +159,7 @@ u32 func_80084108(u32 arg0, u32 arg1) {
     }
     return result;
 }
+#endif
 #endif /* BATTLE_PART(2) */
 #ifndef XENO_PC_PORT
 extern u8 D_800D3274;

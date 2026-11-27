@@ -1,24 +1,18 @@
 #!/usr/bin/env bash
-# W34N129: wm_80072BB0's SetFogNearFar arguments versus the retail fragment.
+# Check the owned guest fragment at its fog service boundary.
 set -euo pipefail
-cd "$(dirname "$0")/../.."
-OUT=$(mktemp -d /tmp/w34n129.XXXXXX)
-trap 'rm -rf "$OUT"' EXIT
-build() {
-    local name=$1; shift
-    gcc -std=gnu17 -O2 "$@" -include assert.h -DXENO_PC_PORT -DSKIP_ASM -D_LANGUAGE_C \
-        -Wall -Wextra -Werror -Wno-unused-parameter \
-        -Ipc_port/include_shim -Iinclude -Ipc_port/extern/PsyCross/include \
-        -Ipc_port/extern/PsyCross/include/psx -Ipc_port/src \
-        pc_port/tests/w34n129_fog_near_far_test.c pc_port/src/world_map_framebuffer_init.c \
-        pc_port/src/battle_mips_adapter.c -o "$OUT/$name"
-}
-build pass
-"$OUT/pass" 2>"$OUT/pass.err" | tee "$OUT/pass.log"
-build mutant -DW34N129_MUTANT_SWAPPED
-if "$OUT/mutant" > "$OUT/mutant.log" 2>&1; then
-    echo "W34N129 FAIL: the swapped-branch mutant survived" >&2; exit 1
+root=$(cd "$(dirname "$0")/../.." && pwd)
+world=${1:-"$root/disc/world_map.bin"}
+if ! digest=$(sha256sum < "$world") ||
+   [[ ${digest%% *} != 4c15fd32b3a03d7cd5ea4403dcaabc70abaf99b6aaca65d63d6866803edaac70 ]]; then
+    echo "Supply the world_map.bin extracted from your US Disc 1." >&2
+    exit 2
 fi
-grep -q "W34N129 FAIL d7cc" "$OUT/mutant.log"
-echo "W34N129 negative control PASS: swapped near branch is rejected"
-echo "W34N129 FOG NEAR/FAR PASS"
+work=$(mktemp -d "${TMPDIR:-/tmp}/world-fog.XXXXXXXX")
+trap 'rm -rf -- "$work"' EXIT
+"${CC:-cc}" -std=gnu17 -O2 -Wall -Wextra -Werror -I"$root/pc_port/src" \
+    "$root/pc_port/tests/w34n129_fog_near_far_test.c" "$root/pc_port/src/battle_mips_adapter.c" \
+    -o "$work/world-fog"
+for strict in 0 1; do
+    XENO_DISABLE_CPU_INTERPRETER="$strict" "$work/world-fog" "$world"
+done

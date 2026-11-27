@@ -9,7 +9,7 @@ source pc_port/tests/lib/slus_suite_lib.sh
 slus_check_disc
 MUTS=(
  "func_8002BA58|*(u16*)(slot + 0) = 3;|*(u16*)(slot + 0) = 2;"
- "func_800303C8|HeapSetCurrentContentType(0x2C);|HeapSetCurrentContentType(0x2D);"
+ "func_800303C8|model_clone_coordinates(originals[0], vertex_count, flags, 0x2c)|model_clone_coordinates(originals[0], vertex_count, flags, 0x2d)"
  "func_800305D8|T2_P(*(u32*)(pJoint + 4))|T2_P(*(u32*)(pJoint + 4) + 1)"
  "func_80031798|0x04000000u;|0x03000000u;"
  "func_800317E0|func_800317E0, 0x03000000|func_800317E0, 0x02000000"

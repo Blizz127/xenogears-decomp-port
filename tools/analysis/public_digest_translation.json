@@ -1,0 +1,606 @@
+{
+  "00553a5c9f00d7d8a2ea9456b0b12ff357706f5a305dfed524893fb8ce637051": [
+    199,
+    "sound automatic instruction translation"
+  ],
+  "00c82edc96ed1926ff60cdf7d0f59e2d2df5bb063bec06530cf8995f50fbd9e1": [
+    10410,
+    "battle host instruction translation"
+  ],
+  "019e819c5f1ed4c2456834efc29f3fe1405c0fed7ce42b68ca892b838a6d4d63": [
+    5357,
+    "battle host instruction translation"
+  ],
+  "02d41c17e66592c9e16c64d73d834acb5c6f1fccf8fe69b3fec1292be85c951c": [
+    688,
+    "sound automatic instruction translation"
+  ],
+  "030375abe4ac3485926f0ca9c990c93bbfc487ec64da79924e7867d5a3db61ef": [
+    4584,
+    "battle overlay instruction translation"
+  ],
+  "048d99fb0681ae12c2b885268e9b915ec966f6df4754b820f2b0fc716e478549": [
+    309,
+    "battle overlay instruction translation"
+  ],
+  "0e537421a9e2363a3a790e08ac0607526ed5d073a2a8d3b61f6b6cc568b1ce12": [
+    103,
+    "sound automatic instruction translation"
+  ],
+  "0eb2d1b24ec0443660be13f1d6d163e899e13542708513014ad78dd4afde4b5c": [
+    407,
+    "battle overlay instruction translation"
+  ],
+  "10a090f55ba1a0d89e00e6b9e2724591f92c86bb71aae521dc0988a67e2bc0f8": [
+    9731,
+    "battle host instruction translation"
+  ],
+  "1188631e9686c08b5fb74e71a24c2abbd29d4549a0b397602fe8370a7cc816c9": [
+    741,
+    "battle overlay instruction translation"
+  ],
+  "144afc58d416224d65dde9bf70c530615af48d4e6890f55228688415f5aac2b8": [
+    1087,
+    "battle host instruction translation"
+  ],
+  "144de01a1974560c0a5609bea0c1b51d0231b1cecac0e3d65fae3892702f9105": [
+    505,
+    "battle overlay instruction translation"
+  ],
+  "18cc656e88fab7dcc5b67dc15d605d3a3b542f43ab56ed59f72356725038bf1c": [
+    327,
+    "sound automatic instruction translation"
+  ],
+  "18da2ccdd09a1c3f62fbb94e23b38da57a4d768e06339a23e9783b6cebe26d67": [
+    517,
+    "world-map scheduler control-flow translation"
+  ],
+  "18ecfae11e0a654bb5ce208023657c571a2adeb16c43c4c18e6fa95c413aa614": [
+    1339,
+    "battle host instruction translation"
+  ],
+  "1a4cd8f607f3bcd893e50af934ba55b6899ceef7bb74c5f9ae7a3667721b11fb": [
+    596,
+    "battle host instruction translation"
+  ],
+  "1a97c5d4a484fec33ea8bec27befa3f3b237e08a0a54a74792706cd80190e923": [
+    715,
+    "resident renderer instruction translation"
+  ],
+  "1f21a527b9decac528654e9d09fe0693f46cb667a905ff9c05a79b2aa1045437": [
+    218,
+    "sound automatic instruction translation"
+  ],
+  "1f296930202d9ce434053fca75d7dcc2c870663a659aa43f2f5b2f781323692a": [
+    2057,
+    "battle host instruction translation"
+  ],
+  "1f4063a9bd9ddc4cbca2248a702aa3a2b3cba722c9b7063884fcca4611ad87d0": [
+    485,
+    "battle overlay instruction translation"
+  ],
+  "1f5d9a9a17bdb56d66578dd6939a94807107bd7835f6169d51f58d488dc09622": [
+    804,
+    "resident renderer instruction translation"
+  ],
+  "1fc711849d17ec2231dbb0ee4673fd9be09f271bd1deff9f5b4f76410dbdc9c4": [
+    2775,
+    "battle host instruction translation"
+  ],
+  "24aa80bed389d1aba357931c3c4288e5dcad13ff92ad659c6e38a633139ee19c": [
+    998,
+    "battle overlay instruction translation"
+  ],
+  "261c769565594b9ebbfaadaf3d4d27ffacc73f0ee46ffd1c3426109ea4db3530": [
+    1058,
+    "battle host instruction translation"
+  ],
+  "26a3d4b5694a11fbee6f28b2e829188422c9dc5c264d821034a57763aa4df24c": [
+    1135,
+    "battle overlay instruction translation"
+  ],
+  "29fe9b52e3be810fad1f13f55ddc038c8c0e26570c7dc7933f7bf54f65790fee": [
+    235,
+    "sound automatic instruction translation"
+  ],
+  "2f1851ee3c3848a2dfad61a893da03c18efdaa742b4130636ddf95208ff30fee": [
+    485,
+    "battle overlay instruction translation"
+  ],
+  "2f646ae170b4355a517cd601dfde4eb36106198d65e1f36857b9d7a08caf0110": [
+    169,
+    "sound automatic instruction translation"
+  ],
+  "2fc98868f99f7549f7b10795c78d99a9ba25368d7011bbfa838cc5c62c08c0a0": [
+    168,
+    "sound automatic instruction translation"
+  ],
+  "30a5e50531b4bd9fb6c78096559ecf1bd6648d12700a59b2c1612f0ea6657f6a": [
+    4116,
+    "battle host instruction translation"
+  ],
+  "321df587574092ded70c0650579f32008ed267b4680e7fc994def98e3eab3b42": [
+    486,
+    "world-map scheduler test-oracle control-flow translation"
+  ],
+  "32ae5ad14fe8004bb63cb3d5bcb9739aa68fa0170027fc6559a92bd9d80ee405": [
+    1094,
+    "battle overlay instruction translation"
+  ],
+  "32dec9a6af6058964eb4596ec2d04fc2f3ed9cd5a37ad504ae988c1f8358b8ca": [
+    318,
+    "battle overlay instruction translation"
+  ],
+  "35066fbeac84a56cd06184a7146474239b3ef79775ae5afd69c3bdf55268a7dd": [
+    427,
+    "popup test instruction transcription"
+  ],
+  "35458f9cee9f29d542736ba938a36f66b2ae380f886fc869b0a6df8bbc5c5299": [
+    365,
+    "popup test instruction transcription"
+  ],
+  "380e20055fff6f6831f5c2ca2f0c0748726b0cc25c425cc994cd47bb155418a6": [
+    283,
+    "sound automatic instruction translation"
+  ],
+  "398178c775bd69a2506b352006351727541057f2362e8d3e0f4cad3b3ebb0642": [
+    134,
+    "sound automatic instruction translation"
+  ],
+  "3986de50da34832fbee7d643604ae7e05693cd202a73607158b71504bca22457": [
+    131,
+    "sound automatic instruction translation"
+  ],
+  "3acb2ca673237953c0db50fc00a9aa8538dd7555049751ace962633d0970fe27": [
+    145,
+    "sound automatic instruction translation"
+  ],
+  "3e1675d2398a1e3eaf0ad2b6139f636f2cddcb1b1e8fcabdcdad1b2c9206658d": [
+    1248,
+    "battle host instruction translation"
+  ],
+  "3eb352f4b53e7772bbd6cdce0b674780cc9ad7f7991eb4ba21beaddcdaaa809b": [
+    519,
+    "battle overlay instruction translation"
+  ],
+  "442ecc6fbfaa706e17632aefe5b57ba5ed832fa90ea2af904af0d1cf016c8508": [
+    840,
+    "battle host instruction translation"
+  ],
+  "467d9348ef12b96f50cb7dd406bd79fa2805c33f9b960844ec9e669920428af9": [
+    975,
+    "battle overlay instruction translation"
+  ],
+  "481de81be212d1e86611cced9c342e809b777d29746cafee1ac9b504cde3a219": [
+    1798,
+    "battle host instruction translation"
+  ],
+  "498a55dcc3114c9a25eb399b7e59dab034782ea05b36c780d3678049807e4648": [
+    416,
+    "battle host instruction translation"
+  ],
+  "4a53d4a734f733bc1dacf73ba9028fff3b72c717ad027458a0daa4e62e35a7b7": [
+    214,
+    "sound automatic instruction translation"
+  ],
+  "4e912be8b9565a9e224bc7c884e3b27fdfc39e2069b466288ee50563634a48f9": [
+    691,
+    "battle host instruction translation"
+  ],
+  "4f98fe9ef7fc51877b2896ac24654d9de4c217d55f69b514c5cc7e22b20b952a": [
+    230,
+    "sound automatic instruction translation"
+  ],
+  "50b413900311ad3defa022ca28a72f236e544d12e892c3fa8b6a178404831d8c": [
+    2556,
+    "battle overlay instruction translation"
+  ],
+  "518ed04a88e8ed88950f326a6c299d0dea5d355751bfe04518e6a9cc3eaacf06": [
+    266,
+    "sound automatic instruction translation"
+  ],
+  "524a99f117766a3c284cf4ef8b41ac03f8b07fe578742e8c89f67d551716de3f": [
+    2342,
+    "battle overlay instruction translation"
+  ],
+  "52a0689966d261dcc3792f4c3422b5e3e7b219fbd9549d9f05e5eea9b91a4d84": [
+    485,
+    "battle submodule instruction translation"
+  ],
+  "530e2b6c2c499ec67111c0ca7b20b4c98f01114a2a4e3d00cb0effac86342092": [
+    1449,
+    "sound test instruction transcription"
+  ],
+  "53beec03c0e35f65def8186e2da17c8b570206d301d38c52b3e6078c0ff1f1df": [
+    352,
+    "sound automatic instruction translation"
+  ],
+  "5906ecc24b81c44b24b97875b35c3cdbb64ba0d5b0accb63f2396e916eb48a56": [
+    1197,
+    "battle overlay instruction translation"
+  ],
+  "5a2d3ffa89eb53fc85a45c9c4ee9c62a5d8a809218bf64a4b79864ac85869187": [
+    269,
+    "battle host instruction translation"
+  ],
+  "5e91851771ae72bc9e30b6923f809fc54d8cb1a8e007755c56b9294cceb11e86": [
+    168,
+    "sound automatic instruction translation"
+  ],
+  "5fac9dd3902fd88586e9ce76ca125779ff6c3bd46e21eadfeae902effc20feab": [
+    4312,
+    "battle host instruction translation"
+  ],
+  "61b643c71ce8456dda3a05c43c221018d624973acb0659dfcae6de7c443f06aa": [
+    636,
+    "battle submodule instruction translation"
+  ],
+  "622a414ab5475a12773cb6687c5d11de4e4cecd7e6892193a4a87edbc60368a4": [
+    5169,
+    "battle host instruction translation"
+  ],
+  "63b264e09952107f3ba79af653ea5b1fdc01768d1253ac042ff93672e9c7589e": [
+    140,
+    "sound automatic instruction translation"
+  ],
+  "645784d96bfbb5b4617417f64d92dc9e0d8e132bb61c3e776ac23ce3c17177bd": [
+    423,
+    "battle submodule instruction translation"
+  ],
+  "652804408ce127a1fa0325ae420e770abe5f69a472283388cc039c528e8c3ae6": [
+    903,
+    "battle overlay instruction translation"
+  ],
+  "66dd9e3896d2a1570b4c3e55983abac65212063d43c5cbdb3c26949fd88fe967": [
+    1010,
+    "battle host instruction translation"
+  ],
+  "68bc99c0f6f4708b2517663684535d9088f9af5abb7d663274bd0dc15fc22c7a": [
+    2645,
+    "battle host instruction translation"
+  ],
+  "6bc277d5dc67ce4c6f5d830097929bf5689412e197d3e42dda855ff629dd9ab5": [
+    758,
+    "battle host instruction translation"
+  ],
+  "6cceaf24c65de6c978e34ae15bfcc002f0cf45b4351441b0f694dbc80e0cfa17": [
+    138,
+    "sound automatic instruction translation"
+  ],
+  "73f0d7b8548670cfbc751e8f097b0b8bfb22d8e4fe1ba1cadba20b34f2de65ee": [
+    627,
+    "battle host instruction translation"
+  ],
+  "74ee177b1d44f6365e801d37107221a2b49c205dc87860c132917d1eb6db6b56": [
+    835,
+    "resident renderer instruction translation"
+  ],
+  "7501095e47fcd235d13d5f8dd487d2422190b386b2742d9f3ec238de62813b8e": [
+    626,
+    "sound test instruction transcription"
+  ],
+  "75878deb2291dc12a7041e86bf11ca6895e66b031935bd4a2df15d836192daec": [
+    214,
+    "sound automatic instruction translation"
+  ],
+  "7734b5a66f64e60ba05a95904d349e6a563e4e31322b88a45d34adb82b48035f": [
+    1276,
+    "battle host instruction translation"
+  ],
+  "77660e8248990cc5136708af79632a88f0ff269c756a4fd58cf511382cc168d6": [
+    805,
+    "battle submodule instruction translation"
+  ],
+  "7987dc3e021324ddef7a4beb3ac76013a2e1c4b7c375be67c98017177bbf6e77": [
+    614,
+    "battle overlay instruction translation"
+  ],
+  "79b8ef75ff86ac6ef5e7132487669b93d1783ccdfc287127974cb5ad57bf9fdc": [
+    1168,
+    "battle overlay instruction translation"
+  ],
+  "7a6d3b72f46e5867cceb6c4fc79ad8d37fb956ec17eae117e3261c48da9e4a35": [
+    441,
+    "sound automatic instruction translation"
+  ],
+  "7c939bc2acb368fbc8917388d81bce7b24722795d639338708ac19476a3dd1da": [
+    535,
+    "battle submodule instruction translation"
+  ],
+  "7dca60b7d2344d4ad8a263aa10ece435772f8ce819b68a0082a91b211d355da2": [
+    1421,
+    "battle host instruction translation"
+  ],
+  "800eed5dc9d84a985242f1cf70caf177bd2529d6c8f7c3efec2c517df9e741a7": [
+    1104,
+    "battle host instruction translation"
+  ],
+  "83877d627594c17b3d8cad80041cda88f40abea6f5b7650923300c02e569428f": [
+    156,
+    "sound automatic instruction translation"
+  ],
+  "879bd17d43cb46a70a32413513d7953d93c5c59cd5616c5c17b0ee7d4cbcea2b": [
+    791,
+    "battle overlay instruction translation"
+  ],
+  "89e699421ab24fd6b8ffc0c9c5c6a685d2ef73b781b16f5e5676e91b3bd8a93f": [
+    117,
+    "sound automatic instruction translation"
+  ],
+  "8eb8005c8c728af3335d897944560f8aa6462addfa2b48a779327853ad360551": [
+    48,
+    "sound automatic instruction translation"
+  ],
+  "90dc7a4fa9fe8461314f6c1bbf1f7c60b92e848a6e766c7010dea30face0344c": [
+    252,
+    "battle host instruction translation"
+  ],
+  "929cc4fd3236ba44ad0307c2a0d766430f47b7e6c80394a2059a04260b8ada80": [
+    1017,
+    "battle host instruction translation"
+  ],
+  "92f611a2923e67e354f1864ae72cf529de8a95fdb389cd3978e626812206eb07": [
+    355,
+    "sound automatic instruction translation"
+  ],
+  "939c48b2d1ea06acaf49b8c5f0727c80b0af10b3ee5e5610b13e5c82bbae096b": [
+    229,
+    "sound test instruction transcription"
+  ],
+  "941ce8b823dfa0078dfe4237f1c4063728f01e8ce333c46421cdc28be4647582": [
+    589,
+    "sound test instruction transcription"
+  ],
+  "94871bde17b1d4c43ae434a9d55e63dd0fbbcd8ab1bd905ac708b4a8147299f0": [
+    1230,
+    "battle host instruction translation"
+  ],
+  "99736d6b51f68b683cff72fd84011489282efa8b035be271cbe801546d339051": [
+    3922,
+    "battle host instruction translation"
+  ],
+  "9a1bb984f8fc4e773a89230ec7be6f44e7cfb488ac3080b12b2f48d072639cb5": [
+    2679,
+    "battle overlay instruction translation"
+  ],
+  "9f15761d0490eae26f900803fd7641bc0fbd50076deef0d1824bce1d2a3161ea": [
+    806,
+    "sound automatic instruction translation"
+  ],
+  "a2d85b08cf6951ec460bb2e69d4766d55511509364be41928a5eb09f37451a2a": [
+    921,
+    "battle host instruction translation"
+  ],
+  "a4dd62f8e44a3217197ea909a7b2e08eb2281e95872430c77eb8aac68b2f3d75": [
+    509,
+    "battle overlay instruction translation"
+  ],
+  "a532e21963be8fca91b48adedcb71bbba6cd317713ebfb3b956cead67f6ebd53": [
+    307,
+    "battle overlay instruction translation"
+  ],
+  "a58f1f62b04c1e229f79d0feb6c09cbf73ca1d8edbd127acda560d833a124e7e": [
+    3567,
+    "battle overlay instruction translation"
+  ],
+  "a75f4739aa7a680efb27fd00812eb20a5b293738f631bd75af7ad0392365cb8d": [
+    3290,
+    "battle overlay instruction translation"
+  ],
+  "a887db7d45921d1c30a3a2aaf63369b339a56ffa3cad2365cb9ce2225c28ff1c": [
+    682,
+    "battle overlay instruction translation"
+  ],
+  "ad192c31ad693244b78d18ca8ac6ce9692e5bbb3ea21c72cbab1613a2e6595b5": [
+    2721,
+    "battle overlay instruction translation"
+  ],
+  "aec2db4c952a2f4ef4f442e9a805d4159b072b7065c24cdbb88b6333e8031a05": [
+    107,
+    "sound automatic instruction translation"
+  ],
+  "af46469da8186cde33bcc3e2bf1de2dd8bfa0ef4bb179431c8ca0a7429784d7e": [
+    16597,
+    "sprite automatic instruction translation"
+  ],
+  "b1555e658ac440271450e215f4e65a6599d486fc0f2809c21af66722cf99c584": [
+    416,
+    "battle host instruction translation"
+  ],
+  "b3bcc90941f15bba127d268e5585fdbc5f7e9c21c4d9640ccb9c84433b786946": [
+    1008,
+    "battle host instruction translation"
+  ],
+  "b449a89b77b7adbe9c79d1d56224f099de917651470216a09d5c89235babc356": [
+    604,
+    "field instruction transcription (800A7948)"
+  ],
+  "b4e56cfed1dfc74fd8f1f627a81e274664161d68d21cf45742d3f8a8538deb5a": [
+    622,
+    "battle host instruction translation"
+  ],
+  "b61ff839cff66e89db94d72d7b18dea73d2aea6d684f278554192bc40ce312e9": [
+    188,
+    "sound automatic instruction translation"
+  ],
+  "b9dc02fd1ef4a1e88ece77dca7198a66b26d37f195bd7896351c69208d85b76e": [
+    1607,
+    "battle overlay instruction translation"
+  ],
+  "bb1179c204ae3832098459bf6d9b160d8dc43d0dfa403bcc9d4c536d1b3d3858": [
+    507,
+    "battle overlay instruction translation"
+  ],
+  "c0f179d831043903e02927a472c8803efc97efd55e19ebd3120862bbd9f5ec7e": [
+    747,
+    "battle host instruction translation"
+  ],
+  "c11a0c5ade9cb1a528939b5d0975c558b01890c0e229a96012a2d2f9ffc65766": [
+    966,
+    "popup test instruction transcription"
+  ],
+  "c22b5509239f010193809f7eea96367facef3d8574ffabc21beb710b6769358a": [
+    328,
+    "battle submodule instruction translation"
+  ],
+  "c3444517015ec8cf623c62ab4ff76696f8ba63411dd15d1ecc7d0ebbf029461d": [
+    127,
+    "sound automatic instruction translation"
+  ],
+  "c521211bc4771c4abcd283114a15f29a270018800a27a12f381878d1b0529ef8": [
+    122,
+    "sound automatic instruction translation"
+  ],
+  "c60d20a20fabc4e07954550fef5858a86449ea8be8fc730de91d2e701206b94b": [
+    673,
+    "battle host instruction translation"
+  ],
+  "c6a97610051a270744110acfe6cb1b3ad5ead66f16d276bf63db812fe62c364a": [
+    596,
+    "field instruction transcription (800A7948)"
+  ],
+  "c79ebc73d4dcd8a82d654839fef21307cf0123e35706b9d265baa32370771c2c": [
+    1977,
+    "battle host instruction translation"
+  ],
+  "c9cb39e0ee19f1dc57e7ddca745a6a7b42a9d97e6e3cd0733177c938e6b54990": [
+    874,
+    "battle host instruction translation"
+  ],
+  "cab703d540caf33cbcf4df1b513858ceb858b281db3571ec5919a5781df349aa": [
+    248,
+    "battle host instruction translation"
+  ],
+  "cae9dcefa8b8056c37c3df89ce1a06548ac1c921afcba2d6f528aa8d54d89087": [
+    1349,
+    "battle host instruction translation"
+  ],
+  "cbab17e48c3750dba4440be37c961e62640ab723486cd3cb4ea7c2eaac5e48bd": [
+    847,
+    "battle host instruction translation"
+  ],
+  "ccb1444c3a083014c44f13029c15eb21332f50aea107f86114cd38450304f52a": [
+    15054,
+    "battle host instruction translation"
+  ],
+  "ce2bd65f26a9abb15698a693e636ce468ade7bcb154594337e13b5bc369fedb5": [
+    2702,
+    "battle overlay instruction translation"
+  ],
+  "ce714cffdeb9f77a5aeb24c8b7fbea1f5a00fb75c08d0ed9140f38c7e88bbd26": [
+    672,
+    "battle overlay instruction translation"
+  ],
+  "d0e8e0a020e927523e10b71de425d6cdcca1618d3edc768f7de26cfaaaa64596": [
+    214,
+    "sound automatic instruction translation"
+  ],
+  "d17151e9f72cff0da4a1708f843417cae3d9004aaa48a0a0a56afb42f10358c0": [
+    731,
+    "battle overlay instruction translation"
+  ],
+  "d5062e02311eab31ade44f8353e4ee51b4879c375399a78265f7546accbbd280": [
+    2715,
+    "battle overlay instruction translation"
+  ],
+  "d58a97deb445d032fa9bcabb63a34858d3f1d4936252771e3a84c2f94b8be047": [
+    322,
+    "sound automatic instruction translation"
+  ],
+  "d6383515bcd2f993b0befe8d2bce4d9784020392b4aad9ae88dbc0a9e08a5184": [
+    4741,
+    "battle host instruction translation"
+  ],
+  "db0cbf4d8a4b2a15d48ae5744b467be9a5da4c1ff04dc4c7de2f0f55f8cc9b87": [
+    1051,
+    "battle overlay instruction translation"
+  ],
+  "e08b5932ae881ca802a8a66355f3e10bb71977c86d425251178080c7a37781a8": [
+    454,
+    "battle submodule instruction translation"
+  ],
+  "e1933bbc3aefb7a2d2812367d57089af575fd1def722bf94eff1fb143aa57c77": [
+    648,
+    "battle overlay instruction translation"
+  ],
+  "e2b5a563a3c4129b09776505c70a1aa0c601de1cc5f1c8b8eaf412c05240fd01": [
+    785,
+    "battle host instruction translation"
+  ],
+  "e6e663ad6fee957b5ea3eb862f7e93ad3a1dfa9aaca52cf3582cccd8198c1790": [
+    311,
+    "sound automatic instruction translation"
+  ],
+  "e92001de8b87f051cad2b771fe66e9bb84e1546e5b2b10b5d1b9a8cd3a70fd81": [
+    336,
+    "sound test instruction transcription"
+  ],
+  "eb5e301deda43ec2383540176f3137fb8d5ab2aca9fd97e8521246681489797f": [
+    167,
+    "sound automatic instruction translation"
+  ],
+  "ecbacd878e4529586aece00b76d97f6cfd6b2bfa15799f2bdcd31695ef0b1586": [
+    1039,
+    "battle overlay instruction translation"
+  ],
+  "ed171df06099ef9d1d25e28663e480ad128eba6e78da334c7db6cf4135976b1f": [
+    1101,
+    "battle submodule instruction translation"
+  ],
+  "ee59d2c90efc7644af6ea1e405950a1b5728ca587551f8bff76e725d65a02ba6": [
+    725,
+    "battle overlay instruction translation"
+  ],
+  "ee89224a5380babae34351332e9cca522d7904b64f6b703f64df4299531e7bb1": [
+    3580,
+    "battle overlay instruction translation"
+  ],
+  "f06aec3e9083c2c9041f069bcd2d754e5b117652d43f2b58dfd7229297f343f6": [
+    474,
+    "battle overlay instruction translation"
+  ],
+  "f129a6145e57b51d2a9f90ac58cba89bb321edc31e09fd4767a1f2d4ab5877a1": [
+    706,
+    "battle overlay instruction translation"
+  ],
+  "f2fa1b2539e5103c39e181890645daafec409bacd8e1606172f39f15cd9aac15": [
+    371,
+    "battle overlay instruction translation"
+  ],
+  "f4189a4c2d09ee021c345100cb2c57e4c4c02512545d32626f07383ccc044248": [
+    441,
+    "sound test instruction transcription"
+  ],
+  "f4bae528d0781a45e54f7df8ad45ffa25b499dc36ccdc33818846e8065d29f48": [
+    1279,
+    "battle host instruction translation"
+  ],
+  "f50f45370e20d459bc08a56f2f1e0fe1bffab484fd4c29652b946717af7da0fc": [
+    2022,
+    "battle host instruction translation"
+  ],
+  "f56cb906c197618cb7feb7a97ebe9a3bc6d74149c7f423298800b588a22857d9": [
+    1148,
+    "battle host instruction translation"
+  ],
+  "f72d490bd15eff6e7f674341a8afae4713234f540450786e2262a9d100d68338": [
+    6275,
+    "battle host instruction translation"
+  ],
+  "fbf06d54411b7121600873606be1541aba53062658304c6d5559055ed13b1425": [
+    462,
+    "battle overlay instruction translation"
+  ],
+  "fd561b84d43ed9bc84580693789b82ae1af9ee6ebf2d26dad78fa0cb93b0f7a7": [
+    495,
+    "battle overlay instruction translation"
+  ],
+  "feea1aee7b72eba67c18d73f415c168de887598f8fd1377a8aba6a2de1ae356e": [
+    275,
+    "sound automatic instruction translation"
+  ],
+  "ff1c4e4925e3860f83e766574c126579ded79f5b05e0821272e44216237bfc0d": [
+    2389,
+    "battle host instruction translation"
+  ]
+}

@@ -2,7 +2,20 @@
  * hash-keyed asset replacement (see include/xg_plat/mods.h). */
 #include <ctype.h>
 #include <dirent.h>
+#ifdef _WIN32
+#include <SDL_loadso.h>
+#include <SDL_error.h>
+#define XG_PLUGIN_FILE "plugin.dll"
+#define xg_plugin_open(path) SDL_LoadObject(path)
+#define xg_plugin_symbol SDL_LoadFunction
+#define xg_plugin_error SDL_GetError
+#else
 #include <dlfcn.h>
+#define XG_PLUGIN_FILE "plugin.so"
+#define xg_plugin_open(path) dlopen(path, RTLD_NOW | RTLD_LOCAL)
+#define xg_plugin_symbol dlsym
+#define xg_plugin_error dlerror
+#endif
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -11,6 +24,7 @@
 
 #include "../../include/xg_plat/mods.h"
 #include "../../include/xg_plat/config.h"
+#include "../../include_shim/host_only_bss.h"
 #include "../retail_data.h" /* XenoSha256 */
 
 typedef struct {
@@ -26,7 +40,7 @@ typedef struct {
     char path[600];
 } Asset;
 
-static XgPlatModManifest s_mods[XG_PLAT_MODS_MAX];
+static XgPlatModManifest s_mods[XG_PLAT_MODS_MAX] HOST_ONLY_BSS;
 static int s_mod_count;
 static Hook s_hooks[XG_PLAT_MODS_MAX_HOOKS];
 static int s_hook_count;
@@ -203,15 +217,15 @@ static void load_plugin(int mod)
     struct stat st;
     void* so;
     int (*init)(const XgPlatModApi*);
-    snprintf(path, sizeof path, "%s/plugin.so", s_mods[mod].dir);
+    snprintf(path, sizeof path, "%s/" XG_PLUGIN_FILE, s_mods[mod].dir);
     if (stat(path, &st) != 0)
         return;
-    so = dlopen(path, RTLD_NOW | RTLD_LOCAL);
+    so = xg_plugin_open(path);
     if (so == NULL) {
-        fprintf(stderr, "[xg_plat] mods: %s: cannot load plugin: %s\n", s_mods[mod].name, dlerror());
+        fprintf(stderr, "[xg_plat] mods: %s: cannot load plugin: %s\n", s_mods[mod].name, xg_plugin_error());
         return;
     }
-    *(void**)&init = dlsym(so, "xg_mod_init");
+    *(void**)&init = xg_plugin_symbol(so, "xg_mod_init");
     if (init == NULL || init(&s_api) != 0)
         fprintf(stderr, "[xg_plat] mods: %s: plugin has no xg_mod_init or it failed\n",
                 s_mods[mod].name);
@@ -381,10 +395,17 @@ void* xg_plat_mods_lookup_asset(const void* data, size_t size, size_t* out_size)
 
 size_t xg_plat_mods_filter_asset(void* buffer, size_t size, size_t capacity)
 {
+    return xg_plat_mods_filter_asset_if_current(buffer, size, capacity, NULL);
+}
+
+size_t xg_plat_mods_filter_asset_if_current(void* buffer, size_t size, size_t capacity,
+                                          int (*current)(void))
+{
     size_t repl_size = 0;
     void* repl;
 
     xg_plat_mods_emit(XG_PLAT_EVENT_ASSET_LOADED, (uint32_t)size, 0);
+    if (current && !current()) return 0;
     repl = xg_plat_mods_lookup_asset(buffer, size, &repl_size);
     if (repl == NULL)
         return size;

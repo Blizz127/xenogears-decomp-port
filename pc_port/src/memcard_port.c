@@ -58,7 +58,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/stat.h>
+#include "save_file_io.h"
 
 #include <psx/kernel.h>
 
@@ -213,7 +213,12 @@ static int card_flush(int port)
     char path[1024], temp[1100];
     FILE* f;
     const char* dir = card_dir();
-    if (mkdir(dir, 0755) != 0 && errno != EEXIST) {
+#ifdef _WIN32
+    int created = _mkdir(dir);
+#else
+    int created = mkdir(dir, 0755);
+#endif
+    if (created != 0 && errno != EEXIST) {
         card_log("cannot create card directory", dir);
         return -1;
     }
@@ -230,7 +235,7 @@ static int card_flush(int port)
         card_log("short write of card image", temp);
         return -1;
     }
-    if (fclose(f) != 0 || rename(temp, path) != 0) {
+    if (fclose(f) != 0 || replace_save_file(temp, path) != 0) {
         remove(temp);
         card_log("cannot replace card image", path);
         return -1;

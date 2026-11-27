@@ -1,19 +1,3 @@
-diff --git a/include/psx/libspu.h b/include/psx/libspu.h
-index 4014a0e..0e04066 100644
---- a/include/psx/libspu.h
-+++ b/include/psx/libspu.h
-@@ -435,7 +435,10 @@ extern void SpuGetVoiceADSRAttr (int vNum,
- 				 unsigned short *SR, unsigned short *RR,
- 				 unsigned short *SL,
-                  int *ARmode, int *SRmode, int *RRmode);
--extern void SpuGetVoiceEnvelopeAttr (int vNum, int *keyStat, short *envx );
-+/* _xeno_sound_adsr: keyStat widened to long* -- the retail decomp's psyq
-+ * header (the caller's prototype) declares long*, and the boundary must
-+ * match exactly on LP64. */
-+extern void SpuGetVoiceEnvelopeAttr (int vNum, long *keyStat, short *envx );
- 
- extern void SpuSetCommonMasterVolume (short mvol_left, short mvol_right);
- extern void SpuSetCommonMasterVolumeAttr (short mvol_left, short mvol_right,
 diff --git a/src/audio/PsyX_SPUAL.cpp b/src/audio/PsyX_SPUAL.cpp
 index 940c8bf..eadf09f 100644
 --- a/src/audio/PsyX_SPUAL.cpp
@@ -386,10 +370,10 @@ diff --git a/src/audio/PsyX_SPUAL.h b/src/audio/PsyX_SPUAL.h
 index 9e96e6e..dce3840 100644
 --- a/src/audio/PsyX_SPUAL.h
 +++ b/src/audio/PsyX_SPUAL.h
-@@ -41,6 +41,14 @@ extern float PsyX_SPUAL_GetMasterVolume();
+@@ -41,3 +41,11 @@
  extern u_int PsyX_SPUAL_SetReverbVoice(int on_off, u_int voice_bit);
  extern u_int PsyX_SPUAL_GetReverbVoice();
- 
++
 +/* _xeno_sound_adsr: hardware ADSR envelope (psx-spx counter machine).
 + * EnvelopeTick advances all live envelopes by N 44100Hz cycles and applies
 + * the composed gain; GetVoiceEnvelope reads ENVX + Psy-Q key status;
@@ -397,10 +381,7 @@ index 9e96e6e..dce3840 100644
 +extern void PsyX_SPUAL_EnvelopeTick(int cycles);
 +extern void PsyX_SPUAL_GetVoiceEnvelope(int vNum, long* keyStat, short* envx);
 +extern void PsyX_SPUAL_AdsrDebugCycle(u_short adsr1, u_short adsr2, int* phase, int* level, int* counter);
-+
- #if defined(_LANGUAGE_C_PLUS_PLUS)||defined(__cplusplus)||defined(c_plusplus)
- }
- #endif
+
 diff --git a/src/psx/LIBSPU.C b/src/psx/LIBSPU.C
 index f027c4a..39fba69 100644
 --- a/src/psx/LIBSPU.C

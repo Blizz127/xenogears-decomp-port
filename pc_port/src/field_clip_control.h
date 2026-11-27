@@ -18,4 +18,6 @@ typedef struct PcPortFieldClipControl {
 int PcPort_FieldClipControlStep(PcPortFieldClipControl* state);
 /* Same handled/unhandled contract, for verified object/data instructions. */
 int PcPort_FieldClipDataStep(PcPortFieldClipControl* state);
+void PcPort_FieldClipAttachProjected(uint8_t* object, uint8_t* target,
+                                     unsigned node_index);
 #endif

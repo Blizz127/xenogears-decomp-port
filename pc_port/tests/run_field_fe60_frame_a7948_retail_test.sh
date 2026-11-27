@@ -28,12 +28,13 @@ BASE=(-std=gnu17 -fno-pie -no-pie -fno-builtin -fno-stack-protector
 INC=(-Ipc_port/include_shim -Iinclude -Ipc_port/extern/PsyCross/include
      -Ipc_port/extern/PsyCross/include/psx -Ipc_port/src)
 
-build_and_run() {
+compile_fixture() {
     local name="$1"
+    local source="$2"
     local linker="$CC"
-    shift
+    shift 2
     "$CC" "${BASE[@]}" "${INC[@]}" -w -fno-inline "$@" \
-        -c src/field/main/misc5.c -o "$BUILD_DIR/$name.misc5.o"
+        -iquote "$ROOT/src/field/main" -c "$source" -o "$BUILD_DIR/$name.misc5.o"
     objcopy --weaken-symbol=func_800A732C \
             "$BUILD_DIR/$name.misc5.o"
     "$CC" "${BASE[@]}" "${INC[@]}" -Wall -Wextra -Werror "$@" \
@@ -45,6 +46,12 @@ build_and_run() {
     "$linker" -fno-pie -no-pie "$@" \
         "$BUILD_DIR/$name.test.o" "$BUILD_DIR/$name.misc5.o" \
         -Wl,--gc-sections -o "$BUILD_DIR/$name"
+}
+
+build_and_run() {
+    local name="$1"
+    shift
+    compile_fixture "$name" src/field/main/misc5.c "$@"
     "$BUILD_DIR/$name" >"$BUILD_DIR/$name.stdout" \
         2>"$BUILD_DIR/$name.stderr"
     test ! -s "$BUILD_DIR/$name.stderr"
@@ -56,18 +63,32 @@ build_and_run UBSan -O2 -g -fsanitize=undefined -fno-sanitize-recover=all
 
 cmp "$BUILD_DIR/O0.stdout" "$BUILD_DIR/O2.stdout"
 cmp "$BUILD_DIR/O0.stdout" "$BUILD_DIR/UBSan.stdout"
-rg -q '^FIELD FE60 FRAME A7948 certificate PASS checks=27$' \
+rg -q '^FIELD FE60 FRAME A7948 certificate PASS checks=43$' \
     "$BUILD_DIR/O0.stdout"
 
 echo "FIELD FE60 FRAME A7948 O0/O2/UBSAN PASS"
 
-set +e
-build_and_run mutant_keep_wide -O0 -g \
-    -DFIELD_A7948_MUTANT_KEEP_WIDE
-mutant_rc=$?
-set -e
-if [[ "$mutant_rc" -eq 0 ]] || \
-   ! rg -q '^ASSERTION fe60.frame ' \
+mutation_dir="$(mktemp -d "$BUILD_DIR/keep-wide.XXXXXX")"
+trap 'rm -rf -- "$mutation_dir"' EXIT
+cp src/field/main/misc5.c "$mutation_dir/misc5.c"
+python3 - src/field/main/field_movie_wide_frame.inc "$mutation_dir/field_movie_wide_frame.inc" <<'PY'
+from pathlib import Path
+import sys
+
+source, destination = map(Path, sys.argv[1:])
+restore = "PcPort_SetFieldMovieWidth(320, 1);"
+body = source.read_text()
+if body.count(restore) != 1:
+    raise SystemExit("Expected one field-movie width restoration")
+destination.write_text(body.replace(restore, "PcPort_SetFieldMovieWidth(640, 1);"))
+PY
+
+compile_fixture mutant_keep_wide "$mutation_dir/misc5.c" -O0 -g
+mutant_rc=0
+"$BUILD_DIR/mutant_keep_wide" >"$BUILD_DIR/mutant_keep_wide.stdout" \
+    2>"$BUILD_DIR/mutant_keep_wide.stderr" || mutant_rc=$?
+if [[ "$mutant_rc" != 1 ]] || \
+   ! rg -qx 'ASSERTION fe60.frame field=run.draw2.w actual=640 expected=320' \
        "$BUILD_DIR/mutant_keep_wide.stderr"; then
     echo "KEEP-WIDE MUTANT NOT DETECTED rc=$mutant_rc" >&2
     sed -n '1,40p' "$BUILD_DIR/mutant_keep_wide.stderr" >&2 || true

@@ -7,6 +7,15 @@
 #include "field/script_vm.h"
 #include "field/text_box.h"
 #include "field/particles.h"
+#ifdef XENO_PC_PORT
+extern void PcPort_QuickCheckpointNoticeSet(const char *text);
+
+void func_80072254(s32 actorIndex);
+void func_80085634(int a0, int a1);
+void func_80092F44(void);
+void func_80095284(void);
+void func_800A0C4C(void);
+#endif
 
 extern s32 D_800AFD1C;
 extern s32 g_PlayerActorIndex;
@@ -1070,9 +1079,15 @@ void func_800939A0(void) {
 
 void func_80093A04(void) {
     D_80059171 = FieldScriptVMGetArgument(1);
+#ifdef XENO_PC_PORT
+    PcPort_QuickCheckpointNoticeSet("GEAR SHOP UNAVAILABLE");
+#else
     D_800ADB64 = 0x5;
+#endif
     D_800B00C0 = 1;
+#ifndef XENO_PC_PORT
     D_8004F350++;
+#endif
     g_FieldScriptVMCurActor->scriptInstructionPointer += 3;
 }
 

@@ -4231,7 +4231,7 @@ static int frontier_tasks_native_one(uint32_t target)
     const BattleGuestThunk *thunk;
 
     if (target >= 0x801E4000u && target < 0x801E96C0u)
-        return battle_module_0c4_lift_ready(target);
+        return 0;
     thunk = battle_guest_thunk(target);
     return thunk != NULL && battle_guest_native_host(thunk) != NULL;
 }
@@ -5366,14 +5366,28 @@ static void hp_sprite(uint32_t at, unsigned salt, unsigned kind, unsigned speed)
  * retail side's KUSEG accesses count as guest accesses for that case. */
 static uint32_t hp_c11cc_sprite = HP_SPRITE;
 
+static int hp_read_lengths(const char *path, uint8_t lengths[256])
+{
+    FILE *file = fopen(path, "rb");
+    if (!file)
+        return 0;
+    int okay = fseek(file, 0x8004FC40u - 0x8000F800u, SEEK_SET) == 0 &&
+               fread(lengths, 1, 256, file) == 256;
+    fclose(file);
+    return okay;
+}
+
 static void hp_case_c11cc(const uint8_t *script, unsigned len, unsigned salt, unsigned kind,
                           unsigned speed, int glob_flag, uint16_t wait)
 {
-    static const struct { uint8_t op, len; } kLen[] = {
-        {0x9D, 1}, {0x99, 1}, {0xC2, 2}, {0x9E, 1}, {0xE3, 3}, {0x9B, 1}, {0x9F, 1},
-    };
+    static const uint8_t opcodes[] = {0x9D, 0x99, 0xC2, 0x9E, 0xE3, 0x9B, 0x9F};
     uint8_t *lengths = (uint8_t *)battle_guest_resolve_native(0x8004FC40u);
-    uint8_t saved[sizeof(kLen) / sizeof(kLen[0])];
+    uint8_t saved[sizeof(opcodes)];
+    uint8_t owner_lengths[256];
+    if (!hp_read_lengths("disc/SLUS_006.64", owner_lengths)) {
+        fail("func_800C11CC", "hand-setup", "cannot read the animation opcode lengths from the owned executable");
+        return;
+    }
     uint16_t *d9454, saved9454;
     uint32_t args[4] = {hp_c11cc_sprite, 0, 0, 0};
     const uint32_t at = hp_c11cc_sprite < 0x00200000u ? hp_c11cc_sprite | 0x80000000u
@@ -5383,9 +5397,9 @@ static void hp_case_c11cc(const uint8_t *script, unsigned len, unsigned salt, un
     begin_case(salt % 3u, 0);
     /* The table may be a native copy that outlives begin_case: restore it
      * after the case so later leaves see what they would have seen. */
-    for (i = 0; i < sizeof(kLen) / sizeof(kLen[0]); i++) {
-        saved[i] = lengths[kLen[i].op];
-        lengths[kLen[i].op] = kLen[i].len;
+    for (i = 0; i < sizeof(opcodes); i++) {
+        saved[i] = lengths[opcodes[i]];
+        lengths[opcodes[i]] = owner_lengths[opcodes[i]];
     }
     hp_sprite(at, salt, kind, speed);
     hp_sprite(HP_TARGET, salt + 7u, kind ^ 1u, speed + 0x40u);
@@ -5406,8 +5420,8 @@ static void hp_case_c11cc(const uint8_t *script, unsigned len, unsigned salt, un
     compare_name("func_800C11CC", args);
     retail_kuseg_guest = 0;
     *d9454 = saved9454;
-    for (i = 0; i < sizeof(kLen) / sizeof(kLen[0]); i++)
-        lengths[kLen[i].op] = saved[i];
+    for (i = 0; i < sizeof(opcodes); i++)
+        lengths[opcodes[i]] = saved[i];
 }
 
 static void hotpath_hand_cases_aa514(void)
@@ -6309,9 +6323,30 @@ int main(void)
     if (rt.function_count == 0)
         fprintf(stderr, "BATTLE OVERLAY DIFFERENTIAL note: no native bindings\n");
 
-    if (frontier_module_only)
-        frontier_module_hand_cases();
-    else {
+    if (frontier_module_only) {
+        static const uint32_t entries[] = {
+            0x801e6f00u, 0x801e6ac4u, 0x801e6e48u, 0x801e6dc8u,
+            0x801e6d6cu, 0x801e6a4cu, 0x801e6d34u, 0x801e6c80u
+        };
+        frontier_module_load();
+        for (size_t i = 0; i < sizeof(entries) / sizeof(entries[0]); ++i) {
+            PcPortMipsCpu cpu;
+            initialize_cpu(&cpu, &rt);
+            rt.bridge_cpu = &cpu;
+            PcPortMipsExecutionStats before = PcPortMipsExecutionStatsGet();
+            int status = PcPortMipsRun(&cpu, entries[i], entries[i] + 4u, 2);
+            PcPortMipsExecutionStats after = PcPortMipsExecutionStatsGet();
+            rt.bridge_cpu = NULL;
+            if (status != PC_PORT_MIPS_HALTED || cpu.steps != 1 ||
+                after.interpreted_instructions - before.interpreted_instructions != 1 ||
+                after.native_bridges != before.native_bridges) {
+                fprintf(stderr, "module guest dispatch failed at %08x\n", entries[i]);
+                return 1;
+            }
+        }
+        puts("BATTLE OVERLAY DIFFERENTIAL PASS module-guest-entries=8");
+        return 0;
+    } else {
         hand_cases();
         sweep();
     }

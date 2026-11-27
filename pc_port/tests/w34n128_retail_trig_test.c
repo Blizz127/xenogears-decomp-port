@@ -1,41 +1,23 @@
-/* W34N128: world-map retail trig entry points.
- *
- * The decomp symbol map names SLUS 0x8003F8B0 `rcos` and 0x8003F8CC `rsin`,
- * but 0x8003F8B0 returns the SINE halfword of the retail table and 0x8003F8CC
- * the COSINE halfword.  The world-map transcriptions call them by the decomp
- * names (world_map_retail_trig.h).  This test executes the pinned retail
- * instructions and table from the user's SLUS_006.64 in the MIPS interpreter
- * and requires wm_retail_rcos / wm_retail_rsin, backed by the real PsyCross
- * rsin / rcos, to return the same v0 for every angle of several 32-bit pages.
- * With -DW34N128_MUTANT_CONVENTIONAL the header is bypassed and the
- * conventional PsyCross functions are called under the decomp names, which is
- * what the world map did before; the test must then fail. */
+/* Compare the renderer's 12-bit phase convention with two guest SLUS
+ * entries executed by the test interpreter against the owner's image. */
+#include <inttypes.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
-#include "common.h"
+#include <psx/libgte.h>
 #include "psx_memory.h"
 #include "battle_mips_adapter.h"
-#include "world_map_retail_trig.h"
 
 uint8_t g_PsxRam[PSX_RAM_SIZE];
 uint8_t g_PsxScratchpad[4096];
 
 #define HALT_PC UINT32_C(0x80001000)
 
-#if defined(W34N128_MUTANT_CONVENTIONAL)
-static int port_rcos(int a) { return rcos(a); }
-static int port_rsin(int a) { return rsin(a); }
-#else
-static int port_rcos(int a) { return wm_retail_rcos(a); }
-static int port_rsin(int a) { return wm_retail_rsin(a); }
-#endif
-
 static int bus_read(void* opaque, uint32_t address, unsigned width, uint32_t* value)
 {
     (void)opaque;
-    if (address < 0x80000000u || address + width > 0x80200000u) return -1;
+    if (address < 0x80000000u || width > sizeof(*value) || address > 0x80200000u - width) return -1;
     *value = 0;
     memcpy(value, PSX_ADDR(address), width);
     return 0;
@@ -47,6 +29,8 @@ static int bus_write(void* opaque, uint32_t address, unsigned width, uint32_t va
     return -1; /* the trig leaves never store */
 }
 
+static uint64_t guest_steps;
+
 static int32_t retail(uint32_t entry, uint32_t angle)
 {
     PcPortMipsBus bus = {0};
@@ -57,10 +41,12 @@ static int32_t retail(uint32_t entry, uint32_t angle)
     PcPortMipsCpuInit(&cpu, &bus);
     cpu.gpr[4] = angle;
     cpu.gpr[31] = HALT_PC;
-    if (PcPortMipsRun(&cpu, entry, HALT_PC, 64u) != PC_PORT_MIPS_HALTED) {
+    if (PcPortMipsRun(&cpu, entry, HALT_PC, 64u) != PC_PORT_MIPS_HALTED ||
+        cpu.pc != HALT_PC || cpu.steps == 0u) {
         fprintf(stderr, "W34N128 FAIL retail entry %08x did not return\n", entry);
         return INT32_MIN;
     }
+    guest_steps += cpu.steps;
     return (int32_t)cpu.gpr[2];
 }
 
@@ -89,29 +75,37 @@ int main(void)
         uint32_t low;
         for (low = 0; low < 0x1000u; low++) {
             uint32_t angle = pages[p] + low;
-            int32_t r_rcos = retail(0x8003F8B0u, angle);
-            int32_t r_rsin = retail(0x8003F8CCu, angle);
-            int32_t n_rcos = port_rcos((int)angle);
-            int32_t n_rsin = port_rsin((int)angle);
+            int32_t guest_sine = retail(0x8003F8B0u, angle);
+            int32_t guest_cosine = retail(0x8003F8CCu, angle);
+            int phase = (int)(angle & 0xfffu);
+            int32_t renderer_sine = rsin(phase);
+            int32_t renderer_cosine = rcos(phase);
+#ifdef W34N128_SWAP_RENDERER_RESULTS
+            int32_t swapped = renderer_sine;
+            renderer_sine = renderer_cosine;
+            renderer_cosine = swapped;
+#endif
             tested += 2;
-            if (r_rcos != n_rcos || r_rsin != n_rsin) {
+            if (guest_sine != renderer_sine || guest_cosine != renderer_cosine) {
                 if (bad < 6)
-                    fprintf(stderr, "W34N128 FAIL angle=%08x retail rcos/rsin=%d/%d port=%d/%d\n",
-                            angle, r_rcos, r_rsin, n_rcos, n_rsin);
-                bad++;
+                    fprintf(stderr, "W34N128 FAIL angle=%08x guest sine/cosine=%d/%d renderer=%d/%d\n",
+                            angle, guest_sine, guest_cosine, renderer_sine, renderer_cosine);
+                bad += (unsigned long)(guest_sine != renderer_sine) +
+                       (unsigned long)(guest_cosine != renderer_cosine);
             }
         }
     }
     /* The retail table itself: entry 0x400 is {sin 4096, cos 0}. */
     if (retail(0x8003F8B0u, 0x400u) != 4096 || retail(0x8003F8CCu, 0x400u) != 0) {
         fputs("W34N128 FAIL 0x8003F8B0 is not the sine entry\n", stderr);
-        bad++;
+        return 1;
     }
     if (bad) {
         fprintf(stderr, "W34N128 FAIL %lu of %lu comparisons differ\n", bad, tested);
         return 1;
     }
-    printf("W34N128 PASS %lu comparisons: wm_retail_rcos/rsin (real PsyCross rsin/rcos) "
-           "equal the retail 0x8003F8B0/0x8003F8CC bodies\n", tested);
+    printf("W34N128 PASS %lu comparisons of renderer sine/cosine and owned SLUS results"
+           " (%" PRIu64 " guest instructions, including the quarter-turn checks)\n",
+           tested, guest_steps);
     return 0;
 }

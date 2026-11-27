@@ -82,7 +82,6 @@ def lifted_calls() -> dict[str, list[tuple[int, str]]]:
     """lifted function -> [(jal site, callee name)]"""
     out: dict[str, list[tuple[int, str]]] = {}
     paths = sorted((ROOT / "src" / "battle").glob("*.c"))
-    paths.append(ROOT / "pc_port/src/battle_module_0c4_lift_host.inc")
     for path in paths:
         text = path.read_text(errors="ignore")
         if '#include "battle_lift.h"' not in text:

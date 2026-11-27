@@ -905,8 +905,8 @@ static void fixture_22a70(unsigned v, uint32_t *args, unsigned *cls)
  * globals D_80059578 (emitted), D_800500F8 / D_800500FC (screen bounds),
  * D_80050100 (OT shift).  The legacy native bodies read the NATIVE C globals
  * of the same names (a separate LP64 interface the runtime deliberately does
- * not bind); the battle-context hosts (battle_lit_ft_packets_host.inc) read
- * the guest words.  Regimes for the native globals: 0 = fresh (never set by
+ * not bind). The guest path reads the corresponding guest words.
+ * Regimes for the native globals: 0 = fresh (never set by
  * battle), 1 = stale (host pointers to a separate copy of the model data).
  *
  * Commands are 8 bytes (index 0 | index 1 << 16, index 2 | index 3 << 16);
@@ -1183,8 +1183,8 @@ static unsigned prim_observed(int quads)
     }
 }
 
-/* 8002C700, the packet-render dispatcher (battle_packet_render_host.inc on
- * the native side), over a six-group stream, column 1 (a3): every lit
+/* 8002C700, the packet-render dispatcher, over a six-group stream,
+ * column 1 (a3): every lit
  * callback of the table's variant 1 -- FT3 (type 1), FT4 (9), GT3 (3), F3
  * (0), G3 (2) and F4 (8).  The vertex normals (GT3 / G3) come from the
  * model's +0x0C base (0x8005952C), at G_NORM; the 0x80059498 cursor (+0x18)

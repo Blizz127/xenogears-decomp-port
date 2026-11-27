@@ -1,0 +1,2756 @@
+{
+ "unit_tokens": {
+  "00974c8b46601cb3bfa38a11181bc2a428a9e1a672735613386c29cef635b295": "pc_port/src/world_map_terrain_cell.c",
+  "01290f0d81b78eb9e5ca53d1d6377d8c4eb0e839ef6f8b8e81863ba64b029389": "pc_port/src/world_map_helper_84d00.c",
+  "01eaafc754fb0b4f544ef2cfea1e3ed48aee558552032c6d74717c517122e701": "pc_port/src/world_map_callback_88720.c",
+  "025f2ed218b8991051ff6915a0407098d384fd2f442148e6c092d948af6365a9": "pc_port/src/world_map_private_collision.c",
+  "026dd75646b88f9e6c01bc3cb5017bac4d2edac45a8859a96e2746f0e2fad366": "pc_port/src/world_map_helper_75d4c.c",
+  "065824d697066bb5f0567264cd12392403bcac87a80d0f1df5c66f1c108c020b": "pc_port/src/world_map_callback_8c844.c",
+  "067f760569fb4af9a7e4d0aa44b4e9688935acd22b1b5256252fc1395bce3361": "pc_port/src/world_map_helper_9980c.c",
+  "06e5973e50f40f0c0c8a0d0c5ba3e5c5d7f72c12154ff36556d8b89c952846c9": "pc_port/src/world_map_helper_9623c.c",
+  "071d6cfc9690589801d29157bd691a99d9292d7c095bad1edddeb705d970e02b": "pc_port/src/world_map_mode17_lifecycle.c",
+  "08490469d80f7216d9cb860793f06e728a6fcf2e4666d9afbffb921e2341e65c": "pc_port/src/world_map_helper_76858.c",
+  "086e0872db2182cb05361d7cc1a3af5bbbe615929fcc4a2104226a91bbe87644": "pc_port/src/world_map_helper_848f4.c",
+  "090afa7b7061621374c923e845f604ca610c3d3ae37757234b43cc69a95c4b45": "pc_port/src/world_map_helper_89c78.c",
+  "0b092bdc701d2e7902c08ee443f90b812966603ef74e594437b35b3af9e0c660": "pc_port/src/world_map_callback_80578.c",
+  "0b5f394b8c074ac7a980827f94762b7b59fc2bdb6d23f55c75749998dd1f4d79": "src/world_map/main.c",
+  "0c5d984af4de3ef7b5bf68871a3397381d9e7ccee159e8104103b600255cd916": "pc_port/src/world_map_callback_87734.c",
+  "0d81faff761708d41a79b60461c7f0b6a094f73f04e330adf045c725e50ad9ce": "pc_port/src/world_map_menu_lifecycle.c",
+  "0f8bae5dd9e944ffd61fb7d35fb8c4fef66ce6e57e5fda232df4a10fd4d5e731": "pc_port/src/world_map_helper_86798.c",
+  "103654781a80cbdce1235a537fddb18b82bc2eaf48772512177c0e95a7007c3a": "pc_port/src/world_map_callback_7eca4.c",
+  "116f3fba7ced2d12b69d0642f52b73ab7f4ab080c3e5c4c57dbf167be3907e85": "pc_port/src/world_map_helper_8615c.c",
+  "125eb48f0167bcef54ec32740bc5b4333e7004279e9e9af9b3d36adde7b9c96d": "pc_port/src/world_map_callback_8dd6c.c",
+  "158a61dbd3c9a2fe747b1a20f08847a42c1dc4f719bee399eded883aed7522f6": "pc_port/src/world_map_callback_8032c.c",
+  "160f9f283b15248c80adce7b9f2f08b47c9d791a23d45ce2d896f4857c669e84": "pc_port/src/world_map_frame_driver_712d0.c",
+  "16e5aaddf6243b5e6f9be1be97aefce7581bd313e81e69db59246201a141c7d7": "pc_port/src/world_map_callback_77dc8.c",
+  "189d10b95ce1904d1fd928f7d637296c19f77ae6c9d2a0dfe28c9801ae2830a3": "pc_port/src/world_map_helper_97770.c",
+  "18afd3c66bdffe658d8d80464f494d588cb256c061391a31b1e0a886d963102e": "pc_port/src/world_map_helper_97070.c",
+  "19579c7cf404bb2eee2ffeadef52bd1efeba7fb6513f3fc96ac2d33ed1ca56dc": "pc_port/src/world_map_helper_93fe4.c",
+  "1a70c4479454e1ebb115e4814f9f68ffd4a33207686cd29ec17089ce70f59fdb": "pc_port/src/world_map_frame_driver.c",
+  "1dcf64b655de24fa6e5b758e87f1d1cb4ada968abcd4666e176b32e2b5d3548b": "pc_port/src/world_map_ot_adapter.c",
+  "1e20bb4cdb6bc0ef5966af81af4f3807799b3821001a165a64e9cdc9285c3d57": "pc_port/src/world_map_helper_89580.c",
+  "1e922d5f8f51b5b372848dd54d53b70189b274777969a2e3cdff425c8d560176": "pc_port/src/world_map_resume_initializers.c",
+  "2005548508f550e2b0faec4123d505cef72a004585ab143e9f968a29272450c7": "pc_port/src/world_map_mode10_lifecycle.c",
+  "20b60cf5ac5d762eb422a806852f44517c86d50adb8b2cad2ebe2f9e159555c6": "pc_port/src/world_map_common_tail.c",
+  "252e48fb7a15bb6d9e0e1d60ab03a55b578848ee7d5b141bca20ffa1972a68fd": "pc_port/src/world_map_upload_pump_75104.c",
+  "257518999204ba852f2538303cc35dd4f4667cae6900a4d78d65e6abfa224666": "pc_port/src/world_map_helper_8bfd4.c",
+  "25a253d8e83ccbbaf701d1d292168f2c3f1dddb10e50794d00b96735ad285532": "pc_port/src/world_map_callback_827ec.c",
+  "2619d2365fe5d769f860cd549e795033358a3a039c336cadd3f945772f574a31": "pc_port/src/world_map_callback_7d228.c",
+  "26e18c442f16ea4424e380b9ab6e7a3055ef7a607097daaffcdfb46472dbae89": "pc_port/src/world_map_session_setup_72238.c",
+  "276622d9b8903138b379f57c005f91b615cbb5bee05be0e60e2b59405266d4d3": "pc_port/src/world_map_helper_737ec.c",
+  "29461867f9c33bd87b68e6173155685318129bda5bac35f110ffd0023a0c4520": "pc_port/src/world_map_helper_86124.c",
+  "29efc0c99bde38189ec1b25f6c9ae81bc6a6f7ad552840cac069adaaef676d24": "pc_port/src/world_map_callback_91b54.c",
+  "2e5d049154c58ea0446c32f99b5ad557373587e89d076b14477ff807dc533ea3": "pc_port/src/world_map_helper_93534.c",
+  "2ee28b700f02af5c8dbffce7aa8ef2215097cc012154a1149aeff13e7b430c35": "pc_port/src/world_map_teardown_7299c.c",
+  "2fbd7d774cb89966d9ebe450b85873818be6345caa36c38daf2d26edce265de9": "pc_port/src/world_map_helper_c364.c",
+  "3093925b0cfc2e9e94896f53e17b0065eda231a30fbe241cf791c907db850059": "pc_port/src/world_map_callback_81fb4.c",
+  "32367dd5fa4a6e1ed03c8e9374bd3bc0da1f3d3c0016fe17abfd4b6b564fb3c6": "pc_port/src/world_map_helper_71fec.c",
+  "327923d6ef782ce3937bd67736c6502075ebd5d76aaff6ff190a57dda482efbb": "pc_port/src/world_map_helper_987ac.c",
+  "33d1b4338343347baffe7afcf9fd4f9171f476d9905b658a4b0d8046c52937e5": "pc_port/src/world_map_callback_84068.c",
+  "344f4d3d1a8a4a1adeadbf2dc7457dc6f592b55f0f8b433ebe73c65bfce9e3f1": "pc_port/src/world_map_helper_94364.c",
+  "364290a0734343c2f8bce06423d33db0660a38a02ceda67d0b44a392d8d0dde5": "pc_port/src/world_map_callback_7ce84.c",
+  "390e013ec54fc75e047e64011c6e7dc0d1f2765e58239dd6d79b0ee0b0b4509d": "pc_port/src/world_map_callback_8c530.c",
+  "39606f24ce583ac6fb660b54834f7b043dede85a063ef872884a91bd2277ee4e": "pc_port/src/world_map_helper_94154.c",
+  "3aa7cb2a1f61023988d7a7fc739bce3a06768fb854fd139274eee1aa43864401": "pc_port/src/world_map_helper_74794.c",
+  "3c0be5ac3c795668882ff5413d1dbd1140c004be0ebcf3263b3066e2dc75a493": "pc_port/src/world_map_callback_8b644.c",
+  "3cbf3d288a2f9f3bdeae5e42324236433bd3cc0171e489c1016bcbadd16e7f43": "pc_port/src/world_map_mode13_lifecycle.c",
+  "3d789083767b3d3ae4aa32fc99eca4fda1ee1851ee39d5f5a5164627ad512b26": "pc_port/src/world_map_helper_3101c.c",
+  "3f039d9f4f96bd1311dfe28472a9ec63286c587c11ff5e8761cc6988a48425e3": "pc_port/src/world_map_helper_8e0f0.c",
+  "3fa436439755c252ec83caebe5a9bb936e00b3c3ba066fcc8d73ec6acf5cb533": "pc_port/src/world_map_callback_827c8.c",
+  "40676ba65f62cfcf65908bf1ac78cb3ab1585e597b4735b37edbe8dcdb17d4db": "pc_port/src/world_map_callback_922ac.c",
+  "4138820e84e5adc3383d4dc3425c6e6816587c5178e9c70bfd2825696923e57b": "pc_port/src/world_map_state_vertical_8f690.c",
+  "419c426496222e2121d4038f4a366c27c9fb7f6f77146dd1cfc7c4934a578189": "pc_port/src/world_map_frame_tail_71984.c",
+  "43222e9614509fdcab60bb91343139eca2f62b8dbf84abdecbee72fe76edb78e": "pc_port/src/world_map_callback_7fc8c.c",
+  "433812dad877901ee8a218c3e22ea4cfdcd26facc008bf2d2833eee80d31ee22": "pc_port/src/world_map_callback_7c36c.c",
+  "439067e70ae3636f6a5eadbc9d979c8c8bfe5c2d4552798143928fd4c0445bf6": "pc_port/src/world_map_mode14_lifecycle.c",
+  "44204c8d6e14580ac821cd02391ea61cf8b88db652cd518f1b92f0a2ea65a98b": "pc_port/src/world_map_callback_813e8.c",
+  "477dc1d77f7a83aa3c4d967ae370bf281427bc463fdcb46dde351aad9b327c6f": "pc_port/src/world_map_callback_8bb40.c",
+  "494327a2977c91687373aa4d2b4419c178f5dddbcba840f35bbd30afc70b6505": "pc_port/src/world_map_mode16_lifecycle.c",
+  "4958f64ffde7b195640ce49c5ec78758cea0498a517df725c37d4657b6cbc90a": "pc_port/src/world_map_helper_95cd4.c",
+  "4d0f81e10f04142050db09799827ee45be82976dec7ba8640526a45c9fdd82f7": "pc_port/src/world_map_image_transfer_25044.c",
+  "4d146ad2e09cdc68b0315da88de640b19b104644ee73269a8bba628d528da060": "pc_port/src/world_map_callback_8b2bc.c",
+  "5054993528977613deb9adbd6d1e5c15bad64bff59d147ef2ebc8868e2abe18c": "pc_port/src/world_map_helper_747dc.c",
+  "51a29a976d56808ef6dcc890572d0a3720d6c4987ea8a728ff33ef73c3443e4d": "pc_port/src/world_map_callback_817a0.c",
+  "525c13250749f0cad6fe2eab05700e1349bce5b54a369248dd0be559082fcadc": "pc_port/src/world_map_helper_965a4.c",
+  "5293e4b775ccf22aaeda76f81de2190d62cea38162ff39abb1e4bc9fcfba3158": "pc_port/src/world_map_helper_94060.c",
+  "52b5f07a4af34cfeb8b1e6ec05666cd8e5525b1cc626f31dae9e90401856c4ec": "pc_port/src/world_map_helper_8c040.c",
+  "543b8558d9bde6e6116ab824f383e64ae913362b0082711ecfc43f186d54afc9": "pc_port/src/world_map_vehicle_tail_90620.c",
+  "55e8ca7d775dc4b561025f80654e59b3240699e1bd3f83ff30aaa9d6e7421e01": "pc_port/src/world_map_state01_8eb30.c",
+  "57a42ea3098a06bc5b810a1550164c3df982b0fcc67fac29e7d56b1d21c9d4e1": "pc_port/src/world_map_callback_7de14.c",
+  "591c7fbf3ad228b3b60ea3b06b5e4573a2cf073b2dd621cf507809cea006c7d2": "pc_port/src/world_map_callback_92fd8.c",
+  "5d0ab1eac74769d4137501eaac6b5b2a6419d3b659939d782e78230d91306378": "pc_port/src/world_map_helper_94238.c",
+  "60ced55f29bcdc74a9bd72a077a7511c12cdf584470cbd480802f1d4df9451c2": "pc_port/src/world_map_helper_8bec8.c",
+  "60dc1ba78754a338b72a66a796796919c51b9f289d93207a8878e70a033077c9": "pc_port/src/world_map_terminal_one_711b0.c",
+  "62b717c5ab50ce26ba73d7ccf4e4b3ec8d59aaa21e1de31e730b46ba4b7f7ec7": "pc_port/src/world_map_callback_7d078.c",
+  "62c24c3d8db9737bb5ec31aaf6573114764ecf52cdaf0edd4b7d8bda28d7bc27": "pc_port/src/world_map_callback_83a00.c",
+  "66309b6c8e3c882e6bc41078d022818812da542409b009cf6d855983352256eb": "pc_port/src/world_map_mode18_lifecycle.c",
+  "69834584c73a9d175b6acf2fa48cc6e1239ae0f68159d429cdec44fb0592696d": "pc_port/src/world_map_helper_762fc.c",
+  "6990fdd49f05b3cecdef1b4411bd7a7d87c207bff715cd2a05fd86dfa5fee019": "pc_port/src/world_map_helper_94088.c",
+  "6b7407dc9f05ea3926136b83157bcad3030055d5f48cae325215acfe2eee6c46": "pc_port/src/world_map_helper_93e8c.c",
+  "6c924faebdadd612fd0411376ec76f87f573d7fd4c36d54eae436fcb0ce97cc7": "pc_port/src/world_map_helper_84db8.c",
+  "6c9e28858e74c396c05584c8eef0a8dbfe0e3ee691b33c5f8400340006246a1f": "pc_port/src/world_map_helper_93354.c",
+  "6cdbf5936feb29f7b987657093e0d8364bccde1a69d52f5d28bb7542f3b68c5d": "pc_port/src/world_map_helper_93f18.c",
+  "6dd855b709484ed246c8609d1524a2fdda07bcd2c18b0e445488d08e1d9acf47": "pc_port/src/world_map_helper_90a84.c",
+  "6eb60a1d9380e09154bbcecafce9a8916988953c876d6ee938e92c40782c64b6": "pc_port/src/world_map_helper_983a0.c",
+  "6eb82165531850ba42c57350ef5dc2b0bf2c58bcf1d958b8ad7883d9c2efaa6a": "pc_port/src/world_map_mode811_lifecycle.c",
+  "70763ef49501dfaabaea8490303472c8912a618e8ca0cc64af6df7f37da3c39a": "pc_port/src/world_map_terrain_sampler.c",
+  "72ba579ec6c846c53eedc76f2eb29783160f64f055bb01f9ec8a33605fb8ce35": "pc_port/src/world_map_callback_92234.c",
+  "73b823037638d7c8c3185bb5ca70dcacbd0d1bd9de429f3c121a2fa503855315": "pc_port/src/world_map_helper_93484.c",
+  "75284cb9189b934aa4f592487432ac0e8ab6b5f9f05b25b9958b7c8e730ebc6e": "pc_port/src/world_map_helper_96130.c",
+  "75692519470f2acf47e23946efa1f9dab518d0bfb019c7396786332875f6fae7": "pc_port/src/world_map_init.c",
+  "75a64f696a1b0f0f7ef34918d6ef2498ac55132e027950fb42a858aab9bb18b2": "pc_port/src/world_map_r4world_71a58.c",
+  "786c675ea2385e636b8a4baba9e2e8cd279a8dff6beb44f87523f7dfe0c94267": "pc_port/src/world_map_helper_85760.c",
+  "7a7a89e828fb806f751fa601c76c5f13a8e26ccec42d73e828a238fd3cf4e73a": "pc_port/src/world_map_callback_92c70.c",
+  "7a846979d9bbb47d225c2c62f2852c474cf6e2244160a5247c8ccfe0671a6535": "pc_port/src/world_map_callback_7ad34.c",
+  "80d7a8ea14cc79889745aa118312edcb34c4ebeb1111de33d696f0cbe87a7c8e": "pc_port/src/world_map_helper_85418.c",
+  "823b69622c3e2060b1ee268a554e20077b2bd399a10f4633bc82ce38e7d84f02": "pc_port/src/world_map_helper_96328.c",
+  "8347fef26ae636d68df0958d7ae188462a7961901d53526e6aa876950ceeb706": "pc_port/src/world_map_helper_75e7c.c",
+  "862cf6ffd40261e21955465d1a8dc2f9a4439fb0a25721507af0bc03b49023b1": "pc_port/src/world_map_callback_83214.c",
+  "88888b82034afd46411c408869757d30dc8b8aa590725092f3c0762f8192f089": "pc_port/src/world_map_callback_7b200.c",
+  "8969e68b87cd4669d1d118e960c6909b62efd005a7a333802b953b17dcac4b86": "pc_port/src/world_map_terminal_default_71264.c",
+  "8c1a39fd4d48a6c26d8f14679d5411fc1d7fbe9f5a8996a7f5036f627b2991fd": "pc_port/src/world_map_helper_97dc0.c",
+  "8ef6fc764988e7673ca64293ab42a74b2ce26e77d1297ce19d2e69b212436bf5": "pc_port/src/world_map_helper_97244.c",
+  "8fbc185d58e65df317b06cd3d6c5a43e78b382e803966434501c6551781a390e": "pc_port/src/world_map_callback_7c724.c",
+  "90f2e6b58514f2327d6ee2668d6947e2d4ca92085600d39545b7958ef2f34da6": "pc_port/src/world_map_callback_906e0.c",
+  "926588e24644c8d57430e69e1c222e1e38dd94fdbf80bb0c0abb5161edc29c60": "pc_port/src/world_map_helper_99708.c",
+  "935471f7edf53261baffd301cfd67452199791d3c66c555dbcfbeabe8e3ce884": "pc_port/src/world_map_helper_8e078.c",
+  "9384fae73277744fbfb8053265f89956420ec29fc1c5ba3045a0f972ea96b936": "pc_port/src/world_map_selector.c",
+  "943799e8ea63921c13acff24be0b9cedaf50f7e559ae271346379147b8145243": "pc_port/src/world_map_helper_90c68.c",
+  "948083d0201b7d941f9c48d56ed6ceb3ff389b2152cff23cf5675e8092f2f424": "pc_port/src/world_map_callback_92df8.c",
+  "95239a64a392428662f91d20cc9f16e0cfe1ecbdb6c30fbebec073e918e3652c": "pc_port/src/world_map_callback_8e76c.c",
+  "95c2cdc8ae7dfd15d358da8566e07cce4527c2fe9f202817056f4f579f7e8cc6": "pc_port/src/world_map_helper_7565c.c",
+  "98056e1073149502bd8156f6b236eeda29f245d6d16265bc12fadc99f03aa5e2": "pc_port/src/world_map_helper_99bfc.c",
+  "98505e040a0ce74987f61b4c40faa01cbf332cac8e451694da8652fcd4eb6991": "pc_port/src/world_map_callback_81174.c",
+  "99abf3d17504d1cd6f33775fe149da5d6424e5fa1cb0995de3e5e5cda97c5a26": "pc_port/src/world_map_callback_7756c.c",
+  "9af90ce625d78f0d8f14761e22d794e89730eecb227e7380f225237846a0b38e": "pc_port/src/world_map_callback_7d774.c",
+  "9b85e08df13d7148ff21d8a088c48d89182de9ab69437ae46b24c97359c2ae29": "pc_port/src/world_map_func_95414.c",
+  "9c3d6318af177a2fdc8e5a80388a8235674b5608388719f53ed3724da47094bd": "pc_port/src/world_map_helper_73b04.c",
+  "9ce9f4a79fb3a678d6dd6f0790036dec015bc7da30eaf9039e602fd3bf7697ed": "pc_port/src/world_map_callback_7f8ac.c",
+  "9d6c2a4485021a38e2cee0903591d58d0df5e82cb33810d1d7a7030fd004ec6c": "pc_port/src/world_map_helper_98cc0.c",
+  "9dfdd1b9de551b3b32c5fddbaeab36d92039a399cd6aac12b840a0be61194776": "pc_port/src/world_map_callback_7b604.c",
+  "a06353dbb7c50b6900657d997ca6c5323b6813427e01beb8148cb13a6b3582d9": "pc_port/src/world_map_helper_76954.c",
+  "a1caeae2fdb8e22ef75ea87ac8b4ba1013e88597a336609d8b596f2507065c7a": "pc_port/src/world_map_helper_980d4.c",
+  "a2ece5bc12c90079f3d7299d84ae4f6077d2a7aa78329af977790f3edb6054a3": "pc_port/src/world_map_helper_951a8.c",
+  "a6cb0d9bd664f94bd88a953d30796a7edde4842c39b802a401ef2d53e14ab09a": "pc_port/src/world_map_callback_76a14.c",
+  "a8d73c2d730c694a76453fcdce6004888e60f94048f7ab08c6cbb4216b1a44fc": "pc_port/src/world_map_framebuffer_init.c",
+  "a9a2e18082cc6adee221e45fd27335d9d5708d6b0052600cffd67554d0bc2b00": "pc_port/src/world_map_callback_91c18.c",
+  "abb86a66984248c9639ff5c53db53de7089a1ca8a209f591e3a7aa4226527ca1": "pc_port/src/world_map_helper_941c4.c",
+  "aec881254af604860fd118c4c31c42776c00e38d092d3aa3c33e2718e17d492a": "pc_port/src/world_map_callback_8d3f0.c",
+  "b0037e48db3bde05bb4c28f189e7e8b53e396fee44427713da0409354667cc68": "pc_port/src/world_map_callback_7cc6c.c",
+  "b0faadf4ab4bb323e0b28a46dfa8da171039c6f32df343d14ea5493d670a5ba1": "pc_port/src/world_map_main_loop_71034.c",
+  "b1f6a355df9d646fce8bffd99e64d9046c65f118f2ad1248040aa81737b1f22c": "pc_port/src/world_map_mode15_lifecycle.c",
+  "b4c75c103b1f01fba2af82e2f74c82a3932aff58bef99b36d08335355020c086": "pc_port/src/world_map_helper_91ff8.c",
+  "b6668670ed2a0b5ce76e1144be1896106f647f161103beb531b731d82ac841c4": "pc_port/src/world_map_gamestate_alias.c",
+  "b7505f593be2ee6d57fbeff734d5cac3d74a57a234337f4df1a7f5b2b711cef6": "pc_port/src/world_map_mode9_lifecycle.c",
+  "b87da50e6b3d5e9d2ae5e2e2ea058474349dc86c87c6d265c0aa08a8a485566f": "pc_port/src/world_map_upload_pump_74f2c.c",
+  "b8f9ec69bedd033fd4a39654c999e8bb06e35de808c610f46da6d38c9f07a774": "pc_port/src/world_map_helper_907f4.c",
+  "bed8c8922395e71edb87b0165a721dc2a2024a7a6b0887a5efe2f6675b383e95": "pc_port/src/world_map_helper_96f18.c",
+  "c0a9a08d43579da6ad824193f406f7c688e6cf2531d5c7428217b1ae216086bf": "pc_port/src/world_map_callback_819c8.c",
+  "c6034edf2d12987eae86859982c85f8e8624f3eef6d1ef0cac2f8bce70278d74": "pc_port/src/world_map_plane_solver.c",
+  "c6a8050c12217fbf7bcb3d4fa6e1547f881af9b7d59179a2e7aed057fb1a304e": "pc_port/src/world_map_helper_952b0.c",
+  "c799514dfc9890617d7f5abd1616fdbf526c938fdcac644f5eb36a279613f0dd": "pc_port/src/world_map_convergence.c",
+  "c7cde764e69c2627ab973fb0073cfe03aa16058784fd0dd400725dd92016ed71": "pc_port/src/world_map_callback_7d414.c",
+  "c81ae959403c6b6c214d7853482f6e5363398720b8d3e18dea34c075460c3896": "pc_port/src/world_map_helper_89748.c",
+  "cc2d5ee947f2fa88d81336c0fd98625bb5c3890df7d5aa8eef2c5d94287e0d70": "pc_port/src/world_map_helper_85cdc.c",
+  "ccb6619c28609d3d0248e76385a0be3cbe7e5a839b0b4f81242052294de80ac2": "pc_port/src/world_map_callback_7bb60.c",
+  "cee74c96788cbd22a84dbcb65b40fd35c36da047e1c68d60256e175f6c51d349": "pc_port/src/world_map_helper_95324.c",
+  "cf3980659bc51ca6b4213ee8f129143cd77c1cda7d3ebe174da6ca66ac664835": "pc_port/src/world_map_helper_848b4.c",
+  "cf44501b80077e83a0125366f69401b8fa3a441561afdb9837b2e340f45af7fe": "pc_port/src/world_map_pause.c",
+  "d03065c143cfbca3b42b620e1cffc5025fe3b523bd4b7067ca5ec04da5d7e382": "pc_port/src/world_map_callback_7e450.c",
+  "d336c87988e7e9e84a9b321addabfe0ab6626f56278e9bc7ebb9094e524c7065": "pc_port/src/world_map_callback_838e8.c",
+  "d4a0164c31ca68dfa92036b51828518d41084dccf6a4eee140b0d1cbc06fe995": "pc_port/src/world_map_helper_8dff4.c",
+  "d5a85ca022de7abb0f280c0ded7eb1f9fa3ef80eb0e2866814a28ccba2fff278": "pc_port/src/world_map_callback_834d0.c",
+  "d5b22d7a615a5aa0fd169971a35e16766a4de2a8b04d2615ce7f8ca83ce882b9": "pc_port/src/world_map_cold_defaults.c",
+  "d612b13bc49f436724f113a296de9ed467513135eac64a37e55d2e30ea54a356": "pc_port/src/world_map_callback_7ba08.c",
+  "d76144af2c144e9455145bebf1ba986e6ce8a5d225f3316e017c51a5629f209c": "pc_port/src/world_map_mode12_lifecycle.c",
+  "d8378db73a98364ad03b1d5f643b9e15a24ef97a5e1e6d432044da262f79e72f": "pc_port/src/world_map_terrain_normal.c",
+  "d9a5e809639ca844dbd2bf1e7dcf7f0b93625ddeac7eb6aea50cc1363a6e3b41": "pc_port/src/world_map_mode_selector_73300.c",
+  "dc1051e80d5220bd45be857d873e10b63e5382a0a481eb2aea831f312a84228c": "pc_port/src/world_map_helper_7528c.c",
+  "de65f78e25f4c7e97de11659fd0f6d8dd69f65985a89b393e5ef08c360297eb9": "pc_port/src/world_map_helper_8c1dc.c",
+  "e213bb4c9fd7a3baf891b64c45eb0333f54fb1fd77ccb7cece602ec2b91c2f34": "pc_port/src/world_map_helper_85158.c",
+  "e5fb7411fa1c25724ac6f6fb45bfc237975ceb7430d61650e74f301e930b0a27": "pc_port/src/world_map_callback_794d8.c",
+  "e684e311b2f74a5f9002fe445b2585ac1de044c17e78c921a1da901853f3d91f": "pc_port/src/world_map_callback_7a144.c",
+  "e79b48c64177a118da427a43f60a05bf137577991eca12c35d0c54e22b3e6cbf": "pc_port/src/world_map_callback_81c3c.c",
+  "e929bacd0998529602ec77f95432e6c526736fa62544662c17dda476b087b4ba": "pc_port/src/world_map_callback_8a2c8.c",
+  "eca2d5d0117a44354c60285bf769fc317c0ac6dd7a6bbf0175cf4a8fcd947ef3": "pc_port/src/world_map_callback_80a28.c",
+  "ed1477a3b1493f51e11cf5e4642f4f2014c759a70daa2a24e49d6311ffcf8646": "pc_port/src/world_map_callback_925a0.c",
+  "ede56c802692ab40b1ce5896933c96d61a02f620723c6870b329b1728c654b6d": "pc_port/src/world_map_callback_795e4.c",
+  "ef2e8c468fce5afa3d1a0c6d6208f4a2b1cc22aa879f3dceda5558e4d74dc7a6": "pc_port/src/world_map_callback_92be4.c",
+  "f353491d1521ab22b5fbd2a032cd2202602934f19c43c5cb6bd8a58507ac6ee4": "pc_port/src/world_map_callback_8d678.c",
+  "f4207fdbe027c7d5d7a3a66713b8e2ae4a02095c467dd11f4b4a4f9218576333": "pc_port/src/world_map_helper_8e034.c",
+  "f4bd6ad5ac92e6b0189e49d0b76f388b50570ec13dfcc7fb62dccd84610eb10e": "pc_port/src/world_map_helper_73398.c",
+  "f539e6eee371a8170004413cbd6291d36c527bdfef4d81c4e4b9f33ce7496b79": "pc_port/src/world_map_callback_7a9b4.c",
+  "f5e46ae22fb78134d80f53055b58e3ecf899a3bbb35e192c2f6e02012aa54a87": "pc_port/src/world_map_func_94a5c.c",
+  "f6a00cdce120d067b916fbadd5fc1d3096b4453587c6e83c7e48a24df2605b99": "pc_port/src/world_map_callback_78e2c.c",
+  "f6e05e64ae84d26e913ac2b0b71c682ebe71ea0cf7849f54f77db5f23149f0bf": "pc_port/src/world_map_terminal_zero_710e4.c",
+  "f6e5ce847f2b6804e773787f9ff45db215ab1c5a89538da415f9173eb145db83": "pc_port/src/world_map_callback_8a72c.c",
+  "f6fbbc5ece38ae3129bfd4247917d5f6c2730206c2f988e7e3cfb0ab40272f40": "pc_port/src/world_map_helper_72db4.c",
+  "f7d686600fcda5df0ea9de9ce5a0aaf764a9552b5bb91de70a4973c6b6e85f5d": "pc_port/src/world_map_helper_90fb4.c",
+  "f7fcfcf1f96c8507f41d4f60845d77ef8ceebbcf02aa1b1571aa08926ad9e7e4": "pc_port/src/world_map_helper_9932c.c",
+  "f90467cf1b6b042f214fd9576406b142fb8a6989ee23a0a0c266ea9e05bb4500": "pc_port/src/world_map_state2_8eb64.c",
+  "f97eda5b094db326de609c85d85a6ac42292e09b3a201193b4a629ebf6b83f33": "pc_port/src/world_map_callback_78948.c",
+  "faa8982d140aa85330678dcc3a558acd717aa3bea5901b70576091c371eb7a40": "pc_port/src/world_map_callback_8e190.c",
+  "fc4d6b547195808efe2f9e3e76bbdddb336193d0f4fd2245b8e1e77872deb5ec": "pc_port/src/world_map_helper_740b8.c",
+  "fc6afe4c3c282f0dd50adb09dd289814436836f819b16883b56ef288e3da2c75": "pc_port/src/world_map_helper_90e14.c",
+  "fd910d4d6e57147ef6f61fc1009cecf74c673eb0620bd32aab6858bbb8486908": "pc_port/src/world_map_helper_c28c.c",
+  "ff1bf1f25400cc7f991a6b6da0c1ca205d74d57186ba0624fdaaecb4754029cb": "pc_port/src/world_map_helper_93a5c.c"
+ },
+ "files": {
+  "include/world_map/wm_obj.h": [
+   [
+    1534,
+    "fc61b6c1d68870d7a177c7d53b389041be9d86c33de890182a49d2e92ab130d9"
+   ]
+  ],
+  "include/world_map/wm_spad.h": [
+   [
+    873,
+    "442b2985ecbce393a97dcdef147a091e7867625b6e1fab1890257595dc75883c"
+   ],
+   [
+    1320,
+    "9fc8a8af9785661712f52687cb76f6580366147dc4c52c9fe7de11eaa990fdb9"
+   ]
+  ],
+  "pc_port/src/world_map_animation_guard.h": [
+   [
+    774,
+    "b5d4a674054a0b04484628b3f124356c9a472c3487aac95164be31efd45101e3"
+   ],
+   [
+    783,
+    "e663e62b5f7e941d6cfbb6fdecdc1d2c65a28545039cb33dcaab2a6d68f28b57"
+   ]
+  ],
+  "pc_port/src/world_map_callback_76a14.c": [
+   [
+    2999,
+    "4b8142c8375fe96d4dbb022c85a1d91dcbc62f394c97adab834eb9776160abe4"
+   ]
+  ],
+  "pc_port/src/world_map_callback_76a14.h": [
+   [
+    234,
+    "54aabed29566039969ef08b89a2d91c8436d5eeb4d5cd54859a06a338b1922ef"
+   ]
+  ],
+  "pc_port/src/world_map_callback_7756c.c": [
+   [
+    5139,
+    "e5cb74d1c3a4602678f21ff313b4665a0b4f241772e3787edc7131898b4df8c3"
+   ]
+  ],
+  "pc_port/src/world_map_callback_7756c.h": [
+   [
+    243,
+    "f04f0e5c93f14792a257dbb781bde34baf0f0e5dc6ac977e783d609b0348df03"
+   ]
+  ],
+  "pc_port/src/world_map_callback_77dc8.c": [
+   [
+    12029,
+    "fee6551723f8f50010d86dde40998815605d6dde5f6aeb6e7a4c2e08524f0dce"
+   ]
+  ],
+  "pc_port/src/world_map_callback_77dc8.h": [
+   [
+    330,
+    "e7dcbd406adedf780106bd890e8d96f522b9accc0c4f0251e54a7e3a1343fcb1"
+   ]
+  ],
+  "pc_port/src/world_map_callback_78948.c": [
+   [
+    2764,
+    "1aa266d3b58d4070c32e301d28615dd7f9ad9cee6bb249e16346ebf84eb68cae"
+   ]
+  ],
+  "pc_port/src/world_map_callback_78948.h": [
+   [
+    236,
+    "bdd632560c1508c20cd04a91d429aa7949225f431ddc6f57e76d665fa50899be"
+   ]
+  ],
+  "pc_port/src/world_map_callback_78e2c.c": [
+   [
+    7489,
+    "acf6bd3a3d10aeef0b8aa2a1da114ade6c7e6362e028f7cc20355cc4a3e4a170"
+   ]
+  ],
+  "pc_port/src/world_map_callback_78e2c.h": [
+   [
+    322,
+    "8f820addca0eb9ba583d558ae906fbdc744d68b563016bc04f53240a77cf08fd"
+   ]
+  ],
+  "pc_port/src/world_map_callback_794d8.c": [
+   [
+    2936,
+    "2e6248bfb9a1b76c9949e5ffefa5da4f40cdd5d014ac9ed05250c2aeae70543a"
+   ]
+  ],
+  "pc_port/src/world_map_callback_794d8.h": [
+   [
+    214,
+    "7194ed435beea6de251717b57bccee764e69cf47a4f1dfd9761b04aac84023d5"
+   ]
+  ],
+  "pc_port/src/world_map_callback_795e4.c": [
+   [
+    10812,
+    "7b28995802ecc698364fd4c6247755c454e10324978dc239c4aeb1daff57d907"
+   ]
+  ],
+  "pc_port/src/world_map_callback_795e4.h": [
+   [
+    262,
+    "bdd9cf45aeba5d923b88cb6e7696d923ea876467bdfd0793cbf31fe93c9ab740"
+   ]
+  ],
+  "pc_port/src/world_map_callback_7a144.c": [
+   [
+    5806,
+    "9b538b0d50f1aa0de515a69bebce181e3059e38a27194b408982a7a420700a34"
+   ]
+  ],
+  "pc_port/src/world_map_callback_7a144.h": [
+   [
+    339,
+    "75801a923677fc98a2a044aa8e2915f3150410417acaf5d90ba731c252b38824"
+   ]
+  ],
+  "pc_port/src/world_map_callback_7a9b4.c": [
+   [
+    5223,
+    "b1995e93303662430d8c34ab7f49aed22e48151f2835cc48f868e584d473fb46"
+   ]
+  ],
+  "pc_port/src/world_map_callback_7a9b4.h": [
+   [
+    263,
+    "59d4b4d54e0582d6fa2dae43724ecc705dff409633512189a2fa7e826dc7ab9e"
+   ]
+  ],
+  "pc_port/src/world_map_callback_7ad34.c": [
+   [
+    8522,
+    "e1c7a65a683a06a80f8bf4cf5acbb283cdfce75db30bb3d2d2914293ca0fe435"
+   ]
+  ],
+  "pc_port/src/world_map_callback_7ad34.h": [
+   [
+    260,
+    "9989c6834511235b0776392ac4e3367ca665caee62e7ea175756d15b645a7e1c"
+   ]
+  ],
+  "pc_port/src/world_map_callback_7b200.c": [
+   [
+    5584,
+    "c8a1813291e3b7badb9d73ba673fd74f8d7d9634fb54ea024e4870378c2bc7f8"
+   ]
+  ],
+  "pc_port/src/world_map_callback_7b200.h": [
+   [
+    265,
+    "5f0f61ffcedecdc210ccd85995023ed5245593efde45545408b2b52f9c0e6269"
+   ]
+  ],
+  "pc_port/src/world_map_callback_7b604.c": [
+   [
+    5584,
+    "7dc7a82b1362cb10a3c978b8164d5a0b92acdafce8269e7a8fa3360c37fd0c33"
+   ]
+  ],
+  "pc_port/src/world_map_callback_7b604.h": [
+   [
+    266,
+    "4a455fd32c1a0355735909931cec466c162b47795b43a1159bdac9f9c31e04fe"
+   ]
+  ],
+  "pc_port/src/world_map_callback_7ba08.c": [
+   [
+    3086,
+    "f241981a3e92c85b5e440cb324a2ee4edb19e683e8da37d94eb1af530b10fb14"
+   ]
+  ],
+  "pc_port/src/world_map_callback_7ba08.h": [
+   [
+    225,
+    "50302e89968a440eef2ce62dded06737350e614b2658afbccd0229b380af355f"
+   ]
+  ],
+  "pc_port/src/world_map_callback_7bb60.c": [
+   [
+    9150,
+    "af68cf6272905eea5371a32ce59f5d5b816a254b44634f79cb74253be02dedd4"
+   ]
+  ],
+  "pc_port/src/world_map_callback_7bb60.h": [
+   [
+    224,
+    "9c283145b0ed9f9d8f4df2825dba80bd019781ee4ec17656be0d4781abe47d8c"
+   ]
+  ],
+  "pc_port/src/world_map_callback_7c36c.c": [
+   [
+    5352,
+    "85833f3809b606e2b32b5e71b56eafb9612d4b0539cea7fb6903f6c8b0d33090"
+   ]
+  ],
+  "pc_port/src/world_map_callback_7c36c.h": [
+   [
+    262,
+    "ad4677d28304b246173a7104f566526f626cc489a155e99995540289d200b87f"
+   ]
+  ],
+  "pc_port/src/world_map_callback_7c724.c": [
+   [
+    10521,
+    "de2eaca846305ee32c3ff1e58dab4519950e1514bf102f3d34ddbfe8fdff6cd1"
+   ]
+  ],
+  "pc_port/src/world_map_callback_7c724.h": [
+   [
+    260,
+    "f1e8f7cc0d81e08f7d8b53d3623556159b8df69960e5a965c4bb519712fd0b4d"
+   ]
+  ],
+  "pc_port/src/world_map_callback_7cc6c.c": [
+   [
+    2936,
+    "535c926e620476ad8f7c0ba61110552ff2d8bd3758cd0bc6fc99c3c45f19572c"
+   ]
+  ],
+  "pc_port/src/world_map_callback_7cc6c.h": [
+   [
+    222,
+    "43db1e5ccaeec63b2f5e5e5613d96486f8d20bd22eb529c18cc6b09bab123fa4"
+   ]
+  ],
+  "pc_port/src/world_map_callback_7ce84.c": [
+   [
+    2912,
+    "5a333e634eb94bbb9d58a4aa2f31fb9f2349090b72e64937fbf4246ba1fd89c0"
+   ]
+  ],
+  "pc_port/src/world_map_callback_7ce84.h": [
+   [
+    224,
+    "0e21ab92536b00a8ab007f740284f98310d024d3b807946540d474a0e6f7e441"
+   ]
+  ],
+  "pc_port/src/world_map_callback_7d078.c": [
+   [
+    2805,
+    "8e691a35e66aab6b73154ddb1b9016090e3e0663b6c59feac4f46b159a440722"
+   ]
+  ],
+  "pc_port/src/world_map_callback_7d078.h": [
+   [
+    226,
+    "68e49575adf4635ddb8387a82e31af7f987ca1c0dbc2867a211e97035e9e4853"
+   ]
+  ],
+  "pc_port/src/world_map_callback_7d228.c": [
+   [
+    2964,
+    "bcdc85f9c3bae99204ca1e3e3ce3db22931b2686b5f93ca49130be6122e7d4e7"
+   ]
+  ],
+  "pc_port/src/world_map_callback_7d228.h": [
+   [
+    228,
+    "fc79ca08e5abbf7bd62740abbeecf92f4cda9fbe4d68c68cc466bf6828984438"
+   ]
+  ],
+  "pc_port/src/world_map_callback_7d414.c": [
+   [
+    2964,
+    "1d177dcb1decaa3559f096f012c02538901b61b2b8141f022b7c72708837085a"
+   ]
+  ],
+  "pc_port/src/world_map_callback_7d414.h": [
+   [
+    228,
+    "9eb0e675425a2c9244da01288df3e2d478f3a7da9243fb8e6d77e6c814a28213"
+   ]
+  ],
+  "pc_port/src/world_map_callback_7d774.c": [
+   [
+    2724,
+    "4179b1eab162fb70db8e472b938a4e38cdf032e441cbf2115861d012df3f48c1"
+   ]
+  ],
+  "pc_port/src/world_map_callback_7d774.h": [
+   [
+    226,
+    "643e5399fd9f2e9ccc37953e4001d0e66b6c08cd88c56adc199afa2692b248d1"
+   ]
+  ],
+  "pc_port/src/world_map_callback_7de14.c": [
+   [
+    7951,
+    "6c8d4f466ec1bf1e08eb4ee39a7ad90b82034b290dc8e8db629934540d7aa000"
+   ]
+  ],
+  "pc_port/src/world_map_callback_7de14.h": [
+   [
+    315,
+    "3d476bb3815026f2537e22cdce0400f2f7fa9d43fa7fa60f83af92f36da3ed44"
+   ]
+  ],
+  "pc_port/src/world_map_callback_7e450.c": [
+   [
+    11574,
+    "2b27bbcb294d286b905c93715e60beb697fef4c415195c79989f1c4c900234f0"
+   ]
+  ],
+  "pc_port/src/world_map_callback_7e450.h": [
+   [
+    260,
+    "5497c5975ec82887b252684412912b146ee2ad87cbcde3b103aebc9eb5813c55"
+   ]
+  ],
+  "pc_port/src/world_map_callback_7eca4.c": [
+   [
+    18999,
+    "4eb74407a2857c0b3f2a179bd4a6558020583dce944a91f1c050b8f71711c8ac"
+   ]
+  ],
+  "pc_port/src/world_map_callback_7eca4.h": [
+   [
+    344,
+    "048eb966de964bace60f1ed44fe50536d579f81a9cac9317c9acdf96ff53063c"
+   ]
+  ],
+  "pc_port/src/world_map_callback_7f8ac.c": [
+   [
+    7914,
+    "18247ed7a57f3457807eedd7168b4ea79436f5aaa1a6ba3a5dc59db1f4ae8f2e"
+   ]
+  ],
+  "pc_port/src/world_map_callback_7f8ac.h": [
+   [
+    275,
+    "1d21d755fdf0ae832a5c57ed1aa3b57bda4742a664d6cd1849a471a4fb05c7ee"
+   ]
+  ],
+  "pc_port/src/world_map_callback_7fc8c.c": [
+   [
+    6286,
+    "1f0bb04e354d48f30b6ed24b1fae84bd945e8e6d9d80af24248bc2aae7398410"
+   ]
+  ],
+  "pc_port/src/world_map_callback_7fc8c.h": [
+   [
+    264,
+    "d646149ed2bf229c13c42bf380a97fd7e61e2cdeda98588464eb820c29adacac"
+   ]
+  ],
+  "pc_port/src/world_map_callback_8032c.c": [
+   [
+    4359,
+    "51c9e884cc422106c848b3adc522eab831f1c8cee5414f847882e6e5d392b000"
+   ]
+  ],
+  "pc_port/src/world_map_callback_8032c.h": [
+   [
+    262,
+    "544b097cb1d85939abc326247adbd3f4d4f4010d51f30d6ae2811d0f5d825165"
+   ]
+  ],
+  "pc_port/src/world_map_callback_80578.c": [
+   [
+    7126,
+    "397ad813fafe24bd254e0bf73ed37911392ff7207e0ee4566c29566cda671a7b"
+   ]
+  ],
+  "pc_port/src/world_map_callback_80578.h": [
+   [
+    260,
+    "2d30db05badb7650fd2d88be02379c30350059bb26617f55121d4857f5de9653"
+   ]
+  ],
+  "pc_port/src/world_map_callback_80a28.c": [
+   [
+    6329,
+    "947891cdcd279a9209a42a6b3d9f08d7af19b4d01efc9891bf9453ef38ec77b9"
+   ]
+  ],
+  "pc_port/src/world_map_callback_80a28.h": [
+   [
+    342,
+    "dc775d131219a5cf51e58b8320f6552a06c78d11964b9e9f7a5de05fea6ebb08"
+   ]
+  ],
+  "pc_port/src/world_map_callback_81174.c": [
+   [
+    4890,
+    "70fb8f42bbce881348a6ab0551c5c24fe5fb7994692a1e7569a72b95789bb330"
+   ]
+  ],
+  "pc_port/src/world_map_callback_81174.h": [
+   [
+    262,
+    "e80ac8ef53a9e11aa6e98c139b430eb64c55a799f9f433bc7080a662ec9a7c28"
+   ]
+  ],
+  "pc_port/src/world_map_callback_813e8.c": [
+   [
+    6389,
+    "45eee3f602af543c67741c2e04f3f335870350916247c97760cc83960989dcd3"
+   ]
+  ],
+  "pc_port/src/world_map_callback_813e8.h": [
+   [
+    260,
+    "9c56291ed27d43ff8a7a32fd938b5577cf72478c18f74afb6b8fd5c41348a57b"
+   ]
+  ],
+  "pc_port/src/world_map_callback_817a0.c": [
+   [
+    6056,
+    "c0345d9285301daead13f49aa75c8a5e4249fba9115e30bfa07d3d7fa51741fa"
+   ]
+  ],
+  "pc_port/src/world_map_callback_817a0.h": [
+   [
+    334,
+    "0de4710ebcb371823bcd4fa7e06c100a4a0b36eaf7390c724078ee030254a427"
+   ]
+  ],
+  "pc_port/src/world_map_callback_819c8.c": [
+   [
+    4923,
+    "09c645ada29ef1e40f24fec4c830cb7d4f33d95d11763a8f59c4c8f0dd9c83ff"
+   ]
+  ],
+  "pc_port/src/world_map_callback_819c8.h": [
+   [
+    262,
+    "09e3c779e21914d35507b4c8161b3a6a2843452002b49b8b0e2d0f1fc213eb2e"
+   ]
+  ],
+  "pc_port/src/world_map_callback_81c3c.c": [
+   [
+    5883,
+    "f8d3e40248c59faa1317711d5140b549f658506f50db21dfeba2812592f9b454"
+   ]
+  ],
+  "pc_port/src/world_map_callback_81c3c.h": [
+   [
+    262,
+    "fb6fbaf63e0757bd1909a9e7016d9467a348c1653c9d411821966de91490cf85"
+   ]
+  ],
+  "pc_port/src/world_map_callback_81fb4.c": [
+   [
+    3779,
+    "02b71f1213aabf11b1166f27816d0a5ab1b70c18cf4033881bd706dab4a6c103"
+   ]
+  ],
+  "pc_port/src/world_map_callback_81fb4.h": [
+   [
+    149,
+    "9d87cbe6e781fa5449470e7a75396a8591f1b6e7ca9d6994929d894a57d8d164"
+   ]
+  ],
+  "pc_port/src/world_map_callback_827c8.c": [
+   [
+    6594,
+    "513c459bc51f342bb4f79e427156a05e4d93fba3db5ed52c92bde0516d3f72a6"
+   ]
+  ],
+  "pc_port/src/world_map_callback_827c8.h": [
+   [
+    242,
+    "9d0129c35c7d611d1bcbda5a4981be05b594f1bdbf9f55f78bfa6c62573050ea"
+   ]
+  ],
+  "pc_port/src/world_map_callback_827ec.c": [
+   [
+    18706,
+    "2df2e87eb3a5306fa6075aa1054224b365ba4020033c873964a59b6a81e6463f"
+   ]
+  ],
+  "pc_port/src/world_map_callback_827ec.h": [
+   [
+    424,
+    "3573228f863e1e2521125bcc33f250001101156f20884f63fb98d63fb8aa2908"
+   ]
+  ],
+  "pc_port/src/world_map_callback_83214.c": [
+   [
+    8305,
+    "db01b5eb558588f1c321e16ffd4224335fd0cd774461ac88568acca8f409b628"
+   ]
+  ],
+  "pc_port/src/world_map_callback_83214.h": [
+   [
+    241,
+    "b46cfe8e7283e2f6a91b9ae4235d24e322eeb76b1f318da72a36aa22b1d6ea59"
+   ]
+  ],
+  "pc_port/src/world_map_callback_834d0.c": [
+   [
+    1847,
+    "94bde9866ae7e4a882c915737b18def9913e2a22158548643598f89a6ba8491f"
+   ]
+  ],
+  "pc_port/src/world_map_callback_834d0.h": [
+   [
+    242,
+    "feebc6b345995be2729cf458b10ec3ea7f1287a8ad5e213970bb4dee121b83f1"
+   ]
+  ],
+  "pc_port/src/world_map_callback_838e8.c": [
+   [
+    4020,
+    "a3abece9eb68faaa95478a2fcf113e54e821098fca7bae9ee9078b9e9a485084"
+   ]
+  ],
+  "pc_port/src/world_map_callback_838e8.h": [
+   [
+    285,
+    "2b6f34e0e32284594d9202633a7cc68ba14ca477ec4d12698704925117776915"
+   ]
+  ],
+  "pc_port/src/world_map_callback_83a00.c": [
+   [
+    7458,
+    "d236e4633e4abeae2efee37b55213144ad273cf1d2a544b0ea5f4532fe670659"
+   ]
+  ],
+  "pc_port/src/world_map_callback_83a00.h": [
+   [
+    189,
+    "ebfeae94997c8fc3faad70167a4f5726effcfb447ba0b0747e6ba3e55c33a4fb"
+   ]
+  ],
+  "pc_port/src/world_map_callback_84068.c": [
+   [
+    7204,
+    "037deddf9bc8765106b617d8b394c10de593d6674e9968dd535b20c80d396d49"
+   ]
+  ],
+  "pc_port/src/world_map_callback_84068.h": [
+   [
+    198,
+    "9469ba91a7eee6ee3351cba36ee640f1ae84c98a139d2c3fef31c67cf46ee3ca"
+   ]
+  ],
+  "pc_port/src/world_map_callback_87734.c": [
+   [
+    5023,
+    "d001ec7ece4c489426cb7866c6a48c2ca6490d9cc08dcf979fcf909d4411ef81"
+   ]
+  ],
+  "pc_port/src/world_map_callback_87734.h": [
+   [
+    845,
+    "545ce3be6838a46800ae1d156ea63d43349b69a46ab2d804d1372b559b8cbf34"
+   ]
+  ],
+  "pc_port/src/world_map_callback_88720.c": [
+   [
+    6900,
+    "10ed1a00f45dc8b4ea485de0fadceab1a5eedb3f6a17f95e22015fca7e03e996"
+   ]
+  ],
+  "pc_port/src/world_map_callback_8a2c8.c": [
+   [
+    7554,
+    "53aa0941c8d4e2f28e15068395c4e1630cd1097f17ccec4a9848cdf286de9ed4"
+   ]
+  ],
+  "pc_port/src/world_map_callback_8a2c8.h": [
+   [
+    434,
+    "d58cf064f54543a384394d08847e1e24307f5602e0cb04065e8454edbdf96c32"
+   ]
+  ],
+  "pc_port/src/world_map_callback_8a72c.c": [
+   [
+    26677,
+    "3eabb18535515222f96ea53b2b090e2d33d9f711e7438e9e27c04518573248be"
+   ]
+  ],
+  "pc_port/src/world_map_callback_8a72c.h": [
+   [
+    1190,
+    "76b0da1862cc699f11cd16535dc925438335c212e334f1a1332a575cad89e05c"
+   ]
+  ],
+  "pc_port/src/world_map_callback_8b2bc.c": [
+   [
+    6470,
+    "cfe7de813a5114dc738363db225b52c1ee4a3d08791f23e83884dd946e2f1971"
+   ]
+  ],
+  "pc_port/src/world_map_callback_8b2bc.h": [
+   [
+    507,
+    "337e88ffc40805c5f245b3433f24fb2329d7864a42ac19621ab43196accd979f"
+   ]
+  ],
+  "pc_port/src/world_map_callback_8b644.c": [
+   [
+    16077,
+    "7c107ca32f464e4cc7da999ad71a44ecdfebaeb3acd71893e9ad1a1347f235a6"
+   ]
+  ],
+  "pc_port/src/world_map_callback_8b644.h": [
+   [
+    1603,
+    "de8929a3f4c619ad43cfd2cf35fa4f806c30b706116522bd39239a8382fb12cf"
+   ]
+  ],
+  "pc_port/src/world_map_callback_8bb40.c": [
+   [
+    6470,
+    "b6045f0942529548e3fae2c9fe6c3983637bfcb05a5c0d3d289fa3e2126d0fd2"
+   ]
+  ],
+  "pc_port/src/world_map_callback_8bb40.h": [
+   [
+    507,
+    "1750f86c6311e681abef68700c58f01640ecd07c96b7fc510af6f619e7a08048"
+   ]
+  ],
+  "pc_port/src/world_map_callback_8c530.c": [
+   [
+    8019,
+    "c1532b0589fd2a01ac50223128549d3b439d16ae65d2cfa0093ef4e63ba16561"
+   ]
+  ],
+  "pc_port/src/world_map_callback_8c530.h": [
+   [
+    511,
+    "248837cc491d8a6a6d9b1603d1a132a14b74da9183d1180a8264dbed9061c988"
+   ]
+  ],
+  "pc_port/src/world_map_callback_8c844.c": [
+   [
+    20721,
+    "44731605c38e24b81483732d9d1ea48321c5ecddeacaaa4cfa0b9d0780722727"
+   ]
+  ],
+  "pc_port/src/world_map_callback_8c844.h": [
+   [
+    1570,
+    "3db0c81eb553c028945fd011d1f7784d3fe29636c171950a5ced5c8c14edfe9f"
+   ]
+  ],
+  "pc_port/src/world_map_callback_8d3f0.c": [
+   [
+    5949,
+    "84cba3558385763cedeea9ffd69aa5dafb8a8fcaf43222bae4f6a7b6c29920d2"
+   ]
+  ],
+  "pc_port/src/world_map_callback_8d3f0.h": [
+   [
+    499,
+    "10bf65724e2d339d8e2fe16b4277ddd554b4da868942f7c4dd0f19bd96a5d5a3"
+   ]
+  ],
+  "pc_port/src/world_map_callback_8d678.c": [
+   [
+    20625,
+    "683b7971ffd84e4da52659d28f833d7c91763044b68bcde808029b66e15cf370"
+   ]
+  ],
+  "pc_port/src/world_map_callback_8d678.h": [
+   [
+    2147,
+    "6752ce369742467434609439e69e13b7eac3200edb497d8ca6912203fed5789c"
+   ]
+  ],
+  "pc_port/src/world_map_callback_8dd6c.c": [
+   [
+    5949,
+    "f5df4edff59774a558b8223f52da7522b0d36552ccbe69e76d3d4beb409f1747"
+   ]
+  ],
+  "pc_port/src/world_map_callback_8dd6c.h": [
+   [
+    499,
+    "7704074406d460dc80d077cca596bc7147b5f00703170368d7a17fa0e3d60b84"
+   ]
+  ],
+  "pc_port/src/world_map_callback_8e190.c": [
+   [
+    12540,
+    "e372d7d7eca022354a956809a182d931549652734e570201e52b87b3511c1325"
+   ]
+  ],
+  "pc_port/src/world_map_callback_8e190.h": [
+   [
+    482,
+    "b2d403aff20e1332dbd0d152bd3b965e9e508405ab31fc1db784dce0ee9ecad9"
+   ]
+  ],
+  "pc_port/src/world_map_callback_8e76c.c": [
+   [
+    19028,
+    "19e1435851b7e0e040c5f8e739f8a88aefd1d3e5e54b452270244bd0a71ff98f"
+   ]
+  ],
+  "pc_port/src/world_map_callback_8e76c.h": [
+   [
+    1350,
+    "9b58a483e7f34db676e47f838291565e4147dcd3829d348faae6db7c0d13d405"
+   ],
+   [
+    1410,
+    "16c9a67f5a5003c4caa551fde9557f0e50fc1dad51c69d85b7fcd04d997ae798"
+   ]
+  ],
+  "pc_port/src/world_map_callback_906e0.c": [
+   [
+    4745,
+    "3025de2f93279220db70b794ab9a055aa8d35d7a4da8866ef5a12f8fe0f846b2"
+   ]
+  ],
+  "pc_port/src/world_map_callback_906e0.h": [
+   [
+    382,
+    "97762b8dc8ed9ca3a3d17b1f4a82c9fce8d0778884faf07bdfa80ca8bb2c2385"
+   ]
+  ],
+  "pc_port/src/world_map_callback_914d0.c": [
+   [
+    170,
+    "f942afb8571b10655505ca46a22769df1cc5308a6a3c60dd3b1da8236efac3be"
+   ]
+  ],
+  "pc_port/src/world_map_callback_914d0.h": [
+   [
+    131,
+    "fb8d8f05275246d257cb9e0a51f200e3a8497155155af3a22d83c3bf57941abe"
+   ]
+  ],
+  "pc_port/src/world_map_callback_91b54.c": [
+   [
+    3358,
+    "d96dd49ff0146efa68c02c1aa7d5dc8dd320f60e92718a7b670550880e8fe40c"
+   ]
+  ],
+  "pc_port/src/world_map_callback_91b54.h": [
+   [
+    767,
+    "1a6d46dcbe71d608e84b3cacb626447095696ecea111dcf9573d5d33276e1db5"
+   ]
+  ],
+  "pc_port/src/world_map_callback_91c18.c": [
+   [
+    7592,
+    "befc65a34ee21cec51ebd058fa931ddbb1633a16e59620614c20ec51a8f6e672"
+   ]
+  ],
+  "pc_port/src/world_map_callback_91c18.h": [
+   [
+    327,
+    "da1c766ff61277018c1b5ef107e92c6cf09adb6059e60b6c5df55cc366fcaa18"
+   ]
+  ],
+  "pc_port/src/world_map_callback_92234.c": [
+   [
+    2713,
+    "b48b73b4a7b7ea18e7fa94a79199ba6c927267e06ef7244e10dd4c40f6882c59"
+   ]
+  ],
+  "pc_port/src/world_map_callback_92234.h": [
+   [
+    767,
+    "ab6d557acc8868f3daa8d22876df6990dca8eca411e86fbb39043b45429d494d"
+   ]
+  ],
+  "pc_port/src/world_map_callback_922ac.c": [
+   [
+    1951,
+    "29e356ad133a3c5a66fde129d30f93bfc390ec852fc4bea7c433dd04188cb080"
+   ]
+  ],
+  "pc_port/src/world_map_callback_922ac.h": [
+   [
+    466,
+    "47b56a0d28d6cb8346b267666f85404bdcd5e1069740c9408cd27059e2b838ca"
+   ]
+  ],
+  "pc_port/src/world_map_callback_923a8.c": [
+   [
+    257,
+    "1262b351d05403f60c5100e8d6a7878819268e0586bd149d01f65ebe2efea496"
+   ]
+  ],
+  "pc_port/src/world_map_callback_923a8.h": [
+   [
+    194,
+    "e93bb62012470f035dab39ca868fe9c974de3afac6a7a55a8416e275cdacf579"
+   ]
+  ],
+  "pc_port/src/world_map_callback_925a0.c": [
+   [
+    14803,
+    "597fc6f4c08df3c88eb7a6d1cfe880ae9ab3209c1decdf8fda7eb8c22e12fd13"
+   ]
+  ],
+  "pc_port/src/world_map_callback_925a0.h": [
+   [
+    836,
+    "806580329385acfbe0e7676f6790ac3ef8b124ccc0e88515ee28ea597d0df77c"
+   ]
+  ],
+  "pc_port/src/world_map_callback_92be4.c": [
+   [
+    2901,
+    "9aa52ee05b7350bd824f50e79c70d1a4bf854d040ffdfd702e6a659e0cabf5a1"
+   ]
+  ],
+  "pc_port/src/world_map_callback_92be4.h": [
+   [
+    770,
+    "3583a42f4b54c9f51d50194274a9abdf6082d53741e2b84cda367792830fab1f"
+   ]
+  ],
+  "pc_port/src/world_map_callback_92c70.c": [
+   [
+    3662,
+    "5bf5e574a9eff851c02d8057621dc37a3769abedc878d7eb4565e9f76d373937"
+   ]
+  ],
+  "pc_port/src/world_map_callback_92c70.h": [
+   [
+    444,
+    "23ca40793661d4c8588bb9f484ed76f215d7c626bc5f1fa57716479f0ac31e4d"
+   ]
+  ],
+  "pc_port/src/world_map_callback_92df8.c": [
+   [
+    6536,
+    "2985779a776263855edd0e9bd3090c9a2e17cbd0c67d0ae9d4efac5a35b33818"
+   ]
+  ],
+  "pc_port/src/world_map_callback_92df8.h": [
+   [
+    832,
+    "4d43b704bf56e13e5566ecc47e09ba99694b5844aa46dbd2e029ab2f4bd23bf3"
+   ]
+  ],
+  "pc_port/src/world_map_callback_92fd8.c": [
+   [
+    4197,
+    "8613492f1cec685456f1cfc0500e396ddc8289b8db7cdc70ff676d1cd7f8fd85"
+   ]
+  ],
+  "pc_port/src/world_map_callback_92fd8.h": [
+   [
+    404,
+    "1827370becc07582d8f384671cbb8b9c961f41bbb22fa03b9a0e53c57809f8a4"
+   ]
+  ],
+  "pc_port/src/world_map_cold_defaults.c": [
+   [
+    5249,
+    "daae366b8bee125d88ba2abad4d97709c47d794e8dc13c621da19194b07be744"
+   ]
+  ],
+  "pc_port/src/world_map_cold_defaults.h": [
+   [
+    321,
+    "001fed67955881329ce50aa6e8cf7534def21e2962a64294d6989997303bbec2"
+   ]
+  ],
+  "pc_port/src/world_map_common_tail.c": [
+   [
+    5915,
+    "a98847cb2a0925314cb7e22f20933636827fd2cb8ed8566ccabf101156c65fad"
+   ]
+  ],
+  "pc_port/src/world_map_common_tail.h": [
+   [
+    6862,
+    "ddcc0e881ed4a6252c57ff6d1a7d4031b23c84332ea09fa1b9631fff2036012d"
+   ]
+  ],
+  "pc_port/src/world_map_convergence.c": [
+   [
+    13160,
+    "f8a40a3d48ac39d801f1a3a2c38782a1c2b325b67d5fec673a8580a18da556e7"
+   ]
+  ],
+  "pc_port/src/world_map_convergence.h": [
+   [
+    2182,
+    "59b65e7831bc7cfaffcc8a55db9fae83eb555ffcb2bdf09c76d1ed2e1c335789"
+   ]
+  ],
+  "pc_port/src/world_map_frame_driver.c": [
+   [
+    21722,
+    "7e7f7996db502bea4c6e6f7043175270316931d164c42cabb626f03ae7a8f5e3"
+   ]
+  ],
+  "pc_port/src/world_map_frame_driver.h": [
+   [
+    1237,
+    "381db16c11db22bf14f9206ab2ce406c4685ce532738c22fde0e1812302c5911"
+   ]
+  ],
+  "pc_port/src/world_map_frame_driver_712d0.c": [
+   [
+    17494,
+    "b68433dc14bb2bd9be20c5742cb00cf1499d7095ddb6afd7fd1dadeae2fdbfc7"
+   ]
+  ],
+  "pc_port/src/world_map_frame_driver_712d0.h": [
+   [
+    1640,
+    "0080ad25fc928e179022f291232bcb6103563396f154b5d80defa74fc78df06b"
+   ]
+  ],
+  "pc_port/src/world_map_frame_tail_71984.c": [
+   [
+    3524,
+    "eab1d101d551ab9a1ff819edfd612d2d60d53ee7208f3515da79a5eec2dfc667"
+   ]
+  ],
+  "pc_port/src/world_map_frame_tail_71984.h": [
+   [
+    523,
+    "4c8c794fbea51d3b5accded4c195f7600128217b2bf350e6523285c0fffef0cc"
+   ]
+  ],
+  "pc_port/src/world_map_framebuffer_init.c": [
+   [
+    8087,
+    "fd32135fcfb5c2bb5801c007d5f1a920bd0b1eda119037681e5b05b0689af510"
+   ]
+  ],
+  "pc_port/src/world_map_framebuffer_init.h": [
+   [
+    781,
+    "fea335af7d9e06ebc69b99d4eb5fccd9a44aec9e08b21f00453fb525c80c8cbc"
+   ]
+  ],
+  "pc_port/src/world_map_func_94a5c.c": [
+   [
+    13759,
+    "c3577fc90e7f29c72ca8cab835d90559dc1c69b539daa264e03125bcd2e2ce48"
+   ]
+  ],
+  "pc_port/src/world_map_func_94a5c.h": [
+   [
+    1655,
+    "efdff44019a4d1c1c8bd831c68a90ecd87a1392b099c9b9166bc014a4923a5c1"
+   ]
+  ],
+  "pc_port/src/world_map_func_95414.c": [
+   [
+    22737,
+    "e87fe2f232661b08e5cbd08af70f3b8e1ff101813102f512802973dcd0b4354c"
+   ]
+  ],
+  "pc_port/src/world_map_func_95414.h": [
+   [
+    1543,
+    "4e7b96931f5e1b735139f43b237d7d4290cfd8a1e22e77a82f399e691e849480"
+   ]
+  ],
+  "pc_port/src/world_map_gamestate.h": [
+   [
+    2283,
+    "9ead2a0c5351cfb404ee493b03161267a90577a9be50557b2768212f07bfa2d4"
+   ],
+   [
+    2301,
+    "a132a03c79e4274b2836f30aa2f6a9add7fa8ef86e32b43341d7952b808e9161"
+   ]
+  ],
+  "pc_port/src/world_map_gamestate_alias.c": [
+   [
+    880,
+    "e2d772145d46cf2780f11976464a6af471020ca73c4f626e8b7a96a23c61141e"
+   ]
+  ],
+  "pc_port/src/world_map_gamestate_alias.h": [
+   [
+    1222,
+    "eea1c6a1fb5bc16aa35b1d8780574275ddd1a1f28518d7bcb2f6b78d090e2515"
+   ]
+  ],
+  "pc_port/src/world_map_gpu_asset_8440c.h": [
+   [
+    169,
+    "ab5249e7c957d16c4089584449158f2895d4ff208f231469400aa2aab4f9e4b8"
+   ]
+  ],
+  "pc_port/src/world_map_helper_3101c.c": [
+   [
+    4250,
+    "5762319f26cf2a837b542292409de729de2a6a2fad1e34b9fe29a55c07569899"
+   ]
+  ],
+  "pc_port/src/world_map_helper_3101c.h": [
+   [
+    203,
+    "e254deaf2ff165779bc2242a018b528548fa9f9b21bf04ee4140b2aecaee7425"
+   ]
+  ],
+  "pc_port/src/world_map_helper_71fec.c": [
+   [
+    2503,
+    "3f6e39765ac54120c492225f8725bef54b50dd683214f89cc91642c66ce6c234"
+   ]
+  ],
+  "pc_port/src/world_map_helper_71fec.h": [
+   [
+    175,
+    "f133cbef657b04cbf4c1bb4bca9c3ec04a345d2fb55421a0a0bf0827f2631ff9"
+   ]
+  ],
+  "pc_port/src/world_map_helper_72db4.c": [
+   [
+    8255,
+    "87a7f462f19a26463f3ca4d8721195a764bb8e97b400b0da80a201ed8dd9429f"
+   ]
+  ],
+  "pc_port/src/world_map_helper_72db4.h": [
+   [
+    453,
+    "9b6a33fedba3b064478bc9ea6df4afadec946f84801298ef18b3bdf737de26fb"
+   ]
+  ],
+  "pc_port/src/world_map_helper_73398.c": [
+   [
+    3601,
+    "6fe1a5dbe6ad1e6bd6bd44e412212451121c1cb548cf71248131f6b853fbd0c0"
+   ]
+  ],
+  "pc_port/src/world_map_helper_73398.h": [
+   [
+    457,
+    "bdd3203af0c25559579db831de109dca50d05d755cfe9856211cf071b40cbc6d"
+   ]
+  ],
+  "pc_port/src/world_map_helper_73448.c": [
+   [
+    175,
+    "44bad265e4c450c522863a66d6a83e2ec93512f3a192ee68dda4557388ee5451"
+   ]
+  ],
+  "pc_port/src/world_map_helper_73448.h": [
+   [
+    131,
+    "bd03dae4834f30072bd6bf7d677e8f6d943b323bfe848b88b1277bf5d61a2f4a"
+   ]
+  ],
+  "pc_port/src/world_map_helper_737ec.c": [
+   [
+    5991,
+    "97614e2460089ef87c7343deaf3d4087500830507e3b40c0a0bb51ef2c9b336e"
+   ]
+  ],
+  "pc_port/src/world_map_helper_737ec.h": [
+   [
+    445,
+    "6115ef9bdc7f54ea0cfdcd02d78b8d35b657254dfb45713502532897d1d6a306"
+   ]
+  ],
+  "pc_port/src/world_map_helper_73b04.c": [
+   [
+    11382,
+    "81f290f631733f13dadb83cd20fd2b3a3c758d90006519b25a06ed3f34527afb"
+   ]
+  ],
+  "pc_port/src/world_map_helper_73b04.h": [
+   [
+    288,
+    "db78774561fd610e0cdf9e4628e942bb60e34e9b0c5851e136c8dbe9df014b9b"
+   ]
+  ],
+  "pc_port/src/world_map_helper_740b8.c": [
+   [
+    9249,
+    "d6408ac68e030cdfeecf28031f9411c94a0f76c6a4cdd88a00dfdcb393c68da2"
+   ]
+  ],
+  "pc_port/src/world_map_helper_740b8.h": [
+   [
+    224,
+    "fb3f61d782073a15aec93589b4b8b5c55e09408ecb0f71d69d0e60be7d7016cd"
+   ]
+  ],
+  "pc_port/src/world_map_helper_74794.c": [
+   [
+    3215,
+    "5a30474813423082fcc3735df60d6f35bdb2fcdaf647943c64c95460da1370fa"
+   ]
+  ],
+  "pc_port/src/world_map_helper_74794.h": [
+   [
+    217,
+    "5c77c8e4d33082e0b4fc1b603361fdfe391725c13c83fbd36eef01b920395cdb"
+   ]
+  ],
+  "pc_port/src/world_map_helper_747dc.c": [
+   [
+    12150,
+    "bf00cea6982fad17a63f7ca0aab998d0ee456c9d4e9304ef82c7a16b2ef5fcee"
+   ]
+  ],
+  "pc_port/src/world_map_helper_747dc.h": [
+   [
+    367,
+    "abffe59a45910494d9921db35ade5278f5799a931142dbdd3373717297662d17"
+   ]
+  ],
+  "pc_port/src/world_map_helper_7528c.c": [
+   [
+    4239,
+    "be858cf491a3ab1a09f467f3a532b1bcc8b3cc78fee35ad01f366ac5e8b41936"
+   ]
+  ],
+  "pc_port/src/world_map_helper_7528c.h": [
+   [
+    313,
+    "5f112f5add99130262ec786d9c0b643ccfb8a4a963884c390ef30737a3557a73"
+   ]
+  ],
+  "pc_port/src/world_map_helper_7565c.c": [
+   [
+    3315,
+    "baadf6c1855c661307cf197d9839f33a4d4b92ac5cd2d8b82078f65e4da00158"
+   ]
+  ],
+  "pc_port/src/world_map_helper_7565c.h": [
+   [
+    279,
+    "773fe2cb317a5e1d662413b975b9223c4f449abc1e1aa6f9d77133f214884d81"
+   ]
+  ],
+  "pc_port/src/world_map_helper_75d4c.c": [
+   [
+    3181,
+    "438faf0abc6473da69c8d500fe3e174129a46e0f2b721a52f662e83f3fdb8ca0"
+   ]
+  ],
+  "pc_port/src/world_map_helper_75d4c.h": [
+   [
+    274,
+    "cd0a2d01662f47b6d99545991c34420bd137128e188073a738a4e18f1eb4c96b"
+   ]
+  ],
+  "pc_port/src/world_map_helper_75e7c.c": [
+   [
+    3577,
+    "c9948fdf427cb543b4bb3bc900bc3b79eca09b289fddd0c9eb64ac60a0c5f4bd"
+   ]
+  ],
+  "pc_port/src/world_map_helper_75e7c.h": [
+   [
+    551,
+    "0ba9206a0390218e8568a04acf0a987aa38c379923fd316720f4c8f1d1a192b8"
+   ]
+  ],
+  "pc_port/src/world_map_helper_762fc.c": [
+   [
+    848,
+    "5e67be6ea41a9b1b5b18f953fd236fd1a51f8f9c992789b0b8697a4ad148d5a3"
+   ]
+  ],
+  "pc_port/src/world_map_helper_762fc.h": [
+   [
+    217,
+    "5ed54e0f657db57f9bc2790313037db3999d9a043f39b24c6814a5a7b20818a8"
+   ]
+  ],
+  "pc_port/src/world_map_helper_76858.c": [
+   [
+    1831,
+    "630e718f57e01b4b0a9bcc6c9dacdf1a88e24b8390511b171fd64ed55c2fe504"
+   ]
+  ],
+  "pc_port/src/world_map_helper_76858.h": [
+   [
+    304,
+    "5f94987566d793546d2eb3045b89a96948f274e11f6f4a56030d83495b76656e"
+   ]
+  ],
+  "pc_port/src/world_map_helper_76954.c": [
+   [
+    2509,
+    "63df176b62431a3075e64fa043888f39dac4e2a6902b776c2a0186ff9c6884b2"
+   ]
+  ],
+  "pc_port/src/world_map_helper_76954.h": [
+   [
+    204,
+    "ba35c86ab786000d9e00d7e896a48d91d13feaa5a168bafa9288ceac237758a3"
+   ]
+  ],
+  "pc_port/src/world_map_helper_848b4.c": [
+   [
+    1753,
+    "b80324facb9846d2a1947a15137da82b497c1cf6d3ac90efdc77d8a4685075df"
+   ]
+  ],
+  "pc_port/src/world_map_helper_848b4.h": [
+   [
+    408,
+    "e46fdb75e3d0597b87aab8dfa37fc4d2ffae672a4e89d320261e555d2ac41169"
+   ]
+  ],
+  "pc_port/src/world_map_helper_848f4.c": [
+   [
+    10390,
+    "0def25970cb5494bd6601b6ff5de7a7f191a410f40e2fdf1c1b3755489796c8d"
+   ]
+  ],
+  "pc_port/src/world_map_helper_848f4.h": [
+   [
+    439,
+    "d26d78c3de30c1115e1ae4e81570d875ec5671042c2b52c03dc960ade4022698"
+   ]
+  ],
+  "pc_port/src/world_map_helper_84d00.c": [
+   [
+    2811,
+    "a2ff0990417bc2c3a65e1fce4a1741637e80f6704fe45ca7e05f6b2ae9169007"
+   ]
+  ],
+  "pc_port/src/world_map_helper_84d00.h": [
+   [
+    882,
+    "119ffdaab3ad913ca5552acdf4d7f335462b718d3a3e33c36a03099a3ab4ad78"
+   ]
+  ],
+  "pc_port/src/world_map_helper_84db8.c": [
+   [
+    12729,
+    "e00410063e84b53d0ece7463533cfa2fc4e980ea046d5639959beda7bcee7979"
+   ]
+  ],
+  "pc_port/src/world_map_helper_84db8.h": [
+   [
+    1232,
+    "d9d223a08eebced26cb6899b171227e082b73d17f83b6a393f92e2e28e2865dd"
+   ]
+  ],
+  "pc_port/src/world_map_helper_85158.c": [
+   [
+    11048,
+    "60ecba0b094be20175dba661e1581b3b4264304cc12718ae67e18d6ae49e5664"
+   ]
+  ],
+  "pc_port/src/world_map_helper_85158.h": [
+   [
+    1578,
+    "356229c481460574db233e0ff3c612087d2f40fc2bf5b562f9a828056dc2ef1a"
+   ]
+  ],
+  "pc_port/src/world_map_helper_85418.c": [
+   [
+    11931,
+    "1ae7627ffaa7d88911d7f5635374db5e91714c4d41a9016b4573732d3b7e4950"
+   ]
+  ],
+  "pc_port/src/world_map_helper_85418.h": [
+   [
+    1885,
+    "9e5f88a2c93b532f8bcac90b6742ad75a527bbf2d2c2b371346de6b9a39f9c88"
+   ]
+  ],
+  "pc_port/src/world_map_helper_85760.c": [
+   [
+    15241,
+    "60d9474785a03b93785f4fda6606a70a623ad5f89aafca9277bd47e5ef7459ee"
+   ]
+  ],
+  "pc_port/src/world_map_helper_85760.h": [
+   [
+    1007,
+    "94253d5cd9a374358296de207bb6f5779ec11c39f9fc4cc3008da613fba632c6"
+   ]
+  ],
+  "pc_port/src/world_map_helper_85cdc.c": [
+   [
+    7605,
+    "8f565c14284072c9a79076f3c241789c771e4630d98b9f5c3c6aa262e4e4f327"
+   ]
+  ],
+  "pc_port/src/world_map_helper_85cdc.h": [
+   [
+    495,
+    "32b733daf193c007d0357e25622c6539ce70992e8b410d919b579e6717c6409c"
+   ]
+  ],
+  "pc_port/src/world_map_helper_86124.c": [
+   [
+    2280,
+    "977362aa7ead82b3cd0b7a5828d3af0702c882f734c2f6459ac79161a44355b1"
+   ]
+  ],
+  "pc_port/src/world_map_helper_86124.h": [
+   [
+    320,
+    "8c4ab0e95f614afacc0ef05b20d81a3055045faeac60c5d1df54263d7b9257ce"
+   ]
+  ],
+  "pc_port/src/world_map_helper_8615c.c": [
+   [
+    5247,
+    "e4d2780fd3f7954611006b05fa7d7bf04860323f96c427900582604aec8ed4b0"
+   ]
+  ],
+  "pc_port/src/world_map_helper_8615c.h": [
+   [
+    390,
+    "cfcef9c238a5715fa94c7e9e132085893a7aec637796f2d23aee5be6646b1060"
+   ]
+  ],
+  "pc_port/src/world_map_helper_86798.c": [
+   [
+    25222,
+    "2df4e34eee8366e558b79c2d95436305e4e29544c5a637afdc33d326dcf78fe5"
+   ]
+  ],
+  "pc_port/src/world_map_helper_86798.h": [
+   [
+    170,
+    "78f5f03ffb9587f7d7e8ffde9fb1a7cdcd4d3fb5fb02dfdef74304f38ad05ded"
+   ]
+  ],
+  "pc_port/src/world_map_helper_89580.c": [
+   [
+    5388,
+    "d36a0fd0f626588657fa96339d79db7e38b7c185fe5de0fc2d647c0bb279d6a9"
+   ]
+  ],
+  "pc_port/src/world_map_helper_89580.h": [
+   [
+    549,
+    "51488d41e80528f6a8b828bea71f04ae547827e43d6a9de6f99957ae38b1cf19"
+   ]
+  ],
+  "pc_port/src/world_map_helper_89748.c": [
+   [
+    8924,
+    "644daf46607c717f018d10eb1cfa34645cf18f175212466d4807de5e106b9a40"
+   ]
+  ],
+  "pc_port/src/world_map_helper_89748.h": [
+   [
+    479,
+    "33372e5eb5f5801d491552bf1c93dff7bdbe461144d548d581f588d77cda88a2"
+   ]
+  ],
+  "pc_port/src/world_map_helper_89c78.c": [
+   [
+    13417,
+    "b6513cb1b045d4f5664cf04487140a3255e5a91e09fee017c9557ec9ed454f4e"
+   ]
+  ],
+  "pc_port/src/world_map_helper_89c78.h": [
+   [
+    419,
+    "bd858ebc808890351070699d7470ac8c3632e7879a9cca0ae92a93b971272f7f"
+   ]
+  ],
+  "pc_port/src/world_map_helper_8bec8.c": [
+   [
+    3595,
+    "04410b62b1b94e30ecfe5189df6e5e240913a87fb73b329ddeb0622714f632fb"
+   ]
+  ],
+  "pc_port/src/world_map_helper_8bec8.h": [
+   [
+    913,
+    "8e8d0ca30deffd4352818e7c58b0b36c05b6ad6d973ef913f425855599a4a386"
+   ]
+  ],
+  "pc_port/src/world_map_helper_8bfd4.c": [
+   [
+    1701,
+    "00e959ec68c0c6def92af149b808ceacb5b7d0be2470ece8cc2e43a4d1a4a8ce"
+   ]
+  ],
+  "pc_port/src/world_map_helper_8bfd4.h": [
+   [
+    553,
+    "2b145cf2a616b25988b77c757ab82d5f84547d34ede7b211ae061d7299b5e508"
+   ]
+  ],
+  "pc_port/src/world_map_helper_8c040.c": [
+   [
+    8534,
+    "e09251f47733cb3594683113c8bfbe84b6056481ccb7cd519847168c3dbadf75"
+   ]
+  ],
+  "pc_port/src/world_map_helper_8c040.h": [
+   [
+    451,
+    "a66410437cb08cfe61d76bf90532472699cf7cb29df2fcdc9c9cf18aeb89d3f2"
+   ]
+  ],
+  "pc_port/src/world_map_helper_8c1dc.c": [
+   [
+    3532,
+    "5431ca8a40083f2a7cbb6fdef3a3fa79bbc7c93b20325c82af0ff9f62d5893a1"
+   ]
+  ],
+  "pc_port/src/world_map_helper_8c1dc.h": [
+   [
+    998,
+    "f00f5d4b95e110b6e625d9a530cf55a98edc97423bfa988aa9145c0f366ed610"
+   ]
+  ],
+  "pc_port/src/world_map_helper_8dff4.c": [
+   [
+    1471,
+    "4685c46e8f23279da43a833e6329146a8eaea027c3e7efaf1691ebe19de647cf"
+   ]
+  ],
+  "pc_port/src/world_map_helper_8dff4.h": [
+   [
+    500,
+    "e42ba38da79ca7ab7c70a5e5c14af7f8dbd074351a356b8304ce4c879737a313"
+   ]
+  ],
+  "pc_port/src/world_map_helper_8e034.c": [
+   [
+    1655,
+    "5916d334f0ac03be506e4374f9688cb1e623e1fc78de146045964a00fdb78afa"
+   ]
+  ],
+  "pc_port/src/world_map_helper_8e034.h": [
+   [
+    527,
+    "668334d4d4c01ab2be45d812106211f026f5140e1d43bf4be201355092e59feb"
+   ]
+  ],
+  "pc_port/src/world_map_helper_8e078.c": [
+   [
+    1153,
+    "ef12c62781cfc6f19adf4dfd8241d14226d205bc0d4505686a0164d3fd8ba8e1"
+   ]
+  ],
+  "pc_port/src/world_map_helper_8e078.h": [
+   [
+    414,
+    "d2a6135f6a01fe59808c748281f7854a54add0586886b2f9c32bd02b614ce4dd"
+   ]
+  ],
+  "pc_port/src/world_map_helper_8e0f0.c": [
+   [
+    1088,
+    "a56f316d6fdf1dc1055dd61a230b30823e7f840486255034b037c39c66199223"
+   ]
+  ],
+  "pc_port/src/world_map_helper_8e0f0.h": [
+   [
+    493,
+    "ff0633abbb33958d1617969e27a50b0e163612edad4dd96399024c2d93616055"
+   ],
+   [
+    581,
+    "2fb8d4b75058eb6c790a78573ac0e07e9f45f7de1c3adef43b1bad70fd7dba46"
+   ]
+  ],
+  "pc_port/src/world_map_helper_907f4.c": [
+   [
+    10072,
+    "6894ecbeb6d22ba3388cd6f3baee46efc7c0e9b38d488649c26d5abaafa51d5c"
+   ]
+  ],
+  "pc_port/src/world_map_helper_907f4.h": [
+   [
+    987,
+    "3c4e57d46c2c874d482063eb61b171b36bc02ecd1f4286eaa2b2160a9457c43b"
+   ]
+  ],
+  "pc_port/src/world_map_helper_90a84.c": [
+   [
+    12328,
+    "ac10c0946d880e2ff780d4db07d9e5e69014a8dd5ac3ea7f554c2566de70ed66"
+   ]
+  ],
+  "pc_port/src/world_map_helper_90a84.h": [
+   [
+    1078,
+    "74d8a199b5d11c55afe57af8a12716751ac5c82cddbda8d6ae888f641826b2a0"
+   ]
+  ],
+  "pc_port/src/world_map_helper_90c68.c": [
+   [
+    3349,
+    "9611e37b7ee3111fa94edda89659ade538c8728598ca658b0ec4cec7938f8647"
+   ]
+  ],
+  "pc_port/src/world_map_helper_90c68.h": [
+   [
+    611,
+    "55c2ad86c7193c64a51abb577e88aa3eecb57a0527e1380ced870772ca64929a"
+   ]
+  ],
+  "pc_port/src/world_map_helper_90e14.c": [
+   [
+    2201,
+    "b1029bf26fcd5ba1d75854f509e785f0f47d77de2cedb133489a1367f697ecca"
+   ]
+  ],
+  "pc_port/src/world_map_helper_90e14.h": [
+   [
+    479,
+    "6646416cae1220db0c5d4bea569f6941326260cfc79b0c7833f1ed11695ba0ad"
+   ]
+  ],
+  "pc_port/src/world_map_helper_90fb4.c": [
+   [
+    9607,
+    "c7460af4f8260fbc347bffa027cb83ba392d0d2681787ced1ee6562966036ed6"
+   ]
+  ],
+  "pc_port/src/world_map_helper_90fb4.h": [
+   [
+    765,
+    "531059f8c38e219d6d881bdc1aee189c003b114b19837fac6bb76167e5de61c8"
+   ]
+  ],
+  "pc_port/src/world_map_helper_91ff8.c": [
+   [
+    4514,
+    "0aa23cd36a0ba73c2c6bc7996b79d0fbeba252ab4e0239c876e0e5c50a5781ac"
+   ]
+  ],
+  "pc_port/src/world_map_helper_91ff8.h": [
+   [
+    487,
+    "38763d4ff85fe7e951cefd12101fed262616f6c3f9783cc17dc8fa4afe78bd10"
+   ]
+  ],
+  "pc_port/src/world_map_helper_93354.c": [
+   [
+    6057,
+    "7c7fc549c4a2f7b571fcf1c926230e0ee85ddb2420ad5a13e85e24f1b4b766d8"
+   ]
+  ],
+  "pc_port/src/world_map_helper_93354.h": [
+   [
+    527,
+    "38d0285a117ac72056ea84c1718a1ba65d86d04a53a1656e71c471c9eee49b80"
+   ]
+  ],
+  "pc_port/src/world_map_helper_93484.c": [
+   [
+    1140,
+    "0c0d1d7af30483f4e9ae35fa3499d0416916f7da08bd24b5afee350a0761543c"
+   ]
+  ],
+  "pc_port/src/world_map_helper_93484.h": [
+   [
+    406,
+    "c73bde11caa04539c803ace5b5411e39e93aefb6fed0d30b7d5fea84ceabfac3"
+   ]
+  ],
+  "pc_port/src/world_map_helper_93534.c": [
+   [
+    4152,
+    "70f4ef292676cc8de886213c587fd183d389f68c43ff1b97e0fdc81aa741e789"
+   ]
+  ],
+  "pc_port/src/world_map_helper_93534.h": [
+   [
+    333,
+    "917fe351bbfcbee1164d427b0d5bf4cdff7d4e61a18666c4746b01ac9e6ec372"
+   ]
+  ],
+  "pc_port/src/world_map_helper_93a5c.c": [
+   [
+    8372,
+    "0a3f85e1f70c9273c4388522b41c15ed2fa8a6fdbb2041e74fbf79bd7c732d4d"
+   ]
+  ],
+  "pc_port/src/world_map_helper_93a5c.h": [
+   [
+    487,
+    "4f73f08b1efdf49edf816493690677e5936dd57f2590d1b779a3d08de0a6b8f8"
+   ]
+  ],
+  "pc_port/src/world_map_helper_93e8c.c": [
+   [
+    4757,
+    "deb3c0b364e3f057724bf1913d252a6ec09f5900bf9c81ca3258d1c8d1da4d5c"
+   ]
+  ],
+  "pc_port/src/world_map_helper_93e8c.h": [
+   [
+    344,
+    "a9206f1bb20cc3907dad1825f5603bf78281da50da9f4fae367d885ccfd3fe47"
+   ]
+  ],
+  "pc_port/src/world_map_helper_93f18.c": [
+   [
+    9589,
+    "89cb607c18b454fef992daa66e1b22f1a4d77741d4c7c0c0f3fe6e9ba9c6ff86"
+   ]
+  ],
+  "pc_port/src/world_map_helper_93f18.h": [
+   [
+    675,
+    "70821e25e49058b50f0d5ee0c80751a2a574f5396e2a38c645b3cf2cb22cad38"
+   ]
+  ],
+  "pc_port/src/world_map_helper_93fe4.c": [
+   [
+    1322,
+    "e097c6c88dd1894c495636031da6ef27962ca98787a81f74b3860902d4b0b9a7"
+   ]
+  ],
+  "pc_port/src/world_map_helper_93fe4.h": [
+   [
+    534,
+    "fbc62669cabaf23af7a2a8eb602f530ae5c9b1cb22274945611bbfe001fbc9b0"
+   ]
+  ],
+  "pc_port/src/world_map_helper_94060.c": [
+   [
+    3561,
+    "d993f6601b99bd0dda8607a2cf6415b21e165a71fe6dd04f577674427a5db9cc"
+   ]
+  ],
+  "pc_port/src/world_map_helper_94060.h": [
+   [
+    552,
+    "63474eb5f2befa2bde3db6f3a158946e84521fba7b9eee808c79d7fe270b653c"
+   ]
+  ],
+  "pc_port/src/world_map_helper_94088.c": [
+   [
+    4561,
+    "dea20154f3b6a17d3cd91472099c072a1e962187d98f01ccace24edf4549b0ea"
+   ]
+  ],
+  "pc_port/src/world_map_helper_94088.h": [
+   [
+    1115,
+    "9f0470e5f619ba18cb7a59778eaa626f6db5411f31f9e7f20f78303b57f88f22"
+   ]
+  ],
+  "pc_port/src/world_map_helper_94154.c": [
+   [
+    1100,
+    "0003d4f90ca16920beda0887d071ea51de38c0a9729e8371972297b874f8935d"
+   ]
+  ],
+  "pc_port/src/world_map_helper_94154.h": [
+   [
+    236,
+    "ec151d49953a93fcd5e75e7b675e71dc3cb4657d0ac5b15c30c19ed7cea4a58e"
+   ]
+  ],
+  "pc_port/src/world_map_helper_941c4.c": [
+   [
+    3482,
+    "dccbf8a105657f77f8e7488e62afd43cebe8703cfc635aaf3843276e060afc1d"
+   ]
+  ],
+  "pc_port/src/world_map_helper_941c4.h": [
+   [
+    847,
+    "0d4ac61963497fb96b064a9c09101f383fdbe8426173eb5ae4100390cad758bd"
+   ]
+  ],
+  "pc_port/src/world_map_helper_94238.c": [
+   [
+    4540,
+    "8ecd603eba2d579e4d600cf6500cb1293e560c07fd11cc62fcff7222fed22373"
+   ]
+  ],
+  "pc_port/src/world_map_helper_94238.h": [
+   [
+    1077,
+    "4f804890e6fff64755899241f8f3fa2106efe794c04a055a89c92406769f1d1f"
+   ]
+  ],
+  "pc_port/src/world_map_helper_94364.c": [
+   [
+    2874,
+    "255ca4cd505b5b1779c88a7f71bfd4ff1a76d18302151bdfd9c4b4bb711d60ce"
+   ]
+  ],
+  "pc_port/src/world_map_helper_94364.h": [
+   [
+    220,
+    "583b4f90ec0a896761443beda62d9841cfec99078cce7bd566ea3c685dc1d01b"
+   ]
+  ],
+  "pc_port/src/world_map_helper_951a8.c": [
+   [
+    4558,
+    "efb4fb9eb781aab7ee999f1578452ab5ab3df58961e176d1f66bab6d27d3a98e"
+   ]
+  ],
+  "pc_port/src/world_map_helper_951a8.h": [
+   [
+    1515,
+    "63a01d0ba892efd66f61721f8ac0ef64b988c207a61f95185a7371fb1cbf5a33"
+   ]
+  ],
+  "pc_port/src/world_map_helper_952b0.c": [
+   [
+    3450,
+    "919439d704bade1f5309fce8d76d2b2a07b158eb8d7c19867b37d8e33c96b277"
+   ]
+  ],
+  "pc_port/src/world_map_helper_952b0.h": [
+   [
+    984,
+    "14eb5c8c3e0001e6e7f967fea2f23e4bfbad3e31589c0ca4d571fba124363fb8"
+   ]
+  ],
+  "pc_port/src/world_map_helper_95324.c": [
+   [
+    5242,
+    "70db34aa3c2c5d0248b3b93dbd4151d8fc538f866b6b850b224885b4ba0ffab5"
+   ]
+  ],
+  "pc_port/src/world_map_helper_95324.h": [
+   [
+    1217,
+    "55565ce8899afca58a32e35f926323e00322c11ed65c5862e2b7c281bfbfe36e"
+   ]
+  ],
+  "pc_port/src/world_map_helper_95cd4.c": [
+   [
+    5139,
+    "3fec098553b4901deec513de58daffcfd2ac3eb7f851a57cdd4eee444a1e842c"
+   ]
+  ],
+  "pc_port/src/world_map_helper_95cd4.h": [
+   [
+    647,
+    "b61eaa2238cbb61cb987c953f1589373b02b165a6c788cb4858df2716faaca81"
+   ]
+  ],
+  "pc_port/src/world_map_helper_96130.c": [
+   [
+    5648,
+    "502edb9ef60d5dc2e589c2967e9c968f893c48a0d26e143812c530a12489f19d"
+   ]
+  ],
+  "pc_port/src/world_map_helper_96130.h": [
+   [
+    812,
+    "c33cf4bfa4fa2357e15315a4940ae987982edab89272447ed321dbe04d33d538"
+   ]
+  ],
+  "pc_port/src/world_map_helper_9623c.c": [
+   [
+    4695,
+    "032ea89d34aa7a436c82924b0220011f80c0538ee188e1d47a248956cdc59833"
+   ]
+  ],
+  "pc_port/src/world_map_helper_9623c.h": [
+   [
+    964,
+    "b63b195444b5c6713de7b23bde74e0684b8bb7d631d2bcca13948965a65083f4"
+   ]
+  ],
+  "pc_port/src/world_map_helper_96328.c": [
+   [
+    1444,
+    "3c1926154f1c62128778b29165abe751def76bcf3453da4abb7cf0672419cf9e"
+   ]
+  ],
+  "pc_port/src/world_map_helper_96328.h": [
+   [
+    470,
+    "8217297be3a2c947c19f077d385058bc6c5ac0faec1c97cfd868f8d43f057ac1"
+   ]
+  ],
+  "pc_port/src/world_map_helper_964b0.h": [
+   [
+    124,
+    "8f3e79a0871d5a4d5fa3edb83ad00a7d109535839d2f9275d37cd1c662c7c249"
+   ]
+  ],
+  "pc_port/src/world_map_helper_965a4.c": [
+   [
+    1091,
+    "bb19d7c5cd5405c753d7af5aeab18163fa0ad8406ceb7e25c7f951a8fc085876"
+   ]
+  ],
+  "pc_port/src/world_map_helper_965a4.h": [
+   [
+    399,
+    "90633e9bdf7c42a9371f6eb0f6c9619c49c6d0dd068ecb820dd385cba7fc6ebc"
+   ]
+  ],
+  "pc_port/src/world_map_helper_966cc.c": [
+   [
+    263,
+    "4789ffc5bb64b9d04058b0e01dd0352d5f26fea1de4124b46c8e3048f3ac5a87"
+   ]
+  ],
+  "pc_port/src/world_map_helper_966cc.h": [
+   [
+    158,
+    "7f94ce81a290f149a4bea2793fd8b3481f1993e3d0abaf458da412e7ae88c69e"
+   ]
+  ],
+  "pc_port/src/world_map_helper_96f18.c": [
+   [
+    3108,
+    "2498cba5089bb645bfdd110e28ddd723f418222890c17b0b3dfed1e46862d970"
+   ]
+  ],
+  "pc_port/src/world_map_helper_96f18.h": [
+   [
+    435,
+    "dc19ea19603ef2217e4c2cb78cd003f26406409cd8637393dcc099aed4b385e6"
+   ]
+  ],
+  "pc_port/src/world_map_helper_97070.c": [
+   [
+    2944,
+    "292277235f606be8afdd611e03a807b6706cddf408a20509b1a57685bed38e00"
+   ]
+  ],
+  "pc_port/src/world_map_helper_97070.h": [
+   [
+    240,
+    "fa1072a025548e35461c3a26bb7e16ca81fa0f387e62b82d940d4df9e7956c40"
+   ]
+  ],
+  "pc_port/src/world_map_helper_97244.c": [
+   [
+    9143,
+    "4aa1fd31e97785b66e66dec282732848fd0c4f6b0290f511fe9fc1654d084b5e"
+   ]
+  ],
+  "pc_port/src/world_map_helper_97244.h": [
+   [
+    520,
+    "5ce8df30254a6a11ba4e32ec9db3ac2ddb218f0e7abf3493f02d6ede69c1165b"
+   ]
+  ],
+  "pc_port/src/world_map_helper_97770.c": [
+   [
+    2282,
+    "c34b44b8a51795f4a6d7fb4ca6f6d81cb28dc75e6806ef04a79ddb0c47a589ce"
+   ]
+  ],
+  "pc_port/src/world_map_helper_97770.h": [
+   [
+    671,
+    "115d02e2cfd82960a56315e903bb1a3eb41424743cf7d46a9b4aac64dabcec7d"
+   ]
+  ],
+  "pc_port/src/world_map_helper_97dc0.c": [
+   [
+    4403,
+    "32fe54f203cb4bb395ea43f20a97b150fb506f20a5cc5b20a2b5e1109763dd08"
+   ]
+  ],
+  "pc_port/src/world_map_helper_97dc0.h": [
+   [
+    383,
+    "2e95a8b5e0ffb1359e193944ec4c43e3e9c8477f014681b4cf8445bbc8adf20a"
+   ]
+  ],
+  "pc_port/src/world_map_helper_980d4.c": [
+   [
+    2397,
+    "0bab625b676b72e7ef0174a294c0638db6817d4c271bdd63eae598c7cc023799"
+   ]
+  ],
+  "pc_port/src/world_map_helper_980d4.h": [
+   [
+    476,
+    "65c3302af41f8226e59e8940bb776d1ae3434a384a3a49ee367dcd84a5039e8f"
+   ]
+  ],
+  "pc_port/src/world_map_helper_981c8.c": [
+   [
+    167,
+    "e682ebb1095af028ddb6ea751611df6475c2907f07dadb46c22c9aa6a3da2758"
+   ]
+  ],
+  "pc_port/src/world_map_helper_981c8.h": [
+   [
+    127,
+    "62c6ed0ce5a234b0d26dabaff03b41e6900f3b01d306124ab68774b0677bd4cd"
+   ]
+  ],
+  "pc_port/src/world_map_helper_983a0.c": [
+   [
+    8638,
+    "b01887d7b23a43287825b4e94943f4b45b4de66c9235a5780573809c24f9e445"
+   ]
+  ],
+  "pc_port/src/world_map_helper_983a0.h": [
+   [
+    264,
+    "8e9b7cd992dcd0bb94047e0b694d477f8bd21595fd848f29bdbcef2b90472665"
+   ]
+  ],
+  "pc_port/src/world_map_helper_987ac.c": [
+   [
+    5602,
+    "992a0dd5b7bd99dacfe61330fa0e41240fd40775226799bde3e38de3f8a71718"
+   ]
+  ],
+  "pc_port/src/world_map_helper_987ac.h": [
+   [
+    297,
+    "ca17231392d66b694cc12a5946b5a9334056d6b1ee2c94457d10df9fb3cdfa3c"
+   ]
+  ],
+  "pc_port/src/world_map_helper_98cc0.c": [
+   [
+    11027,
+    "342f6a27973aef04497cf87e189f78086992ea97ad2d5e7e3d2ecbde55545202"
+   ]
+  ],
+  "pc_port/src/world_map_helper_98cc0.h": [
+   [
+    485,
+    "023d922c7fff2ecb0b05ae8655b43b499a17f112e1ad56caa035b931aedef4da"
+   ]
+  ],
+  "pc_port/src/world_map_helper_9932c.c": [
+   [
+    5920,
+    "fe032819cbb6ee676f5e0682965910f28bab1a42cb5077e1f2bb74306baa18c8"
+   ]
+  ],
+  "pc_port/src/world_map_helper_9932c.h": [
+   [
+    461,
+    "f032d9e885a0ac8fbb91997e154de1e8a1730b95de37de0d98a5b0d6d687e1c6"
+   ]
+  ],
+  "pc_port/src/world_map_helper_99708.c": [
+   [
+    3117,
+    "3816c5e556cfdf1fd990b80700bd7b82e6c718b1dcad5c29e91a2bc1c9a6fee7"
+   ]
+  ],
+  "pc_port/src/world_map_helper_99708.h": [
+   [
+    448,
+    "d52b3d6173c20b5b3154503546c76589034155ce9798c023fbdce8c5b30ee13f"
+   ]
+  ],
+  "pc_port/src/world_map_helper_9980c.c": [
+   [
+    7120,
+    "07d1ec8e3049a2a092af58c316932d4cd0779b5191dd62611de196e3285ded3f"
+   ]
+  ],
+  "pc_port/src/world_map_helper_9980c.h": [
+   [
+    483,
+    "5d41d81aab3f91aaba146b10f1d028e5ab3690f5d31e0095635a2b56d2aa1715"
+   ]
+  ],
+  "pc_port/src/world_map_helper_99bfc.c": [
+   [
+    7084,
+    "9cbd979661dad0aceaf3c7b65bf689f0aa9410a73d9a8349f8641db3778ffdbe"
+   ]
+  ],
+  "pc_port/src/world_map_helper_99bfc.h": [
+   [
+    465,
+    "50d3e21f0ff684b4cc2a418607d261bc57326d2a6553f3f48c8485cc4f2bfcda"
+   ]
+  ],
+  "pc_port/src/world_map_helper_c28c.c": [
+   [
+    3713,
+    "fc99d5f00326f54ed314964d917a134617f5ecd581fe88af7a10011fcb4e3505"
+   ]
+  ],
+  "pc_port/src/world_map_helper_c28c.h": [
+   [
+    465,
+    "cc0919331ce36f310ae79792ebe7f8bcba1a5a90e8a7aeb3daa8999587f485d7"
+   ]
+  ],
+  "pc_port/src/world_map_helper_c364.c": [
+   [
+    5507,
+    "0a3f8b2926c81e6ad02b38325440d8e3adb355e0df3e903d789e88a17991373b"
+   ]
+  ],
+  "pc_port/src/world_map_helper_c364.h": [
+   [
+    453,
+    "f57757e974968880f94d7d20c0b35b57dd7fa9ba736fb965ae8836ce7c2c6f49"
+   ]
+  ],
+  "pc_port/src/world_map_image_transfer_25044.c": [
+   [
+    2500,
+    "a86e97afb4a768957fbec9ecfe28d93825e04133eadc8fb0df531c3f55a0241e"
+   ]
+  ],
+  "pc_port/src/world_map_image_transfer_25044.h": [
+   [
+    295,
+    "538292dab1df704b8794ef83712a1c15d46c8e9a33e0f04ef3de13aef25b8d20"
+   ]
+  ],
+  "pc_port/src/world_map_init.c": [
+   [
+    334024,
+    "cfb094af2550f39092d9ba3a6733eeaf61041ec7514c06d3e7060d14aba1ff24"
+   ]
+  ],
+  "pc_port/src/world_map_main_loop_71034.c": [
+   [
+    8805,
+    "85d2564b4540db122979dca5c355b6a8b00e8a7147a2ff5d6644a899b3f5798d"
+   ]
+  ],
+  "pc_port/src/world_map_main_loop_71034.h": [
+   [
+    295,
+    "6cbbd9231c4f840c90ea1bf144dda9c12209bf3e8ee296291c7e3c27d6bb1642"
+   ]
+  ],
+  "pc_port/src/world_map_memory.h": [
+   [
+    1676,
+    "e723d6c581274d117a6a6efd5fd19b39f86daed0007ac2782fcda12a7a8d62cb"
+   ]
+  ],
+  "pc_port/src/world_map_memory_internal.h": [
+   [
+    478,
+    "c4a7f653b10c5f5c6ab3889c392201aff241a38a41c31017337066dd9c0edb88"
+   ]
+  ],
+  "pc_port/src/world_map_menu_lifecycle.c": [
+   [
+    7420,
+    "21b9bbbb8853a992a641396dbca1944982771c8869049363e3c5c39c4d125132"
+   ]
+  ],
+  "pc_port/src/world_map_menu_lifecycle.h": [
+   [
+    179,
+    "7dc79d63607c207212411c84d1a9301a06711daff7cf01bd2c3f3f9ae93dfcce"
+   ]
+  ],
+  "pc_port/src/world_map_mode10_lifecycle.c": [
+   [
+    6489,
+    "96b322b3cf613c33eeef6e4c06b4402ecbf0c06be45dc05ce711b23e01ffc88d"
+   ]
+  ],
+  "pc_port/src/world_map_mode10_lifecycle.h": [
+   [
+    406,
+    "5f7c69e1c1dca81e0b23d85e3e90c8802eaf539c7915cac2c6038f2d54beb27f"
+   ]
+  ],
+  "pc_port/src/world_map_mode12_lifecycle.c": [
+   [
+    7034,
+    "4b7d907e1e43f472b7505344c1374e66c7603068a033c2282fd6894e7f9f67c6"
+   ]
+  ],
+  "pc_port/src/world_map_mode12_lifecycle.h": [
+   [
+    399,
+    "c68599c9dc2ebdc56cb8cefc3fd22930122c3fd84df10ff77abdf42414b0fc39"
+   ]
+  ],
+  "pc_port/src/world_map_mode13_lifecycle.c": [
+   [
+    6742,
+    "4af5d919bf8cb28b7ab9bdd337e69d7e2529e045c875f0c8694c2186055e0880"
+   ]
+  ],
+  "pc_port/src/world_map_mode13_lifecycle.h": [
+   [
+    419,
+    "81e2827619650ddb7760a42f452cc7b8442308e016778aae5c9cbdeeee759c0a"
+   ]
+  ],
+  "pc_port/src/world_map_mode14_lifecycle.c": [
+   [
+    6836,
+    "a67f756fad13a778aef5382dd033acbd735d51791a2737a0347341e2efb6bc70"
+   ]
+  ],
+  "pc_port/src/world_map_mode14_lifecycle.h": [
+   [
+    411,
+    "6aa687dc65d6ddd54f39ff8780ab6fb21fd16051ca1574202bb0c21ea9e98327"
+   ]
+  ],
+  "pc_port/src/world_map_mode15_lifecycle.c": [
+   [
+    8573,
+    "cde100e404e2a1c1a11ac76f8f453c37ee78d034f2ec9a02f8d2814e5ccba858"
+   ]
+  ],
+  "pc_port/src/world_map_mode15_lifecycle.h": [
+   [
+    383,
+    "439365e6c2aadff36eb5d5ac6f370491e65fd3574d55cd2bc35233a8e0663924"
+   ]
+  ],
+  "pc_port/src/world_map_mode16_lifecycle.c": [
+   [
+    7782,
+    "3c3101ca74c93ab082080ecac0e8d3ecbac0dee11201fcd7fa031d216bf27e1c"
+   ]
+  ],
+  "pc_port/src/world_map_mode16_lifecycle.h": [
+   [
+    264,
+    "31074991ca1113bf70464610e2afdcae26762df8b8ba5706824c03cb770e2e26"
+   ]
+  ],
+  "pc_port/src/world_map_mode17_lifecycle.c": [
+   [
+    7894,
+    "8dbc28b33086692c5088c2a7ae0f1428b570d4a796bc26a8474161d684a8f105"
+   ]
+  ],
+  "pc_port/src/world_map_mode17_lifecycle.h": [
+   [
+    264,
+    "cd22fc42b63cff0240ec514f69521b153bc9ddb1e07bceed6bfe65c7375eed5e"
+   ]
+  ],
+  "pc_port/src/world_map_mode18_lifecycle.c": [
+   [
+    6545,
+    "fb9b34bcd3206769bd770f2ec2559e5c35031f82b9f99a30fb9ab647247a151b"
+   ]
+  ],
+  "pc_port/src/world_map_mode18_lifecycle.h": [
+   [
+    264,
+    "9b0190cd95db73feef794dfc852b2b0be59fc99bc856c742202e851cce07822a"
+   ]
+  ],
+  "pc_port/src/world_map_mode811_lifecycle.c": [
+   [
+    6373,
+    "856cd765925e60dc035aecbceddacf8af3344c6bd100abe11ebbd3b56babdf2c"
+   ]
+  ],
+  "pc_port/src/world_map_mode811_lifecycle.h": [
+   [
+    670,
+    "fb93684ce5ea896cd05974f68b5d6c5b6e0f893d1273de5dd0fa9fff676154f0"
+   ]
+  ],
+  "pc_port/src/world_map_mode9_lifecycle.c": [
+   [
+    6818,
+    "785f6e9fae1c4e98da506e7db3618d2d746ca3965486267789c6b390c61f5cbc"
+   ]
+  ],
+  "pc_port/src/world_map_mode9_lifecycle.h": [
+   [
+    472,
+    "740b62bb307c741ff5968318246993c63640ccf3b2d88df693b652600852da02"
+   ]
+  ],
+  "pc_port/src/world_map_mode_selector_73300.c": [
+   [
+    1987,
+    "14799df7a01a8b87b374570f022d39def62d7b4d3c7798a6d9e7f89d479ebc52"
+   ]
+  ],
+  "pc_port/src/world_map_mode_selector_73300.h": [
+   [
+    213,
+    "936c219e5a40b5b0679f87bad63f26f489c1422c0c9403b1c996b22fd7600156"
+   ]
+  ],
+  "pc_port/src/world_map_ot_adapter.c": [
+   [
+    6139,
+    "9ad574866fa9591bcc5d024ecbdac38e4db706f945f80cc6af9a5663f4b8072c"
+   ]
+  ],
+  "pc_port/src/world_map_ot_adapter.h": [
+   [
+    1450,
+    "8e85a756eb606b79db165c1c5e3118d7d0ef3e642f3e6ca475307840a8f03f26"
+   ]
+  ],
+  "pc_port/src/world_map_pause.c": [
+   [
+    7203,
+    "bb1cf04370563cf0a411f02ddec5c38ebe3556be2fedf9e3b2fbce90384a196b"
+   ]
+  ],
+  "pc_port/src/world_map_pause.h": [
+   [
+    269,
+    "ccfea16a8ccd5f843250f4636c0c615f792a9d4b60a5fbbb534302dd18bae399"
+   ]
+  ],
+  "pc_port/src/world_map_plane_solver.c": [
+   [
+    4180,
+    "a7e9a63305231a07ea54ae70e79ce18f2dd3444d074f3b47cb061fa9de4717a4"
+   ]
+  ],
+  "pc_port/src/world_map_plane_solver.h": [
+   [
+    707,
+    "8478c6d03f6175a5a54c4bb59f322db1ae33357579a70263dc881a1c79399ce3"
+   ]
+  ],
+  "pc_port/src/world_map_port_data.h": [
+   [
+    4290,
+    "75e76ebe41b3b69f1311fe24003cd4b7697507962800596aa19eb925e43927d6"
+   ],
+   [
+    4359,
+    "e278f49e008a77811cdd809b1a3f819ba44388dfa0641bad0bd4bc072f08b147"
+   ]
+  ],
+  "pc_port/src/world_map_private_collision.c": [
+   [
+    9716,
+    "b5046cd1022c923f237767d76cc20dba9225b111d4a062e931bd83f7228234fc"
+   ]
+  ],
+  "pc_port/src/world_map_private_collision.h": [
+   [
+    406,
+    "5108e19b7f393a1ade70fd2a3bdf40212c74628d6e0550f4503d8ac225fc7c24"
+   ]
+  ],
+  "pc_port/src/world_map_r4world_71a58.c": [
+   [
+    3004,
+    "7a6c332102b2eb2020b84d9b880fe58b1cfc8dcc887a8a4108d21f52f3f73376"
+   ]
+  ],
+  "pc_port/src/world_map_r4world_71a58.h": [
+   [
+    503,
+    "eeb46ca19f89881c32348f53c58dda8187fd23176148de5ae89b8edb6ca1dfc4"
+   ]
+  ],
+  "pc_port/src/world_map_resume_initializers.c": [
+   [
+    6670,
+    "c11772139525ef0621db7d4185e6148c27647d382290756884b01beee758f2b5"
+   ]
+  ],
+  "pc_port/src/world_map_resume_initializers.h": [
+   [
+    503,
+    "bcfdd0d23dd650b8df88141aa788eca434f576144aa5105c848f02c971ff3bc1"
+   ]
+  ],
+  "pc_port/src/world_map_retail_trig.h": [
+   [
+    1504,
+    "c4fdd75e4af00561dc07107a867e7495c38690a061041e752d8b5726c30dd6a8"
+   ]
+  ],
+  "pc_port/src/world_map_selector.c": [
+   [
+    7336,
+    "ea95acc49e4444a3370eab61e1d29b0db41f0ee0bfad48c31a09b1f6b8e1b510"
+   ]
+  ],
+  "pc_port/src/world_map_selector.h": [
+   [
+    1850,
+    "b5ef4909eee9a53cb3ce7bc8a62074637b6ee516d8d7f1756dedc135cf238694"
+   ]
+  ],
+  "pc_port/src/world_map_session_setup_72238.c": [
+   [
+    8252,
+    "c3bcb89da0fd2536220224892343609bb6b87d288d1933677f06a20aefde348f"
+   ]
+  ],
+  "pc_port/src/world_map_session_setup_72238.h": [
+   [
+    1538,
+    "29bb43e59ef1e91791b2513bf08737ff8b190321b9cabe2e273c42f59fdd3aaf"
+   ]
+  ],
+  "pc_port/src/world_map_state01_8eb30.c": [
+   [
+    1077,
+    "62dd4e916ca92497acd71bd4f627042c38e12246c7a7ff4470c55c46e1922f18"
+   ]
+  ],
+  "pc_port/src/world_map_state01_8eb30.h": [
+   [
+    253,
+    "308596717af68252af128954d13f9caf021ccc22087b95e86b2bf3de98c615ec"
+   ]
+  ],
+  "pc_port/src/world_map_state2_8eb64.c": [
+   [
+    8886,
+    "7f0ecaecd5306d8e796049975e923f7d70523c8e5b2c87b50b0a9a22eaf9b0d8"
+   ]
+  ],
+  "pc_port/src/world_map_state2_8eb64.h": [
+   [
+    279,
+    "e2f4f7457662a843d02877af9365d006579c16ed0d4bd35697173e390f8a1460"
+   ],
+   [
+    568,
+    "5f4c7b0ab11f72a8968062f26959e57252e01eda68287045134c3d70a7c363ac"
+   ]
+  ],
+  "pc_port/src/world_map_state_vertical_8f690.c": [
+   [
+    8311,
+    "c7478fdbbeac09dcd65cd0d248b6b70f39ab223c08d69ccda39b26ec34d241c3"
+   ]
+  ],
+  "pc_port/src/world_map_state_vertical_8f690.h": [
+   [
+    477,
+    "3e922ee16105b0a84dcb8ac3254eb069fe810257a1d0daa8f25649517a4fe2ae"
+   ],
+   [
+    595,
+    "31c4bd1870c704453f6112dca374849fa7bef33fe85262ea7610372bc04c5ccc"
+   ]
+  ],
+  "pc_port/src/world_map_teardown_7299c.c": [
+   [
+    8273,
+    "2afdd75197015335dbd20969c4e2660225fcc80f6905437a873e0235c1d46e75"
+   ]
+  ],
+  "pc_port/src/world_map_teardown_7299c.h": [
+   [
+    292,
+    "169a1174cfe15f9dbba20224c48f71515c8dbf2464053affe49ff437abd2689b"
+   ]
+  ],
+  "pc_port/src/world_map_terminal_default_71264.c": [
+   [
+    1858,
+    "283eab286e9d8543cea2bb5d36c7fa07ab1b29327fb41619ed1ea99d82d355e3"
+   ]
+  ],
+  "pc_port/src/world_map_terminal_default_71264.h": [
+   [
+    222,
+    "dcea24213b83a166c7343850cafb64cb7271e0dbd978eb4c499ba06386e3dead"
+   ]
+  ],
+  "pc_port/src/world_map_terminal_one_711b0.c": [
+   [
+    3471,
+    "b1400c17323dd728d80e5b0efe14abe9854275e3bbbf612ed10afaecd6f369d4"
+   ]
+  ],
+  "pc_port/src/world_map_terminal_one_711b0.h": [
+   [
+    204,
+    "a2a49836e1c911ef72fe5586e3b47aee6d5bef8e9fd61da4d8c7fb01a07138c0"
+   ]
+  ],
+  "pc_port/src/world_map_terminal_zero_710e4.c": [
+   [
+    3984,
+    "914cebf4e035cb3b6322767c58d7c4fc746999f3c2a21e40ab731dc37420ef17"
+   ]
+  ],
+  "pc_port/src/world_map_terminal_zero_710e4.h": [
+   [
+    207,
+    "353bad9df8fde438bd7461b9bb61d187f10c37120e14de9ba6e0372d5b4ae899"
+   ]
+  ],
+  "pc_port/src/world_map_terrain_cell.c": [
+   [
+    1497,
+    "609acafe5d3de3cb9b532893547c8ff08825732d319b6c6a261ecaa3597f5513"
+   ]
+  ],
+  "pc_port/src/world_map_terrain_cell.h": [
+   [
+    127,
+    "c5304aef29b556c6c375991a91dbc87c42c294b402a284b10eda2df23dbf66d3"
+   ]
+  ],
+  "pc_port/src/world_map_terrain_init.c": [
+   [
+    338,
+    "f2b79ec582a8f5c984eb13ce73832bdbf29d2509032303171952e2216de6cbfa"
+   ]
+  ],
+  "pc_port/src/world_map_terrain_init.h": [
+   [
+    211,
+    "57240ef37bcaaa61a91d3a904bd2abf75d8fdf2072dcbefa705356f81259c2ec"
+   ]
+  ],
+  "pc_port/src/world_map_terrain_normal.c": [
+   [
+    5546,
+    "70d3bbb284d3dd683b6c27652c57d50124d1f7b812898d739bccbfc85958c6b0"
+   ]
+  ],
+  "pc_port/src/world_map_terrain_normal.h": [
+   [
+    476,
+    "2a73c617e5565d2443cce5724f5697b16580067cae9e621d89b704fa518a9d0c"
+   ]
+  ],
+  "pc_port/src/world_map_terrain_sampler.c": [
+   [
+    4389,
+    "5d97f9a1cb6e3b675b28d8e75011eb1225c99efb5228f2a18ecb4798cf5ba39e"
+   ]
+  ],
+  "pc_port/src/world_map_terrain_sampler.h": [
+   [
+    637,
+    "f07651d1f08890f95717fe40f1786b8bba81240c5848cc375222265d551d9829"
+   ]
+  ],
+  "pc_port/src/world_map_upload_pump_74f2c.c": [
+   [
+    6952,
+    "a2fc563ef2c85620f0aff9bfe4e6b362794d551f3c24ee1cc869610abd3226ec"
+   ]
+  ],
+  "pc_port/src/world_map_upload_pump_74f2c.h": [
+   [
+    514,
+    "bdf06a2f9bdea8782a9167183fb7113643b6539bbcf0e9732391008eff54ffa4"
+   ]
+  ],
+  "pc_port/src/world_map_upload_pump_75104.c": [
+   [
+    7094,
+    "15112ffe07a1fdd5e5956a8132e2c530475b873c4bbae61b9881c8fe3b32f433"
+   ]
+  ],
+  "pc_port/src/world_map_upload_pump_75104.h": [
+   [
+    378,
+    "a6d8c51f781a944362471371b4ed21dca89087e5703e0c2ac9550b448025ee0a"
+   ]
+  ],
+  "pc_port/src/world_map_vehicle_tail_90620.c": [
+   [
+    2141,
+    "24a78341c37d4ef59fa7d8b87d85230613e44e27c5146500e2c8fad7581ed9bf"
+   ]
+  ],
+  "pc_port/src/world_map_vehicle_tail_90620.h": [
+   [
+    257,
+    "3ffe6a0a369b6912e73292e249a555af0443c8590f342212c1ab334c6a69ea46"
+   ]
+  ],
+  "src/world_map/main.c": [
+   [
+    88605,
+    "eda4da00838c2b5b2067ea998b3670ef25da34eb9b046ae7fc522ab53b8cccb0"
+   ]
+  ]
+ },
+ "bodies": {
+  "028d7df22456b7f5abf72cf971b670d81b5c6a6722e5b8a2c44f9aafdb76f6b3": [
+   223,
+   "world-map addressed instruction translation wm_8007B200"
+  ],
+  "07d87dc07753d9bddb077156bf4f77bc4c5f84bb5372aaa4605f336286aabb56": [
+   165,
+   "world-map addressed instruction translation wm_8007C724"
+  ],
+  "18da2ccdd09a1c3f62fbb94e23b38da57a4d768e06339a23e9783b6cebe26d67": [
+   517,
+   "world-map scheduler control-flow translation"
+  ],
+  "321df587574092ded70c0650579f32008ed267b4680e7fc994def98e3eab3b42": [
+   486,
+   "world-map scheduler test-oracle control-flow translation"
+  ],
+  "3457183a4b931b819a84df255fa752e9a9b1fc023e6c4040048ad36eb18fab77": [
+   137,
+   "world-map addressed instruction translation wm_800813E8"
+  ],
+  "47a41cc58959f94e27d10baccc5fc89a36bd04fc57a452236b0eb5d7e5087ebf": [
+   223,
+   "world-map addressed instruction translation wm_8007B604"
+  ],
+  "59bc883f7327c0f93ce4ef5ff5f69cc30742dfe0dc62e812762b64351534e0e8": [
+   313,
+   "world-map addressed instruction translation wm_8007ECA4"
+  ],
+  "707e5366722ed6e10251ad1a1d00c68bb3e65913202dbebd72a4981d93cbbd0a": [
+   295,
+   "world-map addressed instruction translation wm_80081C3C"
+  ],
+  "7f2d748519265a8f4f633a9f2819b04e95a36b68568033e93946eff2f703eceb": [
+   137,
+   "world-map addressed instruction translation wm_80080578"
+  ],
+  "8027a13d8b944b6cdefbec4e96c2e11909fe8973101f745a190a8646e0074294": [
+   210,
+   "world-map addressed instruction translation wm_800817A0"
+  ],
+  "837b9f04aad597f0b08e4e3b9d5ddd35b0b6dc52982779f16bc6264a6c9be9ff": [
+   158,
+   "world-map addressed instruction translation wm_8007AD34"
+  ],
+  "85d83d1baecce027c571d37cba3da5f4dbd2105407d90c013b055acdde92a27b": [
+   165,
+   "world-map addressed instruction translation wm_80080A28"
+  ],
+  "9f39e07a4f1f042332f8d287bff219b0284e735d94241d488daacb0bc7a8db90": [
+   536,
+   "world-map scheduler control-flow translation"
+  ],
+  "a780d7265dd87ff2aff9dfd2f521572691e8d6a4f83fad5b3f3fd0896b2437dc": [
+   161,
+   "world-map addressed instruction translation wm_8007E450"
+  ],
+  "abbac254c0dbd7b5a988975c71725dc7bd36aec43b1c589373ff957e617855a9": [
+   110,
+   "world-map addressed instruction translation wm_8007DE14"
+  ],
+  "ad7bf9bebcb3df543545d68562bd654c36699e986c25bac076cea7b8a6427a3a": [
+   178,
+   "world-map addressed instruction translation wm_8007FC8C"
+  ],
+  "b0b8e6ece63376ae429504a9c15a2451fe1b62396b359e70837aa5379796a315": [
+   239,
+   "world-map addressed instruction translation wm_800819C8"
+  ],
+  "ec762754aa0c134586a08194d4e5ea93ae9b0b0ac72000cd4013eaec28d2b44d": [
+   288,
+   "world-map addressed instruction translation wm_800827EC"
+  ],
+  "f3c3831ce8cde438c629ca5ac758fd333919a6660b133b2990cae589d18c7d52": [
+   147,
+   "world-map addressed instruction translation wm_8007F8AC"
+  ],
+  "f928138e3bd2d49beeb3f4859cc205d03659e010296f4a1e78398b0be09b2549": [
+   245,
+   "world-map addressed instruction translation wm_80071FEC"
+  ]
+ }
+}

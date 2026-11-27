@@ -16,10 +16,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "psx_memory.h"
-
-int PcPort_BattleMipsCallGuest(uint32_t target, const uint32_t* args,
-                               unsigned argc, uint32_t* result);
+#include "battle_host_guest.h"
 
 static uint32_t battle_guest_trampoline(const char* name, uint32_t target,
                                         const uint32_t* args, unsigned argc)
@@ -75,11 +72,11 @@ BATTLE_VOID_TRAMPOLINE(801DE594)
 
 /* Callees of the native command-step bodies (func_800B905C mainc107_port.c,
  * func_800BF4F0 mainc127_port.c, func_800B7E94 mainc100_port.c) that have no
- * linked native body yet.  Sprite pointers go to the guest as their KSEG0
- * word or raw compact host address, as bg_addr() converts them. */
+ * linked native body yet.  Translate sprite pointers to the address words the
+ * guest uses for RAM, scratchpad, and native records. */
 void func_800BF1EC(uint8_t* sprite, int32_t anim)
 {
-    const uint32_t args[2] = { PsxMemory_GuestAddr(sprite), (uint32_t)anim };
+    const uint32_t args[2] = { BG_ADDR(sprite), (uint32_t)anim };
 
     battle_guest_trampoline("func_800BF1EC", 0x800BF1ECu, args, 2);
 }
@@ -87,7 +84,7 @@ void func_800BF1EC(uint8_t* sprite, int32_t anim)
 /* Registers the battle file's SED/WDS entries; returns the SED entry. */
 uint32_t func_800C0FAC(uint8_t* base)
 {
-    const uint32_t args[1] = { PsxMemory_GuestAddr(base) };
+    const uint32_t args[1] = { BG_ADDR(base) };
 
     return battle_guest_trampoline("func_800C0FAC", 0x800C0FACu, args, 1);
 }
@@ -97,9 +94,9 @@ uint32_t func_800C0FAC(uint8_t* base)
  * word), func_800BC404 -> func_800BC2F0 (mode word) and func_800C0314 ->
  * func_800B136C -> func_800B0060 (sprite record).  Typed here so no
  * generated stub is reachable from the adopted leaves. */
-void func_800B7C34(uint32_t id)
+void func_800B7C34(int32_t id)
 {
-    const uint32_t args[1] = { id };
+    const uint32_t args[1] = { (uint32_t)id };
 
     battle_guest_trampoline("func_800B7C34", 0x800B7C34u, args, 1);
 }
@@ -113,7 +110,7 @@ void func_800BC2F0(uint32_t mode)
 
 void func_800B0060(uint8_t* sprite)
 {
-    const uint32_t args[1] = { PsxMemory_GuestAddr(sprite) };
+    const uint32_t args[1] = { BG_ADDR(sprite) };
 
     battle_guest_trampoline("func_800B0060", 0x800B0060u, args, 1);
 }
@@ -133,13 +130,6 @@ BATTLE_VOID_TRAMPOLINE(800716D8)
         const uint32_t args[1] = { actor };                                 \
         battle_guest_trampoline("func_" #addr, 0x##addr##u, args, 1);       \
     }
-#define BATTLE_ACTOR_RESULT_TRAMPOLINE(addr)                                \
-    int32_t func_##addr(uint32_t actor)                                     \
-    {                                                                       \
-        const uint32_t args[1] = { actor };                                 \
-        return (int32_t)battle_guest_trampoline("func_" #addr, 0x##addr##u, \
-                                                args, 1);                   \
-    }
 BATTLE_ACTOR_TRAMPOLINE(8007FF14)
 BATTLE_ACTOR_TRAMPOLINE(80081318)
 BATTLE_ACTOR_TRAMPOLINE(80081504)
@@ -156,7 +146,13 @@ BATTLE_ACTOR_TRAMPOLINE(800830A8)
 BATTLE_ACTOR_TRAMPOLINE(80083340)
 BATTLE_ACTOR_TRAMPOLINE(80083580)
 BATTLE_ACTOR_TRAMPOLINE(80083748)
-BATTLE_ACTOR_RESULT_TRAMPOLINE(80083948)
+
+uint32_t func_80083948(uint32_t actor)
+{
+    const uint32_t args[1] = { actor };
+
+    return battle_guest_trampoline("func_80083948", 0x80083948u, args, 1);
+}
 
 /* func_80081B58 (mainasm_12068_port.c) callees with no linked native body:
  * func_8008189C / func_800819A4 (retail C in mainasm_11828.c, retail-only),
@@ -201,25 +197,25 @@ void func_80079840(uint8_t actor, uint8_t target)
     battle_guest_trampoline("func_80079840", 0x80079840u, args, 2);
 }
 
-uint32_t func_80079AB0(uint8_t actor)
+uint32_t func_80079AB0(uint32_t actor)
 {
-    const uint32_t args[1] = { actor };
+    const uint32_t args[1] = { (uint8_t)actor };
 
     return battle_guest_trampoline("func_80079AB0", 0x80079AB0u, args, 1);
 }
 
-uint32_t func_800941A4(void)
+uint8_t func_800941A4(void)
 {
-    return battle_guest_trampoline("func_800941A4", 0x800941A4u, NULL, 0);
+    return (uint8_t)battle_guest_trampoline("func_800941A4", 0x800941A4u, NULL, 0);
 }
 
 /* Battle-range names that another overlay's game TU also defines
  * (world map func_800877E0, field misc7 func_8009A1AC).  build_port.sh
  * renames battle host objects' references to them to battle_<name>, so a
  * battle caller lands here instead of in the other overlay's body. */
-uint32_t battle_func_800877E0(uint8_t actor, uint8_t target)
+uint32_t battle_func_800877E0(uint32_t actor, uint32_t target)
 {
-    const uint32_t args[2] = { actor, target };
+    const uint32_t args[2] = { (uint8_t)actor, (uint8_t)target };
 
     return battle_guest_trampoline("func_800877E0", 0x800877E0u, args, 2);
 }

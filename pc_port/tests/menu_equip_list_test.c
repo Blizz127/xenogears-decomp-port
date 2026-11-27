@@ -88,11 +88,11 @@ int DrawSync(int mode) {
     (void)mode;
     return 0;
 }
-u_short GetTPage(int tp, int abr, int x, int y) {
-    (void)tp;
-    (void)abr;
-    (void)x;
-    (void)y;
+u_short GetTPage(int depth, int blend, int vram_x, int vram_y) {
+    (void)depth;
+    (void)blend;
+    (void)vram_x;
+    (void)vram_y;
     return 0;
 }
 void SetSemiTrans(void* p, int abe) {

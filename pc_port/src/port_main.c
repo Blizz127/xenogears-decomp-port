@@ -22,6 +22,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#ifdef _WIN32
+#include "win32_clock.h"
+#endif
 #include <stdatomic.h>
 
 #include "xeno_pc.h"
@@ -38,7 +41,7 @@
 /* Forward-declared to avoid pulling the full PsyQ headers (libgpu needs libgte
  * first, etc.). Signatures match PsyCross. */
 extern int ResetCallback(void);
-extern int ResetGraph(int mode);
+extern int ResetGraph(int);
 extern int SetVideoMode(int mode);
 extern void SpuInit(void);            /* PsyCross LIBSPU: wakes the OpenAL SPU backend */
 
@@ -59,10 +62,14 @@ extern int PsyX_SPUAL_IsInit(void);
 static _Atomic long s_soundPumpProbeCount = 0;
 static long PortSoundPumpProbe(void) { s_soundPumpProbeCount++; return 0; }
 static void PortSleepMs(long ms) {
+#ifdef _WIN32
+    SDL_Delay((Uint32)ms);
+#else
     struct timespec ts;
     ts.tv_sec  = ms / 1000;
     ts.tv_nsec = (ms % 1000) * 1000000L;
     nanosleep(&ts, NULL);
+#endif
 }
 /* Phase-1 sound-pump synthetic probe: proves the counter-2 pump dispatches an
  * OpenEvent-registered callback at ~240Hz when enabled and stops when disabled,
@@ -237,9 +244,13 @@ static long PortGateStressTick(void) {
 }
 
 static double PortMonotonicSeconds(void) {
+#ifdef _WIN32
+    return (double)PcPort_Win32MonotonicUsec() / 1e6;
+#else
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
     return (double)ts.tv_sec + (double)ts.tv_nsec / 1e9;
+#endif
 }
 
 static void PortRunSoundGateStress(void) {
@@ -917,8 +928,7 @@ static int PortButtonLayoutJp(void) {
  * 0x18/0x28). The port replaces the async CD path with synchronous PsyCross-libcd
  * reads (archive_port.c), so we just point PsyCross at the disc image and make the
  * same call. ArchiveReadFileToBuffer (used by the menu/field overlay loads) then
- * pulls real file data straight from disc1.bin. Gated on the image being present
- * so a disc-less run still boots to the menu as before. */
+ * pulls real file data straight from the authenticated Disc 1 image. */
 extern void PsyX_CDFS_Init(const char* imageFileName, int track, int sectorSize);
 extern void ArchiveInit(unsigned int pArchiveTable, unsigned int pHeaderTable,
                         unsigned int pDebugTable);
@@ -1193,6 +1203,33 @@ static const char* PcPort_FindDiscImage(void) {
     return xg_plat_disc_image_path();
 }
 
+static int PcPort_OpenBootDisc(const char* disc)
+{
+    if (!disc || !disc[0]) {
+        fprintf(stderr, "[xeno-port] Supply your US Disc 1 image as XENO_DISC or disc/disc1.bin.\n");
+        return 0;
+    }
+    /* PsyCross stores its configured image path in a 2048-byte array. */
+    if (strlen(disc) >= 2048) {
+        fprintf(stderr, "[xeno-port] Disc image path exceeds the renderer's path limit.\n");
+        return 0;
+    }
+    if (PcPort_VerifyDiscImage(disc) != 0)
+        return 0;
+
+    PsyX_CDFS_Init(disc, 0, PORT_CD_SECTOR_SIZE);
+    ArchiveInit((unsigned int)(uintptr_t)D_80010004,
+                (unsigned int)(uintptr_t)D_80018004, 0);
+    PcPort_VerifyBattleBootDisc();
+    if (PcPort_BattleArchiveDisc() != 1) {
+        fprintf(stderr, "[xeno-port] The mounted image or archive does not match US Disc 1.\n");
+        return 0;
+    }
+    printf("[xeno-port] CD image: %s\n", disc);
+    printf("[xeno-port] ArchiveInit done (archive index loaded from disc).\n");
+    return 1;
+}
+
 static void PcPort_LoadSystemTextData(void) {
     void* pCompressed;
     void* pDecoded;
@@ -1442,41 +1479,18 @@ int main(int argc, char** argv) {
     D_800594D5 = 0x76;
     D_800594D6 = 0x54;
 
-    /* 5b. Disc / archive init (see notes above). Only when the image is found,
-     * so a disc-less run still reaches the menu instead of hanging in
-     * ArchiveInit's `while (CdInit() == 0)`. */
+    /* Archive initialization opens the selected file. Recheck that exact open
+     * image and its installed game directory before loading any resources. */
     {
-        const char* disc = PcPort_FindDiscImage();
-        /* D_80010000 is static read-only ROM data (asm/.../data/800.rodata.s) with
-         * value 0xFFFFFFFF. The exact retail bytes are now loaded from the user's
-         * disc/SLUS_006.64 into pc_port/src/data_slus_rodata.c, so the old ad-hoc
-         * `*(int*)D_80010000 = -1;` write is gone -- the correction is in the data,
-         * not in a boot patch. A zero stub made FieldMain compute
-         * g_FieldSystemMode = SYSTEM_MODE_PC_HDD (0) and hit a `break 1` trap meant
-         * only for the PC-HDD dev path; the real constant picks SYSTEM_MODE_CD_ROM
-         * (1). ArchiveInit treats the value as pDebugTable: -1, like 0, selects the
-         * CD path (g_ArchiveDebugTable = NULL), so disc loading is unchanged. */
-        if (disc && xg_plat_disc_verify() != 0)
-            exit(78); /* EX_CONFIG: wrong disc image, explained on stderr */
-        if (disc) {
-            printf("[xeno-port] CD image: %s\n", disc);
-            PsyX_CDFS_Init(disc, 0, PORT_CD_SECTOR_SIZE);
-            /* pDebugTable MUST be 0 here, not D_80010000's -1. Retail passes -1, but
-             * ArchiveInit only reads the archive table/header from CD when
-             * pDebugTable == 0 (`if (!pDebugTable)`); with -1 it relies on the table
-             * statically baked into the EXE at D_80010004/D_80018004. Those retail
-             * bytes are now baked (pc_port/src/data_slus_rodata.c), but the port still
-             * takes the disc path deliberately, so the live CD image -- not the
-             * main-exe snapshot -- drives the archive index. g_ArchiveDebugTable still
-             * ends up NULL. */
-            ArchiveInit((unsigned int)D_80010004, (unsigned int)D_80018004, 0);
-            printf("[xeno-port] ArchiveInit done (archive index loaded from disc).\n");
-
+        const char *disc = PcPort_FindDiscImage();
+        if (PcPort_OpenBootDisc(disc)) {
             /* Retail func_80019578 loads archive 0/1 WDS files 2..5 here,
              * waits for their SPU transfers, stores the second/fourth handles,
              * then frees only the source buffers. */
-            PcPort_LoadRetailBootSoundBanks();
-            printf("[xeno-port][sound] retail boot WDS banks 2..5 loaded\n");
+            if (PcPort_LoadRetailBootSoundBanks())
+                printf("[xeno-port][sound] retail boot WDS banks 2..5 loaded\n");
+            else
+                fprintf(stderr, "[xeno-port][sound] failed to load retail boot WDS banks 2..5\n");
 
             /* B5.1 WDS-load probe (env XENO_SOUND_WDS_PROBE=1): replicate the
              * retail loader pair (func_80085FB8 + func_80085F30 core): read the
@@ -1718,12 +1732,7 @@ int main(int argc, char** argv) {
             }
             printf("[xeno-port][field] font + party-skin init done\n");
         } else {
-            printf("[xeno-port] WARNING: no disc image found "
-                   "(set XENO_DISC or place disc/disc1.bin); archive reads disabled.\n"
-                   "[xeno-port] The port contains no game data: provide your own "
-                   "Xenogears (USA) Disc 1 BIN image (Redump sha1 "
-                   "12db8ccb93516c391630f046a143762337cc21f4). Without it only the "
-                   "developer KernelMenu is reachable.\n");
+            return 78;
         }
     }
 

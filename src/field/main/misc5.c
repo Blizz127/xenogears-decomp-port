@@ -12,6 +12,13 @@
 #include <assert.h>
 #include <stdio.h>
 #include "../../../pc_port/src/psx_memory.h"
+
+void FieldClearAndSwapOTag(void);
+void FieldZoomFadeEffectUpdate(void);
+void FieldZoomFadeEffectInitialize(int semiTrans, int abr);
+void FieldDisplay(void);
+void func_800A7064(void);
+void GameCheckAndHandleSoftReset(void);
 #else
 /* <assert.h> is unavailable under the matching build's -nostdinc MIPS
  * preprocessor. The assert(0) below marks an unimplemented path in a function
@@ -878,7 +885,8 @@ extern s32 D_801E89E0;
 extern s32 D_801D68B4;
 extern s16 D_800C3A20, D_800C3A22, D_800C3A24, D_800C3A26, D_800C3A28, D_800C3A2A, D_800C3A2C, D_800C3A2E;
 extern s16 D_800C3A30, D_800C3A32, D_800C3A34, D_800C3A36, D_800C3A38, D_800C3A3A;
-extern void func_801D3538(s32 a, s32 b, s32 c, s32 d, s32 e, s32 f, s32 g);
+extern s32 func_801D3538(s32 a, s32 b, s32 c, s32 d, s32 e, s32 f, s32 g);
+extern int MoviePlayerStartFailed(void);
 
 void func_800A708C(void) {
     HeapChangeCurrentUser(4, NULL);
@@ -991,6 +999,10 @@ void func_800A732C(s32 arg0) {
     if (D_800ADB6C == 0) {
         for (i = 0; i < arg0; i++) {
             func_801D3F7C();
+#ifdef XENO_PC_PORT
+            if (MoviePlayerStartFailed())
+                return;
+#endif
             func_80085678();
         }
     }
@@ -1195,11 +1207,6 @@ void FieldImageConvert24BitTo15Bit(void) {
     HeapFree(pImage15Bit);
 }
 
-/* Transcribed from asm/field/nonmatchings/main/misc5/func_800A7948.s
- * (0x800A7948-0x800A7C54). Gate D_8004F300 and D_800B06A0 in [0x687,0x18E2).
- * Wide 0x280 draw/disp on g_FieldRenderContexts[0]/[1] (retail +0 / +0x80F4),
- * loop while D_800B06A0 < 0x18E2 (check first), then restore 0x140 and
- * isrgb24=1 / isinter=0. */
 extern s32 D_8004F300;
 extern void GameCheckAndHandleSoftReset(void);
 extern void FieldClearAndSwapOTagInternal(void);
@@ -1208,88 +1215,11 @@ extern void func_800AC99C(void);
 extern void func_800ACCF4(void);
 extern void func_800ACCB0(void);
 
-void func_800A7948(void) {
-    RECT rect;
-    s32 frame;
-
-    if (D_8004F300 == 0) {
-        return;
-    }
-    frame = D_800B06A0;
-    if (frame < 0x687) {
-        return;
-    }
-    __asm__ volatile("" ::: "memory");
-    if (frame >= 0x18E2) {
-        return;
-    }
-
-    D_800AFE74 = 1;
-    D_801E89E0 = 0;
-
-    rect.x = 0;
-    rect.y = 0;
-    rect.w = 0x500;
-    rect.h = 0x200;
-    ClearImage(&rect, 0, 0, 0);
-    DrawSync(0);
-    Vsync(0);
-
-    SetDefDrawEnv(&g_FieldRenderContexts[0].drawEnvs[0], 0, 0, 0x280, 0xE0);
-    SetDefDrawEnv(&g_FieldRenderContexts[1].drawEnvs[0], 0, 0x100, 0x280, 0xE0);
-    SetDefDispEnv(&g_FieldRenderContexts[0].dispEnv, 0, 0x100, 0x280, 0xE0);
-    SetDefDispEnv(&g_FieldRenderContexts[1].dispEnv, 0, 0, 0x280, 0xE0);
-    g_FieldRenderContexts[1].dispEnv.isrgb24 = 0;
-    g_FieldRenderContexts[0].dispEnv.isrgb24 = 0;
-    PutDispEnv(&g_FieldCurRenderContext->dispEnv);
-    PutDrawEnv(&g_FieldCurRenderContext->drawEnvs[0]);
-
-    rect.x = 0x300;
-    rect.y = 0;
-    rect.w = 0x200;
-    rect.h = 0x100;
-    ClearImage(&rect, 0, 0, 0);
-    func_800ACB90();
-    Vsync(0);
-    DrawSync(0);
-
-    while (D_800B06A0 < 0x18E2) {
-        GameCheckAndHandleSoftReset();
-        FieldClearAndSwapOTagInternal();
-        if (D_800B06A0 < 0x18DE) {
-            func_800AC99C();
-        }
-        DrawSync(0);
-        Vsync(2);
-        ClearImage((RECT*)g_FieldCurRenderContext, 0, 0, 0);
-        PutDispEnv(&g_FieldCurRenderContext->dispEnv);
-        PutDrawEnv(&g_FieldCurRenderContext->drawEnvs[0]);
-        DrawOTag(FIELD_CTX_OT3_HEAD(g_FieldCurRenderContext));
-        func_800ACCF4();
-        func_800A732C(5);
-    }
-
-    D_800AFE74 = 0;
-    D_801E89E0 = 1;
-    DrawSync(0);
-    Vsync(0);
-#ifdef FIELD_A7948_MUTANT_KEEP_WIDE
-    SetDefDrawEnv(&g_FieldRenderContexts[0].drawEnvs[0], 0, 0, 0x280, 0xE0);
-    SetDefDrawEnv(&g_FieldRenderContexts[1].drawEnvs[0], 0, 0x100, 0x280, 0xE0);
-    SetDefDispEnv(&g_FieldRenderContexts[0].dispEnv, 0, 0x100, 0x280, 0xE0);
-    SetDefDispEnv(&g_FieldRenderContexts[1].dispEnv, 0, 0, 0x280, 0xE0);
+#ifndef XENO_PC_PORT
+INCLUDE_ASM("asm/field/nonmatchings/main/misc5", func_800A7948);
 #else
-    SetDefDrawEnv(&g_FieldRenderContexts[0].drawEnvs[0], 0, 0, 0x140, 0xE0);
-    SetDefDrawEnv(&g_FieldRenderContexts[1].drawEnvs[0], 0, 0x100, 0x140, 0xE0);
-    SetDefDispEnv(&g_FieldRenderContexts[0].dispEnv, 0, 0x100, 0x140, 0xE0);
-    SetDefDispEnv(&g_FieldRenderContexts[1].dispEnv, 0, 0, 0x140, 0xE0);
+#include "field_movie_wide_frame.inc"
 #endif
-    g_FieldRenderContexts[1].dispEnv.isrgb24 = 1;
-    g_FieldRenderContexts[0].dispEnv.isrgb24 = 1;
-    g_FieldRenderContexts[1].dispEnv.isinter = 0;
-    g_FieldRenderContexts[0].dispEnv.isinter = 0;
-    func_800ACCB0();
-}
 
 /* Transcribed from asm/field/nonmatchings/main/misc5/func_800A7C58.s
  * (0x800A7C58-0x800A8310). FE60 title/field 2D-background transition:
@@ -1423,9 +1353,13 @@ void func_800A7C58(void) {
     func_800A708C();
     func_800A7218();
     D_800ADB7C = 1;
+    if (MoviePlayerStartFailed())
+        goto release_player;
     do {
         Vsync(0);
         func_800A732C(3);
+        if (MoviePlayerStartFailed())
+            goto release_player;
     } while (D_800B00E4 != 0);
 #ifdef XENO_PC_PORT
     printf("[xeno-port][fe60] first STR frame delivered (D_800ADB7C=1)\n");
@@ -1459,7 +1393,8 @@ void func_800A7C58(void) {
                 PutDispEnv(&g_FieldCurRenderContext->dispEnv);
                 PutDrawEnv(&g_FieldCurRenderContext->drawEnvs[0]);
                 func_800A732C(3);
-                func_800A7948();
+                if (!MoviePlayerStartFailed())
+                    func_800A7948();
             }
         } else if (D_800ADB74 == 2) {
             func_80077DAC();
@@ -1467,6 +1402,8 @@ void func_800A7C58(void) {
             func_800A732C(9);
         }
 
+        if (MoviePlayerStartFailed())
+            goto release_player;
         if (g_FieldSystemMode != 0) {
             if (D_800ADB80 & 0x80) {
                 FieldPollControllers();
@@ -1516,6 +1453,7 @@ void func_800A7C58(void) {
     fflush(stdout);
 #endif
 
+release_player:
     Vsync(0);
     DrawSync(0);
     func_801D43B0();

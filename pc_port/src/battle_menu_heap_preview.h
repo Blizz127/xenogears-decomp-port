@@ -67,7 +67,7 @@ static int menu_heap_snapshot(const uint8_t *ram, size_t length,
     return 0;
 }
 
-static int menu_heap_preview(const uint8_t *ram, size_t length,
+static inline int menu_heap_preview(const uint8_t *ram, size_t length,
                              uintptr_t heap, unsigned needs_consolidation,
                              uint32_t request, uintptr_t *result)
 {
@@ -78,7 +78,7 @@ static int menu_heap_preview(const uint8_t *ram, size_t length,
     return 1;
 }
 
-static int menu_heap_revalidate(const uint8_t *ram, size_t length,
+static inline int menu_heap_revalidate(const uint8_t *ram, size_t length,
                                 uintptr_t heap, unsigned needs_consolidation,
                                 uint32_t request, const MenuHeapSnapshot *before)
 {

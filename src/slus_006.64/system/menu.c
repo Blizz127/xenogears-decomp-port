@@ -150,7 +150,11 @@ extern void func_801CB0A8(void);
 extern void func_801CCD28(void);
 #endif
 extern void func_801CBDBC(void);
+#ifdef XENO_PC_PORT
+extern void PcPort_QuickCheckpointNoticeSet(const char *text);
+#else
 extern void func_801CE024(void);
+#endif
 
 #ifdef XENO_PC_PORT
 /* Menu mode 3, "Enter Name" (retail debug label, D_8004F69C): archive
@@ -339,7 +343,7 @@ void MenuExecute(void) {
             func_801CCD28();
             break;
         case 5:
-            func_801CE024();
+            PcPort_QuickCheckpointNoticeSet("GEAR SHOP UNAVAILABLE");
             break;
     }
 #else

@@ -328,7 +328,7 @@ suite independently checks real lower shared backing. Exception/pipeline
 resumption and broad graphics/audio/timing/save acceptance remain open.
 Full source-data fails on two unchanged runs/80 bytes; changed sources pass.
 Six unchanged address notes total 876 bytes. Linked data fails on two runs/84
-bytes. SDK exclusion passes; its table scan is SKIPPED. Owner Alienware/Bazzite
+bytes. SDK exclusion passes; its table scan is SKIPPED. Physical Bazzite
 controller, borderless window and automatic keyboard checks are NOT RUN,
 with device identity unknown. Shipment remains held.
 Evidence: `scratchpad/native-motion-slot-20261020/` and
@@ -433,7 +433,7 @@ python3 tools/scripts/gen_port_stubs.py \
 
 ## Game data and Sony code
 
-The port ships no game data and no Sony Psy-Q code.
+Use your own US disc. Each platform release has an archive-specific content and SDK audit. Earlier releases have known findings described in [NOTICE.md](../NOTICE.md).
 
 - **Game data comes from your disc at run time.** Put your Xenogears (USA,
   SLUS-00664) files in `disc/` (git-ignored): the Disc 1 image
@@ -452,7 +452,7 @@ The port ships no game data and no Sony Psy-Q code.
 - **No Psy-Q in the port.** The PSX layer is PsyCross (MIT, pinned; see
   `THIRD_PARTY.md`) plus `src/psyq_compat*.c`. `tools/analysis/psyq_port_guard.py`
   fails on Psy-Q functions/tables in `pc_port/`, and `build_port.sh` runs it
-  on the linked binary so no matching-build Psy-Q TU can be linked.
+  on the linked binary to check the linked symbol set.
 - Run all checks with `make port-guards`; install
   `tools/analysis/pre-commit-port-guards` as a git pre-commit hook (or use
   `.pre-commit-config.yaml`). CI runs them in `.github/workflows/port-guards.yaml`.

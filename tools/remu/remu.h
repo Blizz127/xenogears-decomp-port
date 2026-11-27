@@ -15,6 +15,9 @@ int remu_peek(remu_t *m, uint32_t addr, void *data, uint32_t len);
 /* Load a splat .s function file's retail bytes; returns entry vram (0 fail).
  * May be called repeatedly to pre-load callee .s files (ranges accumulate). */
 uint32_t remu_load_s(remu_t *m, const char *path);
+/* Load a code or data range from XENO_BATTLE_FILE (default disc/battle.bin).
+ * Returns 0 on success. The differential runner verifies the overlay SHA-256. */
+int remu_load_battle_slice(remu_t *m, uint32_t addr, uint32_t len, int is_code);
 /* Run from entry with a0..a3. Return codes: 0 returned, 1 syscall-stop,
  * 2 break-stop, 3 uninit-read (halted at first touch), -1 step budget,
  * -2 mem fault, -3 unknown opcode, -4 cop1/2/3. */

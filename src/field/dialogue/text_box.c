@@ -9,6 +9,9 @@
 #ifdef XENO_PC_PORT
 #include <stdio.h>
 #include <stdlib.h>
+
+void func_8009C01C(void);
+void func_8009CCF8(int arg0);
 #endif
 
 extern s32 D_8005A444;

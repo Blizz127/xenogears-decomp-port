@@ -10,6 +10,9 @@
 #include "field/effects.h"
 #ifdef XENO_PC_PORT
 #include <stdio.h>
+void FieldScriptSetParticleBankDirections(int index);
+void func_8008B978(s32 charId);
+void func_8008F7B8(void);
 #endif
 
 void FieldScriptMemoryWriteU16(int, int);

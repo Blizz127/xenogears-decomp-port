@@ -16,10 +16,11 @@ cd "$ROOT"
 PY="${PYTHON:-python3}"
 retail_args=()
 psyq_args=()
+source_args=()
 bins=()
 while [ $# -gt 0 ]; do
     case "$1" in
-        --staged) retail_args+=(--staged) ;;
+        --staged) retail_args+=(--staged); source_args+=(--staged) ;;
         --no-disc) retail_args+=(--no-disc); psyq_args+=(--no-disc) ;;
         --binary) shift; bins+=(--binary "$1") ;;
         *) echo "usage: $0 [--staged] [--no-disc] [--binary PATH]..." >&2; exit 2 ;;
@@ -31,6 +32,8 @@ if [ "${#bins[@]}" -eq 0 ] && [ -x pc_port/build_native/xeno-port ]; then
 fi
 
 rc=0
+echo "== public_source_guard"
+"$PY" tools/analysis/public_source_guard.py "${source_args[@]}" "${bins[@]}" || rc=1
 echo "== retail_data_guard"
 "$PY" tools/analysis/retail_data_guard.py "${retail_args[@]}" || rc=1
 echo "== psyq_classify --check"

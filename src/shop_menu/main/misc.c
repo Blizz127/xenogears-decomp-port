@@ -4,7 +4,9 @@
 #include "system/archive.h"
 extern void* D_8005945C;
 extern void* D_8006259C;
+#ifndef XENO_PC_PORT
 extern const char D_801C5000[16];
+#endif
 extern unsigned int ResolveArchiveEntryPointers(u32*);
 extern void* LZSSHeapDecompress(void*,int);
 extern void func_8002DD20(u32*);
@@ -256,7 +258,13 @@ void ShopMenuShopManager(u_char isInitialization) {
     HeapFree(g_Menu->pShop);
 }
 
-const char D_801C5000[16] = { 'B', 'I', 'S', 'L', 'P', 'S', '-', '0', '0', '8', '0', '0', 0, 0, 3, 0 };
+#ifdef XENO_PC_PORT
+#include "../../../pc_port/src/retail_data.h"
+char D_801C5000[16];
+XENO_RETAIL_DATA_BEGIN(shop_save_id)
+    XENO_RD(D_801C5000, XENO_RD_SHOP_MENU, XENO_RD_MENU_OFF(0x801C5000u), sizeof(D_801C5000)),
+XENO_RETAIL_DATA_END(shop_save_id)
+#endif
 
 void ShopMenuLoadResources(void) {
     TIM_IMAGE tim;

@@ -590,8 +590,8 @@ extern u8* D_800658C8;
 /* Native psyq (PsyCross psx/libgte.h) and main-executable prototypes. */
 extern int SquareRoot0(int a);
 extern int ratan2(int y, int x);
-extern int rcos(int a);
-extern int rsin(int a);
+extern int rcos(int);
+extern int rsin(int);
 extern void func_8002A498(int channel);
 extern int ArchiveDataSync(void);
 

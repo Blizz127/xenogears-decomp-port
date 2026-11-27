@@ -8,6 +8,22 @@
 set -uo pipefail
 cd "$(dirname "$0")/../.."
 T="$1"; TU="$2"
+battle_flags=()
+case "$T" in
+  diff_80079ED8|diff_8007A280|diff_80085EB4)
+    battle_flags=(-Ipc_port/src -DXENO_BATTLE_OVERLAY_HOST_BODIES)
+    overlay=${XENO_BATTLE_FILE:-disc/battle.bin}
+    if ! test -r "$overlay"; then
+      echo "Supply your own extracted US Disc 1 battle.bin using XENO_BATTLE_FILE." >&2
+      exit 1
+    fi
+    if ! digest=$(sha256sum < "$overlay") ||
+       test "${digest%% *}" != 1830b4ef1fe37129972fc310dfad534f8161d6c0b123e74254c3711334a3e291; then
+      echo "US Disc 1 battle.bin identity check failed." >&2
+      exit 1
+    fi
+    ;;
+esac
 SHIM="tools/remu/tests/remu_shim.h"
 OUT="$(mktemp -d "${TMPDIR:-/tmp}/xeno-remu-diff.XXXXXXXX")"
 echo "REMU DIFF OUTPUT $OUT"
@@ -23,15 +39,23 @@ CC=${REMU_CC:-clang}
 # conflicts elsewhere in the TU), do NOT hack the TU or headers: SKIP the
 # function and report the TU as host-incompatible (it needs the matching
 # build for verification).
-COMMON=(-std=gnu17 -include "$SHIM" -Iinclude -Itools/remu -fno-pie -fno-builtin -DXENO_PC_PORT -Wno-everything -Wno-implicit-function-declaration -ffunction-sections -fdata-sections "${@:3}")
+COMMON=(-std=gnu17 -include "$SHIM" -Iinclude -Itools/remu -fno-pie -fno-builtin -DXENO_PC_PORT -Wno-everything -Wno-implicit-function-declaration -ffunction-sections -fdata-sections "${battle_flags[@]}" "${@:3}")
 LINK=(-no-pie -Wl,--gc-sections)
 pass=1
+if [ "$T" = diff_80085EB4 ]; then
+  LINK+=(-Wl,--wrap=func_80089C6C)
+fi
 for mode in O0 O2 UBSan; do
   flags=(-"$mode")
   if [ "$mode" = UBSan ]; then flags=(-O1 -fsanitize=undefined -fno-sanitize-recover=all); fi
+  deps=()
+  if [ "$T" = diff_80085EB4 ]; then
+    deps+=("$OUT/callee.$mode.o")
+    $CC "${COMMON[@]}" "${flags[@]}" -c src/battle/main41.c -o "${deps[0]}" || pass=0
+  fi
   $CC "${COMMON[@]}" "${flags[@]}" -c "$TU" -o "$OUT/tu.$mode.o" || pass=0
   $CC "${COMMON[@]}" "${flags[@]}" -c "tools/remu/tests/$T.c" -o "$OUT/t.$mode.o" || pass=0
-  $CC "${LINK[@]}" "${flags[@]}" "$OUT/tu.$mode.o" "$OUT/t.$mode.o" tools/remu/remu.c \
+  $CC "${LINK[@]}" "${flags[@]}" "$OUT/tu.$mode.o" "$OUT/t.$mode.o" "${deps[@]}" tools/remu/remu.c \
       -o "$OUT/$mode" || pass=0
   "$OUT/$mode" > "$OUT/$mode.log" 2>&1 || { cat "$OUT/$mode.log"; pass=0; }
   cat "$OUT/$mode.log"
@@ -50,10 +74,12 @@ else
   [ "$pass" = 1 ] && echo "REMU DIFF $T ALL GREEN (no mutant)" || { echo "REMU DIFF $T FAILED"; exit 1; }
   exit 0
 fi
+mutant_deps=()
+if [ "$T" = diff_80085EB4 ]; then mutant_deps+=("$OUT/callee.O2.o"); fi
 if ! $CC "${COMMON[@]}" -O2 -c "$MUT" -o "$OUT/mut.o"; then
   echo "MUTANT PREPARATION FAILED: compilation"
   pass=0
-elif ! $CC "${LINK[@]}" -O2 "$OUT/mut.o" "$OUT/t.O2.o" tools/remu/remu.c -o "$OUT/mut"; then
+elif ! $CC "${LINK[@]}" -O2 "$OUT/mut.o" "$OUT/t.O2.o" "${mutant_deps[@]}" tools/remu/remu.c -o "$OUT/mut"; then
   echo "MUTANT PREPARATION FAILED: linking"
   pass=0
 else

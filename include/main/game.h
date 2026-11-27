@@ -106,4 +106,9 @@ extern GameState g_GameState;
 extern GameState* g_pGameState;
 extern int g_GamePartyMembers[MAX_PARTY_MEMBERS];
 
+#ifdef XENO_PC_PORT
+void GamePartyStreamLoadSkinData(int mode);
+void GamePartySyncStreamedData(void);
+#endif
+
 #endif

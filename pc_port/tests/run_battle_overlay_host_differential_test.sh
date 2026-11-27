@@ -267,21 +267,6 @@ mutants = {
          "    p[6] = 0x40;\n    *(u16*)(p + 0x16) |= 0x41;"),
         ("main72.c", "    return (s32)flags;\n}", "    return (s32)(flags | 0x10);\n}"),
         ("main68.c", "    *(u16*)(e + 0x18) = raw;", "    *(u16*)(e + 0x18) = (u16)(raw ^ 1);")],
-    # Lifted port bodies (include/battle_lift.h): callees of 800AAA20, so in
-    # their own build.  Each mutant is a one-instruction slip.
-    "h": [("main65.c", "r_s5 = r_s5 | 0x100u; /* 800A101C ori", "r_s5 = r_s5 | 0x180u; /* 800A101C ori"),
-          ("main73.c", "bl_sw(r_v1 + 0x60u, r_v0); /* 800B0044 sw", "bl_sw(r_v1 + 0x60u, r_v0 + 1u); /* 800B0044 sw"),
-          ("main64.c", "bl_sw(r_s2 + 0x20u, r_v0); /* 8009F040 sw", "bl_sw(r_s2 + 0x20u, r_v0 ^ 1u); /* 8009F040 sw"),
-          ("main64.c", "bl_sw(r_s3 + 0x20u, r_v0); /* 8009F2CC sw", "bl_sw(r_s3 + 0x20u, r_v0 ^ 1u); /* 8009F2CC sw")],
-    # 800AAD54 calls 8009EF3C/8009F1C4 (mutated in h): its own build, with
-    # 800AE2A4 (neither calls the other).
-    "i": [("main72.c", "bl_sh(r_s4 + 0x70u, r_v0); /* 800AADD8 sh", "bl_sh(r_s4 + 0x70u, r_v0 + 1u); /* 800AADD8 sh"),
-          # 800AE2A4: the consumed-event cursor advance off by two.
-          ("main72.c", "bl_sw(r_s3 + 0xA0u, r_v0); /* 800AEE58 sw", "bl_sw(r_s3 + 0xA0u, r_v0 + 2u); /* 800AEE58 sw")],
-    # Spy control: 800AE2A4 passing a wrong sound id to the spied
-    # func_80039E60 changes no RAM; only the spied call sequence shows it.
-    "j": [("main72.c", "    /* 800AE9F0 jal func_80039E60 */\n    r_a0 = r_a0 + r_s4;",
-           "    /* 800AE9F0 jal func_80039E60 */\n    r_a0 = r_a0 + r_s4 + 1u;")],
 }
 for group, edits in mutants.items():
     d = out / ("mutants-" + group)
@@ -293,6 +278,76 @@ for group, edits in mutants.items():
         texts[tu] = text.replace(old, new, 1)
     for tu, text in texts.items():
         (d / tu).write_text(text)
+PY
+
+# Addressed negative controls for optional native providers. Read the operation
+# from its annotated source site so the test contains no copy of a lifted body.
+python3 - "$OUT" <<'PY'
+from pathlib import Path
+import re
+import sys
+
+out = Path(sys.argv[1])
+controls = {
+    "h": [
+        ("main65.c", "800A0838", "800A101C", "flag"),
+        ("main73.c", "800AFF9C", "800B0044", "add-one"),
+        ("main64.c", "8009EF3C", "8009F040", "flip-bit"),
+        ("main64.c", "8009F1C4", "8009F2CC", "flip-bit"),
+    ],
+    "i": [
+        ("main72.c", "800AAD54", "800AADD8", "add-one"),
+        ("main72.c", "800AE2A4", "800AEE58", "add-two"),
+    ],
+    "j": [("main72.c", "800AE2A4", "800AE9F0", "call-argument")],
+}
+allowlist = Path("pc_port/src/battle_overlay_host_leaves.inc").read_text()
+missing = []
+for group, cases in controls.items():
+    directory = out / ("mutants-" + group)
+    directory.mkdir(exist_ok=True)
+    inputs = {}
+    targets = []
+    for tu, leaf, address, operation in cases:
+        if tu not in inputs:
+            inputs[tu] = Path("src/battle", tu).read_text()
+        source = inputs[tu]
+        marker = re.compile(r"/\*\s*" + address + r"\b")
+        sites = list(marker.finditer(source))
+        name = "func_" + leaf
+        if not sites:
+            print(f"Control {name} at {address} not run: annotated provider site absent", file=sys.stderr)
+            if re.search(r'^\s*"' + name + r'"\s*,?', allowlist, re.MULTILINE):
+                missing.append(f"{group} {name} {address}")
+            continue
+        if len(sites) != 1:
+            raise ValueError(f"{tu}: expected one annotated site at {address}, found {len(sites)}")
+        pos = sites[0].start()
+        if operation == "call-argument":
+            # The argument is prepared in the statement following the call marker.
+            start = source.index("\n", pos) + 1
+            end = source.index(";", start)
+            stmt = source[start:end]
+            if not re.fullmatch(r"\s*\w+\s*=\s*\w+\s*\+\s*\w+", stmt):
+                raise ValueError(f"{tu}: unexpected call argument at {address}")
+            replacement = stmt + " + 1u"
+        else:
+            start = source.rfind("\n", 0, pos) + 1
+            end = pos
+            stmt = source[start:end]
+            if operation == "flag":
+                pattern = r"(\|\s*)(0x[0-9A-Fa-f]+)([uU]?;\s*)$"
+                replacement, count = re.subn(pattern, lambda m: m[1] + hex(int(m[2],16) | 0x80) + m[3], stmt)
+            else:
+                suffix = {"add-one": " + 1u", "add-two": " + 2u", "flip-bit": " ^ 1u"}[operation]
+                replacement, count = re.subn(r"(,\s*\w+)(\);\s*)$", lambda m: m[1] + suffix + m[2], stmt)
+            if count != 1 or replacement == stmt:
+                raise ValueError(f"{tu}: unexpected statement at {address}")
+        inputs[tu] = source[:start] + replacement + source[end:]
+        targets.append(name)
+        (directory / tu).write_text(inputs[tu])
+    (directory / "targets").write_text(" ".join(targets) + "\n")
+(out / "missing-listed-controls").write_text("\n".join(missing))
 PY
 
 mode_flags() {
@@ -501,7 +556,7 @@ done
 # h-frontier: module-only fixtures have their own two separately run mutants.
 # Battle-only controls mutate leaves excluded from that explicitly selected scope.
 if [ "${BATTLE_OVERLAY_DIFFERENTIAL_MODULE0C4_ONLY:-0}" = "1" ]; then
-    echo "BATTLE MODULE0C4 DIFFERENTIAL PASS (module-only; battle controls not run)"
+    echo "BATTLE MODULE0C4 GUEST DISPATCH PASS (eight owned-module entries)"
     exit 0
 fi
 
@@ -554,9 +609,12 @@ grep -m1 'indirect-native' "$OUT/mutant-abi.log" >&2
 # Negative controls 4-47: one mutant per further guest-ABI leaf.
 for group in a b c d e f g h i j; do
     case "$group" in
-        j) want="func_800AE2A4" ;;
-        i) want="func_800AAD54 func_800AE2A4" ;;
-        h) want="func_800A0838 func_800AFF9C func_8009EF3C func_8009F1C4" ;;
+        h|i|j)
+            want=$(cat "$OUT/mutants-$group/targets")
+            if [[ -z "$want" ]]; then
+                echo "BATTLE OVERLAY CONTROL GROUP $group not run: no addressed provider sites" >&2
+                continue
+            fi ;;
         g) want="func_800BA8F4 func_800BB13C func_800BAC50 func_80076AC8 func_80076C34 func_800AAA20 func_800A3E98" ;;
         f) want="func_8007ECDC func_8007ED14 func_8007ED58 func_8007ED98 func_8007EDE0 func_8007EE28 func_8007B98C func_8007B9C8 func_8007A828 func_8007A7BC" ;;
         e) want="func_8007EA08 func_8007EA4C func_8007EA84 func_8007EB08 func_8007EB50 func_8007EB90 func_8007EBD8 func_8007EC10 func_8007EC54 func_8007EC94" ;;
@@ -577,11 +635,13 @@ for group in a b c d e f g h i j; do
         grep -m1 "^BATTLE OVERLAY DIFFERENTIAL FAIL $leaf " "$OUT/mutant-$group.log" >&2
     done
 done
-if ! grep -q "^BATTLE OVERLAY DIFFERENTIAL FAIL func_800AE2A4 spy " "$OUT/mutant-j.log"; then
-    echo "BATTLE OVERLAY DIFFERENTIAL CONTROL FAILURE spied-call argument mutant not caught by the spy comparison" >&2
-    exit 1
+if grep -qx 'func_800AE2A4' "$OUT/mutants-j/targets"; then
+    if ! grep -q "^BATTLE OVERLAY DIFFERENTIAL FAIL func_800AE2A4 spy " "$OUT/mutant-j.log"; then
+        echo "BATTLE OVERLAY DIFFERENTIAL CONTROL FAILURE spied-call argument mutant not caught by the spy comparison" >&2
+        exit 1
+    fi
+    grep -m1 "^BATTLE OVERLAY DIFFERENTIAL FAIL func_800AE2A4 spy " "$OUT/mutant-j.log" >&2
 fi
-grep -m1 "^BATTLE OVERLAY DIFFERENTIAL FAIL func_800AE2A4 spy " "$OUT/mutant-j.log" >&2
 # Control (r6.10 crash): the call service's old stack rule must abort the
 # 800AAD54 case that runs on a 4-aligned / scratchpad stack, at its
 # 0x80032498 (HeapChangeCurrentUser) jal, exactly as the game did.
@@ -610,4 +670,9 @@ fi
 grep -m1 'bridge-domain func_800A5914' "$OUT/legacy-bridge.log" >&2
 grep -m1 '^BATTLE OVERLAY DIFFERENTIAL FAIL func_800A5914 return ' "$OUT/legacy-bridge.log" >&2 || true
 grep -m1 '^BATTLE OVERLAY DIFFERENTIAL FAIL func_800A5914 bridge-domain ' "$OUT/legacy-bridge.log" >&2
-echo "BATTLE OVERLAY DIFFERENTIAL PASS (O0/O2/UBSan + wrong-result, store-path, 58 guest-ABI mutant, spy, jal-stack, indirect-native and legacy-bridge controls rejected)"
+if [[ -s "$OUT/missing-listed-controls" ]]; then
+    echo "BATTLE OVERLAY CONTROL FAILURE listed providers missing their addressed control sites:" >&2
+    cat "$OUT/missing-listed-controls" >&2
+    exit 1
+fi
+echo "BATTLE OVERLAY DIFFERENTIAL PASS for the selected build modes and available controls; unavailable addressed controls were reported separately"

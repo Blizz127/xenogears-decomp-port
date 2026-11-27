@@ -1,6 +1,6 @@
 # Matching and Porting Rules
 
-Project rules distilled from handoff guardrails, commit messages, and [`REFERENCE_SOURCES.md`](https://github.com/Blizz127/xenogears-decomp-ai/blob/main/docs/ai_context/REFERENCE_SOURCES.md).
+These rules describe the matching and porting workflow.
 
 ## Core principles
 

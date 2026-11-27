@@ -10,6 +10,7 @@
 #include "../include/xg_plat/input.h"
 #include "../include/xg_plat/timing.h"
 
+short D_800B236C; /* Synthetic field save-point flag. */
 static char s_trace[256];
 static void trace(const char* s) { strncat(s_trace, s, sizeof s_trace - strlen(s_trace) - 1); }
 static int s_god, s_enc = 1, s_speed;
@@ -60,6 +61,9 @@ int main(void)
     s_trace[0] = 0;
     CHECK(PcPort_CheatExec("save") == 1 && PcPort_CheatExec("load") == 1 && !strcmp(s_trace, "SL"),
           "save / load requests");
+    CHECK(PcPort_CheatExec("saveflag 1") == 1 && D_800B236C == 1 &&
+          PcPort_CheatExec("saveflag 0") == 1 && D_800B236C == 0,
+          "save-point flag set and cleared");
     s_trace[0] = 0;
     CHECK(PcPort_CheatExec("pad 0x20") == 1 && PcPort_CheatExec("pad 0x4000 30") == 1 &&
           !strcmp(s_trace, "P20,4P4000,30"), "pad holds game buttons");

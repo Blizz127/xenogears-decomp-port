@@ -26,11 +26,17 @@
 #ifndef XENO_RETAIL_DATA_H
 #define XENO_RETAIL_DATA_H
 
+#include "../include_shim/host_only_bss.h"
+
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifdef _WIN32
+#include "win_exe_dir.h"
+#include "win_prepared_media.h"
+#endif
 #if defined(__cplusplus) && defined(__linux__)
 #include <unistd.h>
 #endif
@@ -103,7 +109,9 @@ typedef struct {
     char path[1024];
 } XenoRetailFileSlot;
 
-XENO_RD_WEAK XenoRetailFileSlot g_XenoRetailFiles[XENO_RD_FILE_COUNT];
+/* File slots hold host paths, sizes and allocation pointers. Only the loaded
+ * payload is copied or translated into a game destination. */
+XENO_RD_WEAK XenoRetailFileSlot g_XenoRetailFiles[XENO_RD_FILE_COUNT] HOST_ONLY_BSS;
 XENO_RD_WEAK unsigned g_XenoRetailRangesLoaded;
 XENO_RD_WEAK unsigned g_XenoRetailBytesLoaded;
 
@@ -284,7 +292,7 @@ XENO_RD_WEAK void XenoRetailData_Fail(const char* what, int file, const char* de
     exit(78); /* EX_CONFIG */
 }
 
-/* Directory of the running executable (Linux: /proc/self/exe); 0 if unknown. */
+/* Directory of the running executable; 0 if unknown. */
 XENO_RD_WEAK int XenoRetailData_ExeDir(char* out, size_t out_size)
 {
 #if defined(__linux__)
@@ -308,6 +316,8 @@ XENO_RD_WEAK int XenoRetailData_ExeDir(char* out, size_t out_size)
         return 0;
     *slash = '\0';
     return 1;
+#elif defined(_WIN32)
+    return PcPort_WinExeDir(out, out_size);
 #else
     (void)out; (void)out_size;
     return 0;
@@ -332,6 +342,13 @@ XENO_RD_WEAK int XenoRetailData_Resolve(const char* name, char* out, size_t out_
     unsigned i;
     FILE* f;
 
+#ifdef _WIN32
+    /* A raw launcher invocation has no shell prelude to set XENO_DATA_DIR.
+     * Constructors run before main and need the same prepared directory. */
+    char prepared[1024];
+    if (PcPort_LocateWindowsGameDirectory(getenv("XENOGEARS_DATA"), prepared, sizeof prepared))
+        env_dir = prepared;
+#endif
     if (tried && tried_size)
         tried[0] = '\0';
     for (i = 0; i < 8; i++) {
@@ -341,7 +358,11 @@ XENO_RD_WEAK int XenoRetailData_Resolve(const char* name, char* out, size_t out_
         else if (i == 1 && env_dir && *env_dir)
             snprintf(cand, sizeof cand, "%s/%s", env_dir, name);
         else if (i == 2 && env_slus && *env_slus) {
+#ifdef _WIN32
+            const char* slash = PcPort_WinLastSeparator(env_slus);
+#else
             const char* slash = strrchr(env_slus, '/');
+#endif
             if (strcmp(name, "SLUS_006.64") == 0)
                 snprintf(cand, sizeof cand, "%s", env_slus);
             else if (slash)

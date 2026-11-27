@@ -1,22 +1,12 @@
 #ifndef XENO_PORT_DEV_MENU_H
 #define XENO_PORT_DEV_MENU_H
-/* Opt-in port dev menu.
- *
- * port_dev_menu.c        menu model, navigation, pad combo, input capture
- *                        (no game headers; unit-tested by
- *                        pc_port/tests/run_dev_menu_test.sh)
- * port_dev_menu_actions.c the game-state actions (heal, gold, items, warp),
- *                        run from the cheat queue at a safe field frame
- * psycross_port_dev_menu.inl  SDL keyboard events, overlay drawing, host hooks
- *
- * Opt-in: XENO_DEV_MENU=1 or config [cheats] dev_menu = on (default off).
- * XENO_CHEATS=0 hard-disables the menu and every cheat. */
+/* Public-build interface for optional host menu callbacks. The menu stays
+ * closed, so game input and the ordinary save controls remain available. */
 #ifdef __cplusplus
 extern "C" {
 #endif
 enum PcPortDevKey {
-    PC_DEV_OPEN, PC_DEV_UP, PC_DEV_DOWN, PC_DEV_ACCEPT, PC_DEV_BACK,
-    PC_DEV_LEFT, PC_DEV_RIGHT
+    PC_DEV_OPEN, PC_DEV_UP, PC_DEV_DOWN, PC_DEV_ACCEPT, PC_DEV_BACK
 };
 
 /* Physical controller bits for PcPort_DevMenuPad (SDL GameController
@@ -27,9 +17,7 @@ enum {
     PC_DEV_PAD_A = 1u << 2,
     PC_DEV_PAD_B = 1u << 3,
     PC_DEV_PAD_BACK = 1u << 4,  /* Back / View / Select */
-    PC_DEV_PAD_START = 1u << 5,
-    PC_DEV_PAD_LEFT = 1u << 6,  /* D-pad left or left stick left */
-    PC_DEV_PAD_RIGHT = 1u << 7
+    PC_DEV_PAD_START = 1u << 5
 };
 /* PcPort_DevMenuPad result flags. */
 enum {
@@ -83,9 +71,6 @@ typedef struct PcPortDevMenuHost {
     int (*recording)(void);
     void (*record_toggle)(void);
     void (*screenshot)(void);        /* taken after the menu has closed */
-    int (*hd2d_available)(void);
-    int (*hd2d_on)(void);
-    void (*hd2d_toggle)(void);
     int (*god_on)(void);
     int (*random_battles_on)(void);
     int (*confirm_circle)(void);     /* 1: physical Circle confirms (input.pad_confirm) */
@@ -93,20 +78,8 @@ typedef struct PcPortDevMenuHost {
 } PcPortDevMenuHost;
 void PcPort_DevMenuSetHost(const PcPortDevMenuHost *host);
 
-/* Enhancement registry (HD-2D lane, pc_port/src/hd2d): each entry is a row
- * "LABEL: ON/OFF" on OPTIONS > ENHANCEMENTS after the built-in HD-2D FEI row,
- * in registration order; selecting it calls toggle(). Up to
- * PC_DEV_MAX_ENHANCEMENTS entries (later ones are refused with a log line);
- * registering a label again replaces that entry. The label is copied (at most
- * 40 characters). get may be NULL (shown without a value). Safe to call
- * before PcPort_DevMenuInit, e.g. from a constructor. */
-#define PC_DEV_MAX_ENHANCEMENTS 24
+/* Render features may register controls even when the menu is disabled. */
 void PcPort_DevMenuRegisterEnhancement(const char *label, int (*get)(void), void (*toggle)(void));
-/* Numeric rows display get() followed by unit (copied, at most 7 characters).
- * Left/right subtract/add step; Accept adds step. Values clamp at min/max,
- * without wrapping. Registration and browsing never call set(). Missing
- * callbacks, min > max or step <= 0 are refused. Shares the toggle registry;
- * registering the same label replaces its previous kind and callbacks. */
 void PcPort_DevMenuRegisterEnhancementValue(const char *label, int (*get)(void),
     void (*set)(int), int min, int max, int step, const char *unit);
 int PcPort_DevMenuEnhancementCount(void);

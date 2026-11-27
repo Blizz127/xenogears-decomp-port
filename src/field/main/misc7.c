@@ -2,6 +2,8 @@
 #ifdef XENO_PC_PORT
 #include <stdio.h>
 #include <stdlib.h>
+
+void func_80098CAC(s32 arg0);
 #endif
 #include "main/game.h"
 #include "system/math.h"

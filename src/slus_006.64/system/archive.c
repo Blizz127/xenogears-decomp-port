@@ -48,7 +48,9 @@ extern int ArchiveDecodeSizeAligned(int entryIndex);
 extern s32 g_ArchiveCurFileSector;
 extern s32 D_8004FE00;
 extern s32 D_8004FE3C;
+#ifndef XENO_PC_PORT
 extern s32 D_80059EF8;
+#endif
 extern s32 D_80059F04;
 extern u16 D_80059F24;
 extern u16 D_80059F28;
@@ -67,6 +69,8 @@ extern void func_8002BF38(s32, s32);
 extern void func_8002BB50(void);
 extern void func_8002B5D0(void);
 
+/* Native host builds use the synchronous disc and stream owners in archive_port.c. */
+#ifndef XENO_ARCHIVE_COMMAND_HANDLER_ONLY
 // Only matches on GCC 2.7.2
 int ArchiveReadFile(u32 dbgEntryIndex, u8* pDestBuffer, s32 arg2, s32 flags) {
     void* pReadyCallback;
@@ -376,7 +380,6 @@ int func_80029EB0(s32 archiveIndex, s32* pStreamFile, s32 arg2, s32 arg3, u16 ar
 {
     int nStreamSectors;
     s16 i;
-    s32* pWord;
     char* pFilePath;
     CdlLOC* pLoc;
 
@@ -398,8 +401,7 @@ int func_80029EB0(s32 archiveIndex, s32* pStreamFile, s32 arg2, s32 arg3, u16 ar
     ArchiveCdDataSync(0);
     D_8004FE18 = g_CurArchiveOffset;
 
-    for (i = 0, pWord = &D_80059EF8; i < 3; i++)
-        pWord[i] = 0;
+    D_80059EF8 = (ArchiveCdSectorHeader){0};
 
     ArchiveChangeStreamingFile(pStreamFile);
     D_80059F0C = archiveIndex;
@@ -609,6 +611,8 @@ void func_8002A498(int channel) {
         }
     }
 }
+
+#endif /* XENO_ARCHIVE_COMMAND_HANDLER_ONLY */
 
 void ArchiveStreamFreeQueueData(StreamDataQueueEntry* pEntries) {
     StreamDataQueueEntry* pCurrent;

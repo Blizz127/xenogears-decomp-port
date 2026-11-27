@@ -97,22 +97,41 @@ typedef struct {
     u_int contentTag: 6;
 } HeapBlock;
 
+#ifdef XENO_PC_PORT
+#include <stdint.h>
+/* The game heap places these records on four-byte boundaries. Keep the
+ * existing native pointer offsets and allocation size on 64-bit hosts. */
+#pragma pack(push, 4)
+#endif
 struct HeapDelayedFreeBlock {
     struct HeapDelayedFreeBlock* pNext;
     void* pMem;
     u_int delay;
+#if defined(XENO_PC_PORT) && UINTPTR_MAX == UINT64_MAX
+    u_int nativePadding;
+#endif
 };
+#ifdef XENO_PC_PORT
+#pragma pack(pop)
+#endif
 
 typedef struct HeapDelayedFreeBlock HeapDelayedFreeBlock;
 
 typedef void FnPrintf_t (char*, ...);
 extern FnPrintf_t* g_HeapDebugPrintfFn;
 
+#ifdef XENO_PC_PORT
+/* Native pointers populated by the user-disc loader and heap user registry. */
+extern void *D_80050110[12];
+extern void *g_HeapContentTypeNames[20];
+extern char **g_HeapUserContentNames[];
+#else
 extern char** D_80050110;
 extern char** g_HeapContentTypeNames[];
 
 // Pointers to Content type name arrays for specific heap users
 extern char** g_HeapUserContentNames[HEAP_NUM_USERS];
+#endif
 
 
 void* HeapGetNextBlockHeader(HeapBlock* pHeapBlock);

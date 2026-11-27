@@ -13,7 +13,11 @@
 #define MENU_INPUT_UP 0x3
 #define MENU_INPUT_CONFIRM 0x4
 #define MENU_INPUT_BACK 0x5
+#define MENU_INPUT_SQUARE 0x6
+#define MENU_INPUT_TRIANGLE 0x7
 #define MENU_INPUT_IDLE 0x8
+#define MENU_INPUT_R1 0x9
+#define MENU_INPUT_L1 0xA
 
 // Transition animation states
 #define MENU_ANIMATION_DONE 0x0

@@ -1,6 +1,6 @@
 # Build and Run
 
-Summarized from [`pc_port/README.md`](https://github.com/Blizz127/xenogears-decomp-ai/blob/main/pc_port/README.md), [`pc_port/build_port.sh`](https://github.com/Blizz127/xenogears-decomp-ai/blob/main/pc_port/build_port.sh), and [`ACTIVE_HANDOFF.md`](https://github.com/Blizz127/xenogears-decomp-ai/blob/main/docs/ai_context/ACTIVE_HANDOFF.md).
+Summarized from [`pc_port/README.md`](../../pc_port/README.md) and [`pc_port/build_port.sh`](../../pc_port/build_port.sh).
 
 ## Environment
 
@@ -14,7 +14,7 @@ Summarized from [`pc_port/README.md`](https://github.com/Blizz127/xenogears-deco
 
 - **Matching ELFs** (optional, for stub symbol classification): build with `make -B build` in the matching (gears/ninja) environment.
 
-> `git` is **not** on PATH inside the distrobox container. Run git commands on the **host** at `/home/blizz/Projects/xenogears-decomp`.
+> `git` is **not** on PATH inside the distrobox container. Run git commands on the **host** at `$HOME/Projects/xenogears-decomp-port`.
 
 ## Build PC port
 
@@ -40,7 +40,7 @@ The documented day-to-day workflow uses `build_port.sh` → `build_native/xeno-p
 ## Run — default field test (Map 0)
 
 ```bash
-distrobox enter xenogears-dev -- bash -lc 'cd /home/blizz/Projects/xenogears-decomp && \
+distrobox enter xenogears-dev -- bash -lc 'cd $HOME/Projects/xenogears-decomp-port && \
   XENO_FIELD_TEST=1 XENO_KERNEL_SEL=0 timeout -s KILL 45 ./pc_port/build_native/xeno-port'
 ```
 
@@ -53,7 +53,7 @@ distrobox enter xenogears-dev -- bash -lc 'cd /home/blizz/Projects/xenogears-dec
 ## Run — Map 1 with visible player control
 
 ```bash
-distrobox enter xenogears-dev -- bash -lc 'cd /home/blizz/Projects/xenogears-decomp && \
+distrobox enter xenogears-dev -- bash -lc 'cd $HOME/Projects/xenogears-decomp-port && \
   SDL_VIDEODRIVER=x11 XENO_FIELD_TEST=1 XENO_KERNEL_SEL=0 \
   XENO_FIELD_MAP=1 XENO_FIELD_ENTRANCE=0 XENO_FIELD_0BB_VRAM_UPLOAD=1 \
   ./pc_port/build_native/xeno-port'
@@ -98,14 +98,14 @@ From repo root in the ethos/matching container:
 make -B build
 ```
 
-See root [`README.md`](https://github.com/Blizz127/xenogears-decomp-ai/blob/main/README.md) for decomp progress on [decomp.dev](https://decomp.dev/ladysilverberg/xenogears-decomp).
+See root [`README.md`](../../README.md) for decomp progress on [decomp.dev](https://decomp.dev/ladysilverberg/xenogears-decomp).
 
 ## Full-ROM checksum gate — `make rom-check`
 
 Added in `57db1d9`. Runs `tools/scripts/check_rom_hashes.sh`.
 
 ```bash
-distrobox enter xenogears-dev -- bash -lc 'cd /home/blizz/Projects/xenogears-decomp && make rom-check'
+distrobox enter xenogears-dev -- bash -lc 'cd $HOME/Projects/xenogears-decomp-port && make rom-check'
 ```
 
 What it does, and why each part matters:

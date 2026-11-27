@@ -33,8 +33,7 @@ RUNNING
   Settings: copy config.example.ini to ~/.config/xenogears-port/config.ini.
   Saves, memory cards (memcards/card1.mcd) and the F11/F12 quick checkpoint
   are kept in ~/.local/share/xenogears-port/.
-  Gamescope / Steam: add xenogears.sh as a non-Steam game, or point a
-  launcher (Banshee) at it with the folder as its argument.
+  Gamescope / Steam: add xenogears.sh as a non-Steam game.
 
 CONTROLLERS
   Keyboard: arrows, Z confirm, V menu, C and X the other face buttons,

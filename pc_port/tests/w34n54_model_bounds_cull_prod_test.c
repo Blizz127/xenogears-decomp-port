@@ -8,7 +8,7 @@
 
 #include "common.h"
 #include "psyq/libgte.h"
-#include "world_map_helper_3101c.h"
+extern s32 func_8003101C(const u8 *bounds, s32 mode);
 
 GTERegisters gteRegs;
 s32 D_800500F8 = 320;
@@ -64,6 +64,9 @@ int RotTransPers3(SVECTOR* v0, SVECTOR* v1, SVECTOR* v2,
         u32 xy = packed_xy(400, 100);
         if (s_call_count == s_visible_call && vertex == s_visible_vertex)
             xy = packed_xy(100, 100);
+#ifdef XENO_TEST_MODEL_ORDERING_HIDE_SAMPLE
+        xy = packed_xy(400, 100);
+#endif
         *outputs[vertex] = (long)xy;
     }
     C2_SZ1 = (s_invalid_depth != 0 && s_call_count == 0) ? 0xFFFFu : 100u;
@@ -91,20 +94,20 @@ static void initialize_bounds(u8* bytes, size_t size)
     write_s16(bytes, 0x2Cu, 4);
 }
 
-static int vector_equals(SVECTOR value, s16 x, s16 y, s16 z)
+static int vector_equals(SVECTOR value, s16 x, s16 y, s16 z, u16 pad)
 {
     return value.vx == x && value.vy == y && value.vz == z &&
-           value.pad == 0;
+           (u16)value.pad == pad;
 }
 
-static int triplet_equals(int call,
+static int triplet_equals(int call, u16 corner_pad,
                           s16 x0, s16 y0, s16 z0,
                           s16 x1, s16 y1, s16 z1,
                           s16 x2, s16 y2, s16 z2)
 {
-    return vector_equals(s_calls[call].vertex[0], x0, y0, z0) &&
-           vector_equals(s_calls[call].vertex[1], x1, y1, z1) &&
-           vector_equals(s_calls[call].vertex[2], x2, y2, z2);
+    return vector_equals(s_calls[call].vertex[0], x0, y0, z0, corner_pad) &&
+           vector_equals(s_calls[call].vertex[1], x1, y1, z1, corner_pad) &&
+           vector_equals(s_calls[call].vertex[2], x2, y2, z2, 0);
 }
 
 static void test_modes_and_samples(u8* bounds)
@@ -120,11 +123,12 @@ static void test_modes_and_samples(u8* bounds)
     result = func_8003101C(bounds, 1);
     check(result == 1, "mode1.all_outside_culled");
     check(s_call_count == 3, "mode1.call_count");
-    check(triplet_equals(0, -10, 5, -3, -5, 0, 4, -8, 3, 0),
+    /* Both input corner records carry the padding supplied in the model. */
+    check(triplet_equals(0, 0xA5A5u, -10, 5, -3, -5, 0, 4, -8, 3, 0),
           "retail.midpoint_direction");
-    check(triplet_equals(1, -5, 5, -3, -10, 0, -3, -5, 0, -3),
+    check(triplet_equals(1, 0u, -5, 5, -3, -10, 0, -3, -5, 0, -3),
           "mode1.triplet1");
-    check(triplet_equals(2, -10, 5, 4, -5, 5, 4, -10, 0, 4),
+    check(triplet_equals(2, 0u, -10, 5, 4, -5, 5, 4, -10, 0, 4),
           "mode1.triplet2");
 
     reset_projection();
@@ -138,13 +142,13 @@ static void test_modes_and_samples(u8* bounds)
     result = func_8003101C(bounds, 2);
     check(result == 1, "mode2.all_outside_culled");
     check(s_call_count == 4, "mode2.call_count");
-    check(triplet_equals(0, -8, 5, -3, -10, 5, 0, -10, 3, -3),
+    check(triplet_equals(0, 0u, -8, 5, -3, -10, 5, 0, -10, 3, -3),
           "mode2.triplet0");
-    check(triplet_equals(1, -5, 2, -3, -7, 0, -3, -5, 0, 0),
+    check(triplet_equals(1, 0u, -5, 2, -3, -7, 0, -3, -5, 0, 0),
           "mode2.triplet1");
-    check(triplet_equals(2, -10, 0, 1, -10, 2, 4, -8, 0, 4),
+    check(triplet_equals(2, 0u, -10, 0, 1, -10, 2, 4, -8, 0, 4),
           "mode2.triplet2");
-    check(triplet_equals(3, -5, 5, 1, -7, 5, 4, -5, 3, 4),
+    check(triplet_equals(3, 0u, -5, 5, 1, -7, 5, 4, -5, 3, 4),
           "mode2.triplet3");
 
     reset_projection();

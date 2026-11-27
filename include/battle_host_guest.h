@@ -23,6 +23,8 @@
 
 #ifdef XENO_PC_PORT
 #include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include "psx_memory.h"
 #include "battle_guest_resolver.h"
 #include "types.h"
@@ -91,7 +93,13 @@ static inline u32 bg_jalr(u32 target, u32 a0, u32 a1, u32 a2, u32 a3) {
     args[2] = a2;
     args[3] = a3;
     if (target >= 0x8006FAF0u && target < 0x80200000u) {
-        PcPort_BattleMipsCallGuest(target, args, 4, &result);
+        /* A failed overlay call must not read as a zero return: stop and
+         * name the target, as the battle_guest_trampolines.c entries do. */
+        if (PcPort_BattleMipsCallGuest(target, args, 4, &result) != 0) {
+            fprintf(stderr, "[xeno-port][bg-jalr] overlay call 0x%08x failed\n",
+                    target);
+            abort();
+        }
         return result;
     }
     if ((target & 0xFF800000u) == 0x80000000u) {

@@ -33,5 +33,6 @@ read -r -a SDL_LIBS <<< "$(pkg-config --libs sdl2)"
 INC=(-Ipc_port/extern/PsyCross/include -Ipc_port/extern/PsyCross/include/psx -Ipc_port/extern/PsyCross/src/psx)
 g++ -std=c++17 -O1 -fpermissive -w -ffunction-sections -fdata-sections "${SDL_FLAGS[@]}" "${INC[@]}" -c "$OUT/src/psx/LIBAPI.C" -o "$OUT/vendor.o"
 gcc -std=gnu17 -O1 "${SDL_FLAGS[@]}" "${INC[@]}" -c pc_port/tests/native_sound_continuation/reservation-test.c -o "$OUT/test.o"
-g++ -Wl,--gc-sections "$OUT/vendor.o" "$OUT/test.o" "${SDL_LIBS[@]}" -o "$OUT/test"
+# The channel fixture stores native pointers in checked 32-bit words.
+g++ -no-pie -Wl,--gc-sections "$OUT/vendor.o" "$OUT/test.o" "${SDL_LIBS[@]}" -o "$OUT/test"
 "$OUT/test"

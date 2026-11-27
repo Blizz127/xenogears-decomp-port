@@ -115,39 +115,9 @@ void func_800AABD8(void) {
     DrawSync(0);
 }
 
-void func_800AAC08(void) {
-    RECT rect;
-    SPRT* pSprite;
-    SPRT* pSprite2;
-    int i;
-
-    D_800AFC68 = (u32)(uintptr_t)HeapAlloc(0x840, 0x0);
-    
-    rect.x = 0;
-    rect.y = 0;
-    rect.w = 0xFF;
-    rect.h = 0xFF;
-    
-    for (i = 0; i < 0x21; i++) {
-        SetDrawMode(&D_800AFC68_PTR->drModes[i][0], 0, 0, GetTPage(0, 0, 0x3C0, 0x100) & 0xFFFF, &rect);
-        SetDrawMode(&D_800AFC68_PTR->drModes[i][1], 0, 0, GetTPage(0, 0, 0x3C0, 0x140) & 0xFFFF, &rect);
-        pSprite = &D_800AFC68_PTR->sprites[i][0];
-        pSprite2 = &D_800AFC68_PTR->sprites[i][1];
-        
-        SetSprt(pSprite);
-        setRGB0(pSprite, 0x80, 0x80, 0x80);
-        if (i == 0) {
-            setUV0(pSprite, 0xE0, 0x70);
-            setWH(pSprite, 0x10, 0x10);
-        } else {
-            setUV0(pSprite, 0xE0, 0x60);
-            setWH(pSprite, 8, 8);
-        }
-        setXY0(pSprite, 0xA0, 0x70);
-        pSprite->clut = GetClut(0x100, 0xF7);
-        *pSprite2 = *pSprite;
-    };
-}
+#ifndef XENO_PC_PORT
+INCLUDE_ASM("asm/field/nonmatchings/main/misc9", func_800AAC08);
+#endif
 
 // Set RGB of sprites
 void func_800AADC8(int index, int red, int green, int blue) {
@@ -175,66 +145,10 @@ void func_800AAE4C(int index, int x, int y, int type) {
 
 extern u32 D_800B1DF0;
 extern u32 D_800C3A3C;
-#define D_800B1DF0_PTR ((SpriteList2*)(uintptr_t)D_800B1DF0)
-#define D_800C3A3C_PTR ((PolyList2*)(uintptr_t)D_800C3A3C)
 
-void func_800AAF80(void) {
-    RECT rect;
-    POLY_FT4* pPoly;
-    POLY_FT4* pPoly2;
-    SPRT* pSprite;
-    SPRT* pSprite2;
-    int i;
-
-    D_800C3A3C = (u32)(uintptr_t)HeapAlloc(0x2F8, 0x0);
-    D_800B1DF0 = (u32)(uintptr_t)HeapAlloc(0x400, 0x0);
-    
-    rect.x = 0;
-    rect.y = 0;
-    rect.w = 0xFF;
-    rect.h = 0xFF;
-    
-    for (i = 0; i < 4; i++) {
-        SetDrawMode(&D_800B1DF0_PTR->drModes[i][0], 0, 0, GetTPage(0, 0, 0x3C0, 0x140), &rect);
-        SetDrawMode(&D_800B1DF0_PTR->drModes[i][1], 0, 0, GetTPage(0, 0, 0x3C0, 0x140), &rect);
-        pSprite = &D_800B1DF0_PTR->sprites[i][0];
-        pSprite2 = pSprite + 1;
-        SetSprt(pSprite);
-        setRGB0(pSprite, 0x80, 0x80, 0x80);
-        setXY0(pSprite, 0xA0, 0x70);
-        if (i == 0) {
-            setUV0(pSprite, 0xE0, 0x70);
-            setWH(pSprite, 0x10, 0x10);
-        } else {
-            setUV0(pSprite, 0xE0, 0x60);
-            setWH(pSprite, 0x8, 0x8);
-        }
-        pSprite->clut = GetClut(0x100, 0xF7);
-        *pSprite2 = *pSprite;
-    }
-
-    for (i = 0; i < 3; i++) {
-        pPoly = &D_800C3A3C_PTR->polys[i][0];
-        pPoly2 = pPoly + 1;
-        SetPolyFT4(pPoly);
-        setXY4(pPoly, 
-           i * 0x80, 0x0, 
-           i * 0x80 + 0x80, 0x0, 
-           i * 0x80, 0xDF, 
-           i * 0x80 + 0x80, 0xDF
-        );
-        setRECT(&D_800C3A3C_PTR->rects[i][0], 0x0, 0x0, 0xFF, 0xFF);
-        setRECT(&D_800C3A3C_PTR->rects[i][1], 0x0, 0x0, 0xFF, 0xFF);
-        SetDrawMode(&D_800C3A3C_PTR->drModes[i][0], 0, 0, GetTPage(1, 0, 0x300 + (i * 0x40), 0x100), &D_800C3A3C_PTR->rects[i][0]);
-        SetDrawMode(&D_800C3A3C_PTR->drModes[i][1], 0, 0, GetTPage(1, 0, 0x300 + (i * 0x40), 0x100), &D_800C3A3C_PTR->rects[i][1]);
-        setRGB0(pPoly, 0x80, 0x80, 0x80);
-        SetSemiTrans(pPoly, 0x1);
-        setUV4(pPoly, 0x0, 0x0, 0x80, 0x0, 0x0, 0xDF, 0x80, 0xDF);
-        pPoly->tpage = GetTPage(1, 0, 0x300 + (i * 0x40), 0x100);
-        pPoly->clut = GetClut(0, 0xF6);
-        *pPoly2 = *pPoly;
-    }
-}
+#ifndef XENO_PC_PORT
+INCLUDE_ASM("asm/field/nonmatchings/main/misc9", func_800AAF80);
+#endif
 
 extern void* g_pGameState;
 
@@ -268,36 +182,11 @@ extern s32 g_PlayerActorIndex;
 extern s32 D_800C3914;
 extern s32 D_800C3A18;
 
-void func_800AB378(s8 color) {
-    ActorData* pActor;
-    int i;
-    int y;
-    int x;
-    
-    pActor = (ActorData*)(uintptr_t)g_FieldActors[g_PlayerActorIndex].pActorData;
-    x = (CONV_TO_GTE(pActor->position.vx) * D_800C3914) >> 0x10;
-    y = -(CONV_TO_GTE(pActor->position.vz) * D_800C3A18) >> 0x10;
-    
-    for (i = 0; i < 1; i++) {
-        if (i == 0) {
-            y -= 0xC;
-            x -= 4;
-        }
-        
-        D_800B1DF0_PTR->sprites[i][g_FieldCurRenderContextIndex].x0 = x + D_800AFE78;
-        D_800B1DF0_PTR->sprites[i][g_FieldCurRenderContextIndex].y0 = y + D_800AFE7C;
-
-        setRGB0(&D_800B1DF0_PTR->sprites[i][g_FieldCurRenderContextIndex & 1], color, color, color);
-        addPrim(FIELD_CTX_OT3(g_FieldCurRenderContext), &D_800B1DF0_PTR->sprites[i][g_FieldCurRenderContextIndex]);
-        addPrim(FIELD_CTX_OT3(g_FieldCurRenderContext), &D_800B1DF0_PTR->drModes[i][g_FieldCurRenderContextIndex]);
-    }
-
-    for (i = 0; i < 3; i++) {
-        setRGB0(&D_800C3A3C_PTR->polys[i][g_FieldCurRenderContextIndex & 1], color, color, color);
-        addPrim(FIELD_CTX_OT3(g_FieldCurRenderContext), &D_800C3A3C_PTR->polys[i][g_FieldCurRenderContextIndex]);
-        addPrim(FIELD_CTX_OT3(g_FieldCurRenderContext), &D_800C3A3C_PTR->drModes[i][g_FieldCurRenderContextIndex]);
-    }
-}
+#ifdef XENO_PC_PORT
+#include "../../../pc_port/src/cleanroom/field_draw_services.inc"
+#else
+INCLUDE_ASM("asm/field/nonmatchings/main/misc9", func_800AB378);
+#endif
 
 /* Transcribed from asm/field/nonmatchings/main/misc9/func_800AB748.s
  * (0x800AB748-0x800AB804). Retail: sltiu $a0, 5 then jr jtbl_8006FDD8
@@ -347,7 +236,9 @@ s32 func_800AB748(s32 slot) {
 extern int ArchiveDecodeAlignedSize(int entryIndex);
 extern s32 ArchiveReadFileToBuffer(s32 index, void* pBuffer, u32 arg2, u32 flags);
 extern void ArchiveCdDataSync(int mode);
+#ifndef XENO_PC_PORT
 extern void* memcpy(void* dest, const void* src, int n);
+#endif
 extern s16 D_800AF5C0[];
 
 #ifndef XENO_PC_PORT

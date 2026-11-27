@@ -35,17 +35,38 @@
  * reproduces retail's aliasing exactly (same idiom as data_game_state.c /
  * data_main_menu.c). */
 
+#include "data_alias.h"
+
 unsigned char g_C1Buffer[0x44] __attribute__((aligned(8)));
 
-__asm__(
-    ".globl D_800625FD\n.set D_800625FD, g_C1Buffer + 0x01\n"
-    ".globl D_80062600\n.set D_80062600, g_C1Buffer + 0x04\n"
-    ".globl D_80062601\n.set D_80062601, g_C1Buffer + 0x05\n"
-    ".globl D_80062602\n.set D_80062602, g_C1Buffer + 0x06\n"
-    ".globl D_80062603\n.set D_80062603, g_C1Buffer + 0x07\n"
-    ".globl g_C2Buffer\n.set g_C2Buffer, g_C1Buffer + 0x22\n"
-    ".globl D_80062622\n.set D_80062622, g_C1Buffer + 0x26\n"
-    ".globl D_80062623\n.set D_80062623, g_C1Buffer + 0x27\n"
-    ".globl D_80062624\n.set D_80062624, g_C1Buffer + 0x28\n"
-    ".globl D_80062625\n.set D_80062625, g_C1Buffer + 0x29\n"
-);
+XG_BRIDGE_DATA_ALIAS(D_800625FD, g_C1Buffer, 0x01, 3);
+XG_BRIDGE_DATA_ALIAS(D_80062600, g_C1Buffer, 0x04, 1);
+XG_BRIDGE_DATA_ALIAS(D_80062601, g_C1Buffer, 0x05, 1);
+XG_BRIDGE_DATA_ALIAS(D_80062602, g_C1Buffer, 0x06, 1);
+XG_BRIDGE_DATA_ALIAS(D_80062603, g_C1Buffer, 0x07, 0x1b);
+XG_BRIDGE_DATA_ALIAS(g_C2Buffer, g_C1Buffer, 0x22, 4);
+XG_BRIDGE_DATA_ALIAS(D_80062622, g_C1Buffer, 0x26, 1);
+XG_BRIDGE_DATA_ALIAS(D_80062623, g_C1Buffer, 0x27, 1);
+XG_BRIDGE_DATA_ALIAS(D_80062624, g_C1Buffer, 0x28, 1);
+XG_BRIDGE_DATA_ALIAS(D_80062625, g_C1Buffer, 0x29, 0x1b);
+
+#include "common.h"
+#include "system/controller.h"
+
+/* Each event kind contains two consecutive controller histories. The ring
+ * reader selects the second controller by advancing one full history. */
+static u_short pc_controller_history[6][CONTROLLER_MAX_NUM_STATES]
+    __attribute__((aligned(16), used));
+_Static_assert(sizeof(pc_controller_history[0]) == 32, "controller ring size");
+XG_SIZED_DATA_ALIAS(g_C1ButtonStatesPressed, pc_controller_history, 0x00, 0x20);
+XG_SIZED_DATA_ALIAS(g_C2ButtonStatesPressed, pc_controller_history, 0x20, 0x20);
+XG_SIZED_DATA_ALIAS(g_C1ButtonStatesReleased, pc_controller_history, 0x40, 0x20);
+XG_SIZED_DATA_ALIAS(g_C2ButtonStatesReleased, pc_controller_history, 0x60, 0x20);
+XG_SIZED_DATA_ALIAS(g_C1ButtonStatesPressedOnce, pc_controller_history, 0x80, 0x20);
+XG_SIZED_DATA_ALIAS(g_C2ButtonStatesPressedOnce, pc_controller_history, 0xA0, 0x20);
+
+u_int g_ControllerNumStates;
+int g_ControllerCurStateWriteIndex;
+int g_ControllerCurStateReadIndex;
+int g_ControllerIsStateStackFull;
+int D_80050200 = 1;

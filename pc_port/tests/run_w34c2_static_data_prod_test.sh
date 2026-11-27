@@ -1,31 +1,25 @@
 #!/usr/bin/env bash
-# W34C2 — PS-X static data load path certificate (O0/O2/UBSan + mutants M1-M5).
+# W34C2 — PS-X static data load path certificate (O0/O2/UBSan + loader mutation controls).
 set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib/sanitizer_preflight.sh"; ubsan_preflight
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-BUILD_DIR="${W34C2_BUILD_DIR:-$ROOT/pc_port/build_native}"
-PSYX_CMAKE_LIB="$(find "$ROOT/pc_port/build" "$ROOT/pc_port/build_tsan" -name 'libpsycross.a' 2>/dev/null | head -1 || true)"
-PSYCROSS_LIB="${W34C2_PSYCROSS_LIB:-${PSYX_CMAKE_LIB:-$BUILD_DIR/libpsycross.a}}"
-if [[ ! -f "$PSYCROSS_LIB" ]]; then
-    echo "ERROR: libpsycross.a not found (tried W34C2_PSYCROSS_LIB, pc_port/build, pc_port/build_tsan); run pc_port/build_port.sh first" >&2
-    exit 1
-fi
+BUILD_DIR="${W34C2_BUILD_DIR:-$ROOT/pc_port/build_native/w34c2-static-data}"
 mkdir -p "$BUILD_DIR"
 
 cd "$ROOT"
-INC=(-Ipc_port/include_shim -Iinclude -Ipc_port/extern/PsyCross/include
-     -Ipc_port/extern/PsyCross/include/psx -Ipc_port/src)
+INC=(-Ipc_port/src)
 WARN=(-Wall -Wextra -Wconversion -Wsign-conversion -Werror)
-BASE=(-std=gnu17 -DXENO_PC_PORT -DSKIP_ASM -D_LANGUAGE_C)
-LIBS=("$PSYCROSS_LIB" -lSDL2 -lopenal -lGL -lm -ldl -lpthread)
-SRC=(pc_port/tests/w34c2_static_data_prod_test.c
-     pc_port/src/psx_memory.c pc_port/src/world_map_helper_73b04.c)
+BASE=(-std=gnu17 -DXENO_PC_PORT)
+SRC=(pc_port/tests/w34c2_static_data_prod_test.c pc_port/src/psx_memory.c)
+image=disc/SLUS_006.64
+digest=$(sha256sum < "$image")
+[[ ${digest%% *} == dc0b2dd786203d4cce5927c5a3fc85a18f39a3f7406078860076ebb0bbae7119 ]]
 
 build_and_run() {
     local name="$1"; shift
-    gcc "${BASE[@]}" "${WARN[@]}" "${INC[@]}" "$@" "${SRC[@]}" "${LIBS[@]}" \
-        -o "$BUILD_DIR/$name"
+    gcc "${BASE[@]}" "${WARN[@]}" "${INC[@]}" "$@" "${SRC[@]}" \
+       -o "$BUILD_DIR/$name"
     "$BUILD_DIR/$name"
 }
 
@@ -39,13 +33,12 @@ echo "== mutants (each must fail a named oracle assertion) =="
 declare -A MUT=(
     [M1]="-DPSX_EXE_MUTANT_M1"            # loader copies .text as well
     [M2]="-DPSX_EXE_MUTANT_M2"            # loader copies the ._49AC0 island
-    [M3]="-DWM_73B04_MUTANT_GUEST_SHIFT"  # 73b04 left on the PSX_ADDR read
     [M4]="-DPSX_EXE_MUTANT_M4"            # sdata range extended into .sbss
     [M5]="-DPSX_EXE_MUTANT_M5"            # rodata range short by one page
 )
-for m in M1 M2 M3 M4 M5; do
+for m in M1 M2 M4 M5; do
     gcc "${BASE[@]}" "${WARN[@]}" "${INC[@]}" ${MUT[$m]} -O0 "${SRC[@]}" \
-        "${LIBS[@]}" -o "$BUILD_DIR/w34c2_static_data_mutant_$m"
+       -o "$BUILD_DIR/w34c2_static_data_mutant_$m"
     set +e
     "$BUILD_DIR/w34c2_static_data_mutant_$m" \
         >"$BUILD_DIR/w34c2_static_data_mutant_$m.log" 2>&1

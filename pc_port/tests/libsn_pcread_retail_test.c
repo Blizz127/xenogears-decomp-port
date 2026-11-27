@@ -8,7 +8,7 @@
 
 #include "common.h"
 
-extern int PCread(int fd, char* buff, int len);
+extern int PCread(int, char*, int);
 
 static unsigned s_checks;
 static int s_calls;

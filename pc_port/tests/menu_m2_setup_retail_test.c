@@ -64,11 +64,11 @@ void func_801C8164(POLY_G4 *p, u8 r, u8 g, u8 b) {
 void SetSemiTrans(void *p, int abe) { M2_SPY(TSEMI, M2_U(p), (u32)abe); }
 void SetLineF3(LINE_F3 *p) { M2_SPY(TLINEF3, M2_U(p)); }
 void SetPolyF4(POLY_F4 *p) { M2_SPY(TPOLYF4, M2_U(p)); }
-u_short GetTPage(int tp, int abr, int x, int y) {
-    return (u_short)M2_SPY(TTPAGE, (u32)tp, (u32)abr, (u32)x, (u32)y);
+u_short GetTPage(int depth, int blend, int vram_x, int vram_y) {
+    return (u_short)M2_SPY(TTPAGE, (u32)depth, (u32)blend, (u32)vram_x, (u32)vram_y);
 }
-void SetDrawMode(DR_MODE *p, int dfe, int dtd, int tpage, RECT16 *tw) {
-    M2_SPY(TDRAWMODE, M2_U(p), (u32)dfe, (u32)dtd, (u32)tpage, M2_U(tw));
+void SetDrawMode(DR_MODE *packet, int draw_to_display, int dither, int page, RECT16 *window) {
+    M2_SPY(TDRAWMODE, M2_U(packet), (u32)draw_to_display, (u32)dither, (u32)page, M2_U(window));
 }
 
 extern void func_801C6AA0(void);

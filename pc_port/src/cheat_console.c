@@ -21,10 +21,12 @@
  * (XENO_GOD_MODE, XENO_FIELD_WARP, XENO_BATTLE_WARP_FILE) keep working and
  * stay off by default.
  */
-#include <pthread.h>
+#include <errno.h>
+#include "host_thread.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "cheat_console.h"
 #include "god_mode.h"
@@ -44,7 +46,7 @@ extern void PcPort_FieldTestInputHold(unsigned value, unsigned frames);
 #define QUEUE_MAX 16
 static char s_queue[QUEUE_MAX][128];
 static int s_queue_count;
-static pthread_mutex_t s_queue_lock = PTHREAD_MUTEX_INITIALIZER;
+static HostMutex s_queue_lock = HOST_MUTEX_INITIALIZER;
 
 static int parse_onoff(const char* arg, int current)
 {
@@ -140,24 +142,24 @@ int PcPort_CheatExec(const char* line)
 
 void PcPort_CheatQueue(const char* line)
 {
-    pthread_mutex_lock(&s_queue_lock);
+    host_mutex_lock(&s_queue_lock);
     if (s_queue_count < QUEUE_MAX) {
         char* q = s_queue[s_queue_count++];
         snprintf(q, sizeof s_queue[0], "%s", line);
         q[strcspn(q, "\r\n")] = '\0';
     }
-    pthread_mutex_unlock(&s_queue_lock);
+    host_mutex_unlock(&s_queue_lock);
 }
 
 static void run_queue(void)
 {
     char local[QUEUE_MAX][128];
     int n, i;
-    pthread_mutex_lock(&s_queue_lock);
+    host_mutex_lock(&s_queue_lock);
     n = s_queue_count;
     memcpy(local, s_queue, sizeof s_queue[0] * (size_t)n);
     s_queue_count = 0;
-    pthread_mutex_unlock(&s_queue_lock);
+    host_mutex_unlock(&s_queue_lock);
     for (i = 0; i < n; i++)
         (void)PcPort_CheatExec(local[i]);
 }
@@ -167,13 +169,35 @@ static void tick_field_warp(const XgPlatModEventData* e, void* u) { (void)e; (vo
 static void tick_battle_warp(const XgPlatModEventData* e, void* u) { (void)e; (void)u; PcPort_DebugBattleWarp(); }
 static void tick_console(const XgPlatModEventData* e, void* u) { (void)e; (void)u; run_queue(); }
 
-static void* stdin_reader(void* arg)
+static HOST_THREAD_RESULT stdin_reader(void* arg)
 {
     char line[128];
+    char input[256];
+    size_t length = 0;
     (void)arg;
-    while (fgets(line, sizeof line, stdin) != NULL)
-        PcPort_CheatQueue(line);
-    return NULL;
+    /* The input pipe can remain open during process shutdown.
+     * A blocking fgets would hold stdin's FILE lock across process shutdown. */
+    for (;;) {
+        ssize_t count = read(STDIN_FILENO, input, sizeof input);
+        if (count < 0 && errno == EINTR)
+            continue;
+        if (count <= 0) {
+            if (count == 0 && length != 0) {
+                line[length] = '\0';
+                PcPort_CheatQueue(line);
+            }
+            break;
+        }
+        for (ssize_t i = 0; i < count; i++) {
+            line[length++] = input[i];
+            if (input[i] == '\n' || length == sizeof line - 1) {
+                line[length] = '\0';
+                PcPort_CheatQueue(line);
+                length = 0;
+            }
+        }
+    }
+    return 0;
 }
 
 extern void PcPort_RouteLogInit(void);
@@ -196,9 +220,9 @@ void PcPort_CheatConsoleInit(void)
     xg_plat_mods_subscribe(XG_PLAT_EVENT_FRAME_TICK, tick_battle_warp, NULL);
     xg_plat_mods_subscribe(XG_PLAT_EVENT_FRAME_TICK, tick_console, NULL);
     if (xg_plat_config_int("cheats.console", 0)) {
-        pthread_t t;
-        if (pthread_create(&t, NULL, stdin_reader, NULL) == 0) {
-            pthread_detach(t);
+        HostThread t;
+        if (host_thread_start(&t, stdin_reader, NULL) == 0) {
+            host_thread_detach(t);
             printf("[cheat] console reading commands from stdin (type 'help')\n");
         }
     }

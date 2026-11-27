@@ -1,10 +1,8 @@
 /* Multi-load differential test: host-compiled src/battle/main27.c
  * func_8007D478 vs the retail bytes executed by remu, with callee bodies
  * ALSO loaded as retail code:
- *   asm/battle/nonmatchings/main27/func_8007D478.s   (entry)
- *   tools/remu/tests/func_8001BD40_randsq.s  (8001BD40 with its two
- *     `jal rand` words retargeted from unmapped libc 0x8003FA38 to the
- *     programmed counter below; all other words byte-identical)
+ *   asm/battle/matchings/mainasm_D854/func_8007D478.s   (entry)
+ *   asm/slus_006.64/matchings/system/temp3c/func_8001BD40.s
  *   asm/battle/matchings/main41/func_80089C08.s
  *   tools/remu/tests/rand_seq.s  (programmed `rand`, see below)
  * Fails on any behavioral mismatch.
@@ -16,21 +14,18 @@
  * else set flag[r]. Return with the slot still zero once all three
  * flags are set.
  *
- * Programmed rand: the real libc rand (0x8003FA38) has no .s to load;
- * a constant-0 stub (remu's default) would pin r = 0 forever, hanging
- * every seed whose row 0 does not store. Instead the test loads
- * rand_seq.s, a counter returning (n++ & 0xFF) from retail scratch
- * 0x801F0200, retargets 8001BD40's two `jal rand` words at it (patched
- * copy above), and mirrors the counter on the host; both sides then
- * cycle r = 0,1,2 and every seed terminates. The residual (real rand
- * distribution) is environmental and documented, not verified.
+ * The test loads the original callee from the owner's local disc extraction.
+ * Its calls to libc rand reach the test counter installed at the libc entry.
+ * The host model uses the same byte counter, so each seed can exercise all
+ * three rows. The game's usual random distribution is outside this test.
  *
  * Row plans per seed force the three row halves to STORE (0x8000),
  * FLAG-clear (0x0000) or FLAG-set (0xC402) patterns, covering the
  * first-store, late-store, revisit-skip and exhaustion paths.
  *
  * Build (from repo root):
- *   tools/remu/run_diff.sh diff_8007D478 src/battle/main27.c
+ *   tools/remu/run_diff.sh diff_8007D478 src/battle/main27.c -Ipc_port/src \
+ *       -include tools/remu/tests/diff_8007D478_globals.h
  */
 #include <stdio.h>
 #include <stdint.h>
@@ -73,8 +68,8 @@ u32 func_80089C08(u8 idx) { return H48[idx]; }
 u8 D_800D3420[TAB_LEN];
 __attribute__((aligned(2))) u8 D_800CCD64[C64_LEN];
 
-#define RETAIL_D478 "asm/battle/nonmatchings/main27/func_8007D478.s"
-#define RETAIL_1BD40 "tools/remu/tests/func_8001BD40_randsq.s"
+#define RETAIL_D478 "asm/battle/matchings/mainasm_D854/func_8007D478.s"
+#define RETAIL_1BD40 "asm/slus_006.64/matchings/system/temp3c/func_8001BD40.s"
 #define RETAIL_89C08 "asm/battle/matchings/main41/func_80089C08.s"
 #define RETAIL_RAND "tools/remu/tests/rand_seq.s"
 #define T48_BASE 0x800C3448u
@@ -242,7 +237,7 @@ int main(void) {
     if (entry != 0x8007D478u) { printf("FAIL load entry=%08X\n", entry); return 1; }
     if (remu_load_oracle(m, RETAIL_1BD40) != 0x8001BD40u) { printf("FAIL load 1bd40\n"); return 1; }
     if (remu_load_oracle(m, RETAIL_89C08) != 0x80089C08u) { printf("FAIL load 89c08\n"); return 1; }
-    if (remu_load_oracle(m, RETAIL_RAND) == 0) { printf("FAIL load rand\n"); return 1; }
+    if (remu_load_oracle(m, RETAIL_RAND) != 0x8003FA38u) { printf("FAIL load rand\n"); return 1; }
     static const uint32_t idxs[] = { 0, 1, 0x3Fu, 0x80u, 0xFFu, 0x100u, 0x1FFu, 0x1234u };
     uint32_t s = 0x7D478234u;
     int n = 0;

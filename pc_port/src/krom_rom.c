@@ -1,8 +1,13 @@
 #include "krom_rom.h"
+#include "../include_shim/host_only_bss.h"
 #include <errno.h>
 #include <fcntl.h>
+#ifdef _WIN32
+#include "krom_disc_win_hash.h"
+#else
 #include <openssl/sha.h>
 #include <pthread.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -14,7 +19,7 @@ struct PcPortKromRom { uint8_t bytes[0x80000]; };
 /* Jiskan 16 is a public-domain JIS X 0213 bitmap font. Its 94x94 JIS plane
  * is kept in the same 16-row, two-byte-per-row shape as PS1 KROM glyphs.
  * See pc_port/font_data/README.md for provenance and regeneration. */
-static const uint8_t jiskan16[94 * 94][32] = {
+static const uint8_t jiskan16[94 * 94][32] HOST_ONLY_RODATA = {
 #include "krom_jiskan16.inc"
 };
 
@@ -51,8 +56,12 @@ PcPortKromRomResult PcPortKromRomLoad(const char *path, PcPortKromRom **out) {
     };
     *out = NULL;
     if (!path) return PC_PORT_KROM_ROM_IO;
+#ifdef _WIN32
+    int fd = open(path, O_RDONLY | _O_BINARY | _O_NOINHERIT);
+#else
     /* NONBLOCK prevents a FIFO path from hanging before the regular-file check. */
     int fd = open(path, O_RDONLY | O_CLOEXEC | O_NONBLOCK);
+#endif
     if (fd < 0) return PC_PORT_KROM_ROM_IO;
     struct stat st;
     PcPortKromRomResult result = PC_PORT_KROM_ROM_IO;
@@ -68,7 +77,7 @@ PcPortKromRomResult PcPortKromRomLoad(const char *path, PcPortKromRom **out) {
         if (n <= 0) goto done;
         used += (size_t)n;
     }
-    uint8_t extra, digest[SHA256_DIGEST_LENGTH];
+    uint8_t extra, digest[sizeof expected];
     ssize_t n;
     do {n = read(fd, &extra, 1);} while (n < 0 && errno == EINTR);
     if (n < 0) goto done;
@@ -76,8 +85,16 @@ PcPortKromRomResult PcPortKromRomLoad(const char *path, PcPortKromRom **out) {
     /* One-shot SHA256 is supported in OpenSSL 3, unlike SHA256_Init/Update.
      * Hash exactly the owned bytes, not a separate pathname read.
      * https://docs.openssl.org/3.0/man3/SHA256_Init/ */
-    if (!SHA256(rom->bytes, sizeof rom->bytes, digest) ||
-        memcmp(digest, expected, sizeof expected) != 0) {
+#ifdef _WIN32
+    XenoWinHash ctx = {0};
+    int hashed = xeno_win_hash_init(&ctx, BCRYPT_SHA256_ALGORITHM) &&
+                 BCRYPT_SUCCESS(BCryptHashData(ctx.hash, rom->bytes, sizeof rom->bytes, 0)) &&
+                 BCRYPT_SUCCESS(BCryptFinishHash(ctx.hash, digest, sizeof digest, 0));
+    xeno_win_hash_close(&ctx);
+#else
+    int hashed = SHA256(rom->bytes, sizeof rom->bytes, digest) != NULL;
+#endif
+    if (!hashed || memcmp(digest, expected, sizeof expected) != 0) {
         result = PC_PORT_KROM_ROM_HASH;
         goto done;
     }
@@ -97,7 +114,6 @@ PcPortKromResult PcPortKromRomResolve(const PcPortKromRom *rom, uint32_t code,
     return PcPortKromResolveRomSpan(rom->bytes, code, selector, length, span);
 }
 
-static pthread_once_t font_once = PTHREAD_ONCE_INIT;
 /* Process-lifetime ownership: published spans must never be invalidated by
  * another lookup or by shutdown ordering between game/render threads. */
 static PcPortKromRom *font_rom;
@@ -115,8 +131,25 @@ static void load_font_rom(void) {
     }
 }
 
+#ifdef _WIN32
+static BOOL CALLBACK load_font_once(PINIT_ONCE once, void *param, void **context)
+{
+    (void)once;
+    (void)param;
+    (void)context;
+    load_font_rom();
+    return TRUE;
+}
+#endif
+
 const uint8_t *PcPortKromFont(uint32_t code, size_t length) {
+#ifdef _WIN32
+    static INIT_ONCE font_once = INIT_ONCE_STATIC_INIT;
+    if (!InitOnceExecuteOnce(&font_once, load_font_once, NULL, NULL)) {
+#else
+    static pthread_once_t font_once = PTHREAD_ONCE_INIT;
     if (pthread_once(&font_once, load_font_rom) != 0) {
+#endif
         fputs("KROM_UNRESOLVED initialization\n", stderr);
         abort();
     }

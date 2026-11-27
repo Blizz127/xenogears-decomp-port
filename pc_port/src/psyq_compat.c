@@ -54,57 +54,56 @@ void func_800408F4(void)
     D_80056414 = 0;
 }
 
-/* build_port.sh excludes src/slus_006.64/psyq, so an unqualified rand() would
- * otherwise bind to the host libc and produce a different range and sequence.
- * Retail rand (0x8003FA38) uses this 32-bit LCG and returns bits 16..30.  Keep
- * the seed explicitly 32-bit: PsyQ u_long is 32-bit, while host unsigned long
- * is 64-bit on the native port. */
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+/* The port's checkpoints, scripts and guest bridge share this 32-bit word. */
 uint32_t g_RandomSeed;
 
-/* DIAGNOSTIC (counters only; the sequence is unchanged): calls, and calls
- * from any thread other than the one running the game's vblank dispatch,
- * for XENO_FIELD_STEP_RNG_LOG (determinism investigation, follow-up e). */
+/* The field-step vblank log consumes these counters and marks its game thread. */
 static uint32_t s_rand_calls, s_rand_calls_off_main;
-/* Weak: tests that link this TU without the field-step probe (test_input.c)
- * or the game globals (game_overrides.c) still link; the trace is then off. */
+static void *s_rand_last_off_main;
+static _Thread_local int s_rand_on_main;
 extern int g_GameSceneMapNum __attribute__((weak));
-extern int PcPort_FieldStepPadArmedStep(unsigned* step) __attribute__((weak));
-static void* s_rand_last_off_main;
-static __thread int s_rand_on_main;
+extern int PcPort_FieldStepPadArmedStep(unsigned *step) __attribute__((weak));
+
+static void record_random_draw(void *caller)
+{
+    static FILE *trace;
+    static int initialized;
+
+    ++s_rand_calls;
+    if (!s_rand_on_main) {
+        ++s_rand_calls_off_main;
+        s_rand_last_off_main = caller;
+    }
+
+    if (!initialized) {
+        initialized = 1;
+        const char *path = getenv("XENO_RAND_TRACE");
+        if (path && *path && &g_GameSceneMapNum && PcPort_FieldStepPadArmedStep)
+            trace = fopen(path, "w");
+    }
+    if (trace) {
+        unsigned step;
+        if (PcPort_FieldStepPadArmedStep(&step)) {
+            fclose(trace);
+            trace = NULL;
+        } else {
+            fprintf(trace, "%u %d %p\n", (unsigned)s_rand_calls, g_GameSceneMapNum, caller);
+        }
+    }
+}
 
 int rand(void)
 {
-    uint32_t next = g_RandomSeed * UINT32_C(0x41C64E6D) + UINT32_C(0x3039);
-    s_rand_calls++;
-    /* XENO_RAND_TRACE=<path>: one line per call (index, map, caller) until
-     * the field-step probe arms -- localizes run-to-run differences in how
-     * many calls the boot/title/load phase makes (follow-up e). */
-    {
-        static int trace_state = -1;
-        static FILE* trace;
-        unsigned step;
-        if (trace_state < 0) {
-            const char* e = getenv("XENO_RAND_TRACE");
-            trace = (e != NULL && e[0] != '\0' && PcPort_FieldStepPadArmedStep && &g_GameSceneMapNum)
-                ? fopen(e, "w") : NULL;
-            trace_state = trace != NULL;
-        }
-        if (trace_state == 1) {
-            if (PcPort_FieldStepPadArmedStep(&step)) {
-                fclose(trace);
-                trace_state = 0;
-            } else {
-                fprintf(trace, "%u %d %p\n", (unsigned)s_rand_calls, g_GameSceneMapNum,
-                        __builtin_return_address(0));
-            }
-        }
-    }
-    if (!s_rand_on_main) {
-        s_rand_calls_off_main++;
-        s_rand_last_off_main = __builtin_return_address(0);
-    }
-    g_RandomSeed = next;
-    return (int)((next >> 16) & UINT32_C(0x7FFF));
+    /* The C11 7.22.2.2 example's LCG parameters match the recorded game draws.
+     * Unsigned arithmetic retains all 32 state bits across checkpoint restores. */
+    uint32_t state = UINT32_C(1103515245) * g_RandomSeed + UINT32_C(12345);
+    record_random_draw(__builtin_return_address(0));
+    g_RandomSeed = state;
+    return (int)((state >> 16) & UINT32_C(0x7fff));
 }
 
 /* Retail func_80048AB0 (asm 80048AB0) is SetFogNearFar: compute DQA/DQB from
@@ -120,11 +119,29 @@ void func_80048AB0(long a, long b, long h)
  * but not the read-back. Used by the 0xBC sub-command 0x17 (screen-center
  * delta) in animation_scripts.c. */
 #include <psx/gtereg.h>
-void ReadGeomOffset(long* ofxp, long* ofyp)
+#define xeno_cleanroom_cfc2 CFC2
+#include "cleanroom/gte_readgeom_cleanroom.h"
+
+/* floor(int32(raw) / 65536) without relying on right shift of a negative value */
+static int32_t offset_value(uint32_t raw)
 {
-    *ofxp = C2_OFX >> 16;
-    *ofyp = C2_OFY >> 16;
+    uint32_t hi = raw >> 16;
+    return hi >= 0x8000u ? (int32_t)hi - 65536 : (int32_t)hi;
 }
+
+void ReadGeomOffset(long *ofx, long *ofy)
+{
+    uint32_t raw_x = xeno_cleanroom_cfc2(24);
+    uint32_t raw_y = xeno_cleanroom_cfc2(25);
+    int32_t x = offset_value(raw_x);
+    int32_t y = offset_value(raw_y);
+
+    /* both reads precede both stores; ofx first, ofy second (second store wins on alias) */
+    *ofx = (long)x;
+    *ofy = (long)y;
+}
+
+#undef xeno_cleanroom_cfc2
 
 /*
  * Field C (misc2.c) uses the PSY-Q gte_* names. Matching builds expand those
@@ -218,25 +235,70 @@ TIM_IMAGE* ReadTIM(TIM_IMAGE* timimg)
     return timimg;
 }
 
-/*
- * SetPolyF3: PsyCross declares it (libgpu.h) but ships only the setPolyF3 macro,
- * not the function -- so the game's call falls through to a no-op auto-stub and
- * the KernelMenu cursor (a flat triangle) never gets a valid primitive tag. This
- * is the exact body of the game's own decompiled SetPolyF3 (psyq/libgpu.c).
- */
-void SetPolyF3(POLY_F3* p)
+/* PsyCross e56e4cde, include/psx/libgpu.h (MIT). */
+void SetPolyF3(POLY_F3 *packet)
 {
-    setPolyF3(p);   /* setlen(p, 4), setcode(p, 0x20) */
+    setPolyF3(packet);
 }
 
-VECTOR* Square0(VECTOR* v0, VECTOR* v1)
+/* Independently written against the public PsyCross GTE interface at
+ * e56e4cde1c2b8a15e0d4e38b26cdd9202e0d17e6. See include/psx/gtemac.h
+ * (gte_OuterProduct0/12, gte_Square0) and include/psx/inline_c.h for the
+ * operand, accumulator and command interfaces. */
+static void sdk_vector_load_ir(const VECTOR *vector)
 {
-    /* Retail 8004A414: IR loads, SQR(sf=0), then MAC stores. This also
-     * preserves GTE side effects and loads all inputs before in-place writes. */
-    gte_ldlvl(v0);
+    uint32_t xyz[3];
+    memcpy(xyz, vector, sizeof(xyz));
+    MTC2(xyz[0], 9);
+    MTC2(xyz[1], 10);
+    MTC2(xyz[2], 11);
+}
+
+static void sdk_vector_store_mac(VECTOR *result)
+{
+    uint32_t xyz[3] = { MFC2(25), MFC2(26), MFC2(27) };
+    memcpy(result, xyz, sizeof(xyz));
+}
+
+VECTOR *Square0(VECTOR *input, VECTOR *result)
+{
+    sdk_vector_load_ir(input);
     gte_sqr0();
-    gte_stlvnl(v1);
-    return v1;
+    sdk_vector_store_mac(result);
+    return result;
+}
+
+static void sdk_vector_cross(const VECTOR *left, const VECTOR *right,
+                             VECTOR *result, int shift12)
+{
+    /* OP uses the rotation diagonal as one of its input vectors. The
+     * callable interface preserves these three packed matrix registers. */
+    unsigned int rot0 = CFC2(0), rot2 = CFC2(2), rot4 = CFC2(4);
+    uint32_t xyz[3];
+    memcpy(xyz, left, sizeof(xyz));
+    CTC2(xyz[0], 0);
+    CTC2(xyz[1], 2);
+    CTC2(xyz[2], 4);
+    sdk_vector_load_ir(right);
+    if (shift12) {
+        gte_op12();
+    } else {
+        gte_op0();
+    }
+    sdk_vector_store_mac(result);
+    CTC2(rot0, 0);
+    CTC2(rot2, 2);
+    CTC2(rot4, 4);
+}
+
+void OuterProduct0(VECTOR *left, VECTOR *right, VECTOR *result)
+{
+    sdk_vector_cross(left, right, result, 0);
+}
+
+void OuterProduct12(VECTOR *left, VECTOR *right, VECTOR *result)
+{
+    sdk_vector_cross(left, right, result, 1);
 }
 
 MATRIX* ScaleMatrixL(MATRIX* m, VECTOR* v)
@@ -261,38 +323,6 @@ static int32_t GteClampS32(int64_t value)
     if (value < -0x80000000LL)
         return (int32_t)0x80000000u;
     return (int32_t)value;
-}
-
-/*
- * OuterProduct0 — retail Psy-Q GTE OP with sf=0 (no 12-bit shift).
- * PsyCross does not export this; without a real body, build_port.sh stubs it
- * as a no-op that returns 0 and leaves *out untouched. Integer cross product
- * of two VECTOR records; pad is not written. Matches the XENO_PC_PORT body in
- * src/slus_006.64/psyq/libgte.c (excluded from the port compile).
- */
-void OuterProduct0(VECTOR* v0, VECTOR* v1, VECTOR* out)
-{
-    /* GTE MAC1..3 are 44-bit; the 32-bit read-back keeps the low word, so the
-     * products and differences wrap modulo 2^32 (never signed-overflow UB). */
-    uint32_t x0 = (uint32_t)v0->vx, y0 = (uint32_t)v0->vy, z0 = (uint32_t)v0->vz;
-    uint32_t x1 = (uint32_t)v1->vx, y1 = (uint32_t)v1->vy, z1 = (uint32_t)v1->vz;
-    out->vx = (int32_t)(y0 * z1 - z0 * y1);
-    out->vy = (int32_t)(z0 * x1 - x0 * z1);
-    out->vz = (int32_t)(x0 * y1 - y0 * x1);
-}
-
-void OuterProduct12(VECTOR* v0, VECTOR* v1, VECTOR* v2)
-{
-    int32_t x0 = (int16_t)v0->vx;
-    int32_t y0 = (int16_t)v0->vy;
-    int32_t z0 = (int16_t)v0->vz;
-    int32_t x1 = (int16_t)v1->vx;
-    int32_t y1 = (int16_t)v1->vy;
-    int32_t z1 = (int16_t)v1->vz;
-
-    v2->vx = GteClampS32(((int64_t)y0 * z1 - (int64_t)z0 * y1) >> 12);
-    v2->vy = GteClampS32(((int64_t)z0 * x1 - (int64_t)x0 * z1) >> 12);
-    v2->vz = GteClampS32(((int64_t)x0 * y1 - (int64_t)y0 * x1) >> 12);
 }
 
 static int16_t s_InvSqrtTable[XENO_GTE_NORM_TABLE_LEN];
@@ -440,36 +470,45 @@ long VectorNormalSS(SVECTOR* v0, SVECTOR* v1)
     return (int32_t)squared;
 }
 
-long RotAverage4(SVECTOR* v0, SVECTOR* v1, SVECTOR* v2, SVECTOR* v3,
-                 long* sxy0, long* sxy1, long* sxy2, long* sxy3,
-                 long* p, long* flag)
+#include <stdint.h>
+#include <string.h>
+#include <psx/libgte.h>
+#include <psx/inline_c.h>
+
+static void load_projection_vertex(const SVECTOR *vertex, int slot)
 {
-    long flag0 = 0;
-    long flag1 = 0;
-    long interpolation = 0;
-    long otz = 0;
+    uint32_t words[2];
+    memcpy(words, vertex, sizeof(words));
+    MTC2(words[0], slot * 2);
+    MTC2(words[1], slot * 2 + 1);
+}
 
-    gte_ldv3(v0, v1, v2);
+long RotAverage4(SVECTOR *v0, SVECTOR *v1, SVECTOR *v2, SVECTOR *v3,
+                 long *sxy0, long *sxy1, long *sxy2, long *sxy3,
+                 long *p, long *flag)
+{
+    load_projection_vertex(v0, 0);
+    load_projection_vertex(v1, 1);
+    load_projection_vertex(v2, 2);
     gte_rtpt();
-    gte_stsxy3(sxy0, sxy1, sxy2);
-    gte_stflg(&flag0);
+    uint32_t projection_flags = CFC2(31);
+    uint32_t screen[3] = {MFC2(12), MFC2(13), MFC2(14)};
 
-    gte_ldv0(v3);
+    /* GPU packets contain packed XY pairs even when host longs are wider. */
+    memcpy((unsigned char *)sxy0, &screen[0], sizeof(screen[0]));
+    memcpy((unsigned char *)sxy1, &screen[1], sizeof(screen[1]));
+    memcpy((unsigned char *)sxy2, &screen[2], sizeof(screen[2]));
+
+    load_projection_vertex(v3, 0);
     gte_rtps();
-    gte_stsxy(sxy3);
-    gte_stflg(&flag1);
-    gte_stdp(&interpolation);
-    /* Retail 8004A81C/824 writes IR0 first, then both projection FLAGs.
-     * Particle rendering aliases p/flag, so the final FLAG must win. These
-     * are host long outputs; guest calls narrow them at the ABI boundary. */
-    *p = (long)(int32_t)(uint32_t)interpolation;
-    *flag = (long)(int32_t)((uint32_t)flag0 | (uint32_t)flag1);
+    projection_flags |= CFC2(31);
+    uint32_t last_screen = MFC2(14);
+    memcpy((unsigned char *)sxy3, &last_screen, sizeof(last_screen));
+    *p = (int32_t)MFC2(8);
+    *flag = (int32_t)projection_flags;
 
     gte_avsz4();
-    gte_stotz(&otz);
-
-    /* Retail returns OTZ in v0; it does not overwrite either output. */
-    return (long)(int32_t)(uint32_t)otz;
+    return MFC2(7);
 }
 
 /* Mask deferred game-thread vblank delivery. This does not couple arbitrary
@@ -1186,615 +1225,6 @@ static void PcPort_PadOnControl(void)
     }
 }
 
-static int s_xenoMenuNavActions = 0;
-static int s_xenoMenuNavDowns = 0;
-static int s_xenoMenuReorderActions = 0;
-static int s_xenoMenuPromptActions = 0;
-static int s_xenoMenuEquipActions = 0; /* TEST TOOLING: NAV_TEST=equip */
-/* TEST TOOLING: Accessories category DOWNs. Template Fei 0x2E0={1,16,92};
- * id 92 has nonempty desc bank text; 1/16 are empty stubs. */
-static int s_xenoMenuEquipAccDowns = 0;
-static int s_xenoMenuEquipAccDownBase = -1;
-static int s_xenoMenuItemsOpenTick = -1;
-
-/* Synthetic menu-nav edges (XENO_MENU_NAV_TEST=N): once the forced menu has
- * had time to open, hold DPAD-DOWN for a single frame, N times, ~30 hook-calls
- * apart, so an automated capture can verify the cursor moves.  The special
- * value XENO_MENU_NAV_TEST=items performs three DOWN taps (Exit -> Items), then
- * injects Circle/Cross release edges around a stable open-window interval.
- * XENO_MENU_NAV_TEST=items-reorder follows the same path, then selects row 0,
- * moves right to row 1, confirms the reorder, and closes the screen.
- * XENO_MENU_NAV_TEST=items-prompt confirms row 0 twice, holds the initial
- * target prompt without any direction input, then cancels prompt and Items.
- *
- * The inject is at the RAW BIOS pad buffer (g_C1Buffer), exactly where a real
- * keypress lands: PsyX_UpdateInput() refreshes the buffer from SDL each frame
- * (idle = 0xFF, active-low), then ControllerPoll() derives the pressed/edge/
- * repeat state the menu reads.  DPAD-DOWN is bit 0x40 of buttons byte
- * g_C1Buffer[CONTROLLER_BUTTONS_1] (== PsyX pad->buttons[0], `ret &= ~0x40`).
- * So we MUST run after PsyX_UpdateInput and before ControllerPoll; clearing the
- * bit for one frame makes ControllerPoll compute a genuine rising edge that
- * flows through ControllerPushState → the queue → the menu reader, identical to
- * a physical DOWN tap.  (An earlier attempt OR-ing the derived edge var after
- * ControllerPoll failed: the reader drains the queue, not the live var.) */
-static void PcPort_ForcedMenuNav(void)
-{
-    extern unsigned char g_C1Buffer[];
-    extern int g_XenoMenuNavReaderTicks;   /* menu reader executions (misc.c) */
-    static int armed = -2, injected = 0;
-
-    if (armed == -2) {
-        const char* e = getenv("XENO_MENU_NAV_TEST");
-        if (e && (strcmp(e, "abilities") == 0 ||
-                  strcmp(e, "equip") == 0 ||
-                  strcmp(e, "items") == 0 ||
-                  strcmp(e, "items-reorder") == 0 ||
-                  strcmp(e, "items-prompt") == 0 ||
-                  strcmp(e, "prompt-nav") == 0 ||
-                  strcmp(e, "prompt-nav-skip") == 0 ||
-                  strcmp(e, "item-use") == 0 ||
-                  strcmp(e, "item-special") == 0)) {
-            /* N3a-A1a: DOWN DECREMENTS menu1Choice (wrapping 0..6), so the
-             * established 3 taps land on Items (entry 4); Abilities is entry 3,
-             * one further along the same direction -> 4 taps.  Measured, not
-             * assumed: 2 taps routed to func_801E0F78 (Equip, entry 5).
-             * TEST TOOLING: XENO_MENU_NAV_TEST=equip is pad-buffer only. */
-            if (strcmp(e, "equip") == 0) {
-                armed = 2;
-                s_xenoMenuEquipActions = 1;
-            } else {
-                armed = (strcmp(e, "abilities") == 0) ? 4 : 3;
-            }
-            s_xenoMenuNavActions = 1;
-            s_xenoMenuReorderActions = strcmp(e, "items-reorder") == 0;
-            s_xenoMenuPromptActions = strcmp(e, "abilities") != 0 &&
-                                      strcmp(e, "equip") != 0 &&
-                                      (strcmp(e, "items-prompt") == 0 ||
-                                      strncmp(e, "prompt-nav", 10) == 0 ||
-                                      strcmp(e, "item-use") == 0 ||
-                                      strcmp(e, "item-special") == 0);
-            if (strcmp(e, "prompt-nav") == 0) {
-                s_xenoMenuPromptNavKind = 1;
-            } else if (strcmp(e, "prompt-nav-skip") == 0) {
-                s_xenoMenuPromptNavKind = 2;
-            } else if (strcmp(e, "item-use") == 0) {
-                s_xenoMenuPromptNavKind = 3;
-            } else if (strcmp(e, "item-special") == 0) {
-                s_xenoMenuPromptNavKind = 4;
-            } else if (strcmp(e, "abilities") == 0) {
-                s_xenoMenuPromptNavKind = 5;
-            }
-        } else {
-            armed = (e && *e) ? atoi(e) : 0;
-        }
-        s_xenoMenuNavDowns = armed;
-    }
-    if (armed <= 0)
-        return;
-    /* Clock the injection off READER TICKS, not Vsync frames: the field's
-     * open/close phases reset the pad queue at a different cadence, so frame
-     * counting races it.  A tick == one execution of the menu's interactive
-     * input reader, so a hold spanning >=4 ticks is guaranteed to be polled,
-     * edged, queued, and drained while the menu is actually listening.
-     * Schedule: settle 40 ticks, then press k = hold 4 ticks / release 10. */
-    {
-        int t = g_XenoMenuNavReaderTicks;
-        int k, ph;
-        if (t < 40)
-            return;
-        k = (t - 40) / 14;
-        ph = (t - 40) % 14;
-        if (k < armed && ph < 4) {
-            g_C1Buffer[0x2] &= (unsigned char)~0x40;  /* hold DPAD-DOWN */
-            if (k + 1 > injected) {
-                injected = k + 1;
-                printf("[xeno-port][test] XENO_MENU_NAV_TEST: press DOWN %d/%d "
-                       "(reader tick %d)\n", injected, armed, t);
-                fflush(stdout);
-            }
-        }
-
-        /* TEST TOOLING: Equip category DOWNs (pad-buffer PressedOnce). */
-        if (s_xenoMenuEquipAccDowns > 0 && s_xenoMenuEquipAccDownBase >= 0 &&
-            t >= s_xenoMenuEquipAccDownBase) {
-            int k = (t - s_xenoMenuEquipAccDownBase) / 14;
-            int ph = (t - s_xenoMenuEquipAccDownBase) % 14;
-            if (k < s_xenoMenuEquipAccDowns && ph < 4) {
-                g_C1Buffer[0x2] &= (unsigned char)~0x40;
-                if (ph == 0) {
-                    printf("[xeno-port][test] XENO_MENU_NAV_TEST=equip: DOWN "
-                           "category %d/%d at reader tick %d\n",
-                           k + 1, s_xenoMenuEquipAccDowns, t);
-                    fflush(stdout);
-                }
-            }
-        }
-
-        /* N2c-1 proof: after Circle selects the first item, inject a genuine
-         * RIGHT pad hold so the retail Items reader advances from row 0 to
-         * row 1 before the second Circle confirms the exchange. */
-        if (s_xenoMenuReorderActions && s_xenoMenuItemsOpenTick >= 0 &&
-            t >= s_xenoMenuItemsOpenTick + 18 &&
-            t < s_xenoMenuItemsOpenTick + 22) {
-            g_C1Buffer[0x2] &= (unsigned char)~0x20;  /* hold DPAD-RIGHT */
-            if (t == s_xenoMenuItemsOpenTick + 18) {
-                printf("[xeno-port][test] N2C1 REORDER: press RIGHT "
-                       "row 0 -> row 1 at reader tick %d\n", t);
-                fflush(stdout);
-            }
-        }
-
-        /* N2c-2b proof: while the target prompt is open (phase 1), drive the
-         * navigator with genuine pad holds on the established 4-tick-hold /
-         * 14-tick-spacing cadence.  The retail {0,2,FF} roster has two
-         * eligible slots.  wrap (kind 1): DOWN x2 then UP x2
-         * (0->1->0 forward, then 0->1->0 backward).  skip (kind 2):
-         * DOWN x2 (0->1, then 1 -> skip absent 2 -> wrap -> 0). */
-        if (s_xenoMenuPromptNavKind == 1 || s_xenoMenuPromptNavKind == 2) {
-            extern int g_XenoMenuN2c2Phase;
-            static int navTick = -1, navLogged = 0;
-            if (g_XenoMenuN2c2Phase == 1 && navTick < 0)
-                navTick = t;
-            if (navTick >= 0 && g_XenoMenuN2c2Phase == 1 && t - navTick >= 8) {
-                int rel = t - navTick - 8;
-                int presses = (s_xenoMenuPromptNavKind == 1) ? 4 : 2;
-                int idx = rel / 14;
-                int phn = rel % 14;
-                if (idx < presses && phn < 4) {
-                    int isUp = (s_xenoMenuPromptNavKind == 1) && (idx >= 2);
-                    g_C1Buffer[0x2] &= (unsigned char)~(isUp ? 0x10 : 0x40);
-                    if (idx + 1 > navLogged) {
-                        navLogged = idx + 1;
-                        printf("[xeno-port][test] N2C2B NAV: press %s %d/%d "
-                               "at reader tick %d\n", isUp ? "UP" : "DOWN",
-                               idx + 1, presses, t);
-                        fflush(stdout);
-                    }
-                }
-            }
-        }
-
-        /* After the Items common-exit tail has rebuilt the main highlight,
-         * issue one more genuine DOWN tap.  This is the nav-alive proof. */
-        if (s_xenoMenuNavActions) {
-            extern int g_XenoMenuN2Phase;
-            extern int g_XenoMenuN3aPhase;
-            static int closedTick = -1, finalLogged = 0;
-            static int n3aClosedTick = -1, n3aFinalLogged = 0;
-            if (g_XenoMenuN2Phase >= 2 && closedTick < 0)
-                closedTick = t;
-            if (closedTick >= 0 && t >= closedTick + 20 && t < closedTick + 24) {
-                g_C1Buffer[0x2] &= (unsigned char)~0x40;
-                if (!finalLogged) {
-                    finalLogged = 1;
-                    printf("[xeno-port][test] XENO_MENU_NAV_TEST=items: "
-                           "post-close DOWN (nav-alive) at reader tick %d\n", t);
-                    fflush(stdout);
-                }
-            }
-            /* N3a-A1b-1: the same nav-alive proof after the Abilities close. */
-            if (s_xenoMenuPromptNavKind == 5 && g_XenoMenuN3aPhase == 2 &&
-                n3aClosedTick < 0)
-                n3aClosedTick = t;
-            if (n3aClosedTick >= 0 && t >= n3aClosedTick + 20 &&
-                t < n3aClosedTick + 24) {
-                g_C1Buffer[0x2] &= (unsigned char)~0x40;
-                if (!n3aFinalLogged) {
-                    n3aFinalLogged = 1;
-                    printf("[xeno-port][test] XENO_MENU_NAV_TEST=abilities: "
-                           "post-close DOWN (nav-alive) at reader tick %d\n", t);
-                    fflush(stdout);
-                }
-            }
-        }
-    }
-}
-
-/* Circle/Cross must be inserted after ControllerPoll recomputes the derived
- * edge globals but before ControllerPushState snapshots them for the queue
- * drained by func_801C7D78. */
-
-/* N2c-4: per-family inventory digests for the bulk-special proof.  One FNV
- * per family region plus slot spot-checks and bound-edge pairs, with
- * containment sentinels on both neighbors of the inventory block.  The item
- * family's writes are slot-shifted by +2 (func_801E5058 preserves slots
- * 0-2), hence the per-family shift column. */
-static void PcPort_N2c4PrintFamilies(const char* tag)
-{
-    extern unsigned char g_GameState[];
-    static const struct {
-        const char* name;
-        unsigned qty, ids, size, bound, shift;
-    } fam[5] = {
-        { "weapon",    0x1D38, 0x1D9C, 0x64, 0x48, 0 },
-        { "accessory", 0x1E00, 0x1EC8, 0xC8, 0x96, 0 },
-        { "item",      0x1F90, 0x2026, 0x96, 0x4C, 2 },
-        { "unk20BC",   0x20BC, 0x2120, 0x64, 0x48, 0 },
-        { "unk2184",   0x2184, 0x221A, 0x96, 0x69, 0 },
-    };
-    int f;
-
-    for (f = 0; f < 5; f++) {
-        unsigned int h = 2166136261u;
-        unsigned int i;
-        unsigned int lastw = fam[f].shift + fam[f].bound - 1;
-
-        for (i = 0; i < fam[f].size; i++) {
-            h ^= g_GameState[fam[f].qty + i]; h *= 16777619u;
-            h ^= g_GameState[fam[f].ids + i]; h *= 16777619u;
-        }
-        printf("[xeno-port][test] N2C4 %s %-9s fnv=%08x slot0=(id%u,q%u) "
-               "slot1=(id%u,q%u) lastw=(id%u,q%u) beyond=(id%u,q%u)\n",
-               tag, fam[f].name, h,
-               g_GameState[fam[f].ids], g_GameState[fam[f].qty],
-               g_GameState[fam[f].ids + 1], g_GameState[fam[f].qty + 1],
-               g_GameState[fam[f].ids + lastw], g_GameState[fam[f].qty + lastw],
-               g_GameState[fam[f].ids + lastw + 1],
-               g_GameState[fam[f].qty + lastw + 1]);
-    }
-    printf("[xeno-port][test] N2C4 %s sentinels party=%02x%02x%02x%02x "
-           "post-block=%02x%02x%02x itemSlot2=(id%u,q%u)\n",
-           tag,
-           g_GameState[0x1D34], g_GameState[0x1D35],
-           g_GameState[0x1D36], g_GameState[0x1D37],
-           g_GameState[0x22B0], g_GameState[0x22B1], g_GameState[0x22B2],
-           g_GameState[0x2028], g_GameState[0x1F92]);
-    fflush(stdout);
-}
-
-static void PcPort_ForcedMenuActionEdges(void)
-{
-    extern unsigned short g_C1ButtonStateReleased;
-    extern int g_XenoMenuNavReaderTicks;
-    extern int g_XenoMenuN2Phase;
-    extern int g_XenoMenuN2c2Phase;
-    extern unsigned int PcPort_N2c1ReadItemPair(void);
-    static int confirmInjected = 0, selectInjected = 0;
-    static int reorderInjected = 0, cancelInjected = 0;
-    static int promptInjected = 0, promptCancelInjected = 0;
-    static int promptObserved = 0, promptTick = -1;
-    static int reorderObserved = 0;
-    static unsigned int inventoryHashBefore = 0;
-    static unsigned int characterHashBefore = 0;
-    unsigned int itemPair;
-    int confirmTick;
-    int t;
-
-    /* FNV-1a over the actual save-backed regions touched by item effects. */
-    #define HASH_REGION(dst, start, length) do { \
-        extern unsigned char g_GameState[]; \
-        unsigned int _h = 2166136261U; \
-        int _i; \
-        for (_i = 0; _i < (length); _i++) { \
-            _h ^= g_GameState[(start) + _i]; \
-            _h *= 16777619U; \
-        } \
-        (dst) = _h; \
-    } while (0)
-
-    /* Root System Menu (XENO_MENU_FORCE without a nav script): after the
-     * input reader is live, inject Cross so func_801C55A0 takes MENU_INPUT_BACK
-     * and MenuMain returns. */
-    if (!s_xenoMenuNavActions) {
-        static int rootCancelInjected = 0;
-        if (s_xenoMenuForceFired && !rootCancelInjected &&
-            g_XenoMenuNavReaderTicks >= 120) {
-            rootCancelInjected = 1;
-            g_C1ButtonStateReleased |= 0x40; /* CTRL_BTN_CROSS */
-            printf("[xeno-port][test] XENO_MENU_FORCE: Cross cancel "
-                   "at reader tick %d\n", g_XenoMenuNavReaderTicks);
-            fflush(stdout);
-        }
-        return;
-    }
-
-    t = g_XenoMenuNavReaderTicks;
-    confirmTick = 40 + 14 * s_xenoMenuNavDowns + 14;
-    if (!confirmInjected && t >= confirmTick) {
-        confirmInjected = 1;
-        g_C1ButtonStateReleased |= 0x20;  /* CTRL_BTN_CIRCLE */
-        printf("[xeno-port][test] XENO_MENU_NAV_TEST=%s: Circle confirm "
-               "at reader tick %d\n",
-               s_xenoMenuEquipActions ? "equip" : "items", t);
-        fflush(stdout);
-    }
-
-    /* TEST TOOLING: Equip — three DOWNs to accessory id 92 (Stamina Ring). */
-    if (s_xenoMenuEquipActions && confirmInjected && !cancelInjected) {
-        static int equipDownArmed = 0;
-        if (!equipDownArmed && t >= confirmTick + 50) {
-            equipDownArmed = 1;
-            s_xenoMenuEquipAccDowns = 3; /* cat 0→1→2→3 → 0x2E2=92 */
-            s_xenoMenuEquipAccDownBase = t;
-        }
-        if (t >= confirmTick + 220) {
-            cancelInjected = 1;
-            g_C1ButtonStateReleased |= 0x40; /* CTRL_BTN_CROSS */
-            printf("[xeno-port][test] XENO_MENU_NAV_TEST=equip: Cross cancel "
-                   "at reader tick %d\n", t);
-            fflush(stdout);
-        }
-    }
-
-    /* N3a-A1a (kind 5): Abilities lifecycle.  Snapshot state at the confirm
-     * that opens the screen, wait for the windows + open animation, cancel,
-     * then re-hash.  A1a is READ-ONLY by construction: the character-stat
-     * writes live in func_801DD790 (A2), which the guard keeps unreached, so
-     * both hashes must come back identical.
-     *
-     * A1b-1 extension: func_801DC3D8 is now real, so rows are flagged for
-     * the first time (0x81 confirmable, 0x01 populated-not-confirmable,
-     * 0x00 absent) and the boundary is BEHAVIOURAL, not structural.  Dump
-     * the flags at open, drive the cursor to the first rejecting row,
-     * confirm there, and show the guard rejects (func_801DD790 must stay at
-     * zero hits -- checked via the absence of its [stub] line in the log). */
-    if (s_xenoMenuPromptNavKind == 5) {
-        extern int g_XenoMenuN3aPhase;
-        extern unsigned char g_XenoMenuN3aRowFlags[];
-        extern unsigned char g_C1Buffer[];
-        static int n3aOpenTick = -1, n3aCancel = 0, n3aDone = 0;
-        static unsigned int n3aCharBefore, n3aInvBefore;
-        static int n3aHashed = 0;
-        static int n3aTarget = -2, n3aNavPressed = 0, n3aRowConfirm = 0;
-
-        if (confirmInjected && !n3aHashed) {
-            n3aHashed = 1;
-            HASH_REGION(n3aCharBefore, 0x26C, 0x70C);
-            HASH_REGION(n3aInvBefore, 0x1D38, 0x578);
-            printf("[xeno-port][test] N3A STATE-BEFORE: characters=%08x "
-                   "inventory=%08x\n", n3aCharBefore, n3aInvBefore);
-            fflush(stdout);
-        }
-        if (g_XenoMenuN3aPhase == 1 && n3aOpenTick < 0) {
-            int i;
-
-            n3aOpenTick = t;
-            printf("[xeno-port][test] N3A OPEN: Abilities settled open at "
-                   "reader tick %d\n", t);
-            printf("[xeno-port][test] N3A ROWFLAGS:");
-            for (i = 0; i < 0xE; i++) {
-                printf(" %02x", g_XenoMenuN3aRowFlags[i]);
-            }
-            printf("\n");
-            /* The boundary row: first cursor-reachable row (0..0xB) that is
-             * not 0x81 -- 0x00 (empty slot) or 0x01 (cost > MP). */
-            n3aTarget = -1;
-            for (i = 0; i < 0xC; i++) {
-                if (g_XenoMenuN3aRowFlags[i] != 0x81) {
-                    n3aTarget = i;
-                    break;
-                }
-            }
-            if (n3aTarget >= 0) {
-                printf("[xeno-port][test] N3A BOUNDARY: rejecting row %d "
-                       "(flags %02x) chosen; driving cursor there\n",
-                       n3aTarget, g_XenoMenuN3aRowFlags[n3aTarget]);
-            } else {
-                /* No rejecting row: prove the guard arithmetically rather
-                 * than reporting a zero that was never exercised. */
-                printf("[xeno-port][test] N3A BOUNDARY: every row is 0x81, "
-                       "no rejecting row exists; asserting the guard "
-                       "condition directly: 0x00&0x80=%d 0x01&0x80=%d "
-                       "(both reject, func_801DD790 gated)\n",
-                       0x00 & 0x80, 0x01 & 0x80);
-            }
-            fflush(stdout);
-        }
-        /* Drive the cursor 0 -> n3aTarget with genuine RIGHT holds (cursor+1
-         * per press, DDF24 case 0), on the 4-tick-hold / 14-tick cadence. */
-        if (n3aOpenTick >= 0 && n3aTarget > 0 && n3aNavPressed < n3aTarget) {
-            int rel = t - (n3aOpenTick + 8) - n3aNavPressed * 14;
-
-            if (rel >= 0 && rel < 4) {
-                g_C1Buffer[0x2] &= (unsigned char)~0x20;  /* DPAD-RIGHT */
-                if (rel == 0) {
-                    printf("[xeno-port][test] N3A BOUNDARY: press RIGHT %d/%d "
-                           "at reader tick %d\n",
-                           n3aNavPressed + 1, n3aTarget, t);
-                    fflush(stdout);
-                }
-            }
-            if (rel == 4) {
-                n3aNavPressed++;
-            }
-        }
-        /* Confirm on the rejecting row: the rowFlags bit-7 guard in DDF24
-         * case 4 must reject, so func_801DD790 must NOT fire. */
-        if (n3aOpenTick >= 0 && n3aTarget >= 0 && !n3aRowConfirm &&
-            n3aNavPressed >= n3aTarget &&
-            t >= n3aOpenTick + 8 + n3aTarget * 14 + 10) {
-            n3aRowConfirm = 1;
-            g_C1ButtonStateReleased |= 0x20;  /* CTRL_BTN_CIRCLE */
-            printf("[xeno-port][test] N3A BOUNDARY: Circle confirm on row %d "
-                   "(flags %02x, bit7=%d) at reader tick %d -- guard must "
-                   "reject, func_801DD790 must NOT fire\n",
-                   n3aTarget, g_XenoMenuN3aRowFlags[n3aTarget],
-                   (g_XenoMenuN3aRowFlags[n3aTarget] & 0x80) ? 1 : 0, t);
-            fflush(stdout);
-        }
-        if (n3aOpenTick >= 0 && !n3aCancel &&
-            ((n3aRowConfirm &&
-              t >= n3aOpenTick + 8 + n3aTarget * 14 + 40) ||
-             (n3aTarget < 0 && t >= n3aOpenTick + 30))) {
-            n3aCancel = 1;
-            g_C1ButtonStateReleased |= 0x40;  /* CTRL_BTN_CROSS */
-            printf("[xeno-port][test] N3A CANCEL: Cross at reader tick %d\n", t);
-            fflush(stdout);
-        }
-        if (g_XenoMenuN3aPhase == 2 && !n3aDone) {
-            unsigned int charAfter, invAfter;
-
-            n3aDone = 1;
-            HASH_REGION(charAfter, 0x26C, 0x70C);
-            HASH_REGION(invAfter, 0x1D38, 0x578);
-            printf("[xeno-port][test] N3A STATE-AFTER: characters=%08x "
-                   "inventory=%08x unchanged=%s\n",
-                   charAfter, invAfter,
-                   (charAfter == n3aCharBefore && invAfter == n3aInvBefore)
-                       ? "yes" : "NO");
-            fflush(stdout);
-        }
-    }
-
-    if (g_XenoMenuN2Phase == 1 && s_xenoMenuItemsOpenTick < 0) {
-        s_xenoMenuItemsOpenTick = t;
-        if (s_xenoMenuReorderActions) {
-            itemPair = PcPort_N2c1ReadItemPair();
-            printf("[xeno-port][test] N2C1 STATE-BEFORE: "
-                   "row0=(ID%u,qty%u) row1=(ID%u,qty%u)\n",
-                   itemPair & 0xFF, (itemPair >> 8) & 0xFF,
-                   (itemPair >> 16) & 0xFF, (itemPair >> 24) & 0xFF);
-            fflush(stdout);
-        }
-        if (s_xenoMenuPromptActions) {
-            if (s_xenoMenuPromptNavKind == 4) {
-                PcPort_N2c4PrintFamilies("BEFORE");
-            }
-            HASH_REGION(characterHashBefore, 0x26C, 0x70C);
-            HASH_REGION(inventoryHashBefore, 0x1F90, 0x12C);
-            printf("[xeno-port][test] N2C2A STATE-BEFORE: "
-                   "inventory=%08x characters=%08x\n",
-                   inventoryHashBefore, characterHashBefore);
-            fflush(stdout);
-        }
-    }
-
-    if (s_xenoMenuReorderActions && s_xenoMenuItemsOpenTick >= 0) {
-        if (!selectInjected && t >= s_xenoMenuItemsOpenTick + 8) {
-            selectInjected = 1;
-            g_C1ButtonStateReleased |= 0x20;  /* CTRL_BTN_CIRCLE */
-            printf("[xeno-port][test] N2C1 REORDER: Circle select row 0 "
-                   "at reader tick %d\n", t);
-            fflush(stdout);
-        }
-        if (!reorderInjected && t >= s_xenoMenuItemsOpenTick + 32) {
-            reorderInjected = 1;
-            g_C1ButtonStateReleased |= 0x20;  /* CTRL_BTN_CIRCLE */
-            printf("[xeno-port][test] N2C1 REORDER: Circle confirm row 1 "
-                   "at reader tick %d\n", t);
-            fflush(stdout);
-        }
-        if (reorderInjected && !reorderObserved) {
-            itemPair = PcPort_N2c1ReadItemPair();
-            if (itemPair == 0x0B010C02U) {
-                reorderObserved = 1;
-                printf("[xeno-port][test] N2C1 STATE-AFTER: "
-                       "row0=(ID%u,qty%u) row1=(ID%u,qty%u)\n",
-                       itemPair & 0xFF, (itemPair >> 8) & 0xFF,
-                       (itemPair >> 16) & 0xFF,
-                       (itemPair >> 24) & 0xFF);
-                fflush(stdout);
-            }
-        }
-    }
-
-    if (s_xenoMenuPromptActions && s_xenoMenuItemsOpenTick >= 0 &&
-        !selectInjected && t >= s_xenoMenuItemsOpenTick + 8) {
-        selectInjected = 1;
-        g_C1ButtonStateReleased |= 0x20;
-        printf("[xeno-port][test] N2C2A PROMPT: Circle select row 0 "
-               "at reader tick %d\n", t);
-        fflush(stdout);
-    }
-    if (s_xenoMenuPromptActions && selectInjected && !promptInjected &&
-        t >= s_xenoMenuItemsOpenTick + 24) {
-        promptInjected = 1;
-        g_C1ButtonStateReleased |= 0x20;
-        printf("[xeno-port][test] N2C2A PROMPT: Circle confirm same row "
-               "at reader tick %d\n", t);
-        fflush(stdout);
-    }
-    if (s_xenoMenuPromptActions && g_XenoMenuN2c2Phase == 1 &&
-        promptTick < 0) {
-        promptTick = t;
-        printf("[xeno-port][test] N2C2A PROMPT-OPEN: default target stable "
-               "at reader tick %d\n", t);
-        fflush(stdout);
-    }
-    /* N2c-3 (kind 3): confirm the default target once; the effect applies,
-     * the quantity hits zero, and DB920's depletion exit auto-closes the
-     * prompt -- no Cross needed at prompt level. */
-    if ((s_xenoMenuPromptNavKind == 3 || s_xenoMenuPromptNavKind == 4) &&
-        promptTick >= 0 &&
-        !promptCancelInjected && t >= promptTick + 10) {
-        extern unsigned char g_GameState[];
-
-        promptCancelInjected = 1;   /* reuse: one prompt-level action only */
-        g_C1ButtonStateReleased |= 0x20;
-        printf("[xeno-port][test] N2C%d USE: Circle target-confirm at reader "
-               "tick %d (before: hp=%d/%d qty=%d id=%d)\n",
-               s_xenoMenuPromptNavKind == 4 ? 4 : 3, t,
-               (int)*(unsigned short*)&g_GameState[0x2B8],
-               (int)*(unsigned short*)&g_GameState[0x2BA],
-               (int)g_GameState[0x1F90], (int)g_GameState[0x2026]);
-        fflush(stdout);
-    }
-    if (s_xenoMenuPromptActions && s_xenoMenuPromptNavKind < 3 &&
-        promptTick >= 0 && !promptCancelInjected &&
-        t >= promptTick + (s_xenoMenuPromptNavKind == 1 ? 115 :
-                           (s_xenoMenuPromptNavKind == 2 ? 55 : 45))) {
-        promptCancelInjected = 1;
-        g_C1ButtonStateReleased |= 0x40;
-        printf("[xeno-port][test] N2C2A PROMPT: Cross cancel "
-               "at reader tick %d\n", t);
-        fflush(stdout);
-    }
-    if (s_xenoMenuPromptActions && g_XenoMenuN2c2Phase == 2 &&
-        !promptObserved) {
-        unsigned int inventoryHashAfter;
-        unsigned int characterHashAfter;
-        HASH_REGION(characterHashAfter, 0x26C, 0x70C);
-        HASH_REGION(inventoryHashAfter, 0x1F90, 0x12C);
-        promptObserved = 1;
-        printf("[xeno-port][test] N2C2A STATE-AFTER: "
-               "inventory=%08x characters=%08x unchanged=%s\n",
-               inventoryHashAfter, characterHashAfter,
-               (inventoryHashAfter == inventoryHashBefore &&
-                characterHashAfter == characterHashBefore) ? "yes" : "NO");
-        fflush(stdout);
-        /* N2c-3: for the item-use mode the hashes are EXPECTED to change --
-         * print the explicit save-state values the proof asserts on. */
-        if (s_xenoMenuPromptNavKind == 4) {
-            extern int g_XenoMenuN2c3SpecialHits;
-
-            PcPort_N2c4PrintFamilies("AFTER");
-            printf("[xeno-port][test] N2C4 AFTER: mag2SpecialHits=%d\n",
-                   g_XenoMenuN2c3SpecialHits);
-            fflush(stdout);
-        }
-        if (s_xenoMenuPromptNavKind == 3) {
-            extern unsigned char g_GameState[];
-            extern int g_XenoMenuN2c3SpecialHits;
-
-            printf("[xeno-port][test] N2C3 AFTER: hp=%d/%d qty=%d id=%d "
-                   "specialDispatchHits=%d\n",
-                   (int)*(unsigned short*)&g_GameState[0x2B8],
-                   (int)*(unsigned short*)&g_GameState[0x2BA],
-                   (int)g_GameState[0x1F90], (int)g_GameState[0x2026],
-                   g_XenoMenuN2c3SpecialHits);
-            fflush(stdout);
-        }
-    }
-
-    if (!cancelInjected && s_xenoMenuItemsOpenTick >= 0 &&
-        ((!s_xenoMenuReorderActions && !s_xenoMenuPromptActions &&
-          t >= s_xenoMenuItemsOpenTick + 45) ||
-         (s_xenoMenuReorderActions && reorderObserved &&
-          t >= s_xenoMenuItemsOpenTick + 60) ||
-         (s_xenoMenuPromptActions && promptObserved &&
-          t >= promptTick + (s_xenoMenuPromptNavKind == 1 ? 145 :
-                             (s_xenoMenuPromptNavKind == 2 ? 85 : 75))))) {
-        cancelInjected = 1;
-        g_C1ButtonStateReleased |= 0x40;  /* CTRL_BTN_CROSS */
-        printf("[xeno-port][test] XENO_MENU_NAV_TEST=%s: Cross cancel "
-               "at reader tick %d\n",
-               s_xenoMenuReorderActions ? "items-reorder" :
-               (s_xenoMenuPromptActions ? "items-prompt" : "items"), t);
-        fflush(stdout);
-    }
-    #undef HASH_REGION
-}
-
 /* TEST TOOLING for the field-step slice (run_field14_step_slice.sh), all
  * keyed to XENO_FIELD_STEP_PAD_INPUT's field-step clock and inert unless set:
  *   XENO_FIELD_STEP_SPU_LOG=<file>  one line per vblank once armed: vblank
@@ -1943,57 +1373,11 @@ void PcPort_PrepareControllerPoll(void)
     }
     PcPort_FieldStepEvidenceOnVblank();
     PcPort_PadOnControl();
-    PcPort_ForcedMenuNav();
-}
-
-/* TEST TOOLING -- XENO_CARD_SCREEN_TEST=back (pc_port/tests/
- * run_title_continue_test.sh).  Once the Save/Load card screen is up
- * (func_801D9F98 sets g_XenoCardScreenActive), retire the XENO_PAD_TEST_INPUT
- * schedule so its Circle pulse train cannot act on the file list, then inject
- * one Cross release (MENU_INPUT_BACK) 90 menu-reader ticks later.  Clocked by
- * reader ticks (game-thread menu frames), not vblanks, so host load cannot
- * land the press on a different screen.  Inert unless the variable is set. */
-static void PcPort_CardScreenTestEdges(void)
-{
-    extern unsigned short g_C1ButtonStateReleased;
-    extern int g_XenoMenuNavReaderTicks;
-    extern int g_XenoCardScreenActive __attribute__((weak));
-    static int armed = -1;
-    static int enterTick = -1;
-    static int backInjected;
-
-    if (armed < 0) {
-        const char* e = getenv("XENO_CARD_SCREEN_TEST");
-        armed = (e != NULL && strcmp(e, "back") == 0);
-    }
-    if (!armed || &g_XenoCardScreenActive == NULL)
-        return;
-    if (!g_XenoCardScreenActive) {
-        enterTick = -1;
-        return;
-    }
-    if (enterTick < 0) {
-        enterTick = g_XenoMenuNavReaderTicks;
-        if (!s_padTestSuppress) {
-            s_padTestSuppress = 1;
-            printf("[xeno-port][test] XENO_CARD_SCREEN_TEST: card screen up "
-                   "at reader tick %d; pad schedule retired\n", enterTick);
-            fflush(stdout);
-        }
-    }
-    if (!backInjected && g_XenoMenuNavReaderTicks >= enterTick + 90) {
-        backInjected = 1;
-        g_C1ButtonStateReleased |= 0x40; /* CTRL_BTN_CROSS */
-        printf("[xeno-port][test] XENO_CARD_SCREEN_TEST: Cross back "
-               "at reader tick %d\n", g_XenoMenuNavReaderTicks);
-        fflush(stdout);
-    }
 }
 
 void PcPort_BeforeControllerPush(void)
 {
-    PcPort_ForcedMenuActionEdges();
-    PcPort_CardScreenTestEdges();
+    /* The preview offers no inventory or card screen for scripted test input. */
 }
 
 /* TEST TOOLING: XENO_DETERMINISTIC_VBLANK=<K> -- a jitter-free

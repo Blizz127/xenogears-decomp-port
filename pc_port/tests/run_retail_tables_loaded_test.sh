@@ -7,7 +7,6 @@
 #   sound.c             D_80050B78 D_80050BF0 D_80050A94 D_800509B0 D_80050824
 #   animation_scripts.c D_8004FC40
 #   memory.c            heap-dump strings D_80059248..D_800592B0
-#   world_map_scheduler s_wm_sched_table_a / _b0 (world_map.bin Tables A, B)
 # For a built xeno-port this checks that
 #   1. every table is a zero-initialised object (.bss) of the retail size,
 #   2. the loader filled it with exactly the retail bytes: the binary runs
@@ -31,20 +30,18 @@ import sys
 from hashlib import sha256
 from pathlib import Path
 dump = Path(sys.argv[1])
-SLUS, WM = 'SLUS_006.64', 'world_map.bin'
-SHA = {SLUS: 'dc0b2dd786203d4cce5927c5a3fc85a18f39a3f7406078860076ebb0bbae7119',
-       WM: '4c15fd32b3a03d7cd5ea4403dcaabc70abaf99b6aaca65d63d6866803edaac70'}
+SLUS = 'SLUS_006.64'
+SHA = {SLUS: 'dc0b2dd786203d4cce5927c5a3fc85a18f39a3f7406078860076ebb0bbae7119'}
 img = {}
 for f, h in SHA.items():
     img[f] = Path('disc', f).read_bytes()
     assert sha256(img[f]).hexdigest() == h, f
 def off(f, v):
-    return 0x800 + v - 0x80010000 if f == SLUS else v - 0x8006FAF0
+    return 0x800 + v - 0x80010000
 TABLES = [('rcossin_tbl', SLUS, 0x800523F0, 0x4000), ('ratan_tbl', SLUS, 0x80057030, 0x802),
           ('D_80050B78', SLUS, 0x80050B78, 120), ('D_80050BF0', SLUS, 0x80050BF0, 6144),
           ('D_80050A94', SLUS, 0x80050A94, 228), ('D_800509B0', SLUS, 0x800509B0, 228),
-          ('D_80050824', SLUS, 0x80050824, 128), ('D_8004FC40', SLUS, 0x8004FC40, 256),
-          ('s_wm_sched_table_a', WM, 0x80099E8C, 120), ('s_wm_sched_table_b0', WM, 0x80099F0C, 8)]
+          ('D_80050824', SLUS, 0x80050824, 128), ('D_8004FC40', SLUS, 0x8004FC40, 256)]
 for name, size in (('D_80059248', 6), ('D_80059250', 5), ('D_80059258', 4), ('D_8005925C', 3),
                    ('D_80059260', 4), ('D_80059264', 2), ('D_80059268', 5), ('D_80059270', 8),
                    ('D_80059278', 8), ('D_80059280', 8), ('D_80059288', 6), ('D_80059290', 8),

@@ -1,8 +1,6 @@
 /* Differential test: host-compiled src/battle/main38.c func_80085EB4
- * vs the retail bytes (asm/battle/nonmatchings/main38/func_80085EB4.s)
- * executed by remu, with the callee loaded as retail code:
- *   asm/battle/matchings/main41/func_80089C6C.s
- * Fails on any behavioral mismatch.
+ * vs the caller's own battle.bin. Both the routine and its callee execute
+ * in remu. Fails on any behavioral mismatch.
  *
  * func_80085EB4(a0, a1): if *(D_800C3EAC+0x2D6) != 0 and (a0&0xFF)==4,
  * scan the 13 D_800C3160 pointer rows for the first whose 7 bytes match
@@ -16,6 +14,7 @@
  * the 89C6C call args on both sides.
  *
  * Build (from repo root):
+ *   # Supply disc/battle.bin or set XENO_BATTLE_FILE to your own extraction.
  *   tools/remu/run_diff.sh diff_80085EB4 src/battle/main38.c
  */
 #include <stdio.h>
@@ -24,33 +23,24 @@
 
 #include "remu.h"
 #include "common.h"
-u32 func_80085EB4(u8 a0, u8 a1);
+u32 func_80085EB4(s32 a0, s32 a1, u8 *work, s32 index);
 
-/* TU externs the test must provide. */
-u8 *D_800C3EAC;
-u32 D_800C3160[13];
-u8 D_800CCD3E[256u * 368u + 1u];
-u8 D_800D2D24[256];
-u32 D_800C31AC[256];
+/* The production TU resolves its named guest aliases through this storage. */
+__attribute__((aligned(16))) u8 g_PsxRam[PSX_RAM_SIZE];
 u8 g_GameState[0x16C0u + 256u * 32u + 2u];
-u16 D_800C3468[16];
 
-/* 89C6C host replica (frozen copy of the matched body) + recorder. */
+/* Record the C call and pass its original arguments to the linked callee. */
 static u32 rec_a0;
 static u8 rec_a1;
 static int rec_n;
-u32 func_80089C6C(u32 a0, u8 a1) {
+u32 __real_func_80089C6C(u32 a0, u8 a1);
+u32 __wrap_func_80089C6C(u32 a0, u8 a1) {
     rec_n++;
     rec_a0 = a0;
     rec_a1 = a1;
-    u32 t = (u32)a1 & 0xFFu;
-    if (t >= 0x10u)
-        return 0;
-    return (u32)D_800C3468[t] & a0;
+    return __real_func_80089C6C(a0, a1);
 }
 
-#define RETAIL_S "asm/battle/nonmatchings/main38/func_80085EB4.s"
-#define RETAIL_89C6C "asm/battle/matchings/main41/func_80089C6C.s"
 #define SCR_BASE 0x801F0400u
 #define SCR_LEN 0x300u
 #define PTRW_BASE 0x800C3EACu
@@ -69,17 +59,9 @@ u32 func_80089C6C(u32 a0, u8 a1) {
 /* D_800D2D24 aliases CCD3E+24550 in guest (later poke wins the overlap) */
 #define D2D24_IN_CCD3E 24550u
 _Static_assert(D2D24_BASE - CCD3E_BASE == D2D24_IN_CCD3E, "d2d24 overlap offset");
-__attribute__((aligned(2))) static u8 h_scr[SCR_LEN];
-__attribute__((aligned(2))) static u8 h_rows[13][8];
+_Alignas(4) static u8 h_rows[13][8];
 __attribute__((aligned(2))) static u8 h_b31[64];
 
-/* jtbl_80070280 contents (asm/battle/data/0.rodata.s). */
-static const uint32_t jtblw[13] = {
-    0x80085F6Cu, 0x80085F70u, 0x80085F74u, 0x80085F78u,
-    0x80085F7Cu, 0x80085F80u, 0x80085F84u, 0x80085F88u,
-    0x80085F8Cu, 0x80085F90u, 0x80085F94u, 0x80085F98u,
-    0x80085F9Cu,
-};
 
 static uint32_t lcg(uint32_t *s) {
     *s = *s * 1103515245u + 12345u;
@@ -116,7 +98,7 @@ static void s32f(u8 *p, u32 v) {
 }
 
 static int check_one(remu_t *m, uint32_t entry, uint32_t seed, uint32_t a0w,
-                     uint32_t a1w, int plan) {
+                     uint32_t a1w, int plan, const u8 table[52]) {
     uint32_t x = seed ^ 0x85EB479u;
     static u8 scr[SCR_LEN];
     static u8 ccd3e[CCD3E_LEN];
@@ -208,7 +190,7 @@ static int check_one(remu_t *m, uint32_t entry, uint32_t seed, uint32_t a0w,
     }
 
     /* host setup */
-    memcpy(h_scr, scr, SCR_LEN);
+    memcpy(PSX_ADDR(SCR_BASE), scr, SCR_LEN);
     memcpy(h_rows, rows, sizeof h_rows);
     for (int i = 0; i < 13; i++)
         D_800C3160[i] = (u32)(uintptr_t)h_rows[i];
@@ -220,9 +202,9 @@ static int check_one(remu_t *m, uint32_t entry, uint32_t seed, uint32_t a0w,
         h_b31[i] = (u8)((i * 37u + 11u) & 0xFFu);
     memcpy(g_GameState, gs, GS_LEN);
     memcpy(D_800C3468, t3468, sizeof t3468);
-    D_800C3EAC = h_scr;
+    *(u32 *)PSX_ADDR(PTRW_BASE) = SCR_BASE;
     rec_n = 0;
-    u32 hret = func_80085EB4((u8)A0, (u8)V1);
+    u32 hret = func_80085EB4((s32)A0, (s32)V1, NULL, 0);
     if (hret != mret) {
         printf("FAIL seed=%08X host ret=%u want=%u\n", seed, hret, mret);
         return 0;
@@ -275,16 +257,8 @@ static int check_one(remu_t *m, uint32_t entry, uint32_t seed, uint32_t a0w,
         }
         if (remu_poke(m, T3468_BASE, t48, 32)) { printf("FAIL poke t3468\n"); return 0; }
     }
-    {
-        u8 jw[52];
-        for (int i = 0; i < 13; i++) {
-            jw[4 * i] = (u8)(jtblw[i] & 0xFFu);
-            jw[4 * i + 1] = (u8)((jtblw[i] >> 8) & 0xFFu);
-            jw[4 * i + 2] = (u8)((jtblw[i] >> 16) & 0xFFu);
-            jw[4 * i + 3] = (u8)((jtblw[i] >> 24) & 0xFFu);
-        }
-        if (remu_poke(m, JTBL_BASE, jw, sizeof jw)) { printf("FAIL poke jtbl\n"); return 0; }
-    }
+
+    if (remu_poke(m, JTBL_BASE, table, 52u)) { printf("FAIL poke dispatch table\n"); return 0; }
 
     /* retail side: 89C6C loaded, zero stubs expected */
     int rc = remu_call(m, entry, A0, a1w, 0, 0);
@@ -330,15 +304,25 @@ static int check_one(remu_t *m, uint32_t entry, uint32_t seed, uint32_t a0w,
 }
 
 int main(void) {
-    if (((uintptr_t)h_rows & 3u) != 0) {
+    if (((uintptr_t)h_rows & 3u) != 0 || (uintptr_t)h_rows > UINT32_MAX ||
+        (uintptr_t)(h_b31 + 12) > UINT32_MAX) {
         printf("FAIL host layout\n");
         return 1;
     }
     remu_t *m = remu_create();
     if (!m) { printf("FAIL create\n"); return 1; }
-    uint32_t entry = remu_load_s(m, RETAIL_S);
-    if (entry != 0x80085EB4u) { printf("FAIL load entry=%08X\n", entry); return 1; }
-    if (remu_load_s(m, RETAIL_89C6C) != 0x80089C6Cu) { printf("FAIL load 89c6c\n"); return 1; }
+    const uint32_t entry = 0x80085EB4u;
+    if (remu_load_battle_slice(m, entry, 372u, 1) ||
+        remu_load_battle_slice(m, JTBL_BASE, 52u, 0)) {
+        fputs("FAIL loading owned battle function or dispatch table\n", stderr);
+        return 1;
+    }
+    if (remu_load_battle_slice(m, 0x80089C6Cu, 48u, 1)) {
+        fputs("FAIL loading owned battle callee\n", stderr);
+        return 1;
+    }
+    u8 table[52];
+    if (remu_peek(m, JTBL_BASE, table, sizeof table)) return 1;
     static const uint32_t a1s[] = { 0, 1, 15, 16, 17, 100, 255, 0xFFFFFFFFu };
     uint32_t s = 0x85EB1234u;
     int n = 0;
@@ -346,7 +330,7 @@ int main(void) {
         for (int k = 0; k < 32; k++) {
             s = s * 1103515245u + 12345u;
             uint32_t a0w = ((k & 1) ? 4u : 0xCD00u | (s & 0xFFu)) ^ ((k & 2) ? 0x100u : 0u);
-            if (!check_one(m, entry, s, a0w, a1s[i], (int)(i * 32u + (uint32_t)k)))
+            if (!check_one(m, entry, s, a0w, a1s[i], (int)(i * 32u + (uint32_t)k), table))
                 return 1;
             n++;
         }

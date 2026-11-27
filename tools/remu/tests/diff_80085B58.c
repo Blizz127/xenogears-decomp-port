@@ -220,13 +220,23 @@ void func_800BE538(u8 a0, u32 a1, u32 a2, u32 a3) {
     be_r_a3 = a3;
 }
 
-/* jtbl_80070250 contents (asm/battle/data/0.rodata.s), poked (remu starts
- * zeroed, and the dispatch reads the real table). */
-static const uint32_t jtblw[12] = {
-    0x8008570Cu, 0x80085908u, 0x8008583Cu, 0x80085954u,
-    0x80085A70u, 0x8008570Cu, 0x80085A70u, 0x8008570Cu,
-    0x8008570Cu, 0x80085908u, 0x800859CCu, 0x80085A18u,
-};
+/* The emulator starts with empty RAM. Reuse the table from the same
+ * extracted battle overlay as the retail code, preserving its byte order. */
+static uint8_t jump_table[12 * sizeof(uint32_t)];
+
+static int read_jump_table(void) {
+    FILE *image = fopen("disc/battle.bin", "rb");
+    if (!image) {
+        perror("disc/battle.bin");
+        return 0;
+    }
+    const long offset = JTBL_BASE - 0x8006FAF0u;
+    int ok = fseek(image, offset, SEEK_SET) == 0 &&
+             fread(jump_table, 1, sizeof(jump_table), image) == sizeof(jump_table);
+    if (fclose(image) != 0) ok = 0;
+    if (!ok) fprintf(stderr, "FAIL reading jump table from disc/battle.bin\n");
+    return ok;
+}
 
 #define RETAIL_85B58 "asm/battle/nonmatchings/main36/func_80085B58.s"
 #define RETAIL_85618 "asm/battle/nonmatchings/main36/func_80085618.s"
@@ -364,15 +374,9 @@ static int check_one(remu_t *m, uint32_t entry, uint32_t seed, uint32_t a0w,
         }
         if (remu_poke(m, T48_BASE, p48, T48_LEN)) { printf("FAIL poke t48\n"); return 0; }
     }
-    {
-        u8 jw[48];
-        for (int j = 0; j < 12; j++) {
-            jw[4 * j] = (u8)(jtblw[j] & 0xFFu);
-            jw[4 * j + 1] = (u8)((jtblw[j] >> 8) & 0xFFu);
-            jw[4 * j + 2] = (u8)((jtblw[j] >> 16) & 0xFFu);
-            jw[4 * j + 3] = (u8)((jtblw[j] >> 24) & 0xFFu);
-        }
-        if (remu_poke(m, JTBL_BASE, jw, sizeof(jw))) { printf("FAIL poke jtbl\n"); return 0; }
+    if (remu_poke(m, JTBL_BASE, jump_table, sizeof(jump_table))) {
+        printf("FAIL poke jtbl\n");
+        return 0;
     }
     if (remu_poke(m, T34_BASE, t34, T34_LEN)) { printf("FAIL poke t34\n"); return 0; }
     {
@@ -553,6 +557,7 @@ static int check_one(remu_t *m, uint32_t entry, uint32_t seed, uint32_t a0w,
 }
 
 int main(void) {
+    if (!read_jump_table()) return 1;
     if (((uintptr_t)H_S1 & 3u) != 0 || ((uintptr_t)H_CCD & 3u) != 0 ||
         H_CCD != H_S1 + S1_LIVE ||
         D_800C3EB4 != H_S1 + 0 || D_800C3FE8 != H_S1 + S1_C3FE8 ||

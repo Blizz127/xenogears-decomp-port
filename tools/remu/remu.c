@@ -1,6 +1,6 @@
 /* remu: tiny MIPS-I (R3000 integer subset) emulator for retail-oracle testing.
  *
- * Purpose: execute RETAIL bytes (parsed from splat .s disassembly comments)
+ * Purpose: execute bytes from owned overlays or local splat .s listings
  * so a transcribed C function can be diffed against real retail behavior
  * without needing the retail cc1 toolchain.
  *
@@ -91,7 +91,7 @@ int remu_peek(remu_t *m, uint32_t addr, void *data, uint32_t len) {
 }
 
 /* Parse one splat .s function file: lines look like
- *     / * 486CC 800B81BC E0FFBD27 * /  addiu $sp, $sp, -0x20
+ *     / * 000000 80100000 00000000 * /  nop
  * (comment = romoff vram opcode). Loads words at vram. Returns entry vram
  * (address of `glabel name`) or 0 on parse failure. Extra dep files can be
  * appended with remu_load_s again; ranges accumulate for stub detection. */
@@ -131,6 +131,37 @@ uint32_t remu_load_s(remu_t *m, const char *path) {
         m->nranges++;
     }
     return entry;
+}
+
+/* Load code or initial data from the caller's extracted US Disc 1 overlay.
+ * Only the requested instruction range is registered for branch detection. */
+int remu_load_battle_slice(remu_t *m, uint32_t addr, uint32_t len, int is_code) {
+    const uint32_t base = 0x8006FAF0u;
+    const uint32_t file_size = 343936u;
+    const char *path = getenv("XENO_BATTLE_FILE");
+    uint32_t offset = addr - base;
+    if (!len || addr < base || offset >= file_size || len > file_size - offset)
+        return -1;
+    if (is_code && ((addr | len) % 4u || m->nranges == 512))
+        return -1;
+    if (!path || !*path) path = "disc/battle.bin";
+    FILE *fp = fopen(path, "rb");
+    if (!fp) return -1;
+    /* Reading into a separate buffer keeps a missing/truncated slice from
+     * changing emulated RAM or registering an invalid entry point. */
+    uint8_t *bytes = malloc(len);
+    int ok = bytes && fseek(fp, 0, SEEK_END) == 0 &&
+             ftell(fp) == (long)file_size && fseek(fp, (long)offset, SEEK_SET) == 0 &&
+             fread(bytes, 1, len, fp) == len;
+    fclose(fp);
+    if (ok) ok = remu_poke(m, addr, bytes, len) == 0;
+    free(bytes);
+    if (!ok) return -1;
+    if (is_code) {
+        m->code_lo[m->nranges] = addr;
+        m->code_hi[m->nranges++] = addr + len;
+    }
+    return 0;
 }
 
 static int in_code(remu_t *m, uint32_t pc) {

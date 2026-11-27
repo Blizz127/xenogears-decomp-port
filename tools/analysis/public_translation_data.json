@@ -1,0 +1,112 @@
+{
+  "compared_words": "04b9dd139cafed24540eb5fc1d5cef2272e006fd06ff5ec934fbbef7c6b104a0",
+  "controller_masks": "04e75e11925a09017373964842c2fc90e2c7838f188fd69bb5e249cee73703fa",
+  "listing_examples": {
+    "329fc98d66e651274deb9320e120aeba736f3af79a3fad02498d51142832adca": "remu parser example"
+  },
+  "mutation_text": {
+    "116c30cd70ea134cc7e442a2f7ef748fdee4fedd78fc1e0fdabfd8f2a522f2f6": "0x800b0044",
+    "3fd702342287dcdfdd9126271fc9e6c09f7f7b0039cbe83c4bb488aafb2f7419": "0x800ae9f0",
+    "7376045afa707c963be8c37dcb93d73770e2e1ab183328863c1ce7f9198240af": "0x800aee58",
+    "9aa7f830e8fc11cfd181511d8ec1ccfbf5947e0de5f75d12e1fa2b007dbd2457": "0x800a101c",
+    "dc6b73fe5e5ae2a5e5ef356a89bce12628ec61b34d5304823789d5e3d322c363": "0x800aadd8",
+    "e28ff07b6ffe42853bc9cace4358fdee4f45cd74b9ddc4656fdb2f53fde06655": "0x8009f040",
+    "e318bbd2551d9a99a27bcb91f04d41deffaa7ee339a04eefc6623652e9dcf4ae": "0x8009f2cc"
+  },
+  "opcode_lengths": "a81cd76f1ebf52d7bf6c3c45bf3a2926b1b9cd78044bf4c5f4b50ac7d5e05adb",
+  "renderer_comments": [
+    "0f732771dd699fc3a8d587ab5d28d7de1ace4f88345bb846267c4a8153966d3e",
+    "24c9e9cbdc4fe5a5ffaff32dbf4c7ec113c59c08064d24cff9d12b30a8053457",
+    "25871e77b27738d069b1e110321878fbe0c7a6c8f52aa4eb15b3fc8bfd63ae84",
+    "29700e563355716b99b624be9e9a86c3d4a1a538774b24f5e4b3580f803e7af2",
+    "3012e9207e4f410761b4deedfd9fed6f263a6907bba21f5d834982edd904cd2f",
+    "3052121f05535e6f7ac4b14220fd07f96f955b14907bb16527fd1eb37b435cf2",
+    "317c7bb223bfb50e1eadd3a1cdaeb6b01f9d827f1e3dd2a98192bbff85ad5c01",
+    "430656f7fe7ebbe5830291f6b48143c8e733ed810cedbf09c12cadf5bf18e57c",
+    "43f0933581bb07e024aa4cf6a125c6ff4fc186e3d1f4c85e4ee75b63dff40ef9",
+    "4df638bc18a10b54b46c633af9a74af5ad9dacef7908206a1f3a2cefcb811011",
+    "57a0f5d15f42cb3ac76c6861c45ca83bf9ae1a1f3d60252c600f686fca2f1010",
+    "5a4c4161f6ef41d681a6c399beda56379012c7733d027fc5cecd1d33946bb95c",
+    "5b7502d06e1545473ac75805c22fdacdae94a52ecd712d888cc63053419a44aa",
+    "65162b1c8e7895e6366bc2796c9248bb7c5756482eb259b42f7f228fd6dc0cec",
+    "6e0401e7b18fb64a7859d4fd0e0bead9d8b2901009c03408eda5017260629ffe",
+    "760cc5dcc87f0c2bcb4d1dfc5f225821b69148f136fec3a8f3f4751f17b445e4",
+    "7715d7fe5c6d71e776efab812590cf38fade2a664f928e5fddf00b09ed68b075",
+    "78553d05d8d2b7c5da3951be0108e50eceead84aab28dc1dd38d62c46e28f92e",
+    "7a0598803d697bc6207d67724a8ce3f6b741ce559dcf68bffb7a8b2b6056b608",
+    "86743069f4c5917eed212f7207f43e10b7ad03aa59500ed97c823db11d876dd3",
+    "87946e03b9fc1dfcb38e7e7dbbf2b3ad37887de90f7b7269c0ccde75b05f0f2c",
+    "8f24e43b905ecf10f14bfad9f64835b7635cb77d78f260bbb76b97c12dee5cfb",
+    "95026d789fb9431fe3b7714c280f5258f5c4e4db55a67432b9a3f04f924955d7",
+    "97b6c76971ba3d476877670872c98128ce4f546f28391ef5679a199e4b5a0e4e",
+    "aac2fa2e08a4de35756a3a3f8575ba940dcbffbd272123b18a70306ef43b0d29",
+    "ab174768f7781123b64bb3dd6133d33b0bc787de57b2e2bf0c42de94fec8bd92",
+    "bddf480f4cc81a8b1104c04eb8a46b8d9516cae4e484bcc42bd38405a8194f38",
+    "c66b440ec54afaf5fd40a2fe16f2c9153321ef4b3a5749d257695a0c7399a3a4",
+    "d0820df50a7dd2fe06436944277e735c6e2a98c63b1f76a2a96e106b481e9d4b",
+    "dd0b783095a143af483ea1ac46eb4c4ef9e11319b0549d8698214227e58ab8af",
+    "e06605439f197dbddec581b8a1fe9a7a445a84733dc5a4f42fc85bae05d11820",
+    "eaa9a9655ea8f51e7b4564a973e631e50d6d46effc7cdc033e969e1af3ad9438",
+    "ec2c54fe3135a866025840b31fb527b378bd17fbb1282ca0164a572aa5834bea",
+    "ecdf4fa362d7e2b97d19f248bdb302caea87c43a46f88d406e33b0fadeaebf66",
+    "f5b47eff9e54ef77cc005bb90aca7b0413771dc07ff913e6931d5aaa3160cbbd"
+  ],
+  "spans": {
+    "04e75e11925a09017373964842c2fc90e2c7838f188fd69bb5e249cee73703fa": {
+      "label": "controller button mask table",
+      "length": 16
+    },
+    "0ad8d50e4341af2635650f73f9451eddb66a81d6be6faf37afc4b2573ed44230": {
+      "label": "w34n71_mode14_scripted_sequence_prod_test.c at 0x2a960",
+      "length": 24
+    },
+    "27abfb3f36d3febf0e2515af33f1a5c52fe7f4b6afa9e90be4880dcff26f11b4": {
+      "label": "w34n71_mode14_scripted_sequence_prod_test.c at 0x2a97c",
+      "length": 24
+    },
+    "58604282a931f9b2d81273690b83667ace5480681da83aa1606a9a4669de4f72": {
+      "label": "world-map direction x column",
+      "length": 64
+    },
+    "645f48f0d15b045517598c75b12add4c8c8c190fcf1940b249cbf2327a38c712": {
+      "label": "world-map direction z column",
+      "length": 64
+    },
+    "718350c853084e59899449f30030f8ed59a52a5c7bd59558267558e90287aea2": {
+      "label": "w34b22_a2_94060_prod_test.c at 0x2bfd8",
+      "length": 128
+    },
+    "8761d6d1eb08bbd884e3468678b0ec93c6b5a16f03695915aa0a1c9f16686d71": {
+      "label": "world-map scheduler full instruction sequence",
+      "length": 252
+    },
+    "9e5a3f3b88ff7a01be630654d1d5696158994e5c6e900b04bef7c51cc5116bb6": {
+      "label": "run_sprite_dispatch_bc22_retail_test.sh at 0x10c9c",
+      "length": 16
+    },
+    "a9a23e3043c962442cbdfd25fd65052663d627637c77c80f7771c337904e6384": {
+      "label": "diff_80079ED8.c at 0x8c",
+      "length": 96
+    },
+    "b40724257fa5cd9734805c3d0464b1fef11fc203de9837bcbb380bf95c36f176": {
+      "label": "w34b22_a2_94060_prod_test.c at 0x24570",
+      "length": 40
+    },
+    "b808f61da81b6364245e097342ccdb73badba60bb58e1eff3cdd6814422430ec": {
+      "label": "diff_8007A280.c at 0xec",
+      "length": 96
+    },
+    "d5e63e5743aa5a730191af92860eabca5b468a3c34d3c441838ce3055d8a5c21": {
+      "label": "run_battle_encounter_alias_test.sh at 0x1640",
+      "length": 40
+    },
+    "d9c928bbf4b302b1b80099543264ede3dc9556728be703a70738775f1c72ea1b": {
+      "label": "diff_80085EB4.c at 0x790",
+      "length": 52
+    },
+    "f082c48aadb535cf17202501b97d36df5f30688c9ecdaac5f5fc41f66b197893": {
+      "label": "w34b19b_80071488_prod_test.c at 0x1998",
+      "length": 8
+    }
+  }
+}

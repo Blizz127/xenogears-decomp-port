@@ -1,6 +1,9 @@
 #ifndef XENO_FIELD_TIMED_COMMANDS_H
 #define XENO_FIELD_TIMED_COMMANDS_H
 #include <stdint.h>
+
+enum { FIELD_TIMED_EVENT_5_SIZE = 8 };
+
 /* Exact E5D44 control/data flow, with CPU provenance made mandatory.
  * inheritedStack50 is the halfword at retail entry SP-0x38, not a mode
  * invented by the port. retailObjectAddress supplies E0A00's incoming s1.

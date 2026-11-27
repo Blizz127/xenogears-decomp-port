@@ -351,7 +351,7 @@ void func_801CB28C(int p) {
 void* func_801E4D10(int a, int b) { spy(S_E4D10, (uint32_t)a, (uint32_t)b, 0, 0, 0, 0, 0); return NULL; }
 /* directory enumeration (firstfile/nextfile) and BIOS event/status calls */
 static unsigned ff_run;
-static const char* const FFN[] = { "BASLUS-00664A1", "BASLUS-00664A2", "BASLUS-00664B", "Q", "", "BASLUS-006640Xeno", "BASLUS-00664A1" };
+static const char* const FFN[] = { "QADEMO-00001A1", "QADEMO-00001A2", "QADEMO-00001B", "Q", "", "QADEMO-000010Xeno", "QADEMO-00001A1" };
 static void ff_fill(uint8_t* e, uint32_t idx) {
     const char* nm = FFN[(idx * 5u + fidx[S_FIRSTFILE] * 3u) % 7u];
     memset(e, 0, 20);
@@ -732,8 +732,8 @@ static void put_str(uint32_t cardoff, const char* s) {
     for (size_t i = 0; i < n; i++) *cardb_r(cardoff + (uint32_t)i) = (uint8_t)s[i];
     *cardb_r(cardoff + (uint32_t)n) = 0;
 }
-static const char* const NAMES[] = { "BASLUS-00664A1", "BASLUS-00664A2", "BASLUS-00664B", "Q", "", "BASLUS-006640Xeno", "BASLUS-00664A1" };
-static const char* const CODES[] = { "BASLUS-00664", "BASLUS-00665", "BESLES-01000", "X" };
+static const char* const NAMES[] = { "QADEMO-00001A1", "QADEMO-00001A2", "QADEMO-00001B", "Q", "", "QADEMO-000010Xeno", "QADEMO-00001A1" };
+static const char* const CODES[] = { "QADEMO-00001", "QADEMO-00002", "QAFILE-01000", "X" };
 static void put_str_ram(uint32_t addr, const char* s) {
     size_t n = strlen(s);
     for (size_t i = 0; i <= n; i++) w8(addr + (uint32_t)i, (uint8_t)s[i]);
@@ -843,7 +843,7 @@ static void g_8CA4(Args* a) {
     io_state();
 }
 static void g_9038(Args* a) {
-    static const char* const paths[] = { "bu00:BASLUS-00664A1", "bu10:BASLUS-00664A2", "bu00:" };
+    static const char* const paths[] = { "bu00:QADEMO-00001A1", "bu10:QADEMO-00001A2", "bu00:" };
     a->a0 = SLOT + 0x10; a->a1 = PAYLOAD + 0x200 * rnd_range(8);
     put_str_ram(SLOT + 0x10, paths[rnd_range(3)]);
     io_state();

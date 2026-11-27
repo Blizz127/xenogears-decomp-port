@@ -20,7 +20,6 @@ pc_port/.clinerules
 captures/
 .env.local
 Xenogears (PC port).log
-xenogears-decomp-ai
 
 # User mods (replacement assets may be derived from the disc): never commit
 /mods/

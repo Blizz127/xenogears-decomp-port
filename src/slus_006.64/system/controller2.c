@@ -67,7 +67,7 @@ void func_80035E44(void) {
 
 /* Debug: dumps a VRAM rectangle to a 16bpp TIM file on the dev PC. */
 extern int PCcreate(char* name, int mode);
-extern int PCwrite(int fd, char* buf, int len);
+extern int PCwrite(int, char*, int);
 extern int PCclose(int fd);
 
 typedef struct {

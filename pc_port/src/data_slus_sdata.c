@@ -109,18 +109,15 @@ unsigned char D_800591A8[4] __attribute__((aligned(8)));
 unsigned char D_800591B8[12] __attribute__((aligned(8)));
 
 /* D_8004FA9C: PSX 0x8004FA9C (sdata), 7 guest pointers at file offset 0x4029C.
- * Retail values: 0x8004F39C, 0x8004F49C, 0x8004F59C, 0x8004F69C, 0x8004F79C, 0x8004F89C, 0x8004F99C. Stored as host pointers into g_PsxRam so native
- * readers (which dereference the table) get valid host addresses. */
+ * The disc loader resolves guest pointers into g_PsxRam for native readers. */
 void* D_8004FA9C[7] __attribute__((aligned(8)));
 
 /* D_80050110: PSX 0x80050110 (sdata), 12 guest pointers at file offset 0x40910.
- * Retail values: 0x80059224, 0x8005921C, 0x80059214, 0x8005920C, 0x80059204, 0x800591FC, 0x800591F4, 0x800591EC, 0x800591E4, 0x800591DC, 0x800591D4, 0x800591CC. Stored as host pointers into g_PsxRam so native
- * readers (which dereference the table) get valid host addresses. */
+ * The disc loader resolves guest pointers into g_PsxRam for native readers. */
 void* D_80050110[12] __attribute__((aligned(8)));
 
 /* g_HeapContentTypeNames: PSX 0x80050140 (sdata), 20 guest pointers at file offset 0x40940.
- * Retail values: 0x80059244, 0x80018A4C, 0x80018A40, 0x80018A34, 0x80018A28, 0x80018A1C, 0x80018A10, 0x80018A04, 0x800189F8, 0x800189EC, 0x8005923C, 0x800189E0, 0x800189D4, 0x800189C8, 0x800189BC, 0x80059234, 0x800189B0, 0x800189A4, 0x8005922C, 0x80018998. Stored as host pointers into g_PsxRam so native
- * readers (which dereference the table) get valid host addresses. */
+ * The disc loader resolves guest pointers into g_PsxRam for native readers. */
 void* g_HeapContentTypeNames[20] __attribute__((aligned(8)));
 
 /* End of generated retail .sdata data. */
@@ -153,7 +150,12 @@ _Static_assert(sizeof(g_MenuDebugEnabled) == 0x4, "g_MenuDebugEnabled size");
 _Static_assert(sizeof(D_800591A8) == 0x4, "D_800591A8 size");
 _Static_assert(sizeof(D_800591B8) == 0xC, "D_800591B8 size");
 
+unsigned char D_800591B0;
+int D_80056414;
+_Static_assert(sizeof(D_80056414) == 4, "pad lifecycle flag width");
 XENO_RETAIL_DATA_BEGIN(slus_sdata)
+    XENO_RD(D_800591B0, XENO_RD_SLUS, XENO_RD_SLUS_OFF(0x800591B0u), sizeof(D_800591B0)),
+    XENO_RD(D_80056414, XENO_RD_SLUS, XENO_RD_SLUS_OFF(0x80056414u), sizeof(D_80056414)),
     XENO_RD(D_8004F0C0, XENO_RD_SLUS, XENO_RD_SLUS_OFF(0x8004F0C0u), 0x1FC),
     XENO_RD(g_KernelMenuCurChoice, XENO_RD_SLUS, XENO_RD_SLUS_OFF(0x8004F2D8u), 0x1C),
     XENO_RD(D_8004F364, XENO_RD_SLUS, XENO_RD_SLUS_OFF(0x8004F364u), 0x4),

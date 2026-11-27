@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
-# W34N128: the world map's decomp-named trig calls must return what the retail
-# entry points return (0x8003F8B0 = sine, 0x8003F8CC = cosine).  Links the real
-# PsyCross LIBGTE.C; the oracle is the retail code/table from the user's disc.
+# Compare renderer trig with two guest entries in the owner's SLUS executable.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
-OUT=$(mktemp -d /tmp/w34n128.XXXXXX)
+printf '%s  %s\n' dc0b2dd786203d4cce5927c5a3fc85a18f39a3f7406078860076ebb0bbae7119 \
+    disc/SLUS_006.64 | sha256sum --check -
+export XENO_DATA_DIR="$PWD/disc"
+export XENO_SLUS="$PWD/disc/SLUS_006.64"
+export XENO_RETAIL_DATA_OPTIONAL=0
+OUT=$(mktemp -d "${TMPDIR:-/tmp}/w34n128.XXXXXX")
 trap 'rm -rf "$OUT"' EXIT
 common=(-fno-pie -DUSE_EXTENDED_PRIM_POINTERS=0 -ffunction-sections -fdata-sections
     -Ipc_port/extern/PsyCross/include -Ipc_port/extern/PsyCross/include/psx)
@@ -23,10 +26,11 @@ build() {
 }
 build pass
 "$OUT/pass"
-build mutant -DW34N128_MUTANT_CONVENTIONAL
-if "$OUT/mutant" > "$OUT/mutant.log" 2>&1; then
-    echo "W34N128 FAIL: the conventional-trig mutant survived" >&2; exit 1
+build swapped -DW34N128_SWAP_RENDERER_RESULTS
+status=0
+"$OUT/swapped" > "$OUT/swapped.log" 2>&1 || status=$?
+if [[ $status != 1 ]] || ! grep -Fq 'W34N128 FAIL angle=' "$OUT/swapped.log"; then
+    echo "W34N128 FAIL: swapped sine/cosine did not trigger a comparison failure" >&2
+    exit 1
 fi
-grep -q "W34N128 FAIL" "$OUT/mutant.log"
-echo "W34N128 negative control PASS: conventional PsyCross rcos/rsin under the decomp names is rejected"
-echo "W34N128 RETAIL TRIG PASS"
+echo "W34N128 PASS: swapped renderer sine/cosine results were detected"

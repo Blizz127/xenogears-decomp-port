@@ -29,10 +29,10 @@
 
 extern int Vsync(int mode);
 extern void PcPort_PadVblankPump(void);
-extern int EnterCriticalSection(void);
-extern void ExitCriticalSection(void);
-extern void SwEnterCriticalSection(void);
-extern void SwExitCriticalSection(void);
+int EnterCriticalSection(void);
+void ExitCriticalSection(void);
+void SwEnterCriticalSection(void);
+void SwExitCriticalSection(void);
 int32_t D_80059488, D_80010000 = -1, D_80059390;
 uint8_t D_800501F8, D_80059370, D_80059418, D_80059420, D_80059484;
 uint8_t D_8005A1BC[16];
@@ -109,6 +109,30 @@ unsigned char D_800B21D0;
 int g_GameSceneMapNum;
 void func_8001B970(void) {}
 
+/* No optional pad script, checkpoint UI transition or GPU tracing is active
+ * while this fixture measures presentation, IRQ masking and tick delivery. */
+void *g_pSoundSpuRegisters;
+int g_xeno_swap_index;
+int PsyX_GpuTraceOn(void) { return 0; }
+int PcPort_QuickCheckpointFieldIsActive(void) { return 0; }
+int PcPort_QuickCheckpointGetUiState(void) { return 0; }
+void PcPort_QuickCheckpointRequestSave(void) { abort(); }
+void PcPort_QuickCheckpointRequestLoad(void) { abort(); }
+int PcPort_FieldStepPadArmedStep(unsigned *step)
+{
+    *step = 0;
+    return 0;
+}
+int PcPort_FieldStepPadApply(unsigned char *pad,
+                            unsigned short (*to_physical)(unsigned short),
+                            int map)
+{
+    (void)pad;
+    (void)to_physical;
+    (void)map;
+    return 0;
+}
+
 void PcPort_FieldCaptureOnVsync(void)
 {
 }
@@ -143,9 +167,9 @@ int D_800ADB64;
 int D_800ADB68;
 unsigned char g_GameState[0x8000];
 unsigned char g_C1Buffer[4];
-/* Controller remap tables read by the pad test injector (identity layout). */
-unsigned char g_ControllerButtonMappings[8] = { 0, 1, 2, 3, 4, 5, 6, 7 };
-unsigned short g_ControllerButtonMasks[8] = { 0x20, 0x40, 0x10, 0x80, 0x04, 0x01, 0x08, 0x02 };
+/* The pad-script hook is idle in this test. No buttons are mapped. */
+unsigned char g_ControllerButtonMappings[8];
+unsigned short g_ControllerButtonMasks[8];
 int g_XenoMenuNavReaderTicks;
 int g_XenoMenuN2Phase;
 int g_XenoMenuN2c2Phase;

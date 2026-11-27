@@ -4,6 +4,10 @@
 #include "psyq/libcd.h"
 #ifdef XENO_PC_PORT
 #include <stdint.h>
+/* These optional services exist when the host file-backed archive is linked. */
+extern int PcPort_ArchiveBootWdsFence(int mode, int *result) __attribute__((weak));
+extern int PcPort_ArchiveBootWdsOwned(void) __attribute__((weak));
+void ArchiveCdDataSync(int mode);
 #endif
 
 // Temp
@@ -117,7 +121,11 @@ int ArchiveGetArchiveOffsetIndices(int* alignedIndex, int* remainder) {
     return g_CurArchiveOffset;
 }
 
+#ifdef XENO_PC_PORT
+int ArchiveGetDiscNumber(void) {
+#else
 unsigned short ArchiveGetDiscNumber(void) {
+#endif
     return *((unsigned short*)(g_ArchiveHeader + 0x78));
 }
 
@@ -189,6 +197,10 @@ int ArchiveGetCurFileSize(void) {
 int ArchiveDataSync(void) {
     int nResult;
 
+#ifdef XENO_PC_PORT
+    if (PcPort_ArchiveBootWdsFence && PcPort_ArchiveBootWdsFence(1, &nResult))
+        return nResult;
+#endif
     nResult = D_8004FDFC;
     if (nResult == 0) {
         if (g_ArchiveDebugTable == NULL && CdDataSync(1)) {
@@ -329,6 +341,27 @@ int func_80028A18(int entryIndex) {
 
 // Possible start of archive2.c
 
+#ifdef XENO_PC_PORT
+int PcPort_ArchiveCdDataSyncStatus(int mode)
+{
+    int status;
+    if (PcPort_ArchiveBootWdsFence && PcPort_ArchiveBootWdsFence(mode, &status))
+        return status;
+    if (mode == 0) {
+        extern void PcPort_ArchivePollTransport(void);
+        do {
+            PcPort_ArchivePollTransport();
+            status = ArchiveDataSync();
+        } while (status > 0);
+    }
+    return ArchiveDataSync();
+}
+
+void ArchiveCdDataSync(int mode)
+{
+    (void)PcPort_ArchiveCdDataSyncStatus(mode);
+}
+#else
 void ArchiveCdDataSync(int mode) {
     int nResult;
 
@@ -345,6 +378,7 @@ void ArchiveCdDataSync(int mode) {
     }
     ArchiveDataSync();
 }
+#endif
 
 void* ArchiveChangeStreamingFile(void* pStreamFile) {
     void* pPrevStreamFile;
@@ -828,6 +862,10 @@ s32 func_800294B4(void* pSlot) {
 }
 
 s32 ArchiveReadFileFromCdSector(s32 sector, void* pDestBuffer, s32 fileSize, s32 arg3, u32 flags) {
+#ifdef XENO_PC_PORT
+    if (PcPort_ArchiveBootWdsOwned && PcPort_ArchiveBootWdsOwned())
+        return ARCHIVE_READ_RETRY;
+#endif
     if (g_ArchiveDebugTable) {
         return -1;
     }
@@ -839,6 +877,10 @@ s32 ArchiveReadFileFromCdSector(s32 sector, void* pDestBuffer, s32 fileSize, s32
 }
 
 s32 ArchiveReadFileToBuffer(s32 index, void* pBuffer, u32 arg2, u32 flags) {
+#ifdef XENO_PC_PORT
+    if (PcPort_ArchiveBootWdsOwned && PcPort_ArchiveBootWdsOwned())
+        return ARCHIVE_READ_RETRY;
+#endif
     if ((index <= 0) || (ArchiveDecodeSize(index) <= 0) || (pBuffer == NULL)) {
         return -3;
     }

@@ -12,13 +12,16 @@ fixture=Path(os.environ.get("ACTIVE_WINDOW_FIXTURE",HERE/"system_window_binding_
 assert sha(ROOT/"disc/SLUS_006.64")=="dc0b2dd786203d4cce5927c5a3fc85a18f39a3f7406078860076ebb0bbae7119"
 assert sha(ROOT/"disc/battle.bin")=="1830b4ef1fe37129972fc310dfad534f8161d6c0b123e74254c3711334a3e291"
 assert hashlib.sha256((ROOT/"disc/battle.bin").read_bytes()[0x5480:0x5480+156]).hexdigest()=="edc2a3322cee8dd9ff729859c6740c3c03fb02b603fb6a94c06dddc78e4b050a"
-assert sha(ROOT/"pc_port/src/battle_mips_adapter.c")=="a87b5c7afaf102cba4ab9903d275df69cc4e9f8ad12142f8f69e379112fcbc67"
-assert sha(ROOT/"pc_port/src/battle_mips_adapter.h")=="9924f3f892f0660b5b9c9cb0fb492d9180e451bfa1e727ec825c4f7232425315"
 receipt=dict(status="RUNNING",source_pins={},commands=[],returncodes={},
-             boundaries="Actual runtime typed dispatch and full 74F70 caller; GR_CopyVRAM transfer model; documented pointer canonicalization. Malformed spans are checked separately. No GPU/game acceptance or exhaustive fault/alias proof; volatile callee CPU registers excluded from API comparison.")
+             boundaries="Actual typed dispatch and interpreted 74F70 caller; GR_CopyVRAM transfer model; documented pointer canonicalization. Malformed spans are checked separately. No GPU/game acceptance or exhaustive fault/alias proof; volatile callee CPU registers excluded from API comparison.")
 inputs=[source,fixture,Path(__file__).resolve(),ROOT/"pc_port/include_shim/system_window_guard.h",
-    ROOT/"pc_port/src/battle_mips_runtime.c",ROOT/"pc_port/src/battle_window_binding_host.inc",ROOT/"pc_port/src/battle_window_render_host.inc",ROOT/"disc/SLUS_006.64",ROOT/"disc/battle.bin"]
-inputs += [ROOT/p for p in ["src/slus_006.64/system/memory.c","src/slus_006.64/system/temp2.c",
+    ROOT/"pc_port/src/battle_mips_runtime.c",ROOT/"pc_port/src/battle_window_binding_host.inc",ROOT/"disc/SLUS_006.64",ROOT/"disc/battle.bin"]
+memory_source=ROOT/"src/slus_006.64/system/memory.c"
+without_heap=not memory_source.is_file() and os.environ.get("ACTIVE_WINDOW_ALLOW_MISSING_HEAP")=="1"
+if not without_heap:
+    inputs.append(memory_source)
+receipt["heap_comparison"]="excluded when the owned-disc oracle reaches HeapFree" if without_heap else "production HeapFree required"
+inputs += [ROOT/p for p in ["src/slus_006.64/system/temp2.c",
     "pc_port/src/guest_prim_link.c","pc_port/include_shim/guest_prim_link.h",
     "pc_port/src/battle_mips_adapter.c","pc_port/src/battle_mips_adapter.h",
     "pc_port/extern/PsyCross/src/psx/LIBGPU.C"]]
@@ -35,22 +38,26 @@ def run(label,args,expected=0):
         print((OUT/(label+".log")).read_text()[-6000:],flush=True);raise RuntimeError((label,r.returncode,expected))
 common=["-I"+str(HERE),"-fno-pie","-fno-builtin","-fno-inline","-ffunction-sections","-fdata-sections","-include","assert.h",
         "-DXENO_PC_PORT","-DXENO_FIELD_OBJECT_OVERLAY","-DSKIP_ASM","-D_LANGUAGE_C","-DUSE_EXTENDED_PRIM_POINTERS=0",
-        "-Ipc_port/include_shim","-Iinclude","-Ipc_port/src","-Ipc_port/extern/PsyCross/include","-Ipc_port/extern/PsyCross/include/psx"]
+        "-Ipc_port/include_shim","-Iinclude","-Ipc_port/src","-Ipc_port/extern/PsyCross/src","-Ipc_port/extern/PsyCross/include","-Ipc_port/extern/PsyCross/include/psx"]
 try:
     run("sanitizer-preflight",["bash","-c","source pc_port/tests/lib/sanitizer_preflight.sh; ubsan_preflight gcc clang"])
     run("bridge-map",["python3","tools/scripts/gen_battle_bridge_map.py",
-        "--symbols","config/symbol_addrs.slus_006.64.txt","--symbols","linker/undefined_funcs_auto.battle.txt",
-        "--symbols","linker/undefined_syms_auto.battle.txt","--symbols","config/symbol_addrs.battle.txt",
+        "--symbols","config/symbol_addrs.slus_006.64.txt",
+        "--symbols","config/symbol_addrs.battle.txt",
         "--out",OUT/"battle_bridge_map.inc"])
     common.append("-I"+str(OUT))
     for mode in os.environ.get("ACTIVE_WINDOW_MODES","O0 O2 UBSan").split():
         flags=["-"+mode] if mode!="UBSan" else ["-O1","-fsanitize=undefined","-fno-sanitize-recover=all"]
         objects=[]
-        units=[("system",source,None),("memory",ROOT/"src/slus_006.64/system/memory.c","HeapFree=WindowBody_HeapFree"),
+        units=[("system",source,None),
                ("packet",ROOT/"src/slus_006.64/system/temp2.c","func_80031798=WindowBody_LinkPrim"),
                ("domain",ROOT/"pc_port/src/guest_prim_link.c","PcPort_AddPrimDomainAware=WindowBody_AddPrim"),
                ("fixture",fixture,None),("compat",ROOT/"pc_port/src/psyq_compat.c",None),("cpu",ROOT/"pc_port/src/battle_mips_adapter.c",None),
                ("gpu",ROOT/"pc_port/extern/PsyCross/src/psx/LIBGPU.C","LoadImage=WindowBody_LoadImage")]
+        if without_heap:
+            flags=flags+["-DWINDOW_TEST_WITHOUT_HEAP"]
+        else:
+            units.insert(1,("memory",memory_source,"HeapFree=WindowBody_HeapFree"))
         for label,path,rename in units:
             obj=OUT/(mode+"."+label+".o");objects.append(obj)
             cpp=label in ("gpu","shim")

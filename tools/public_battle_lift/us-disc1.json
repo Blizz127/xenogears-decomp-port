@@ -1,0 +1,628 @@
+{
+  "file_hashes": {
+    "config/battle.yaml": "231e0c5340e2b0bef57f1883195bce7be7426eb38afab4353b43a2de2e50ec2c",
+    "config/symbol_addrs.battle.txt": "e21cf404abecef95afff9a8a1af729f4559353a038950998163d8c5f27eb2abb",
+    "config/symbol_addrs.slus_006.64.txt": "431aca0f68e83da668ba55433046024bb56e461b85270abeee69c2f5a1737241",
+    "disc/battle.bin": "1830b4ef1fe37129972fc310dfad534f8161d6c0b123e74254c3711334a3e291",
+    "linker/undefined_funcs_auto.battle.txt": "e30ee9c796d1f508caa6f7138e89d33a905eca18a9da4ae0054b4387e89e7108",
+    "linker/undefined_syms_auto.battle.txt": "b7701a60f095d7db694a983f7c52fe5fdd169a1621b184dc561819e1bbb28a6d",
+    "tools/scripts/battle_lift_asm.py": "66862d9bde68d99f362ec5524065761eb260cd61a6dc4c9b7a3bd67a9ec7e9d1",
+    "tools/splat_ext/scommon.py": "2f5a81f7eebca53692a2be717afefbd79188af885c13d846823161b43bc25c2e"
+  },
+  "format": 1,
+  "groups": {
+    "cmdmenu": [
+      {
+        "arguments": 1,
+        "entry": "8007FF14",
+        "listing_sha256": "806d4acee717dec7723f65e3887381f83d66aa16d4154b5ec3ec78d9d94ffc8e",
+        "return_type": "void"
+      },
+      {
+        "arguments": 1,
+        "entry": "800829F4",
+        "listing_sha256": "582248b528ecebfd426b35e7128b03dfd030c110d4a8898bd436c0b2ffdca592",
+        "return_type": "void"
+      },
+      {
+        "arguments": 1,
+        "entry": "80082BB0",
+        "listing_sha256": "77c7301b469de8752050931d30ac7153fdbd2a047b1328d5611344ece5187609",
+        "return_type": "void"
+      },
+      {
+        "arguments": 1,
+        "entry": "80082D4C",
+        "listing_sha256": "0d11dfa8d1e35cd258ced0d8437e050d0caf94297925e53d358c706677a25cca",
+        "return_type": "void"
+      },
+      {
+        "arguments": 1,
+        "entry": "80082F7C",
+        "listing_sha256": "888f13eae2efb466aace4b082b9ecbe8e403bbf3089399957c001703d785ae9b",
+        "return_type": "void"
+      },
+      {
+        "arguments": 1,
+        "entry": "800830A8",
+        "listing_sha256": "fc194aae55a4dd63cc69395f811e7b0c6b0605e074a5cdd68249d81c7dfd6fc1",
+        "return_type": "void"
+      },
+      {
+        "arguments": 1,
+        "entry": "80083340",
+        "listing_sha256": "2e0cf2c8ca499bff436fed1a75f4d329ffb0cf5cf0bc4b64fef916047d7fc530",
+        "return_type": "void"
+      },
+      {
+        "arguments": 1,
+        "entry": "80083580",
+        "listing_sha256": "d8723eb63632a40f3496725e1a6418350fa5dcc5d69b0c9ae06a55dfcae5d4ce",
+        "return_type": "void"
+      },
+      {
+        "arguments": 1,
+        "entry": "80083748",
+        "listing_sha256": "2490fb4d34d2a01b41d9109ca026baacacea19ee6cdb9b69604bc6b76d7fb30a",
+        "return_type": "void"
+      },
+      {
+        "arguments": 1,
+        "entry": "80083948",
+        "listing_sha256": "89b0c5643148228eb5c9177fd01862a11cf11cc1bb78e62afaee99b5edd76408",
+        "return_type": "u32"
+      },
+      {
+        "arguments": 1,
+        "entry": "80081318",
+        "listing_sha256": "7f47adde59cbebf3c90058dee9db7ae7f7a829eb168a105d2d33cae3eaa88bee",
+        "return_type": "void"
+      },
+      {
+        "arguments": 1,
+        "entry": "80081504",
+        "listing_sha256": "edd8818547a7879ac210f6fdffa910335b4c38c811e613fc09c78bdea0633754",
+        "return_type": "void"
+      },
+      {
+        "arguments": 1,
+        "entry": "800816F8",
+        "listing_sha256": "29978d22aa6285722cf9e9dc9e1f95dabce67bf7ce33593c28fc13630fd4d8a3",
+        "return_type": "void"
+      },
+      {
+        "arguments": 1,
+        "entry": "800820A4",
+        "listing_sha256": "7ccec4c1500aa648d7159c8d274ef2e24c365a091bc2a57e1019ee9fcfe00118",
+        "return_type": "void"
+      },
+      {
+        "arguments": 1,
+        "entry": "800822C4",
+        "listing_sha256": "63f6b361d8df0ff837988133e58a79f55a03f319b0fa7fb91aa4ffe47370b9d2",
+        "return_type": "void"
+      },
+      {
+        "arguments": 1,
+        "entry": "80082504",
+        "listing_sha256": "09fda90e5cd22ffcab264637180a77e88893f57a16a8db2d339c96b3c904667b",
+        "return_type": "void"
+      },
+      {
+        "arguments": 1,
+        "entry": "80082820",
+        "listing_sha256": "32c52aa84261a7124f98d9543ed5b41e854d03455def0bdd7c471d287e781080",
+        "return_type": "void"
+      }
+    ],
+    "frame": [
+      {
+        "arguments": 0,
+        "entry": "80073538",
+        "listing_sha256": "71fb552605e0c5a89917b3d18266847a538648ea4b6438102215af13e129cf50",
+        "return_type": "void"
+      },
+      {
+        "arguments": 0,
+        "entry": "80073A58",
+        "listing_sha256": "17e4d9a3a7bda67038113029940d14812c473681da69e574b975842abf13de9a",
+        "return_type": "void"
+      },
+      {
+        "arguments": 0,
+        "entry": "80073B64",
+        "listing_sha256": "5b36b65c9548a16aa36f924aa1e5547f67975c73355581d2ae1a829dbbaef55b",
+        "return_type": "void"
+      },
+      {
+        "arguments": 0,
+        "entry": "80073E88",
+        "listing_sha256": "c5fefa6a11397587632768bacf4306db0e03ae954a9bddfea692da909f241533",
+        "return_type": "void"
+      },
+      {
+        "arguments": 0,
+        "entry": "80073F08",
+        "listing_sha256": "14411d0837a6caee42a8234dfb157c3197d2efca169b72d60688df92f1c3547e",
+        "return_type": "void"
+      },
+      {
+        "arguments": 0,
+        "entry": "80074EEC",
+        "listing_sha256": "35dba295a87a15bdb19c0b2cdfca1c359e32c043366e174fb07ec84c9e557fe9",
+        "return_type": "void"
+      },
+      {
+        "arguments": 0,
+        "entry": "80074F70",
+        "listing_sha256": "dc3b9147f02e86fddeaba16657147cb302d87395e21ab004698e8c7441ccb6b7",
+        "return_type": "void"
+      },
+      {
+        "arguments": 0,
+        "entry": "8007500C",
+        "listing_sha256": "55580068079e460b32f9f17e7c23bb0f82ee977238c79693300e68569c7db233",
+        "return_type": "void"
+      },
+      {
+        "arguments": 2,
+        "entry": "80072A9C",
+        "listing_sha256": "2852a00760436ab4a6c5eb92787f167575265a221ed6ac3d9895ad50770ea9d2",
+        "return_type": "void"
+      },
+      {
+        "arguments": 2,
+        "entry": "80072DA8",
+        "listing_sha256": "4a43aa569ccd80ceb09380c38898c779b62d0275ece73d91c885449ee666ad3d",
+        "return_type": "void"
+      },
+      {
+        "arguments": 2,
+        "entry": "80072F38",
+        "listing_sha256": "1272f0cb9db7f67d9c39f8e934b5b53560e128e50e694c4278da08b0473886b3",
+        "return_type": "u32"
+      },
+      {
+        "arguments": 1,
+        "entry": "80073380",
+        "listing_sha256": "f70d1c55131c3c100b2045615b06e59d4fffe744c5bf419cb6a72583281bdfe6",
+        "return_type": "void"
+      },
+      {
+        "arguments": 0,
+        "entry": "80072324",
+        "listing_sha256": "ac3c63e5986fdeb06b65441faf5bf4a0269eabe612d59cd1038f4b5dfa506bcf",
+        "return_type": "void"
+      },
+      {
+        "arguments": 1,
+        "entry": "80076710",
+        "listing_sha256": "34fac28b6bac8ab32fb1a71588157f4eac15a363e98770f409cde2b559bec253",
+        "return_type": "void"
+      },
+      {
+        "arguments": 0,
+        "entry": "800BE790",
+        "listing_sha256": "d7301ae9c3ee047b333420d219c86b615da5227d00fc81ce807dc6f95c892c24",
+        "return_type": "void"
+      },
+      {
+        "arguments": 4,
+        "entry": "800BE538",
+        "listing_sha256": "c88f058411c6a9cca48078597409a0deeb12fdbd622187458be433a3565726c1",
+        "return_type": "void"
+      },
+      {
+        "arguments": 0,
+        "entry": "800BB9D4",
+        "listing_sha256": "5932d1fcbb3e6c524bbd4d791a49e299f60d7ffabc868eae0da65bc2fdc5bd90",
+        "return_type": "void"
+      },
+      {
+        "arguments": 0,
+        "entry": "800BBAB8",
+        "listing_sha256": "9c053cfd7b17f74ef9cd5051f3bac1d698e8ae3c00177e83f89881f3eaf0d5b2",
+        "return_type": "void"
+      },
+      {
+        "arguments": 4,
+        "entry": "800A9A50",
+        "listing_sha256": "91723930443e6065d99bc393b97745e3c2d24529a39f3c87c4db27051fff8e45",
+        "return_type": "void"
+      },
+      {
+        "arguments": 0,
+        "entry": "800A8B0C",
+        "listing_sha256": "508346096cf2fd9d7fb0af0e9c90b655e74715ad76d10e3bc844b30d11fd5662",
+        "return_type": "void"
+      },
+      {
+        "arguments": 1,
+        "entry": "800AAB34",
+        "listing_sha256": "322bd358bb13b831060b0365869f4800e39e82cd5fe22399706db99d5c3a5bad",
+        "return_type": "void"
+      },
+      {
+        "arguments": 4,
+        "entry": "800B026C",
+        "listing_sha256": "ae036319ec56737d06cf211374bd844b315881734d835de30c34bdbeedc59304",
+        "return_type": "void"
+      },
+      {
+        "arguments": 1,
+        "entry": "800B0B14",
+        "listing_sha256": "dcc50b41e00109da0977919df23fa58055877a58ff8c33885dbb2c6297e64f34",
+        "return_type": "s16"
+      },
+      {
+        "arguments": 1,
+        "entry": "800B7160",
+        "listing_sha256": "0fd44c7bc79ba621c1ec5ec42e66368eb145ec7fe397cc368d5fcc406e8434f6",
+        "return_type": "void"
+      },
+      {
+        "arguments": 0,
+        "entry": "800B7870",
+        "listing_sha256": "56205e1adb26a01e81e3efcd0590772efbe3e26dbb082961912633c09256d83b",
+        "return_type": "void"
+      },
+      {
+        "arguments": 1,
+        "entry": "800B8098",
+        "listing_sha256": "7cc19564ff74614b45d9c9e8495546a2e293b1d595f74bb761b00de8331c2f1b",
+        "return_type": "void"
+      },
+      {
+        "arguments": 1,
+        "entry": "800B81BC",
+        "listing_sha256": "a525d2dbd073eadeb22d591d236acd9088fd6e757d34a4c0d8204d7fabf54029",
+        "return_type": "void"
+      },
+      {
+        "arguments": 0,
+        "entry": "800B8284",
+        "listing_sha256": "4f28660fbccfc33b5a9e71785ea1669e07066f8b8a6012d011ce65da24f11026",
+        "return_type": "void"
+      },
+      {
+        "arguments": 0,
+        "entry": "800B88C4",
+        "listing_sha256": "3f1e62df9a8db80c5ac1d527ccf755d3d82a30a81fed2cd75ca9c2e041cdc814",
+        "return_type": "void"
+      },
+      {
+        "arguments": 0,
+        "entry": "80077990",
+        "listing_sha256": "387db67046f3928a627dedd510a9f3b28365503524a680139d92114abf21bba3",
+        "return_type": "void"
+      },
+      {
+        "arguments": 0,
+        "entry": "80088B80",
+        "listing_sha256": "33e9dc73abe4c6675d082527d1a5558b89e81df8a8dc87fc09656c1139a36d95",
+        "return_type": "void"
+      }
+    ],
+    "status": [
+      {
+        "arguments": 1,
+        "entry": "8008B908",
+        "listing_sha256": "8ff1304ef6488d21916d69db629b4a80291aae78ed06b48f75652ddd4abb34e8",
+        "return_type": "void"
+      },
+      {
+        "arguments": 1,
+        "entry": "8008BED8",
+        "listing_sha256": "99b23d79e4b46dda6ae94be162c5484b40ba0518253c2babc66e74ee547df8b3",
+        "return_type": "u8"
+      },
+      {
+        "arguments": 1,
+        "entry": "8008ADD0",
+        "listing_sha256": "9eace3770450849140366431f641617861a95c7eca514aaff4c3480b8eb59f17",
+        "return_type": "void"
+      },
+      {
+        "arguments": 1,
+        "entry": "8008B478",
+        "listing_sha256": "9817529bfb636cdd9573c2f2cf2b6bae444af6ce5be923883c4d42433cab8c2e",
+        "return_type": "u8"
+      },
+      {
+        "arguments": 0,
+        "entry": "8007FE3C",
+        "listing_sha256": "d23f73aec25bbce500fbede22a790ba91f9d1cecb00624b0b98a57d10d89a365",
+        "return_type": "void"
+      },
+      {
+        "arguments": 2,
+        "entry": "80086B88",
+        "listing_sha256": "d5ababbc688d98afb804d574426536fdf2ce5f5cc028868d13853e87b320c551",
+        "return_type": "u8"
+      },
+      {
+        "arguments": 2,
+        "entry": "80086F98",
+        "listing_sha256": "ef2d3ddb0995b4fae68fe414d71c0a8af273b0be65d4f9eea3bf8ebb631df9ed",
+        "return_type": "u8"
+      },
+      {
+        "arguments": 1,
+        "entry": "8008CFB8",
+        "listing_sha256": "33867ca53dd14929f586cf7405d8c53c3d14ab96e184862cc24db7fb26bc5ffb",
+        "return_type": "u8"
+      },
+      {
+        "arguments": 1,
+        "entry": "800826CC",
+        "listing_sha256": "4f8cd42f3c278b060f04f9933e08541702a14e485a4271db0b82d232db602c96",
+        "return_type": "void"
+      },
+      {
+        "arguments": 1,
+        "entry": "8008C4A8",
+        "listing_sha256": "121708350f142fdcbfe2a4e4e3c207a2d3ae66e9bdce47d8b08ef7892b791b51",
+        "return_type": "u8"
+      },
+      {
+        "arguments": 4,
+        "entry": "8008BD50",
+        "listing_sha256": "020c8783cbcf2a9f697f0af731f9e639cdc8a8f9c6a05bd7f29cfcf7c1d239a5",
+        "return_type": "u8"
+      },
+      {
+        "arguments": 3,
+        "entry": "8008FE18",
+        "listing_sha256": "65378d63e715914491a900866a0855c3e59d59b3477f446880f90d61797a3a99",
+        "return_type": "void"
+      },
+      {
+        "arguments": 3,
+        "entry": "8009080C",
+        "listing_sha256": "6c71494b8d362f89e38c7359f02401a7eeff56d59052832d2a27080ced1973b4",
+        "return_type": "void"
+      },
+      {
+        "arguments": 1,
+        "entry": "8009023C",
+        "listing_sha256": "e70248214ae23052f7c1d8b783a9127a4eb8a10bbee1adde5ac465b8a4bb8dea",
+        "return_type": "void"
+      },
+      {
+        "arguments": 1,
+        "entry": "8009093C",
+        "listing_sha256": "8ed0857ea9860ffcb560c8dd21d9d4d0e7355aa128e4809e8e8903462b5afa43",
+        "return_type": "void"
+      },
+      {
+        "arguments": 4,
+        "entry": "80090B90",
+        "listing_sha256": "12967888fc525d5ef300eeba7b3f502816494c15fa904ddb8bde55646df221b8",
+        "return_type": "void"
+      },
+      {
+        "arguments": 1,
+        "entry": "8008C81C",
+        "listing_sha256": "554817f0bc8163bd80a04b8cbce745fd246dc37d2ccfce416b272a8ce28a9581",
+        "return_type": "u8"
+      },
+      {
+        "arguments": 1,
+        "entry": "80091064",
+        "listing_sha256": "7503e4d16236587139a5f1d176a6d9af91c56c3de2f6c30363a3fe61253eb58c",
+        "return_type": "void"
+      },
+      {
+        "arguments": 5,
+        "entry": "8008FC1C",
+        "listing_sha256": "b11795453d5980841abf8428d09df60542b9b02c65742efab1eecc03c60094f9",
+        "return_type": "void"
+      },
+      {
+        "arguments": 2,
+        "entry": "80090310",
+        "listing_sha256": "4acf7231bbfc35a60658f01d2a2b438e93f7792bf9172a46358b5ff90f70ac4a",
+        "return_type": "void"
+      },
+      {
+        "arguments": 2,
+        "entry": "800904A0",
+        "listing_sha256": "3219f80c6a55cfc935a28db230013efbf71fc881ee73e1bb1705d5ac7112074e",
+        "return_type": "void"
+      },
+      {
+        "arguments": 2,
+        "entry": "8009070C",
+        "listing_sha256": "2720c94a8ba5b9602f8dcb46651cbe07a12f3dd47894708f4badc5a24ad87de0",
+        "return_type": "void"
+      },
+      {
+        "arguments": 3,
+        "entry": "80092784",
+        "listing_sha256": "6518e82c1aa713dcff167303942063014e580c7a12a26ce2ea1a9557a7a3116c",
+        "return_type": "void"
+      },
+      {
+        "arguments": 2,
+        "entry": "80092B74",
+        "listing_sha256": "50d542730c5866ec1ea47c02f27375040415422280080bab41d4a6c38f899ead",
+        "return_type": "void"
+      },
+      {
+        "arguments": 3,
+        "entry": "80085084",
+        "listing_sha256": "51431321b726e8ea947487ef558b484e167a55e0f631cecb25992bd5dc8b0a67",
+        "return_type": "u8"
+      },
+      {
+        "arguments": 1,
+        "entry": "80090E7C",
+        "listing_sha256": "a6bfac70280fe547667a8761e3f395523f568e1e290707c616d6357af699de11",
+        "return_type": "void"
+      },
+      {
+        "arguments": 1,
+        "entry": "80090C44",
+        "listing_sha256": "a358521c4baefe14dfd61451a90f2372815d427816efafa949fe200a58d8d560",
+        "return_type": "void"
+      },
+      {
+        "arguments": 2,
+        "entry": "80092298",
+        "listing_sha256": "5047da2acbf9ccfdfe25ddf8115059a1f4f731db3daab72c64c5241a3fb39cb7",
+        "return_type": "void"
+      },
+      {
+        "arguments": 0,
+        "entry": "8007765C",
+        "listing_sha256": "b7478b46ca1f4ec758a388efd18d1c84f75e74e386db0f249f5f073f97731b66",
+        "return_type": "void"
+      },
+      {
+        "arguments": 0,
+        "entry": "8009209C",
+        "listing_sha256": "f04cef04dfb71cbecc7e54bd160f70929c8e481ed5aca2d14c407288a0127c2e",
+        "return_type": "void"
+      },
+      {
+        "arguments": 0,
+        "entry": "80084D28",
+        "listing_sha256": "b301a7ef6d2c3bedc9e10899ff8181942aadfea53540b1b7ff28e2128a022233",
+        "return_type": "u16"
+      },
+      {
+        "arguments": 5,
+        "entry": "80084DE4",
+        "listing_sha256": "c5c6a3cdc421493f3db1b49bdf34913837c8d905a586b8e11cc2cb3a2f0ecbe9",
+        "return_type": "u16"
+      },
+      {
+        "arguments": 3,
+        "entry": "80091D38",
+        "listing_sha256": "e8853ddd41cf065ab029b5d92b6951b845335c72b4159e8447aacefd034d5f1a",
+        "return_type": "void"
+      },
+      {
+        "arguments": 3,
+        "entry": "800916D4",
+        "listing_sha256": "2108c3139e2297a2863b6574e8bf9c801d6c6e05b2b7a8d04139ba3902563ddc",
+        "return_type": "void"
+      },
+      {
+        "arguments": 3,
+        "entry": "8009187C",
+        "listing_sha256": "9f9f65c0b2f8eec44682bc6ee641482e17547f03efa21eab008020c36e1e5960",
+        "return_type": "void"
+      },
+      {
+        "arguments": 3,
+        "entry": "80091B38",
+        "listing_sha256": "e921f9cc988a8d0171ec333eee3bec28c44347310519a5058adfe9d3960a85c6",
+        "return_type": "void"
+      },
+      {
+        "arguments": 3,
+        "entry": "80084548",
+        "listing_sha256": "19f88bc58a54f76743a443e7e8edf3cd11326c451a8254773866816ab23096df",
+        "return_type": "u32"
+      },
+      {
+        "arguments": 5,
+        "entry": "80086C88",
+        "listing_sha256": "fca5274b97dfb244dcc3a5ec80d5a5f09ecf9433d57fd99b240290766eb050a2",
+        "return_type": "u32"
+      },
+      {
+        "arguments": 3,
+        "entry": "8008B224",
+        "listing_sha256": "64a0e704981dc159fa74262f85ce4605695c6e12b82a1b59fab592848191b8d2",
+        "return_type": "u8"
+      },
+      {
+        "arguments": 2,
+        "entry": "8008CDE4",
+        "listing_sha256": "3b2ff670e181b9adc3b68e8c257407e7023064e2c6fc80a7ac5606a203eabfbc",
+        "return_type": "u8"
+      },
+      {
+        "arguments": 1,
+        "entry": "80091604",
+        "listing_sha256": "53028b632058173236ab56c320ba7d8bd6a2b4dad62191b800c35c7d13956051",
+        "return_type": "void"
+      },
+      {
+        "arguments": 1,
+        "entry": "80091EC4",
+        "listing_sha256": "21b2b5bac15e99fb743fa7177f51ab2f50b138912ff1884e9c2a0190ac881a73",
+        "return_type": "void"
+      },
+      {
+        "arguments": 3,
+        "entry": "800930AC",
+        "listing_sha256": "8dbb8d5d2012d09f117a41665af8a6a2490c346a503dc621dbb706acca5977a2",
+        "return_type": "void"
+      },
+      {
+        "arguments": 2,
+        "entry": "800939CC",
+        "listing_sha256": "229784e58617bc03446c2ca8e29198276bc8f397729fd9a795d7b384d620380d",
+        "return_type": "void"
+      },
+      {
+        "arguments": 2,
+        "entry": "80093578",
+        "listing_sha256": "aade2ed6e9c2f5eeeabc417fee29c5be9570cf1ad89b289da729b41c6e164cdf",
+        "return_type": "void"
+      },
+      {
+        "arguments": 2,
+        "entry": "8009382C",
+        "listing_sha256": "fee77120c62e518ba3d809f4d9d2db6f9196a388ffc27431f642425b07962de9",
+        "return_type": "void"
+      },
+      {
+        "arguments": 0,
+        "entry": "8008FAD8",
+        "listing_sha256": "de046ae23410c2e110f21afdd940015028f0fa727c597da9792d78c03d0eaaed",
+        "return_type": "void"
+      },
+      {
+        "arguments": 0,
+        "entry": "80094D24",
+        "listing_sha256": "931eadc9902518d94d00cc83c8616053d0442e57d0fecb417d340d5f5753bab5",
+        "return_type": "void"
+      },
+      {
+        "arguments": 0,
+        "entry": "80097D5C",
+        "listing_sha256": "e768dbf42afec80fac3f2a39675523c750e75544f1db23414657f89114700abc",
+        "return_type": "void"
+      },
+      {
+        "arguments": 1,
+        "entry": "80098AF8",
+        "listing_sha256": "4784eff2a02ca361525c6b2ebc4fe0742ab78a89db58d0f64bb70473c0bfd396",
+        "return_type": "u8"
+      },
+      {
+        "arguments": 1,
+        "entry": "80098C6C",
+        "listing_sha256": "94a607648fdf67561eeb0e040480adf9bab9602b1b85e1745bc2f0a9f746eac4",
+        "return_type": "void"
+      },
+      {
+        "arguments": 2,
+        "entry": "80098D2C",
+        "listing_sha256": "71cff7f34f526e67b68dd61884f24173226dc8f31ec5706a3847b8402e5906b5",
+        "return_type": "void"
+      },
+      {
+        "arguments": 2,
+        "entry": "80084108",
+        "listing_sha256": "d57dde3a0effa1a5bd3087a52f56a87f64700325b9d47a2e28a9d55e431f011c",
+        "return_type": "u32"
+      }
+    ]
+  },
+  "region": "US Disc 1"
+}

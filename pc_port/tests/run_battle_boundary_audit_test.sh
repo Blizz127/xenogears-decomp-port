@@ -53,7 +53,7 @@ OBJS=()
 for name in src_slus_006.64_system_animation_scripts.c.o \
             src_slus_006.64_system_graphics.c.o \
             src_slus_006.64_system_temp2.c.o \
-            world_map_helper_3101c.c.o \
+            model_ordering.c.o \
             src_slus_006.64_system_memory.c.o \
             src_slus_006.64_system_system.c.o \
             src_slus_006.64_system_temp1.c.o \

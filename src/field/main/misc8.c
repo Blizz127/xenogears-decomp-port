@@ -9,6 +9,9 @@
 #ifdef XENO_PC_PORT
 #include <stdio.h>
 #include <stdlib.h>
+extern void func_80039FF8(void);
+extern void func_8003A20C(s32);
+void func_80086024(void);
 #endif
 #include "system/sound.h"
 #include "psyq/libetc.h"
@@ -3147,7 +3150,7 @@ void func_80085988(void) {
 extern s32 D_800B2370;
 extern void* D_800C3A1C;
 extern void* g_GameCurLoadedWDS;
-extern s32 func_800380D0(u8* data, s32 size, s32 a2);
+extern void *func_800380D0(void *data, s32 size, s32 placement);
 extern void SoundTransferWdsPart(u8* data, s32 size);
 extern s32 func_8002945C(u8* pSlot);
 

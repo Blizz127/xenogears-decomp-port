@@ -1,0 +1,395 @@
+{
+  "openal_public_companion_sha256": "b9352be6caca11f5c417205cb6eaaebc9244c00ac43a83548e62023f0706962b",
+  "sdl_archive_sha256": "3ff61407fc75d4b0bbc93dc7e4d6c196439965fbef8e4a4f003a36095823eac0",
+  "sources": {
+    "OpenAL/AL/al.h": {
+      "archive_member": "openal-soft-1.25.1/include/AL/al.h",
+      "sha256": "eeff5d4a69cd03eeaf40052b0bffacccc23928cd9a0e632a783496bc02ac3f3f"
+    },
+    "OpenAL/AL/alc.h": {
+      "archive_member": "openal-soft-1.25.1/include/AL/alc.h",
+      "sha256": "dca2b30a084b27c703c2d33bb9cfd7fdb345ad8a61429543b72dc5225227ec71"
+    },
+    "OpenAL/AL/alext.h": {
+      "archive_member": "openal-soft-1.25.1/include/AL/alext.h",
+      "sha256": "ffcf63e612c0c67a09fa8fe4318ce17a33931eb3178c4346021137085629ec43"
+    },
+    "OpenAL/AL/efx.h": {
+      "archive_member": "openal-soft-1.25.1/include/AL/efx.h",
+      "sha256": "0771da24a213d3e37bf2d70b7eee85274b8e6c647427dffa69edc5acf8fa58b7"
+    },
+    "SDL/SDL.h": {
+      "archive_member": "sdl2-sys-0.38.0/SDL/include/SDL.h",
+      "sha256": "adcebe52582978955ebcc9e06f072a28ffb5b3181ad6f4c5375bb2f866e313bd"
+    },
+    "SDL/SDL_assert.h": {
+      "archive_member": "sdl2-sys-0.38.0/SDL/include/SDL_assert.h",
+      "sha256": "3bf2b98e04e763a1a487e7453559e19e7c5f0b8b5d42b94e5ec29c22ea7d317a"
+    },
+    "SDL/SDL_atomic.h": {
+      "archive_member": "sdl2-sys-0.38.0/SDL/include/SDL_atomic.h",
+      "sha256": "059f702f4ab8b83e640981e3f912320d918881963c9dc30daddaac36f4cc4e08"
+    },
+    "SDL/SDL_audio.h": {
+      "archive_member": "sdl2-sys-0.38.0/SDL/include/SDL_audio.h",
+      "sha256": "458b583fd9db4b16678017733b25daf5e84d122ca4bee5defbe70a15ca73c9e6"
+    },
+    "SDL/SDL_blendmode.h": {
+      "archive_member": "sdl2-sys-0.38.0/SDL/include/SDL_blendmode.h",
+      "sha256": "02c606a75d20cd811ee59cc8d6726f414a91d5b5abbf05e06f9f601a6a3504da"
+    },
+    "SDL/SDL_clipboard.h": {
+      "archive_member": "sdl2-sys-0.38.0/SDL/include/SDL_clipboard.h",
+      "sha256": "8b22af9bed93b60c2008c1bcb79c04173c4042764876fb24832fbcf49880cb53"
+    },
+    "SDL/SDL_config.h": {
+      "archive_member": "sdl2-sys-0.38.0/SDL/include/SDL_config.h.cmake",
+      "cmake_variables": {
+        "HAVE_ABS": "1",
+        "HAVE_ACOS": "1",
+        "HAVE_ACOSF": "1",
+        "HAVE_ALLOCA": "1",
+        "HAVE_ASIN": "1",
+        "HAVE_ASINF": "1",
+        "HAVE_ATAN": "1",
+        "HAVE_ATAN2": "1",
+        "HAVE_ATAN2F": "1",
+        "HAVE_ATANF": "1",
+        "HAVE_ATOF": "1",
+        "HAVE_ATOI": "1",
+        "HAVE_AUDIOCLIENT_H": "1",
+        "HAVE_BSEARCH": "1",
+        "HAVE_CALLOC": "1",
+        "HAVE_CEIL": "1",
+        "HAVE_CEILF": "1",
+        "HAVE_COPYSIGN": "1",
+        "HAVE_COPYSIGNF": "1",
+        "HAVE_COS": "1",
+        "HAVE_COSF": "1",
+        "HAVE_CTYPE_H": "1",
+        "HAVE_D3D11_H": "1",
+        "HAVE_D3D12_H": "1",
+        "HAVE_D3D_H": "1",
+        "HAVE_DDRAW_H": "1",
+        "HAVE_DINPUT_H": "1",
+        "HAVE_DSOUND_H": "1",
+        "HAVE_DXGI_H": "1",
+        "HAVE_EXP": "1",
+        "HAVE_EXPF": "1",
+        "HAVE_FABS": "1",
+        "HAVE_FABSF": "1",
+        "HAVE_FLOAT_H": "1",
+        "HAVE_FLOOR": "1",
+        "HAVE_FLOORF": "1",
+        "HAVE_FMOD": "1",
+        "HAVE_FMODF": "1",
+        "HAVE_FOPEN64": "1",
+        "HAVE_FREE": "1",
+        "HAVE_FSEEKO": "1",
+        "HAVE_FSEEKO64": "1",
+        "HAVE_GCC_ATOMICS": "1",
+        "HAVE_GETENV": "1",
+        "HAVE_IMMINTRIN_H": "1",
+        "HAVE_INTTYPES_H": "1",
+        "HAVE_ITOA": "1",
+        "HAVE_LIBC": "1",
+        "HAVE_LIMITS_H": "1",
+        "HAVE_LOG": "1",
+        "HAVE_LOG10": "1",
+        "HAVE_LOG10F": "1",
+        "HAVE_LOGF": "1",
+        "HAVE_LROUND": "1",
+        "HAVE_LROUNDF": "1",
+        "HAVE_MALLOC": "1",
+        "HAVE_MALLOC_H": "1",
+        "HAVE_MATH_H": "1",
+        "HAVE_MEMCMP": "1",
+        "HAVE_MEMCPY": "1",
+        "HAVE_MEMMOVE": "1",
+        "HAVE_MEMORY_H": "1",
+        "HAVE_MEMSET": "1",
+        "HAVE_MMDEVICEAPI_H": "1",
+        "HAVE_M_PI": "1",
+        "HAVE_POW": "1",
+        "HAVE_POWF": "1",
+        "HAVE_PUTENV": "1",
+        "HAVE_QSORT": "1",
+        "HAVE_REALLOC": "1",
+        "HAVE_ROAPI_H": "1",
+        "HAVE_ROUND": "1",
+        "HAVE_ROUNDF": "1",
+        "HAVE_SCALBN": "1",
+        "HAVE_SCALBNF": "1",
+        "HAVE_SENSORSAPI_H": "1",
+        "HAVE_SETJMP": "1",
+        "HAVE_SHELLSCALINGAPI_H": "1",
+        "HAVE_SIGNAL_H": "1",
+        "HAVE_SIN": "1",
+        "HAVE_SINF": "1",
+        "HAVE_SQRT": "1",
+        "HAVE_SQRTF": "1",
+        "HAVE_SSCANF": "1",
+        "HAVE_STDARG_H": "1",
+        "HAVE_STDDEF_H": "1",
+        "HAVE_STDINT_H": "1",
+        "HAVE_STDIO_H": "1",
+        "HAVE_STDLIB_H": "1",
+        "HAVE_STRCASECMP": "1",
+        "HAVE_STRCHR": "1",
+        "HAVE_STRCMP": "1",
+        "HAVE_STRINGS_H": "1",
+        "HAVE_STRING_H": "1",
+        "HAVE_STRLEN": "1",
+        "HAVE_STRNCASECMP": "1",
+        "HAVE_STRNCMP": "1",
+        "HAVE_STRRCHR": "1",
+        "HAVE_STRSTR": "1",
+        "HAVE_STRTOD": "1",
+        "HAVE_STRTOK_R": "1",
+        "HAVE_STRTOL": "1",
+        "HAVE_STRTOLL": "1",
+        "HAVE_STRTOUL": "1",
+        "HAVE_STRTOULL": "1",
+        "HAVE_SYS_TYPES_H": "1",
+        "HAVE_TAN": "1",
+        "HAVE_TANF": "1",
+        "HAVE_TPCSHRD_H": "1",
+        "HAVE_TRUNC": "1",
+        "HAVE_TRUNCF": "1",
+        "HAVE_VSNPRINTF": "1",
+        "HAVE_VSSCANF": "1",
+        "HAVE_WCHAR_H": "1",
+        "HAVE_WCSCMP": "1",
+        "HAVE_WCSDUP": "1",
+        "HAVE_WCSLEN": "1",
+        "HAVE_WCSNCMP": "1",
+        "HAVE_WCSSTR": "1",
+        "HAVE_WINDOWS_GAMING_INPUT_H": "1",
+        "HAVE_XINPUT_H": "1",
+        "HAVE__EXIT": "1",
+        "HAVE__I64TOA": "1",
+        "HAVE__LTOA": "1",
+        "HAVE__STRICMP": "1",
+        "HAVE__STRLWR": "1",
+        "HAVE__STRNICMP": "1",
+        "HAVE__STRREV": "1",
+        "HAVE__STRUPR": "1",
+        "HAVE__UI64TOA": "1",
+        "HAVE__ULTOA": "1",
+        "HAVE__WCSDUP": "1",
+        "HAVE__WCSICMP": "1",
+        "HAVE__WCSNICMP": "1",
+        "SDL_AUDIO_DRIVER_DISK": "1",
+        "SDL_AUDIO_DRIVER_DSOUND": "1",
+        "SDL_AUDIO_DRIVER_DUMMY": "1",
+        "SDL_AUDIO_DRIVER_WASAPI": "1",
+        "SDL_AUDIO_DRIVER_WINMM": "1",
+        "SDL_DEFAULT_ASSERT_LEVEL_CONFIGURED": "0",
+        "SDL_FILESYSTEM_WINDOWS": "1",
+        "SDL_HAPTIC_DINPUT": "1",
+        "SDL_HAPTIC_XINPUT": "1",
+        "SDL_JOYSTICK_DINPUT": "1",
+        "SDL_JOYSTICK_HIDAPI": "1",
+        "SDL_JOYSTICK_RAWINPUT": "1",
+        "SDL_JOYSTICK_VIRTUAL": "1",
+        "SDL_JOYSTICK_WGI": "1",
+        "SDL_JOYSTICK_XINPUT": "1",
+        "SDL_LOADSO_WINDOWS": "1",
+        "SDL_POWER_WINDOWS": "1",
+        "SDL_SENSOR_WINDOWS": "1",
+        "SDL_THREAD_GENERIC_COND_SUFFIX": "1",
+        "SDL_THREAD_WINDOWS": "1",
+        "SDL_TIMER_WINDOWS": "1",
+        "SDL_VIDEO_DRIVER_DUMMY": "1",
+        "SDL_VIDEO_DRIVER_OFFSCREEN": "1",
+        "SDL_VIDEO_DRIVER_WINDOWS": "1",
+        "SDL_VIDEO_OPENGL": "1",
+        "SDL_VIDEO_OPENGL_EGL": "1",
+        "SDL_VIDEO_OPENGL_ES2": "1",
+        "SDL_VIDEO_OPENGL_WGL": "1",
+        "SDL_VIDEO_RENDER_D3D": "1",
+        "SDL_VIDEO_RENDER_D3D11": "1",
+        "SDL_VIDEO_RENDER_D3D12": "1",
+        "SDL_VIDEO_RENDER_OGL": "1",
+        "SDL_VIDEO_RENDER_OGL_ES2": "1",
+        "SDL_VIDEO_VULKAN": "1",
+        "STDC_HEADERS": "1"
+      },
+      "recipe": "set the listed CMake variables in a fresh script, configure_file(SDL_config.h.cmake SDL_config.h @ONLY); all unlisted variables unset",
+      "sha256": "a575cc6a518f215cfd565b4a8897f24717fe5c375ee8146c31fa61afa8fbf973",
+      "template_sha256": "8ee1accdf5db13453427a1dcd7c71ce4d4ab96a6c5e60a6be10f49a75dab3200"
+    },
+    "SDL/SDL_cpuinfo.h": {
+      "archive_member": "sdl2-sys-0.38.0/SDL/include/SDL_cpuinfo.h",
+      "sha256": "1565dc138052c5d01fa3186c83c7ec583e2bc955897fac793845eae2f08286aa"
+    },
+    "SDL/SDL_endian.h": {
+      "archive_member": "sdl2-sys-0.38.0/SDL/include/SDL_endian.h",
+      "sha256": "7a119d3b1d90b9f45a9e587d6f16a697e01194fbe78dcd24f337515a857f5b55"
+    },
+    "SDL/SDL_error.h": {
+      "archive_member": "sdl2-sys-0.38.0/SDL/include/SDL_error.h",
+      "sha256": "b08e32c8ed3ab514819efe7614385af4096b975658a1c6cf86a6ba03b05f277c"
+    },
+    "SDL/SDL_events.h": {
+      "archive_member": "sdl2-sys-0.38.0/SDL/include/SDL_events.h",
+      "sha256": "2047d38ec266781fe86c7bacedb459293aa7bb3694ad82f630bc489338cce426"
+    },
+    "SDL/SDL_filesystem.h": {
+      "archive_member": "sdl2-sys-0.38.0/SDL/include/SDL_filesystem.h",
+      "sha256": "143bd98e4acda913643018d7299c7e7b9716e000fadc9235f85a5cb465b4b2f2"
+    },
+    "SDL/SDL_gamecontroller.h": {
+      "archive_member": "sdl2-sys-0.38.0/SDL/include/SDL_gamecontroller.h",
+      "sha256": "fed275ab09e42e70b651ce1484de3bfa5ec1ca2a6f96046e23c6321776685d10"
+    },
+    "SDL/SDL_gesture.h": {
+      "archive_member": "sdl2-sys-0.38.0/SDL/include/SDL_gesture.h",
+      "sha256": "33e0e63fbb4a12f814d62e0a89de39ad20e085d373ee41588e7f2082661d86c6"
+    },
+    "SDL/SDL_guid.h": {
+      "archive_member": "sdl2-sys-0.38.0/SDL/include/SDL_guid.h",
+      "sha256": "2513dbb767bc82188b39a8926c5ecb904cad450d4f226b96791de5c8f55b8228"
+    },
+    "SDL/SDL_haptic.h": {
+      "archive_member": "sdl2-sys-0.38.0/SDL/include/SDL_haptic.h",
+      "sha256": "38ad39949efc9303db7fc330281de7f09cf82f4e98c1983c225036c665522b62"
+    },
+    "SDL/SDL_hidapi.h": {
+      "archive_member": "sdl2-sys-0.38.0/SDL/include/SDL_hidapi.h",
+      "sha256": "04574b1398db5f0fca5548ac30e29c5f9b8de226828a5a4c620f89a082684a8b"
+    },
+    "SDL/SDL_hints.h": {
+      "archive_member": "sdl2-sys-0.38.0/SDL/include/SDL_hints.h",
+      "sha256": "98ab7df49f16a882418579419de6ec44a14b79460f9668a11db4ce9f2091edd0"
+    },
+    "SDL/SDL_joystick.h": {
+      "archive_member": "sdl2-sys-0.38.0/SDL/include/SDL_joystick.h",
+      "sha256": "2a37a6c60ce98df49851902fbd6176c0b34182a84bd35568a873eb2a4a20b5f8"
+    },
+    "SDL/SDL_keyboard.h": {
+      "archive_member": "sdl2-sys-0.38.0/SDL/include/SDL_keyboard.h",
+      "sha256": "e27811a5097ae8cadb44655df1c1e884b5d218ad38a1310b020b9add5db065b8"
+    },
+    "SDL/SDL_keycode.h": {
+      "archive_member": "sdl2-sys-0.38.0/SDL/include/SDL_keycode.h",
+      "sha256": "1d6e27c5d52876d81bc6dbfcb7024f5cd7377694be564d3eef2f995c30e60b8d"
+    },
+    "SDL/SDL_loadso.h": {
+      "archive_member": "sdl2-sys-0.38.0/SDL/include/SDL_loadso.h",
+      "sha256": "3d682b1bf8ac0d96798cc6135da6b849d389e37ec18edbed1802f9bb83abb798"
+    },
+    "SDL/SDL_locale.h": {
+      "archive_member": "sdl2-sys-0.38.0/SDL/include/SDL_locale.h",
+      "sha256": "c6f261ee32ccec9d640d276e608c07aaa7303cfb99f2b014d0ad2c2fd29a867f"
+    },
+    "SDL/SDL_log.h": {
+      "archive_member": "sdl2-sys-0.38.0/SDL/include/SDL_log.h",
+      "sha256": "94f07d6a06bf02bed2899e46b9a6c6d040cf1fac9316f9d26d81dfa4dcc271c9"
+    },
+    "SDL/SDL_main.h": {
+      "archive_member": "sdl2-sys-0.38.0/SDL/include/SDL_main.h",
+      "sha256": "df30e9eb6ea37a2d54afbe9a514b4657a4c170f37c07957a276585593178cc40"
+    },
+    "SDL/SDL_messagebox.h": {
+      "archive_member": "sdl2-sys-0.38.0/SDL/include/SDL_messagebox.h",
+      "sha256": "9638a17f58b3b745d88fbb1f4dfefc88b496a2fd84b1556adb37cf7d1ed4cf88"
+    },
+    "SDL/SDL_metal.h": {
+      "archive_member": "sdl2-sys-0.38.0/SDL/include/SDL_metal.h",
+      "sha256": "93b17958680f0737e0ca4d30caf568c135414fd032e5c54bd16fad570fc09e11"
+    },
+    "SDL/SDL_misc.h": {
+      "archive_member": "sdl2-sys-0.38.0/SDL/include/SDL_misc.h",
+      "sha256": "33edc2aefb529ae630be99660c730bef2fe6acc3bf7c92f0123369693853be8e"
+    },
+    "SDL/SDL_mouse.h": {
+      "archive_member": "sdl2-sys-0.38.0/SDL/include/SDL_mouse.h",
+      "sha256": "8607723bdd35eba7d3017d90b530a0ace2cfe2cbadb15d110add518024d4a7e4"
+    },
+    "SDL/SDL_mutex.h": {
+      "archive_member": "sdl2-sys-0.38.0/SDL/include/SDL_mutex.h",
+      "sha256": "6948b7c49d87a260850793740deebaf83484c7eecaedeb2618befd521f5ff6d6"
+    },
+    "SDL/SDL_pixels.h": {
+      "archive_member": "sdl2-sys-0.38.0/SDL/include/SDL_pixels.h",
+      "sha256": "f7a1155cf3e2c1df7530b127f78de7a013490d2e0182589508686bf9322679bb"
+    },
+    "SDL/SDL_platform.h": {
+      "archive_member": "sdl2-sys-0.38.0/SDL/include/SDL_platform.h",
+      "sha256": "ca34f28f985b2cc3ecef79c64bdd0a2ecd63447c3ea96029d27713af9eadcc15"
+    },
+    "SDL/SDL_power.h": {
+      "archive_member": "sdl2-sys-0.38.0/SDL/include/SDL_power.h",
+      "sha256": "079370f731ba3ed69c645cd3314a94183c76205d14b5efdf54e571cc5cbd6ce8"
+    },
+    "SDL/SDL_quit.h": {
+      "archive_member": "sdl2-sys-0.38.0/SDL/include/SDL_quit.h",
+      "sha256": "3e21379d22f2773ab3140ca296f8797a957c92541303fef40523c5190324dc59"
+    },
+    "SDL/SDL_rect.h": {
+      "archive_member": "sdl2-sys-0.38.0/SDL/include/SDL_rect.h",
+      "sha256": "39876f360f0627e1d4ece14dbe0610b13e62cf2164766470f2c9047813d1e983"
+    },
+    "SDL/SDL_render.h": {
+      "archive_member": "sdl2-sys-0.38.0/SDL/include/SDL_render.h",
+      "sha256": "f62b05abff0f83891dbc34db260bcf31e0a3d39ad91d63e804ae1224ea23327e"
+    },
+    "SDL/SDL_rwops.h": {
+      "archive_member": "sdl2-sys-0.38.0/SDL/include/SDL_rwops.h",
+      "sha256": "02376362bfb2ea8c7da6d751bc876195231e21fb9f2fa4cd00c989ef17df27b4"
+    },
+    "SDL/SDL_scancode.h": {
+      "archive_member": "sdl2-sys-0.38.0/SDL/include/SDL_scancode.h",
+      "sha256": "afb9eacdc2b217c297613e5825ce66be11e7140285072c5e3fb77db8daee7d83"
+    },
+    "SDL/SDL_sensor.h": {
+      "archive_member": "sdl2-sys-0.38.0/SDL/include/SDL_sensor.h",
+      "sha256": "33a4884183e216aa50f0d2a99d6850c8cf82db84ff28ba86aeabb6ef281daa9e"
+    },
+    "SDL/SDL_shape.h": {
+      "archive_member": "sdl2-sys-0.38.0/SDL/include/SDL_shape.h",
+      "sha256": "6f82d6e81e213565e4caccb914ee6058854d0fb8e230944970e455cdf9b3237a"
+    },
+    "SDL/SDL_stdinc.h": {
+      "archive_member": "sdl2-sys-0.38.0/SDL/include/SDL_stdinc.h",
+      "sha256": "394ac939bbcf29872a7ef1389bb9274fde0ae5e36b4377eab0de0fcaec09d769"
+    },
+    "SDL/SDL_surface.h": {
+      "archive_member": "sdl2-sys-0.38.0/SDL/include/SDL_surface.h",
+      "sha256": "10efa8b66f6c64e871bc58c8197c5e01c9d667d4b3d2317a62c219c666663170"
+    },
+    "SDL/SDL_system.h": {
+      "archive_member": "sdl2-sys-0.38.0/SDL/include/SDL_system.h",
+      "sha256": "9916949bd01d9b189e1e00bef757da34f4519ed750ee29924d71753fcd5364e0"
+    },
+    "SDL/SDL_thread.h": {
+      "archive_member": "sdl2-sys-0.38.0/SDL/include/SDL_thread.h",
+      "sha256": "58282b6829590bb29f00621ba9a574450c8b0d5c50eeb3fa8efbee7e585175f4"
+    },
+    "SDL/SDL_timer.h": {
+      "archive_member": "sdl2-sys-0.38.0/SDL/include/SDL_timer.h",
+      "sha256": "1245870f559e9151fac68eba4f8184903651adfb9425a701c589aa0367d18bc8"
+    },
+    "SDL/SDL_touch.h": {
+      "archive_member": "sdl2-sys-0.38.0/SDL/include/SDL_touch.h",
+      "sha256": "971ab29230e565ced41c57fb43b8365526c7eaadc871375a8917b3e26f6cb47b"
+    },
+    "SDL/SDL_version.h": {
+      "archive_member": "sdl2-sys-0.38.0/SDL/include/SDL_version.h",
+      "sha256": "2fd99a94de4ea8ea142935bfb3840a7259a05e3367fca3b49a8a0aa8d3e16a9a"
+    },
+    "SDL/SDL_video.h": {
+      "archive_member": "sdl2-sys-0.38.0/SDL/include/SDL_video.h",
+      "sha256": "154761826783ab428fd7f08977992b8f0f5011751907a6a0279c86484bf5f984"
+    },
+    "SDL/begin_code.h": {
+      "archive_member": "sdl2-sys-0.38.0/SDL/include/begin_code.h",
+      "sha256": "1b86f3a435f35ded3dd531069ae43117e37ae190d3360df6b548f20c06095e61"
+    },
+    "SDL/close_code.h": {
+      "archive_member": "sdl2-sys-0.38.0/SDL/include/close_code.h",
+      "sha256": "fb26c0da7a88c1f2f2510f4f7fd64b5d4c97306352df164c128c2e21ca88ad14"
+    }
+  }
+}
