@@ -24,19 +24,7 @@
  * as part of the compat layer.
  */
 
-#define xeno_cleanroom_cfc2 CFC2
-#include "cleanroom/gte_readgeom_cleanroom.h"
-
-int32_t ReadGeomScreen(void)
-{
-    uint32_t w = xeno_cleanroom_cfc2(26);
-    uint32_t lo = w & 0xFFFFu;
-
-    /* sign-extend the low 16 bits; idempotent if the seam already extended them */
-    return lo >= 0x8000u ? (int32_t)lo - 65536 : (int32_t)lo;
-}
-
-#undef xeno_cleanroom_cfc2
+#include "cleanroom/sdk_read_geom_screen.inc"
 
 MATRIX* SetMulMatrix(MATRIX* m0, MATRIX* m1)
 {
@@ -70,37 +58,15 @@ MATRIX* SetMulMatrix(MATRIX* m0, MATRIX* m1)
  * Render Polygon/Line Commands").  Spelled out rather than taken from a
  * setPoly/setLine macro because PsyCross's libgpu.h gives LINE_F2 a length
  * of 2, while the packet (colour+code word, two vertex words) is 3 words. */
-/* PsyCross e56e4cde, include/psx/libgpu.h (MIT). */
-void SetPolyFT3(POLY_FT3 *packet)
-{
-    setPolyFT3(packet);
-}
+#include "cleanroom/sdk_packet_SetPolyFT3.inc"
 
-/* PsyCross e56e4cde, include/psx/libgpu.h (MIT). */
-void SetPolyG3(POLY_G3 *packet)
-{
-    setPolyG3(packet);
-}
+#include "cleanroom/sdk_packet_SetPolyG3.inc"
 
-/* PsyCross e56e4cde, include/psx/libgpu.h (MIT). */
-void SetPolyGT3(POLY_GT3 *packet)
-{
-    setPolyGT3(packet);
-}
+#include "cleanroom/sdk_packet_SetPolyGT3.inc"
 
-/* PsyCross e56e4cde, include/psx/libgpu.h (MIT). */
-void SetLineF2(LINE_F2 *packet)
-{
-    /* The port's patched lowercase macro differs from the MIT three-word packet. */
-    setlen(packet, 3);
-    setcode(packet, 0x40);
-}
+#include "cleanroom/sdk_packet_SetLineF2.inc"
 
-/* PsyCross e56e4cde, include/psx/libgpu.h (MIT). */
-void SetLineG2(LINE_G2 *packet)
-{
-    setLineG2(packet);
-}
+#include "cleanroom/sdk_packet_SetLineG2.inc"
 
 /* Q12 product, floored (arithmetic shift right by 12). */
 static s32 CompatQ12Mul(s32 a, s32 b)

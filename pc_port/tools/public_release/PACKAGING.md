@@ -4,7 +4,7 @@ Use a Linux host with Python 3.9 or later, Git, and GNU `ar`. Run the command fr
 
 Download `xenogears-v0.7.93-preview-linux-x86_64.tar.gz` and `xenogears-v0.7.93-preview-windows-x64.zip` from the [public support release](https://github.com/Blizz127/xenogears-decomp-port/releases/tag/v0.7.93-preview). `support.json` lists the download URLs, byte lengths, archive digests and the exact support members each package uses. This provides the platform libraries, their licenses, the corresponding OpenAL sources, and the disc preparation utility. The game executable in each package comes from the new build. The profile records the earlier executable digests to prevent accidental reuse.
 
-Keep a checkout of [PsyCross](https://github.com/OpenDriver2/PsyCross) that contains commit `e56e4cde1c2b8a15e0d4e38b26cdd9202e0d17e6`. The packager restores the published renderer source recipe from this checkout and compares its files with the actual compiler inputs. It retains the authenticated source recipe for unchanged inputs and their license notices. The source companion supplies the GPU, SPU and CD renderer headers from the selected game commit and records their paths alongside the measured compiler hashes. The packaged companion can reconstruct the measured inputs on a separate machine with that upstream commit.
+Keep a checkout of [PsyCross](https://github.com/OpenDriver2/PsyCross) that contains commit `e56e4cde1c2b8a15e0d4e38b26cdd9202e0d17e6`. The packager restores the published renderer source recipe from this checkout and compares its files with the actual compiler inputs. It retains the authenticated source recipe for unchanged inputs and their license notices. The source companion supplies the GPU, SPU and CD renderer headers and the data-access header from the selected game commit, including the prepared-media header on Windows. It records their paths alongside the measured compiler hashes. The packaged companion can reconstruct the measured inputs on a separate machine with that upstream commit.
 
 ## Producer records
 
@@ -27,7 +27,7 @@ Generate the dependency report from the compiler dependency files and the object
 | `members` | Array of object filenames contained in the static archive |
 | `member_sha256` | Object mapping those same filenames to their object-content SHA-256 |
 | `units` | Object mapping each filename to its complete list of project and vendor dependencies. Their union equals `compiler_inputs` |
-| `source_files` | Mapping of edited vendor inputs to committed source paths. The GPU, SPU and CD headers each map from the vendor include/psx directory to its matching pc_port/renderer_headers/psx file. Their actual compiler bytes must match the Git blobs |
+| `source_files` | Mapping of edited vendor inputs to committed source paths. The GPU, SPU and CD headers each map from the vendor include/psx directory to its matching pc_port/renderer_headers/psx file. The data-access header and the Windows prepared-media header map to their own project paths. Their actual compiler bytes must match the Git blobs |
 
 System and external dependency headers are qualified by the build producer. The producer must establish that the selected SDK and game were compiled together. The packaging checks reopen the files, match the archive members, replay the source recipe and verify the reported digests.
 

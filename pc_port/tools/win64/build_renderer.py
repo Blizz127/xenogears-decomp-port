@@ -13,7 +13,7 @@ import subprocess
 import sys
 
 from forward_compile import (
-    RENDERER_HEADER_SOURCES, VENDOR, git, repo_info, require, source_blob, verify_renderer_donor,
+    RENDERER_SOURCE_FILES, VENDOR, git, repo_info, require, source_blob, verify_renderer_donor,
 )
 
 
@@ -76,8 +76,8 @@ def stage_inputs(root, restored, prefix, stage, blobs, profile):
             hashlib.sha256(restored_data).hexdigest() == expected,
             "Wrong restored compiler input: " + key,
         )
-        if key in RENDERER_HEADER_SOURCES:
-            data = source_blob(root / RENDERER_HEADER_SOURCES[key], root, blobs)
+        if key in RENDERER_SOURCE_FILES:
+            data = source_blob(root / RENDERER_SOURCE_FILES[key], root, blobs)
         elif key.startswith(VENDOR):
             data = restored_data
         else:
@@ -323,7 +323,7 @@ def compile_renderer(args):
         toolchain=fingerprint(zig),
         units=units,
         compiler_inputs=union,
-        source_files={key: path for key, path in RENDERER_HEADER_SOURCES.items() if key in union},
+        source_files={key: path for key, path in RENDERER_SOURCE_FILES.items() if key in union},
         source_date_epoch=env["SOURCE_DATE_EPOCH"],
         profile=fingerprint(HERE / "renderer-profile.json"),
     )

@@ -8,12 +8,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* Direct Windows game calls use the pointer-returning port ABI. */
-void *bzero(void *destination, size_t length)
-{
-    return memset(destination, 0, length);
-}
-
 /* The guest bzero call has two arguments and no return value. */
 static void clear_bytes(void *destination, size_t length)
 {

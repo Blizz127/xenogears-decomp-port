@@ -41,70 +41,9 @@ extern void DrawAllSplits(void);  /* flush queued primitives to the GL framebuff
 
 /* CdFlush remains unresolved: retail CD_flush resets interrupt state. */
 
-/* Retail soft-reset teardown (libapi 0x800408F4): stop pad communication,
- * remove the pad interrupt registration, and clear the active-pad flag. The
- * host has no PSX interrupt table to unregister from, so that middle step is
- * represented by the existing host lifecycle boundary. */
-void func_800408F4(void)
-{
-    extern void PadStopCom(void);
-    extern int32_t D_80056414;
+#include "cleanroom/sdk_pad_shutdown.inc"
 
-    PadStopCom();
-    D_80056414 = 0;
-}
-
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-
-/* The port's checkpoints, scripts and guest bridge share this 32-bit word. */
-uint32_t g_RandomSeed;
-
-/* The field-step vblank log consumes these counters and marks its game thread. */
-static uint32_t s_rand_calls, s_rand_calls_off_main;
-static void *s_rand_last_off_main;
-static _Thread_local int s_rand_on_main;
-extern int g_GameSceneMapNum __attribute__((weak));
-extern int PcPort_FieldStepPadArmedStep(unsigned *step) __attribute__((weak));
-
-static void record_random_draw(void *caller)
-{
-    static FILE *trace;
-    static int initialized;
-
-    ++s_rand_calls;
-    if (!s_rand_on_main) {
-        ++s_rand_calls_off_main;
-        s_rand_last_off_main = caller;
-    }
-
-    if (!initialized) {
-        initialized = 1;
-        const char *path = getenv("XENO_RAND_TRACE");
-        if (path && *path && &g_GameSceneMapNum && PcPort_FieldStepPadArmedStep)
-            trace = fopen(path, "w");
-    }
-    if (trace) {
-        unsigned step;
-        if (PcPort_FieldStepPadArmedStep(&step)) {
-            fclose(trace);
-            trace = NULL;
-        } else {
-            fprintf(trace, "%u %d %p\n", (unsigned)s_rand_calls, g_GameSceneMapNum, caller);
-        }
-    }
-}
-
-int rand(void)
-{
-    /* The C11 7.22.2.2 example's LCG parameters match the recorded game draws.
-     * Unsigned arithmetic retains all 32 state bits across checkpoint restores. */
-    uint32_t state = UINT32_C(1103515245) * g_RandomSeed + UINT32_C(12345);
-    record_random_draw(__builtin_return_address(0));
-    g_RandomSeed = state;
-    return (int)((state >> 16) & UINT32_C(0x7fff));
-}
+#include "cleanroom/sdk_libc_rand.inc"
 
 /* Retail func_80048AB0 (asm 80048AB0) is SetFogNearFar: compute DQA/DQB from
  * near Z, far Z, and projection H. PsyCross exports SetFogNearFar under that
@@ -119,29 +58,7 @@ void func_80048AB0(long a, long b, long h)
  * but not the read-back. Used by the 0xBC sub-command 0x17 (screen-center
  * delta) in animation_scripts.c. */
 #include <psx/gtereg.h>
-#define xeno_cleanroom_cfc2 CFC2
-#include "cleanroom/gte_readgeom_cleanroom.h"
-
-/* floor(int32(raw) / 65536) without relying on right shift of a negative value */
-static int32_t offset_value(uint32_t raw)
-{
-    uint32_t hi = raw >> 16;
-    return hi >= 0x8000u ? (int32_t)hi - 65536 : (int32_t)hi;
-}
-
-void ReadGeomOffset(long *ofx, long *ofy)
-{
-    uint32_t raw_x = xeno_cleanroom_cfc2(24);
-    uint32_t raw_y = xeno_cleanroom_cfc2(25);
-    int32_t x = offset_value(raw_x);
-    int32_t y = offset_value(raw_y);
-
-    /* both reads precede both stores; ofx first, ofy second (second store wins on alias) */
-    *ofx = (long)x;
-    *ofy = (long)y;
-}
-
-#undef xeno_cleanroom_cfc2
+#include "cleanroom/sdk_read_geom_offset.inc"
 
 /*
  * Field C (misc2.c) uses the PSY-Q gte_* names. Matching builds expand those
@@ -235,71 +152,9 @@ TIM_IMAGE* ReadTIM(TIM_IMAGE* timimg)
     return timimg;
 }
 
-/* PsyCross e56e4cde, include/psx/libgpu.h (MIT). */
-void SetPolyF3(POLY_F3 *packet)
-{
-    setPolyF3(packet);
-}
+#include "cleanroom/sdk_packet_SetPolyF3.inc"
 
-/* Independently written against the public PsyCross GTE interface at
- * e56e4cde1c2b8a15e0d4e38b26cdd9202e0d17e6. See include/psx/gtemac.h
- * (gte_OuterProduct0/12, gte_Square0) and include/psx/inline_c.h for the
- * operand, accumulator and command interfaces. */
-static void sdk_vector_load_ir(const VECTOR *vector)
-{
-    uint32_t xyz[3];
-    memcpy(xyz, vector, sizeof(xyz));
-    MTC2(xyz[0], 9);
-    MTC2(xyz[1], 10);
-    MTC2(xyz[2], 11);
-}
-
-static void sdk_vector_store_mac(VECTOR *result)
-{
-    uint32_t xyz[3] = { MFC2(25), MFC2(26), MFC2(27) };
-    memcpy(result, xyz, sizeof(xyz));
-}
-
-VECTOR *Square0(VECTOR *input, VECTOR *result)
-{
-    sdk_vector_load_ir(input);
-    gte_sqr0();
-    sdk_vector_store_mac(result);
-    return result;
-}
-
-static void sdk_vector_cross(const VECTOR *left, const VECTOR *right,
-                             VECTOR *result, int shift12)
-{
-    /* OP uses the rotation diagonal as one of its input vectors. The
-     * callable interface preserves these three packed matrix registers. */
-    unsigned int rot0 = CFC2(0), rot2 = CFC2(2), rot4 = CFC2(4);
-    uint32_t xyz[3];
-    memcpy(xyz, left, sizeof(xyz));
-    CTC2(xyz[0], 0);
-    CTC2(xyz[1], 2);
-    CTC2(xyz[2], 4);
-    sdk_vector_load_ir(right);
-    if (shift12) {
-        gte_op12();
-    } else {
-        gte_op0();
-    }
-    sdk_vector_store_mac(result);
-    CTC2(rot0, 0);
-    CTC2(rot2, 2);
-    CTC2(rot4, 4);
-}
-
-void OuterProduct0(VECTOR *left, VECTOR *right, VECTOR *result)
-{
-    sdk_vector_cross(left, right, result, 0);
-}
-
-void OuterProduct12(VECTOR *left, VECTOR *right, VECTOR *result)
-{
-    sdk_vector_cross(left, right, result, 1);
-}
+#include "cleanroom/sdk_vector_products.inc"
 
 MATRIX* ScaleMatrixL(MATRIX* m, VECTOR* v)
 {
@@ -470,46 +325,7 @@ long VectorNormalSS(SVECTOR* v0, SVECTOR* v1)
     return (int32_t)squared;
 }
 
-#include <stdint.h>
-#include <string.h>
-#include <psx/libgte.h>
-#include <psx/inline_c.h>
-
-static void load_projection_vertex(const SVECTOR *vertex, int slot)
-{
-    uint32_t words[2];
-    memcpy(words, vertex, sizeof(words));
-    MTC2(words[0], slot * 2);
-    MTC2(words[1], slot * 2 + 1);
-}
-
-long RotAverage4(SVECTOR *v0, SVECTOR *v1, SVECTOR *v2, SVECTOR *v3,
-                 long *sxy0, long *sxy1, long *sxy2, long *sxy3,
-                 long *p, long *flag)
-{
-    load_projection_vertex(v0, 0);
-    load_projection_vertex(v1, 1);
-    load_projection_vertex(v2, 2);
-    gte_rtpt();
-    uint32_t projection_flags = CFC2(31);
-    uint32_t screen[3] = {MFC2(12), MFC2(13), MFC2(14)};
-
-    /* GPU packets contain packed XY pairs even when host longs are wider. */
-    memcpy((unsigned char *)sxy0, &screen[0], sizeof(screen[0]));
-    memcpy((unsigned char *)sxy1, &screen[1], sizeof(screen[1]));
-    memcpy((unsigned char *)sxy2, &screen[2], sizeof(screen[2]));
-
-    load_projection_vertex(v3, 0);
-    gte_rtps();
-    projection_flags |= CFC2(31);
-    uint32_t last_screen = MFC2(14);
-    memcpy((unsigned char *)sxy3, &last_screen, sizeof(last_screen));
-    *p = (int32_t)MFC2(8);
-    *flag = (int32_t)projection_flags;
-
-    gte_avsz4();
-    return MFC2(7);
-}
+#include "cleanroom/sdk_rot_average4.inc"
 
 /* Mask deferred game-thread vblank delivery. This does not couple arbitrary
  * critical sections to the sound mutex: sound transfer writes retain their
@@ -525,26 +341,9 @@ void ExitCriticalSection(void)
         PcPort_UnmaskVblank();
 }
 
-int CdDataSync(int mode)
-{
-    (void)mode;
-    return 0;
-}
+#include "cleanroom/sdk_cd_transfer_status.inc"
 
-/*
- * Sprintf (PsyQ): the game's variadic string formatter (KernelMenu builds its
- * menu text with it). Forward to libc vsprintf. Signature matches the game's
- * include/system/memory.h declaration.
- */
-int Sprintf(char* dest, char* fmt, ...)
-{
-    va_list ap;
-    int n;
-    va_start(ap, fmt);
-    n = vsprintf(dest, fmt, ap);
-    va_end(ap);
-    return n;
-}
+#include "cleanroom/sdk_libc_sprintf.inc"
 
 /*
  * Vsync (game spelling, lowercase 's'; ELF symbol `Vsync` @ 0x8004b54c) vs PsyQ
@@ -1635,127 +1434,15 @@ int PcPort_DeterministicVblankLogGate(void)
     return PcPort_DetVblankK() == 0 || s_detVblankLive;
 }
 
-int Vsync(int mode)
+/* The preview exposes the game clock. Its unused movie-only entry stays
+ * private to this unit so the reserved public movie ordinal stays vacant. */
+static void PcPort_VsyncMoviePage(const DISPENV *page) __attribute__((unused));
+#include "cleanroom/host_vsync.inc"
+
+#ifdef _WIN32
+/* Direct Windows game calls use the pointer-returning port ABI. */
+void *bzero(void *destination, size_t length)
 {
-    int count;
-    /* Retail Vsync(1)/Vsync(<0) are timing queries: they must not flush or
-     * present. The deferred IRQ service may consume newly elapsed ticks, but
-     * repeated queries at the same count never add controller states. The
-     * field starts each iteration with Vsync(1) while the prior DrawOTag scene
-     * is still open and reaches the blocking Vsync(0) later in the same
-     * iteration. Presenting at the query would close the scene there and then
-     * make the Vsync(0) take the VRAM fallback, so one rendered frame swaps
-     * twice (PsyX_EndScene + VRAM fallback) and flickers. Keep presentation
-     * in the blocking path. */
-    if (mode == 1 || mode < 0) {
-        if (mode < 0 && PcPort_DetVblankActive()) {
-            if (s_detPollPending && s_detPollLast == s_detVblankNow) {
-                s_detVblankNow++;
-                s_detQuery++;
-                if (s_detBattle)
-                    PcPort_DetBattleNoteAdvance();
-                if (s_detSpinVblanks++ == 0)
-                    fprintf(stderr, "[det-vblank] busy-wait Vsync(-1) poll advances the test "
-                            "clock by one vblank per spin (not a retail-timing claim)\n");
-            }
-            s_detPollPending = 1;
-            s_detPollLast = s_detVblankNow;
-        } else {
-            s_detPollPending = 0;
-        }
-        count = VSync(mode);
-        XENO_SERVICE_VBLANK();
-        if (mode == 1) {
-            /* Test clock: the game-visible count, frozen while loading. */
-            if (s_detVblankOn)
-                count = (int)s_detQuery;
-            else
-                s_detLastQuery = count;
-        }
-        return (mode < 0 && PcPort_GetServicedVblankCount) ? PcPort_GetServicedVblankCount() : count;
-    }
-
-    /* Flush any primitives queued this frame before presenting. DrawOTag flushes
-     * its own ordering table via DrawAllSplits, but immediate-mode DrawPrim (used
-     * by GameShowSplashScreen's fade loops) does NOT -- it only queues into the
-     * split list, relying on a later DrawSync/DrawOTag to flush. The splash issues
-     * DrawPrim + Vsync with no such flush in between, so its sprite would never
-     * reach the framebuffer. Flushing here (idempotent when empty, like DrawSync)
-     * makes the present show everything drawn since the last frame. */
-    {
-        /* PSX display semantics: at vblank the screen shows the DISPENV area of
-         * VRAM whether or not anything was drawn.  PsyCross only presents
-         * rendered primitives, so a frame built purely by LoadImage into the
-         * display buffer (the STR movie player) never reaches the window.
-         * When no scene is open at a blocking Vsync(0), present the display
-         * area from the VRAM mirror instead (patches/psycross_display_present). */
-        extern int PsyX_IsSceneOpen(void);
-        extern int PsyX_PresentDisplayFromVRAM(void);
-        extern int PsyX_GpuTraceOn(void);
-        extern int g_xeno_swap_index;
-        int sceneOpen = PsyX_IsSceneOpen();
-
-        /* Diagnostic (XENO_GPU_TRACE, psycross_gpu_trace.patch). */
-        if (PsyX_GpuTraceOn()) {
-            printf("[gputrace] s=%d Vsync(%d) scene=%d\n", g_xeno_swap_index,
-                   mode, sceneOpen);
-            fflush(stdout);
-        }
-
-        DrawAllSplits();
-
-        PsyX_EndScene();      /* present the frame the game just finished building */
-
-        /* Dev-harness field capture (no-op unless XENO_FIELD_CAPTURE_DIR). */
-        { extern void PcPort_FieldCaptureOnVsync(void) __attribute__((weak)); if (PcPort_FieldCaptureOnVsync) PcPort_FieldCaptureOnVsync(); }
-
-        if (!sceneOpen && mode == 0)
-            PsyX_PresentDisplayFromVRAM();
-    }
-
-    /* TEST TOOLING hooks below are weak: tests that link this TU without the
-     * tooling files still link.  Inert unless their XENO_* switch is set. */
-    /* TEST TOOLING: headless walk telemetry (XENO_FIELD_POS_DIAG). */
-    { extern void PcPort_FieldPosDiag(void) __attribute__((weak)); if (PcPort_FieldPosDiag) PcPort_FieldPosDiag(); }
-    /* One frame_tick per presented frame (xg_plat/mods.h).  Its first
-     * subscribers are the cheat services that used to be called right here,
-     * in the same order: field warp (XENO_FIELD_WARP / `warp`), battle warp
-     * (XENO_BATTLE_WARP_FILE / `battle`), then queued cheat-console commands
-     * (cheat_console.c), then mods.  Weak: no-op without the layer. */
-    if (xg_plat_mods_emit)
-        (void)xg_plat_mods_emit(XG_PLAT_EVENT_FRAME_TICK, 0, 0);
-    /* TEST TOOLING: dump the loaded walkmesh (XENO_WALKMESH_DUMP); inert unset. */
-    { extern void PcPort_WalkmeshDump(void) __attribute__((weak)); if (PcPort_WalkmeshDump) PcPort_WalkmeshDump(); }
-    /* Pace first so the newly elapsed tick is serviced before returning.
-     * All entry points share one counter cursor, including the guest pump. */
-    /* XENO_DETERMINISTIC_VBLANK: this wait consumes exactly K (or n) game
-     * vblanks; VSync below still paces presentation to the host. */
-    /* Frozen while loading (field latch clear), so a host-timed load --
-     * the fixture load or an F12 reload -- adds no game vblanks, pad
-     * samples or sound ticks.  Test-clock behaviour, not retail timing. */
-    s_detPollPending = 0;
-    if (PcPort_DetVblankActive()) {
-        uint32_t step_vblanks = (uint32_t)(mode >= 2 ? mode : s_detVblankK);
-        s_detVblankNow += step_vblanks;
-        s_detQuery += step_vblanks;
-        if (s_detBattle)
-            PcPort_DetBattleNoteAdvance();
-    }
-    count = VSync(mode);
-    XENO_SERVICE_VBLANK();
-    if (s_detVblankOn)
-        count = (int)s_detQuery;
-
-    /* Headless menu driver (no-op unless XENO_KERNEL_SEL is set). Must run after
-     * ControllerPoll, which recomputes g_C1ButtonState* each frame -- we OR the
-     * synthetic Circle in afterwards so it survives to the next KernelMenuUpdate. */
-    PcPort_ForcedKernelSelect();
-
-    /* Headless resourced main-menu driver (no-op unless XENO_MENU_FORCE=1). */
-    PcPort_ForcedFieldMenu();
-
-    /* Temporary interactive camera+cull logger (XENO_CULL_CAM_LOG=1). */
-    { extern void PcPort_CullCamLogOnVsync(void); PcPort_CullCamLogOnVsync(); }
-
-    return count;
+    return memset(destination, 0, length);
 }
+#endif

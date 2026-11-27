@@ -13,7 +13,7 @@ import sys
 from pathlib import Path
 
 from forward_binding import derive_bindings
-from forward_compile import RENDERER_HEADER_SOURCES, VENDOR, verify_renderer_donor
+from forward_compile import RENDERER_SOURCE_FILES, VENDOR, verify_renderer_donor
 from forward_bind_verify import Image, linked_symbols, verify as verify_binding
 from forward_compact import check as check_compact
 
@@ -495,11 +495,11 @@ def renderer_compiler_inputs(receipt, commit, tree, profile_blob, project_digest
     expected = profile["restored_inputs"]
     require(profile["target"] == receipt["target"] and profile["zig"] == receipt["compiler"] and
             measured.keys() == expected.keys(), "full renderer receipt omits or adds profile inputs")
-    require(RENDERER_HEADER_SOURCES.keys() <= measured.keys() and receipt.get("source_files") == RENDERER_HEADER_SOURCES,
-            "full renderer receipt must identify all three committed replacement headers")
+    require(RENDERER_SOURCE_FILES.keys() <= measured.keys() and receipt.get("source_files") == RENDERER_SOURCE_FILES,
+            "full renderer receipt must identify all five committed headers")
     for key, value in measured.items():
-        if key in RENDERER_HEADER_SOURCES:
-            actual = project_digest(RENDERER_HEADER_SOURCES[key])
+        if key in RENDERER_SOURCE_FILES:
+            actual = project_digest(RENDERER_SOURCE_FILES[key])
         else:
             actual = expected[key] if key.startswith(vendor) else project_digest(key)
         require(value == actual, f"renderer input does not match its restored vendor or Git project source: {key}")
@@ -525,7 +525,7 @@ def renderer_compiler_inputs(receipt, commit, tree, profile_blob, project_digest
             "full renderer archive member roster differs from its committed profile")
     require(seen == measured.keys(), "per-member dependency union differs from measured renderer inputs")
     return {"platform": "windows", "source_commit": commit, "source_tree": tree, "sdk_sha256": receipt["archive_sha256"],
-            "compiler_inputs": measured, "source_files": dict(RENDERER_HEADER_SOURCES),
+            "compiler_inputs": measured, "source_files": dict(RENDERER_SOURCE_FILES),
             "members": members, "member_sha256": hashes, "units": units}
 
 
@@ -539,6 +539,17 @@ def sdk_library(sdk, receipt, commit, tree, profile_blob, project_digest):
         require(len(data) >= 20 and data.startswith(b"\x64\x86") and hashlib.sha256(data).hexdigest() == proof["member_sha256"][member],
                 f"renderer object differs from its compiler receipt: {member}")
     return proof
+
+
+def verify_game_renderer_headers(rows, renderer_inputs):
+    for key in RENDERER_SOURCE_FILES:
+        dependency = ("renderer/" + key.removeprefix(VENDOR)) if key.startswith(VENDOR) else ("source/" + key)
+        for row in rows:
+            deps = row["dependencies"]
+            if dependency in deps:
+                require(deps[dependency] == renderer_inputs["compiler_inputs"][key],
+                        f"game and renderer header differ for {row['name']}: {key}")
+
 
 def linux_inputs(record, base, commit, tree):
     require(record.get("source") == commit and record.get("tree") == tree, "Linux and Windows source/tree differ")
@@ -582,13 +593,7 @@ def link(args):
     verify_renderer_donor(json.loads(profile_blob))
     renderer_inputs = sdk_library(sdk, renderer, commit, tree, profile_blob,
                                   lambda key: hashlib.sha256(source_bytes(key)).hexdigest())
-    for key in RENDERER_HEADER_SOURCES:
-        dependency = "renderer/" + key.removeprefix(VENDOR)
-        for row in rows:
-            deps = row["dependencies"]
-            if dependency in deps:
-                require(deps[dependency] == renderer_inputs["compiler_inputs"][key],
-                        f"game and renderer header differ for {row['name']}: {key}")
+    verify_game_renderer_headers(rows, renderer_inputs)
     libs = [sdk]
     for name, digest in IMPORTS.items():
         path = prefix / "lib" / name
@@ -745,13 +750,13 @@ def self_check():
         subprocess.run([llvm_tool("ar"),"rcs",sdk,member],check=True)
         primary = "pc_port/extern/PsyCross/src/demo.c"
         header = "pc_port/include_shim/demo.h"
-        inputs = {primary:"1"*64,header:"2"*64, **dict.fromkeys(RENDERER_HEADER_SOURCES, "e"*64)}
-        project = {header:inputs[header], **dict.fromkeys(RENDERER_HEADER_SOURCES.values(), "e"*64)}
-        donor = {**inputs, **dict.fromkeys(RENDERER_HEADER_SOURCES, "d"*64)}
+        inputs = {primary:"1"*64,header:"2"*64, **dict.fromkeys(RENDERER_SOURCE_FILES, "e"*64)}
+        project = {header:inputs[header], **dict.fromkeys(RENDERER_SOURCE_FILES.values(), "e"*64)}
+        donor = {**inputs, **dict.fromkeys(RENDERER_SOURCE_FILES, "d"*64)}
         unit = {"member":member.name,"object_sha256":fingerprint(member)["sha256"],"compiler_inputs":list(inputs)}
         sdk_receipt = {"mode":"full","source_commit":"a"*40,"source_tree":"b"*40,"target":"x86_64-windows-gnu",
                        "compiler":"0.13.0","archive_sha256":fingerprint(sdk)["sha256"],"compiler_inputs":inputs,
-                       "source_files":dict(RENDERER_HEADER_SOURCES), "units":[unit]}
+                       "source_files":dict(RENDERER_SOURCE_FILES), "units":[unit]}
         profile = {"restored_inputs": donor, "sources": ["src/demo.c"], "target": sdk_receipt["target"],
                    "zig": sdk_receipt["compiler"], "unit_inputs": {member.name: [*inputs, "SDL/demo.h"]}}
         profile_bytes = json.dumps(profile).encode()

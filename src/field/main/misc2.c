@@ -1259,7 +1259,7 @@ void FieldMatrixCopyTransform(MATRIX* dest, MATRIX* source) {
  *   3. Quad rendering: multiple FieldRenderQuad loops for background/tiles */
 extern u16 D_800AFD24[0x80];
 extern u16 D_800AFC08[0x80];
-extern u16 D_800ADC24[8];
+extern u16 D_800ADC24[16];
 extern u8 D_800B0050[];  /* base symbol; RECT is at D_800B0050 - 4 */
 extern VECTOR g_CameraEye;
 extern VECTOR g_CameraAt;
@@ -1292,8 +1292,7 @@ void func_80074108(void) {
     u8 sceneFlag;
     s32 idx;
     s32 newAngle;
-    s32 unused6C;
-    s32 unused64;
+    enum { compassFocalLength = 0x80, compassPlaneDepth = 0x1000 };
     u8* pRenderCtx;
     s32 renderCtxIdx;
     u8* pQuadData;
@@ -1321,7 +1320,6 @@ void func_80074108(void) {
             for (j = 0; j < 0x10; j++) {
                 pDst[idx + j] = pSrc[j];
             }
-            pSrc += 0x10;
         }
         idx += 0x10;
     }
@@ -1337,7 +1335,7 @@ void func_80074108(void) {
     }
 
     /* ======== PHASE 2: Camera / matrix setup ======== */
-    SetGeomScreen(0x80);
+    SetGeomScreen(compassFocalLength);
     SetGeomOffset(0x10A, 0xA6);
 
     /* Build view matrix: FieldMatrixLookAt(matView, eye, at, up)
@@ -1358,6 +1356,7 @@ void func_80074108(void) {
 
     /* Setup matWork for composite matrix chain */
     func_80070594(&matWork);
+    matWork.t[2] = compassFocalLength;
     SetRotMatrix(&matWork);
     SetTransMatrix(&matWork);
 
@@ -1382,7 +1381,7 @@ void func_80074108(void) {
     svRot.vx = 0; svRot.vy = (s16)newAngle; svRot.vz = 0;
     RotMatrix(&svRot, &matTemp);
     MulMatrix2(&matView, &matTemp);
-    unused6C = 0x1000;
+    matTemp.t[2] = compassPlaneDepth;
     CompMatrix(&matWork, &matTemp, &matComposite);
 
     /* ---- First quad loop: asm runs entry 0x14 only (D_800B0F7C) ---- */
@@ -1400,7 +1399,7 @@ void func_80074108(void) {
     /* ---- Second matrix chain ---- */
     func_80070594(&matTemp);
     MulMatrix2(&matView, &matTemp);
-    unused6C = 0x1000;
+    matTemp.t[2] = compassPlaneDepth;
     CompMatrix(&matWork, &matTemp, &matComposite);
     MulMatrix0(&matWork, &matTemp, (MATRIX*)((u8*)&g_Scene + 0xF4));
     SetRotMatrix(&matWork);
@@ -1409,7 +1408,7 @@ void func_80074108(void) {
     /* ---- Third matrix chain ---- */
     func_80070594(&matTemp);
     MulMatrix2((MATRIX*)&g_Scene, &matTemp);
-    unused6C = 0x1000;
+    matTemp.t[2] = compassPlaneDepth;
     CompMatrix(&matWork, &matTemp, &matComposite);
     FieldMatrixCopy(&matWork, &matComposite);
 
@@ -1420,7 +1419,8 @@ void func_80074108(void) {
         RotMatrix(&svRot, &matRot);
 
         if (!D_800B21D1 && D_800ADC18 == 0 && D_8004F378 == 0) {
-            u8* pTrigger = (u8*)(uintptr_t)g_pFieldTriggerZones;
+            /* The owner-loaded compass table follows its eight palette masks. */
+            const u16 *corners = D_800ADC24 + 8;
             pRenderCtx = (u8*)g_FieldCurRenderContext;
             renderCtxIdx = g_FieldCurRenderContextIndex;
 
@@ -1428,8 +1428,8 @@ void func_80074108(void) {
              * entries 0x10..0x13, the D_800B0DBC extra-quad area. */
             for (i = 0; i < 4; i++) {
                 func_80070594(&matTemp);
-                unused64 = *(s16*)(pTrigger + 0x40 + i * 4);
-                unused6C = *(s16*)(pTrigger + 0x42 + i * 4);
+                matTemp.t[0] = (s16)corners[2 * i];
+                matTemp.t[2] = (s16)corners[2 * i + 1];
                 CompMatrix(&matWork, &matTemp, &matComposite);
                 FieldMatrixCopyTransform(&matComposite, &matRot);
                 func_8007AC58((u_long*)(pRenderCtx + 0x80D4),
@@ -1458,15 +1458,10 @@ void func_80074108(void) {
         }
     }
 
-    /* ---- Final: D_800B1E00 word swap + GTE reset ---- */
-    {
-        s32* pEntry = (s32*)(D_800B1E00 + g_FieldCurRenderContextIndex * 0xC0);
-        u8* pRC = (u8*)g_FieldCurRenderContext;
-        s32 valA = pEntry[0];
-        s32 valB = *(s32*)(pRC + 0x80D4);
-        pEntry[0] = (valA & 0xFF000000) | (valB & 0x00FFFFFF);
-        *(s32*)(pRC + 0x80D4) = (valB & 0xFF000000) | (pEntry[0] & 0x00FFFFFF);
-    }
+    /* Draw-mode state belongs ahead of the compass textured primitives. */
+    pRenderCtx = (u8 *)g_FieldCurRenderContext;
+    addPrim((u32 *)(pRenderCtx + 0x80D4),
+            D_800B1E00 + g_FieldCurRenderContextIndex * 0xC0);
 
     SetGeomOffset(0xA0, 0x70);
     SetGeomScreen(*(s32*)((u8*)&g_Scene + 0x68));

@@ -117,11 +117,7 @@ int PcPort_GetServicedVblankCount(void)
     return g_VsyncInterruptCount;
 }
 
-void func_8004B7D0(void (*next)(void))
-{
-    initialize();
-    callback = next;
-}
+#include "cleanroom/sdk_pad_vblank_registration.inc"
 
 void PcPort_ServiceVblank(void)
 {

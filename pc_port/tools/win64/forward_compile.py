@@ -20,6 +20,11 @@ RENDERER_HEADER_SOURCES = {
     VENDOR + "include/psx/" + name: "pc_port/renderer_headers/psx/" + name
     for name in ("libcd.h", "libgpu.h", "libspu.h")
 }
+RENDERER_SOURCE_FILES = {
+    **RENDERER_HEADER_SOURCES,
+    "pc_port/src/retail_data.h": "pc_port/src/retail_data.h",
+    "pc_port/src/win_prepared_media.h": "pc_port/src/win_prepared_media.h",
+}
 DONOR_MANIFEST_SHA256 = "84103d76d9f7e7b8052125d3d5575597b649f13320de3ca333a1ccce2428e018"
 
 

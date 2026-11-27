@@ -517,9 +517,7 @@ struct DIRENTRY* nextfile(struct DIRENTRY* dir)
 
 /* ---- card presence / BIOS card driver entry points ---------------------- */
 
-void InitCARD(int val) { (void)val; }
-int StartCARD(void) { return 1; }
-int StopCARD(void) { return 1; }
+#include "cleanroom/sdk_card_lifecycle.inc"
 void _bu_init(void) {}
 
 static void card_event(int chan, int present)

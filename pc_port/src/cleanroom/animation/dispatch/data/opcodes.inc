@@ -94,6 +94,11 @@ static int animationData(uint8_t *actor, uint8_t opcode, uint8_t *args)
     case 0xb8:
         actor[0x8c] -= args[0];
         break;
+    case 0xbb:
+        /* The renderer adds this signed bias to the sprite's ordering-table depth. */
+        delta = (int8_t)args[0];
+        spriteDataSetHalf(actor + 0x30, (uint16_t)(spriteDataHalf(actor + 0x30) + delta));
+        break;
     case 0xbf:
         spriteDataSetHalf(actor + 0x36, args[0]);
         break;

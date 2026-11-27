@@ -119,6 +119,26 @@ class ReleaseGuardTests(unittest.TestCase):
         self.assertEqual(guard.check_paths_binary(self.mapped), [])
         self.assertEqual(guard.check_paths_binary(self.stripped), [])
 
+    def test_distinct_long_source_paths_are_reported_in_full(self):
+        directory = self.root / ("source-" * 24)
+        directory.mkdir()
+        first = directory / "first.c"
+        second = directory / "second.c"
+        first.write_text("const char first_path[] = __FILE__;\n"
+                         "extern const char second_path[];\n"
+                         "int main(void) { return first_path[0] != second_path[0]; }\n")
+        second.write_text("const char second_path[] = __FILE__;\n")
+        binary = self.root / "two-paths"
+        subprocess.run([guard.tool("cc", "gcc", "clang"), str(first), str(second),
+                        "-o", str(binary)], check=True)
+
+        paths = {row[1] for row in guard.check_paths_binary(binary) if row[0] == "path"}
+        code, output = self.run_guard("--no-disc", "--binary", binary)
+        self.assertEqual(code, 1)
+        for source in (first, second):
+            self.assertIn(str(source), paths)
+            self.assertIn(str(source), output)
+
     def test_invalid_binary_fails_inspection(self):
         with self.assertRaises(SystemExit) as error:
             self.run_guard("--no-disc", "--binary", self.source)
@@ -140,6 +160,77 @@ class ReleaseGuardTests(unittest.TestCase):
                        check=True)
         findings = guard.check_binary(binary, self.classification, require_dwarf=True)
         self.assertTrue(any(f[0] == "tu" for f in findings), findings)
+
+    def test_reviewed_fragment_needs_its_full_path_and_exact_contents(self):
+        tree = self.root / "source-review/pc_port"
+        relative = Path("src/cleanroom/sdk_cd_transfer_status.inc")
+        source = tree / relative
+        source.parent.mkdir(parents=True)
+        original = (guard.ROOT / "pc_port" / relative).read_bytes()
+        source.write_bytes(original)
+        self.assertEqual(guard.check_sources(tree, self.classification), [])
+
+        source.write_bytes(original + b"\n")
+        findings = guard.check_sources(tree, self.classification)
+        self.assertEqual({row[:2] for row in findings},
+                         {("provider", "sha256"), ("provider", "CdDataSync")})
+
+        source.write_bytes(original)
+        legacy = tree / "src/psyq_compat.c"
+        legacy.write_bytes(original + b"\nvoid ClearImage(void) {}\n")
+        findings = guard.check_sources(tree, self.classification)
+        self.assertEqual({row[:3] for row in findings}, {
+            ("provider", "CdDataSync", "pc_port/src/psyq_compat.c"),
+            ("provider", "ClearImage", "pc_port/src/psyq_compat.c"),
+        })
+        code, output = self.run_guard("--tree", tree, "--no-disc", "--binary", self.mapped)
+        self.assertEqual(code, 1, output)
+        self.assertIn("CdDataSync", output)
+
+    def test_symlink_and_nested_matching_suffix_cannot_qualify_a_provider(self):
+        tree = self.root / "aliases/pc_port"
+        source = tree / "src/cleanroom/host_vsync.inc"
+        source.parent.mkdir(parents=True)
+        nested = tree / "src/nested/pc_port/src/cleanroom/host_vsync.inc"
+        nested.parent.mkdir(parents=True)
+        nested.write_bytes((guard.ROOT / "pc_port/src/cleanroom/host_vsync.inc").read_bytes())
+        source.symlink_to(nested)
+        findings = {row[:3] for row in guard.check_sources(tree, self.classification)}
+        self.assertIn(("provider", "sha256", "pc_port/src/cleanroom/host_vsync.inc"), findings)
+        self.assertIn(("provider", "Vsync",
+                       "pc_port/src/nested/pc_port/src/cleanroom/host_vsync.inc"), findings)
+
+    def test_address_requires_both_the_fragment_and_its_normal_source_unit(self):
+        tree = self.root / "controller-review/pc_port"
+        fragment = tree / "src/cleanroom/sdk_pad_shutdown.inc"
+        fragment.parent.mkdir(parents=True)
+        fragment.write_bytes((guard.ROOT / "pc_port/src/cleanroom" / fragment.name).read_bytes())
+        unit = tree / "src/psyq_compat.c"
+        source = ('void PadStopCom(void) {}\n#include "cleanroom/sdk_pad_shutdown.inc"\n'
+                  'int main(void) { return 0; }\n')
+        unit.write_text(source)
+        binary = self.root / "controller-entry"
+        subprocess.run([guard.tool("cc"), "-g", str(unit), "-o", str(binary)], check=True)
+        options = ("--no-disc", "--require-dwarf", "--binary", binary)
+        code, output = self.run_guard("--tree", tree, *options)
+        self.assertEqual(code, 0, output)
+        self.assertEqual(guard.COMPAT_ADDRS, {0x800408F4})
+
+        unit.unlink()
+        for subset in (tree, self.tree):
+            with self.subTest(subset=subset):
+                code, output = self.run_guard("--tree", subset, *options)
+                self.assertEqual(code, 1, output)
+                self.assertIn("bfunc\t0x800408F4", output)
+                self.assertEqual(guard.COMPAT_ADDRS, set())
+
+    def test_missing_provider_is_a_full_tree_finding(self):
+        tree = self.root / "missing-provider/pc_port"
+        tree.mkdir(parents=True)
+        with mock.patch.object(guard, "ROOT", tree.parent):
+            rows = guard.check_sources(tree, self.classification)
+        missing = {row[2] for row in rows if row[:2] == ("provider", "missing")}
+        self.assertEqual(missing, set(guard.REVIEWED_PROVIDERS))
 
     def test_strict_mode_does_not_exempt_psycross_table(self):
         synthetic = bytes(range(128))

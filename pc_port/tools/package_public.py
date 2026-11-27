@@ -21,6 +21,11 @@ from public_release import companion
 from public_release.restore_renderer import check, git_blob, name, sha
 
 ROOT = Path(__file__).resolve().parents[2]
+ANALYSIS = 'tools/analysis/'
+sys.path.insert(0, str(ROOT / ANALYSIS))
+from public_digest_packaging import check_packaging
+from public_guard_archives import archive_inputs
+
 PROFILE = 'pc_port/tools/public_release/'
 COMMANDS = {
     'linux': '```sh\npython3 prepare-data/prepare.py "/path/to/Disc 1.bin" "$HOME/Xenogears Data"\n./xenogears.sh "$HOME/Xenogears Data"\n```',
@@ -110,6 +115,13 @@ def read_support(archive,spec,platform):
     return result, seed
 
 
+def check_renderer_distribution(path, renderer):
+    for member, data in archive_inputs(path, renderer):
+        findings = check_packaging(member, data)
+        if findings:
+            raise ValueError('Excluded renderer distribution content in ' + member + ': ' + ', '.join(findings))
+
+
 def package(platform,args,spec,tree):
     receipt_path=getattr(args,platform+'_build')
     build=json.loads(receipt_path.read_bytes())
@@ -125,6 +137,7 @@ def package(platform,args,spec,tree):
     verify_members(sdk, proof)
     support,seed=read_support(getattr(args,platform+'_support'),spec,platform)
     renderer=companion.build(ROOT,args.commit,tree,platform,sha(image),sha(sdk),proof,seed,spec,args.psycross_upstream)
+    check_renderer_distribution(spec['renderer'], renderer)
     support[spec['renderer']]=renderer
     support[spec['game']]=image
     for member, path in spec['tracked'].items():
@@ -172,7 +185,8 @@ def main():
         check(re.fullmatch(r'[a-f0-9]{40}',args.commit),'Choose a full Git source commit')
         check(re.fullmatch(r'v[0-9]+(?:\.[0-9]+){2}(?:-[A-Za-z0-9]+(?:[.-][A-Za-z0-9]+)*)?',args.version),'Invalid package version')
         tree=subprocess.check_output(['git','--no-replace-objects','-C',ROOT,'rev-parse','--verify',args.commit+'^{tree}'],text=True).strip()
-        for path in ['pc_port/tools/package_public.py',PROFILE+'companion.py',PROFILE+'restore_renderer.py']:
+        for path in ['pc_port/tools/package_public.py',PROFILE+'companion.py',PROFILE+'restore_renderer.py',
+                     ANALYSIS+'public_digest_packaging.py',ANALYSIS+'public_guard_archives.py']:
             check((ROOT/path).read_bytes()==git_blob(ROOT,args.commit,path),'Packaging code differs from source revision: '+path)
         specs=json.loads(git_blob(ROOT,args.commit,PROFILE+'support.json'))
         files=dict(package(p,args,specs[p],tree) for p in ('linux','windows'))

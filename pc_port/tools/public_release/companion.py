@@ -7,7 +7,7 @@ import re
 import tarfile
 import zlib
 
-from .restore_renderer import PROJECT_HEADERS, check, contents, git_blob, historical_sources, name, sha
+from .restore_renderer import PROJECT_HEADERS, check, contents, git_blob, historical_sources, name, project_includes, sha
 
 VENDOR = 'pc_port/extern/PsyCross/'
 UPSTREAM = 'e56e4cde1c2b8a15e0d4e38b26cdd9202e0d17e6'
@@ -71,9 +71,15 @@ def retained_recipe(seed, old, platform):
               and details['effective_sha256'] == sha(data)
               and edit[path_key] == path and edit[hash_key] == sha(data)
               and edit['spans'] == [['addition', 0, len(data)]], 'Incomplete donor replacement record: ' + key)
+    includes = project_includes(platform)
+    for path in includes:
+        data = files.pop(path)
+        check(data and data == old[path] and manifest['project_includes'].pop(path) == sha(data),
+              'Incorrect donor project include: ' + path)
+        originals.append(data)
     files['manifest.json'] = json_bytes(manifest)
     files['changes.json'] = json_bytes(changes)
-    files['restored-inputs.sha256'] = checksums({k:v for k,v in old.items() if k not in PROJECT_HEADERS})
+    files['restored-inputs.sha256'] = checksums({k:v for k,v in old.items() if k not in PROJECT_HEADERS and k not in includes})
     files['README.md'] = (
         '# Retained renderer sources\n\n'
         'These compiler inputs are unchanged from the donor identified in the outer manifest. '
@@ -100,12 +106,15 @@ def build(repo, commit, tree, platform, image_hash, sdk_hash, proof, seed, spec,
                           'https://github.com/OpenDriver2/PsyCross and run `python3 restore.py /path/to/PsyCross /new/output`. '
                           'The retained source recipe includes the upstream license and notices. '
                           'The manifest identifies the origin and SHA-256 of every measured compiler input.\n').encode()
-    manifest = dict(schema=2,platform=platform,source_commit=commit,source_tree=tree,binary_sha256=image_hash,
+    manifest = dict(schema=3,platform=platform,source_commit=commit,source_tree=tree,binary_sha256=image_hash,
                     sdk_sha256=sdk_hash,upstream_commit=UPSTREAM,donor_recipe_sha256=seed_sha,recipe_sha256=sha(recipe),compiler_inputs={})
     mapped = proof.get('source_files',{})
     check(isinstance(mapped,dict) and set(mapped)<=set(measured), 'Unmeasured source mapping')
     check(all(key in measured and mapped.get(key) == path for key, path in PROJECT_HEADERS.items()),
           'Renderer proof omits the committed source of a replaced header')
+    for path in project_includes(platform):
+        check(path in measured and mapped.get(path) == path,
+              'Missing committed renderer project include: ' + path)
     for key, expected in sorted(measured.items()):
         name(key)
         check(bool(re.fullmatch('[0-9a-f]{64}',expected)), 'Invalid compiler input digest: '+key)

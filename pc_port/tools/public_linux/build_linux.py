@@ -18,6 +18,7 @@ RENDERER_SOURCE_FILES = {
     "pc_port/extern/PsyCross/include/psx/" + name: "pc_port/renderer_headers/psx/" + name
     for name in ("libgpu.h", "libspu.h", "libcd.h")
 }
+RENDERER_SOURCE_FILES["pc_port/src/retail_data.h"] = "pc_port/src/retail_data.h"
 GENERATED_INPUTS = {"battle_bridge_map.inc", "stubs.c"}
 
 def sha256(path):
@@ -44,7 +45,7 @@ def renderer_input(repo, tracked, key, donor_path, donor_digest):
         raise ValueError(f"uncommitted project renderer input: {selected}")
     return data
 
-def renderer_package_proof(records, objdir, archive, binary, commit, ar):
+def renderer_package_proof(records, objdir, archive, binary, commit, ar, repo):
     members = [Path(item).name for item in records]
     measured_members = subprocess.check_output([ar, "t", archive], text=True).splitlines()
     if len(set(members)) != len(members) or members != measured_members:
@@ -75,6 +76,11 @@ def renderer_package_proof(records, objdir, archive, binary, commit, ar):
         hashes[member] = digest
     if not RENDERER_SOURCE_FILES.keys() <= inputs.keys():
         raise ValueError("renderer compile evidence omits a project header")
+    for key, source in RENDERER_SOURCE_FILES.items():
+        blob = subprocess.check_output(["git", "--no-replace-objects", "-C", repo,
+                                        "cat-file", "blob", commit + ":" + source])
+        if inputs[key] != hashlib.sha256(blob).hexdigest():
+            raise ValueError(f"renderer compiler source differs from committed input: {key}")
     return dict(platform="linux", source_commit=commit, binary_sha256=sha256(binary),
                 sdk_sha256=sha256(archive), compiler_inputs=inputs, source_files=RENDERER_SOURCE_FILES,
                 members=members,
@@ -324,7 +330,7 @@ def build(args):
                renderer_archive=artifact(objects/"libpsycross.a"))
     renderer_proof = out / "linux-renderer-inputs.json"
     coverage = renderer_package_proof(spec["renderer_order"], objects, objects/"libpsycross.a",
-                                      out/"xeno-port.release", commit, args.ar)
+                                      out/"xeno-port.release", commit, args.ar, repo)
     coverage["source_tree"] = tree
     renderer_proof.write_text(json.dumps(coverage, indent=2) + "\n")
     proof.update(binary=proof["release"], sdk=proof["renderer_archive"], renderer_inputs=artifact(renderer_proof))

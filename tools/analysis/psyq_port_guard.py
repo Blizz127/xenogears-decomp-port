@@ -19,6 +19,7 @@ config/slus_006.64.yaml + config/psyq_data_ranges.tsv)
              function with the name of a Psy-Q SDK function (a re-implementation
              that belongs in the compat layer, written from documented
              behaviour).  Test doubles under pc_port/tests are not checked.
+  provider -- a reviewed host SDK implementation has a different identity or location.
   include -- a pc_port source #includes a matching-build Psy-Q TU
              (src/**/psyq/**.c).
   tu      -- (--binary) the linked executable's DWARF names a compile unit
@@ -45,6 +46,7 @@ Exit 0 = clean, 1 = findings, 2 = usage error.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import os
 import re
 import shutil
@@ -62,11 +64,9 @@ EXE_SHA256 = "dc0b2dd786203d4cce5927c5a3fc85a18f39a3f7406078860076ebb0bbae7119"
 TEXT_VRAM_BIAS = 0x80010000 - 0x800
 SRC_EXT = (".c", ".cc", ".cpp", ".C", ".h", ".hpp", ".inc", ".inl")
 SKIP_DIRS = {"extern", ".git", "__pycache__"}
-# The port's Psy-Q API compatibility layer. Clean-room provenance is pending
-# replacement and oracle validation (2026-10-09). Defining SDK names is its
-# job, so the `name` check does not apply to them (func/table checks do).
-# Their func_XXXXXXXX definitions at Psy-Q addresses (SDK entry points the
-# game calls by address) are likewise part of the compat layer.
+# Compatibility translation units supply SDK entry points to game code.
+# For entries in REVIEWED_PROVIDERS the implementation's individual source
+# identity takes precedence over this translation-unit classification.
 COMPAT_FILES = {
     "pc_port/src/psyq_compat.c",
     "pc_port/src/psyq_cd_mix.c",
@@ -77,6 +77,66 @@ COMPAT_FILES = {
     "pc_port/src/psyq_compat_spu_noise_clock.c",
     "pc_port/src/psyq_compat_leaf.inc",  # included by retail_leaf_adapters.c
     "pc_port/src/controller_vblank_service.c",  # libetc vblank callback on the host
+}
+
+# Source identities for reviewed host implementations. Hash the whole file so
+# helpers, macros, includes, and preprocessor conditions are covered as well.
+# A name moved back into a legacy compatibility TU must be reviewed again.
+REVIEWED_PROVIDERS = {
+    "pc_port/src/cleanroom/host_vsync.inc": (
+        "3d27bf27cfffaf876f2669424686b2482f6e7bbf32c70a2d5c9479361fccfe33", ("Vsync",)),
+    "pc_port/src/cleanroom/sdk_card_lifecycle.inc": (
+        "b5e25ae020e8b92b13badf8e4442a86e9e9ea2393bdf8dddd06411113e566f94", ('InitCARD', 'StartCARD', 'StopCARD')),
+    "pc_port/src/cleanroom/sdk_cd_audio_matrix.inc": (
+        "e42ca113783d4737c716f4f0fcef97c9e7f059db60238565bef3dce78824db30", ('CdMix',)),
+    "pc_port/src/cleanroom/sdk_cd_transfer_status.inc": (
+        "f5ad825854c13cf9308ebfbc5fc9ab2a8313c9fdd9570820355d7c71d15ffb31", ('CdDataSync',)),
+    "pc_port/src/cleanroom/sdk_file_transfers.inc": (
+        "aa9fe4e93311a9fd186c87913d2c9dad8e8633802fe2ee4ce0b916269816325a", ('PCread', 'PCwrite')),
+    "pc_port/src/cleanroom/sdk_libc_rand.inc": (
+        "3ab5d1af4a5a09fa53fd7c82cde57c61bc302d6fd3be9981ab00bdcdf085adbb", ('rand',)),
+    "pc_port/src/cleanroom/sdk_libc_sprintf.inc": (
+        "3453ab72c60d6fa41088f4408cc475d4a66195a391d100d29c400ac26abf3ded", ('Sprintf',)),
+    "pc_port/src/cleanroom/sdk_normal_light_col.inc": (
+        "b535a4dc8ef6e7c83a8b3b5dfa5b4a01ea76f59d9e2b152f6cc841788a10cddb", ('NormalLightCol',)),
+    "pc_port/src/cleanroom/sdk_packet_SetLineF2.inc": (
+        "ef30fb55ec87967387b577840527ee672df64f734d5ca902749b9a9b23665fe1", ('SetLineF2',)),
+    "pc_port/src/cleanroom/sdk_packet_SetLineG2.inc": (
+        "fc6a50ef2607e8856b05600fa554433a0e449ad33e4498f9d537d2fcc332b8d9", ('SetLineG2',)),
+    "pc_port/src/cleanroom/sdk_packet_SetPolyF3.inc": (
+        "1aa0538cdd51d735dd08f9bb2b8ff1656c43bb20132314934fad3227bd693cc4", ('SetPolyF3',)),
+    "pc_port/src/cleanroom/sdk_packet_SetPolyFT3.inc": (
+        "3027b1f454d56d49611c5391916e044ab8b99aea5829883d9ef77620ff96164f", ('SetPolyFT3',)),
+    "pc_port/src/cleanroom/sdk_packet_SetPolyG3.inc": (
+        "a652624baef610818d1524d4cf1c69d964ca7de44c2b08f32d41860fe0aa2263", ('SetPolyG3',)),
+    "pc_port/src/cleanroom/sdk_packet_SetPolyGT3.inc": (
+        "70c294f5e04666d5d90daadd688c21407cc57e341b515b4bd69a131e559c4ee2", ('SetPolyGT3',)),
+    "pc_port/src/cleanroom/sdk_pad_shutdown.inc": (
+        "c9d445f70d23025a957a3d2b629a46f36c83c9deeb2bc9a291109370f0557b16", ('func_800408F4',)),
+    "pc_port/src/cleanroom/sdk_pad_vblank_registration.inc": (
+        "5457fea35b49f5d2175159f3f102b2f90c429cbc948f9e08a1c4582e53df2423", ('func_8004B7D0',)),
+    "pc_port/src/cleanroom/sdk_read_geom_offset.inc": (
+        "61cd3d4824cc5e327cb8f406b447f4f470b825dd99f1f08963daf275a34e0513", ('ReadGeomOffset',)),
+    "pc_port/src/cleanroom/sdk_read_geom_screen.inc": (
+        "3ca87fc1a2766e5ecb991ccfb65c0ec74a812e88698ab74df60d486708e40ad0", ('ReadGeomScreen',)),
+    "pc_port/src/cleanroom/sdk_rot_average4.inc": (
+        "7e45eb90fd25ec7a4ecfdbb2380230ab959ec6d0dfed13672d5e4ad2e6a19715", ('RotAverage4',)),
+    "pc_port/src/cleanroom/sdk_spu_noise_clock.inc": (
+        "7fbf507b9839e0ad527f3bd38297243d2e0116aad980d94787d265daaefee2da", ('SpuSetNoiseClock',)),
+    "pc_port/src/cleanroom/sdk_vector_products.inc": (
+        "a3403652acc7c47bac804fac59d417a4708302e18419588dc04b0c79c9002c53", ('OuterProduct0', 'OuterProduct12', 'Square0')),
+    "pc_port/src/psyq_compat_transpose_matrix.c": (
+        "ef3d1313b5c9d6acd8736b5d7bcfc39113a894b8d54ee49556c19b0e85aaf0f3", ('TransposeMatrix',)),
+}
+REVIEWED_SYMBOLS = {name for _, names in REVIEWED_PROVIDERS.values() for name in names}
+# These public SDK entries are provided by the qualified PsyCross build.
+VENDOR_SYMBOLS = {"ClearImage", "CdFlush"}
+QUALIFIED_SYMBOLS = REVIEWED_SYMBOLS | VENDOR_SYMBOLS
+
+# A reviewed fragment by itself cannot authorize an address in a linked binary.
+PAD_PROVIDER_INCLUDES = {
+    "pc_port/src/psyq_compat.c": ("cleanroom/sdk_pad_shutdown.inc", 0x800408F4),
+    "pc_port/src/controller_vblank_service.c": ("cleanroom/sdk_pad_vblank_registration.inc", 0x8004B7D0),
 }
 
 FUNC_DEF_RE = re.compile(
@@ -100,11 +160,14 @@ def iter_sources(tree: Path):
                 yield Path(root) / fn
 
 
-def rel(p: Path) -> str:
+def rel(p: Path, tree: Path) -> str:
+    # An external pc_port checkout has the same project-relative source IDs.
+    # Compare complete paths below the selected root, never filename suffixes.
+    base = tree.parent if tree.name == "pc_port" else ROOT
     try:
-        return str(p.resolve().relative_to(ROOT))
+        return p.resolve().relative_to(base).as_posix()
     except ValueError:
-        return str(p)
+        return str(p.resolve())
 
 
 def strip_comments(text: str) -> str:
@@ -114,13 +177,34 @@ def strip_comments(text: str) -> str:
 
 # --------------------------------------------------------------------------- checks
 def check_sources(tree: Path, cls: psyq_classify.Classification):
+    tree = tree.resolve()
     out = []
+    present = set()
+    reviewed_addresses = set()
+    included_addresses = set()
+    COMPAT_ADDRS.clear()
     for p in iter_sources(tree):
+        r = rel(p, tree)
+        # Use both the spelling in the source tree and its resolved location:
+        # a symlink under an approved name must not qualify another file.
+        lexical = p.relative_to(tree.parent).as_posix() if tree.name == "pc_port" else r
+        legacy_compat = r == lexical and r in COMPAT_FILES
+        expected = REVIEWED_PROVIDERS.get(lexical)
         try:
-            raw = p.read_text(errors="replace")
+            source_bytes = p.read_bytes()
+            raw = source_bytes.decode("utf-8", errors="replace")
         except OSError:
+            if expected:
+                out.append(("provider", "unreadable", lexical, "cannot verify SDK source identity"))
             continue
-        r = rel(p)
+        reviewed_names = ()
+        if expected:
+            present.add(lexical)
+            expected_hash, names = expected
+            if r == lexical and hashlib.sha256(source_bytes).hexdigest() == expected_hash:
+                reviewed_names = names
+            else:
+                out.append(("provider", "sha256", lexical, "reviewed SDK source identity differs"))
         text = strip_comments(raw)
         seen = set()
         for m in FUNC_DEF_RE.finditer(text):
@@ -128,16 +212,24 @@ def check_sources(tree: Path, cls: psyq_classify.Classification):
             if name in KEYWORDS:
                 continue
             fm = re.fullmatch(r"func_([0-9A-Fa-f]{8})", name)
+            sdk_name = f"func_{fm.group(1).upper()}" if fm else name
+            if lexical.startswith("pc_port/src/") and sdk_name in QUALIFIED_SYMBOLS:
+                if name not in reviewed_names:
+                    out.append(("provider", name, lexical, "unverified SDK provider"))
+                    continue
+                if fm:
+                    reviewed_addresses.add(int(fm.group(1), 16))
+                continue
             if fm:
                 a = int(fm.group(1), 16)
                 lib = cls.library(a)
                 if lib and a not in seen and not r.startswith("pc_port/tests/"):
                     seen.add(a)
-                    if r in COMPAT_FILES:
+                    if legacy_compat:
                         COMPAT_ADDRS.add(a)
                     else:
                         out.append(("func", f"0x{a:08X}", r, f"{lib} defined"))
-            elif (name in cls.names and r.startswith("pc_port/src/") and r not in COMPAT_FILES
+            elif (name in cls.names and lexical.startswith("pc_port/src/") and not legacy_compat
                   and name not in seen):
                 seen.add(name)
                 out.append(("name", name, r, f"{cls.names[name][1]} SDK function re-implemented outside the compat layer"))
@@ -147,10 +239,20 @@ def check_sources(tree: Path, cls: psyq_classify.Classification):
             if lib and a not in seen:
                 seen.add(a)
                 out.append(("func", f"0x{a:08X}", r, f"{lib} decomp-source"))
+        pad_provider = PAD_PROVIDER_INCLUDES.get(lexical) if r == lexical else None
         for m in INCLUDE_RE.finditer(text):
-            inc = m.group(1)
+            inc = m.group(1).replace("\\", "/")
+            if pad_provider and inc == pad_provider[0]:
+                included_addresses.add(pad_provider[1])
             if re.search(r"(^|/)psyq/[^\"]*\.(c|s|inc)$", inc):
                 out.append(("include", inc, r, "matching-build Psy-Q TU"))
+    COMPAT_ADDRS.update(reviewed_addresses & included_addresses)
+    if tree == (ROOT / "pc_port").resolve():
+        for missing in sorted(REVIEWED_PROVIDERS.keys() - present):
+            out.append(("provider", "missing", missing, "reviewed SDK source is absent"))
+        for owner, (include, address) in PAD_PROVIDER_INCLUDES.items():
+            if address not in included_addresses:
+                out.append(("provider", include, owner, "SDK entry include is absent"))
     return out
 
 
@@ -217,7 +319,7 @@ def check_paths_binary(binary: Path):
             continue
         off, size = int(m.group(3), 16), int(m.group(4), 16)
         for hit in ABS_PATH_RE.finditer(blob, off, off + size):
-            found.add(hit.group(0).decode("ascii", "replace")[:160])
+            found.add(hit.group(0).decode("ascii", "replace"))
     return [("path", p, f"bin:{binary.name}", "absolute build path in a loaded section") for p in sorted(found)]
 
 
@@ -282,6 +384,7 @@ def check_tables_binary(binary: Path, tables, strict: bool = False):
 
 
 def check_tables_sources(tree: Path, tables, run_len: int = 24, distinct_words: int = 24):
+    tree = tree.resolve()
     out = []
     prepared = []
     for name, data in tables:
@@ -317,7 +420,7 @@ def check_tables_sources(tree: Path, tables, run_len: int = 24, distinct_words: 
                         hit = f"run of >= {run_len} consecutive table values"
                         break
             if hit:
-                out.append(("table", name, rel(p), hit))
+                out.append(("table", name, rel(p, tree), hit))
     return out
 
 
@@ -377,10 +480,8 @@ def run(argv=None) -> int:
         return 2
     tree = Path(a.tree)
     findings = []
-    COMPAT_ADDRS.clear()
     compat_scan = check_sources(tree, cls)  # also fills COMPAT_ADDRS
-    if not a.no_sources:
-        findings += compat_scan
+    findings += [row for row in compat_scan if not a.no_sources or row[0] == "provider"]
     for b in a.binary:
         if not Path(b).is_file():
             print(f"psyq_port_guard: --binary {b} does not exist", file=sys.stderr)
@@ -391,7 +492,6 @@ def run(argv=None) -> int:
     tables = []
     exe_path = Path(a.exe)
     if not a.no_disc and exe_path.is_file():
-        import hashlib
         exe = exe_path.read_bytes()
         if hashlib.sha256(exe).hexdigest() != EXE_SHA256:
             print(f"psyq_port_guard: {exe_path} is not the retail USA SLUS_006.64; "

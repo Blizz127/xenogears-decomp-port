@@ -17,6 +17,14 @@ PROJECT_HEADERS = {
 }
 
 
+def project_includes(platform):
+    check(platform in ('linux', 'windows'), 'Unknown renderer platform')
+    paths = ['pc_port/src/retail_data.h']
+    if platform == 'windows':
+        paths.append('pc_port/src/win_prepared_media.h')
+    return paths
+
+
 def sha(data):
     return hashlib.sha256(data).hexdigest()
 
@@ -71,11 +79,14 @@ def historical_sources(data, upstream, digest):
 def reconstruct(files, upstream):
     manifest = json.loads(files['manifest.json'])
     schema = manifest['schema']
-    check(schema in (1, 2), 'Unknown source companion schema')
+    check(schema in (1, 2, 3), 'Unknown source companion schema')
     sources = historical_sources(files['recipe.tar.gz'], upstream, manifest['recipe_sha256'])
-    if schema == 2:
-        check(not (PROJECT_HEADERS.keys() & sources.keys()), 'Source recipe contains superseded renderer inputs')
-        for key, path in PROJECT_HEADERS.items():
+    if schema >= 2:
+        selected = dict(PROJECT_HEADERS)
+        if schema == 3:
+            selected.update((path, path) for path in project_includes(manifest['platform']))
+        check(not (selected.keys() & sources.keys()), 'Source recipe contains superseded renderer inputs')
+        for key, path in selected.items():
             row = manifest['compiler_inputs'][key]
             check(row.get('origin') == 'source' and row.get('path') == path,
                   'Renderer override needs its committed project origin: ' + key)

@@ -2,7 +2,7 @@
 # Differential test of the native func_80077698 port body (src/battle/main7_port.c)
 # against the retail MIPS bytes (battle.bin + retail bzero/SetPolyG3 from
 # SLUS_006.64) on the MIPS adapter.  Native side links the port's
-# SetPolyG3 (psyq_compat_leaf.inc) and libc bzero.  Env: DISC_DIR (default $ROOT/disc),
+# SetPolyG3 from its production translation unit and libc bzero.  Env: DISC_DIR (default $ROOT/disc),
 # PSYCROSS_DIR (default $ROOT/pc_port/extern/PsyCross).
 set -euo pipefail
 if [[ ${G3ARROWS_BOUNDED:-0} != 1 ]]; then
@@ -29,17 +29,12 @@ BASE=(-std=gnu17 -fno-pie -no-pie -fno-builtin -fno-stack-protector
       -include assert.h -include stdint.h -fpermissive -ffunction-sections -fdata-sections)
 INC=(-Ipc_port/include_shim -Iinclude -I"$PSYCROSS/include" -I"$PSYCROSS/include/psx" -Ipc_port/src)
 
-# The port's SetPolyG3 (PsyCross only declares it; the definition is the
-# one-line compat body in pc_port/src/psyq_compat_leaf.inc, sed-extracted).
-sed -n -e '/^void SetPolyG3(/p' pc_port/src/psyq_compat_leaf.inc > "$BUILD_DIR/gpu.c"
-grep -q 'setcode(primitive, 0x30)' "$BUILD_DIR/gpu.c"
-
 run() {
     local name="$1" port="$2"; shift 2
     local flags=("$@")
     "$CC" "${BASE[@]}" "${INC[@]}" -w "${flags[@]}" -c "$port" -o "$BUILD_DIR/$name.port.o"
-    "$CC" "${BASE[@]}" "${INC[@]}" -w "${flags[@]}" -include common.h -include psyq/libgpu.h -include psyq/libgte.h -include psx_memory.h \
-        -c "$BUILD_DIR/gpu.c" -o "$BUILD_DIR/$name.gpu.o"
+    "$CC" "${BASE[@]}" "${INC[@]}" -w "${flags[@]}" \
+        -c pc_port/src/retail_leaf_adapters.c -o "$BUILD_DIR/$name.gpu.o"
     "$CC" "${BASE[@]}" "${INC[@]}" -Wall -Wextra -Werror "${flags[@]}" \
         -c pc_port/src/battle_mips_adapter.c -o "$BUILD_DIR/$name.cpu.o"
     "$CC" "${BASE[@]}" "${INC[@]}" -Wall -Wextra -Werror -Wno-unused-parameter "${flags[@]}" \

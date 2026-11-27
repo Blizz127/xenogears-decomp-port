@@ -66,15 +66,24 @@ for opt in O0 O2 UBSan; do
         "$OUT/$opt.INLINE_C.C.o" "$OUT/$opt.PsyX_GTE.cpp.o" -ldl -o "$OUT/$opt"
     "$OUT/$opt"
 done
+vector_provider=pc_port/src/cleanroom/sdk_vector_products.inc
 for mutant in square_scale square_store; do
     case "$mutant" in
-        square_scale) expression='s/gte_sqr0()/gte_sqr12()/' ;;
-        square_store) expression='s/gte_stlvnl(v1);/v1->vx = v1->vy = v1->vz = 0;/' ;;
+        # Set the GTE command's 12-bit result-shift flag.
+        square_scale) expression='s/gte_sqr0()/doCOP2(0xa00428 | (1u << 19))/' ;;
+        square_store) expression='s/sdk_vector_store_mac(result);/memset(result, 0, 3 * sizeof(uint32_t));/' ;;
     esac
-    sed "/^VECTOR\* Square0(/,/^}/ { $expression; }" pc_port/src/psyq_compat.c > "$OUT/$mutant.c"
+    variant="$OUT/$mutant-src"
+    mkdir -p "$variant/cleanroom"
+    cp pc_port/src/psyq_compat.c "$variant/psyq_compat.c"
+    fragment="$variant/cleanroom/sdk_vector_products.inc"
+    sed "/^VECTOR [*]Square0(/,/^}/ { $expression; }" "$vector_provider" > "$fragment"
+    if cmp -s "$vector_provider" "$fragment"; then
+        echo "Square0 mutation did not change the provider: $mutant" >&2; exit 1
+    fi
     gcc -std=gnu17 "${COMMON[@]}" -O2 -DXENO_PC_PORT -DSKIP_ASM -D_LANGUAGE_C \
         -include assert.h -Ipc_port/include_shim -Iinclude -Ipc_port/src \
-        -fpermissive -w -c "$OUT/$mutant.c" -o "$OUT/$mutant.o"
+        -fpermissive -w -c "$variant/psyq_compat.c" -o "$OUT/$mutant.o"
     clang++ -no-pie -Wl,--gc-sections "$OUT/O2.test.o" "$OUT/O2.cpu.o" \
         "$OUT/O2.leaves.o" "$OUT/O2.magnitude.o" "$OUT/$mutant.o" "$OUT/O2.LIBGTE.C.o" \
         "$OUT/O2.INLINE_C.C.o" "$OUT/O2.PsyX_GTE.cpp.o" -ldl -o "$OUT/$mutant"
